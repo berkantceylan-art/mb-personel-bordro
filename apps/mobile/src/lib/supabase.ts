@@ -15,6 +15,9 @@ export const supabase = createClient(SUPABASE_URL || "https://invalid.supabase.c
   },
 });
 
+/** Web uygulamasının adresi (davetle hesap oluşturma servisi) */
+export const WEB_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? "https://mb-personel-bordro.vercel.app").replace(/\/$/, "");
+
 export const configured = Boolean(SUPABASE_URL && ANON);
 
 // Uygulama ön plandayken oturum yenilensin

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import { Button, Card, Field, Notice, Screen } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
-import { PERSONNEL_DOMAIN, supabase } from "@/lib/supabase";
+import { PERSONNEL_DOMAIN, WEB_URL, supabase } from "@/lib/supabase";
 import { C } from "@/lib/theme";
 
 type Preview = { company: string; role: string; display_name: string | null; login_email: string; valid: boolean };
@@ -33,12 +33,22 @@ export default function Invite() {
     if (pw !== pw2) return setErr("Şifreler aynı değil.");
     setBusy(true);
     setErr(null);
-    let { error } = await supabase.auth.signUp({ email: p.login_email, password: pw });
-    if (error && /registered|exists/i.test(error.message)) ({ error } = await supabase.auth.signInWithPassword({ email: p.login_email, password: pw }));
-    let problem = error?.message ?? null;
+    let problem: string | null = null;
+    try {
+      // 1) Sunucu hesabı hazırlar (e-posta onayı gerekmez, yarım kalan denemeyi düzeltir)
+      const res = await fetch(`${WEB_URL}/api/davet`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, password: pw }) });
+      if (res.status === 501) {
+        const { error } = await supabase.auth.signUp({ email: p.login_email, password: pw });
+        if (error && !/registered|exists/i.test(error.message)) problem = error.message;
+      } else if (!res.ok) {
+        problem = ((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Hesap oluşturulamadı";
+      }
+    } catch {
+      problem = "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.";
+    }
     if (!problem) {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) problem = "Hesap oluşturuldu ama oturum açılamadı. Yöneticinize 'e-posta onayı' ayarını sorun.";
+      const { error } = await supabase.auth.signInWithPassword({ email: p.login_email, password: pw });
+      if (error) problem = /invalid login/i.test(error.message) ? "Bu kullanıcı adıyla daha önce farklı bir şifreyle hesap açılmış. Yöneticinize bildirin." : error.message;
     }
     if (problem) {
       setBusy(false);

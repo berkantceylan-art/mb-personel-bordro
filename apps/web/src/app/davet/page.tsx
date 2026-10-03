@@ -36,13 +36,20 @@ export default function InvitePage() {
     setBusy(true);
     setError(null);
     const supabase = createClient();
-    let { error } = await supabase.auth.signUp({ email: preview.login_email, password });
-    if (error && /registered|exists/i.test(error.message)) {
-      ({ error } = await supabase.auth.signInWithPassword({ email: preview.login_email, password }));
+    // 1) Sunucu hesabı hazırlar (e-posta onayı gerekmez, yarım kalan denemeyi düzeltir)
+    const res = await fetch("/api/davet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, password }) });
+    let error: { message: string } | null = null;
+    if (res.status === 501) {
+      // Sunucu servisi ayarlı değilse eski yol
+      ({ error } = await supabase.auth.signUp({ email: preview.login_email, password }));
+      if (error && /registered|exists/i.test(error.message)) error = null;
+    } else if (!res.ok) {
+      error = { message: ((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Hesap oluşturulamadı" };
     }
+    if (!error) ({ error } = await supabase.auth.signInWithPassword({ email: preview.login_email, password }));
     if (error) {
       setBusy(false);
-      return setError(error.message);
+      return setError(/invalid login/i.test(error.message) ? "Bu kullanıcı adıyla daha önce farklı bir şifreyle hesap açılmış. Yöneticinize bildirin." : error.message);
     }
     const { error: claimErr } = await supabase.rpc("claim_invite", { p_code: code });
     setBusy(false);
