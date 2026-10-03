@@ -7,10 +7,10 @@ const NAV: Array<{ group: string; items: Array<{ label: string; href: string; so
   {
     group: "Zaman",
     items: [
-      { label: "Puantaj", href: "/puantaj", soon: true },
-      { label: "Vardiyalar", href: "/vardiyalar", soon: true },
-      { label: "İzin", href: "/izin", soon: true },
-      { label: "Fazla Mesai", href: "/fazla-mesai", soon: true },
+      { label: "Puantaj", href: "/puantaj" },
+      { label: "Vardiyalar", href: "/vardiyalar" },
+      { label: "İzin", href: "/izin" },
+      { label: "Fazla Mesai", href: "/fazla-mesai" },
     ],
   },
   {

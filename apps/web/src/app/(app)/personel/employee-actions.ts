@@ -99,6 +99,7 @@ export async function saveEmployee(_: EmployeeSaveResult | null, f: FormData): P
   priv.iban = iban;
   const { error: pErr } = await supabase.from("employee_private").upsert(priv, { onConflict: "employee_id" });
   if (pErr) return { message: `Kişisel bilgiler kaydedilemedi: ${pErr.message}` };
+  if (employee.card_no) await supabase.rpc("link_punches_to_employees", { p_company: s.companyId });
 
   revalidatePath("/personel");
   revalidatePath(`/personel/${employeeId}`);
