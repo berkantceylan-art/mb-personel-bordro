@@ -33,7 +33,16 @@ export default async function EmployeesPage({
 
   return (
     <>
-      <PageHeader title="Personel" subtitle={`${employees?.length ?? 0} kişi`} actions={<PrimaryLink href="/ice-aktar">Excel&apos;den aktar</PrimaryLink>} />
+      <PageHeader
+        title="Personel"
+        subtitle={`${employees?.length ?? 0} kişi`}
+        actions={
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/ice-aktar" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-brand-700 font-semibold">Excel&apos;den aktar</Link>
+            <PrimaryLink href="/personel/yeni">+ Yeni personel</PrimaryLink>
+          </div>
+        }
+      />
       <div className="p-6 md:p-8 flex flex-col gap-4 max-w-[1240px]">
         <form className="flex flex-wrap gap-3">
           <input name="q" defaultValue={q} placeholder="Ad, soyad veya sicil ara" aria-label="Personel ara" className="h-11 flex-1 min-w-56 rounded-[10px] border border-[#D5DEE8] bg-white px-3.5" />

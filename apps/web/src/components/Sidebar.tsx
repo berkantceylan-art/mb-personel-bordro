@@ -17,6 +17,8 @@ const NAV: Array<{ group: string; items: Array<{ label: string; href: string; so
     group: "Para",
     items: [
       { label: "Avans & Ödemeler", href: "/odemeler/yeni" },
+      { label: "Dönemler", href: "/donemler" },
+      { label: "Zamlar", href: "/zamlar" },
       { label: "Bordro", href: "/bordro", soon: true },
       { label: "BES", href: "/bes", soon: true },
       { label: "İcra & Nafaka", href: "/icra", soon: true },
