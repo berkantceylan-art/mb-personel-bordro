@@ -6,3 +6,5 @@ export * from "./ledger";
 export * from "./attendance";
 export * from "./period";
 export * from "./timekeeping";
+export * from "./sides";
+export * from "./payroll-run";

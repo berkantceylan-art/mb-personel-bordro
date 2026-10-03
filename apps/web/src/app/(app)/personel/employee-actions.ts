@@ -91,6 +91,9 @@ export async function saveEmployee(_: EmployeeSaveResult | null, f: FormData): P
         bes_rate: f.get("bes") === "on" ? 0.03 : 0,
         change_reason: "İşe giriş",
       });
+      if (f.get("bes") === "on") {
+        await supabase.from("bes_enrollments").insert({ company_id: s.companyId, employee_id: employeeId, enrolled_on: hireDate, rate: 0.03 });
+      }
     }
   }
 

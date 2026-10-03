@@ -1,6 +1,7 @@
 "use client";
 import { useActionState } from "react";
 import { addManualOvertime, createLeave } from "@/lib/leave-ot-actions";
+import { PaySideSelect } from "./PaySideSelect";
 
 const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white w-full";
 
@@ -45,6 +46,7 @@ export function ManualOvertimeForm({ employees }: { employees: Array<{ id: strin
       <label className="flex flex-col gap-1.5 text-sm text-muted">Oran
         <select name="rate" className={input}><option value="1.5">%50 (normal)</option><option value="2">%100 (resmi tatil)</option></select>
       </label>
+      <PaySideSelect />
       <button disabled={pending} className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-60">Ekle</button>
       {state && <span role="status" className="text-sm text-ok">{state.message}</span>}
     </form>

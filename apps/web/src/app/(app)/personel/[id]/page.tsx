@@ -65,13 +65,16 @@ export default async function EmployeeProfile({
     .maybeSingle();
   if (!e) notFound();
 
-  const [{ data: priv }, { data: contracts }, { data: entries }, { data: docTypes }, { data: docs }, { data: periods }] = await Promise.all([
+  const [{ data: priv }, { data: contracts }, { data: entries }, { data: docTypes }, { data: docs }, { data: periods }, { data: payLines }, { data: garnFiles }, { data: besRows }] = await Promise.all([
     supabase.from("employee_private").select("*").eq("employee_id", id).maybeSingle(),
     supabase.from("pay_contracts").select("*").eq("employee_id", id).order("valid_from", { ascending: false }),
     supabase.from("ledger_entries").select("*").eq("employee_id", id).eq("period", period),
     supabase.from("document_types").select("id, name, required, category, has_expiry").order("sort_order"),
     supabase.from("employee_documents").select("id, document_type_id, file_path, file_name, expires_on, uploaded_at").eq("employee_id", id),
     supabase.from("ledger_entries").select("period").eq("employee_id", id).is("voided_at", null),
+    supabase.from("payroll_lines").select("period, official_net, net_to_bank, posted").eq("employee_id", id).order("period", { ascending: false }).limit(24),
+    supabase.from("garnishment_balances").select("kind, office, file_no, remaining, monthly_amount, status").eq("employee_id", id),
+    supabase.from("bes_enrollments").select("status, rate, enrolled_on").eq("employee_id", id).order("enrolled_on", { ascending: false }).limit(1),
   ]);
 
   const active = (entries ?? []).filter((r) => !r.voided_at);
@@ -322,6 +325,27 @@ export default async function EmployeeProfile({
                 </div>
               ))}
               {e.notes && <p className="text-[13px] bg-[#F7F9FB] rounded-lg p-3 whitespace-pre-line">{e.notes}</p>}
+            </Card>
+          )}
+
+          {pay && (
+            <Card title="Bordrolar, BES ve icra">
+              {(payLines ?? []).length === 0 && <p className="text-[13px] text-muted">Henüz kaydedilmiş bordro yok.</p>}
+              {(payLines ?? []).map((l) => (
+                <div key={l.period} className="flex items-center gap-2 text-[13px]">
+                  <span className="flex-1 font-semibold">{periodLabel(l.period)}</span>
+                  <span className="num text-muted">{formatTL(Number(l.net_to_bank))}</span>
+                  <a href={`/yazdir/bordro/${l.period}?tur=resmi&personel=${id}`} target="_blank" className="text-xs font-semibold text-brand-700">Resmi</a>
+                  <a href={`/yazdir/bordro/${l.period}?tur=ic&personel=${id}`} target="_blank" className="text-xs font-semibold text-accent-ink">İç fiş</a>
+                </div>
+              ))}
+              <div className="border-t border-[#EEF2F6] pt-2 text-[13px] flex flex-col gap-1">
+                <span>BES: {besRows?.[0] ? `${besRows[0].status === "active" ? "aktif" : "pasif"} · %${(Number(besRows[0].rate) * 100).toLocaleString("tr-TR")} · ${formatDate(besRows[0].enrolled_on)}` : "kayıt yok"} <Link href="/bes" className="text-xs font-semibold text-brand-700 ml-1">BES</Link></span>
+                {(garnFiles ?? []).filter((g) => g.status === "active").map((g, i) => (
+                  <span key={i}>{g.kind === "ALIMONY" ? "Nafaka" : "İcra"} · {g.office} {g.file_no} · {g.kind === "ALIMONY" ? `${formatTL(Number(g.monthly_amount))}/ay` : `kalan ${formatTL(Number(g.remaining))}`}</span>
+                ))}
+                {!(garnFiles ?? []).some((g) => g.status === "active") && <span className="text-muted">Aktif icra / nafaka dosyası yok <Link href="/icra" className="text-xs font-semibold text-brand-700 ml-1">İcra</Link></span>}
+              </div>
             </Card>
           )}
 

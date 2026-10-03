@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { countLeaveDays, overtimePay, roundKurus } from "@mb/core";
+import { countLeaveDays, overtimeSides, roundKurus, sideLines, type PaySide } from "@mb/core";
+import { contractsAt } from "@/lib/contracts";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
 
@@ -88,64 +89,71 @@ export async function addLeaveAdjustment(f: FormData) {
 /* Fazla mesai                                                         */
 /* ------------------------------------------------------------------ */
 
-async function monthlyTotals(supabase: Awaited<ReturnType<typeof createClient>>, ids: string[], onDate: string) {
-  const { data } = await supabase.from("pay_contracts").select("employee_id, valid_from, total_net").in("employee_id", ids).lte("valid_from", onDate).order("valid_from");
-  const m = new Map<string, number>();
-  for (const c of data ?? []) m.set(c.employee_id, Number(c.total_net));
-  return m;
-}
+const parseSide = (v: FormDataEntryValue | null): PaySide => (v === "OFFICIAL" || v === "CASH" ? v : "BOTH");
 
-/** items: "employeeId|date|minutes|rate" */
+/** items: "employeeId|date|minutes|rate" · pay_side: OFFICIAL | CASH | BOTH */
 export async function approveOvertime(f: FormData) {
   const s = await getSession();
   if (!canHr(s.role)) return;
   const decision = f.get("decision") === "reject" ? "rejected" : "approved";
+  const side = parseSide(f.get("pay_side"));
   const items = f.getAll("item").map(String).map((x) => {
     const [employeeId, date, minutes, rate] = x.split("|");
     return { employeeId: employeeId!, date: date!, minutes: Number(minutes), rate: Number(rate) };
   });
   if (!items.length) return;
   const supabase = await createClient();
-  const totals = await monthlyTotals(supabase, [...new Set(items.map((i) => i.employeeId))], items.map((i) => i.date).sort().at(-1)!);
+  const contracts = await contractsAt(supabase, [...new Set(items.map((i) => i.employeeId))], items.map((i) => i.date).sort().at(-1)!);
   const writeLedger = decision === "approved" && canManagePay(s.role);
 
   for (const it of items) {
-    const amount = totals.has(it.employeeId) ? overtimePay(totals.get(it.employeeId)!, it.minutes, it.rate) : null;
-    let ledgerId: string | null = null;
-    if (writeLedger && amount) {
-      const { data } = await supabase
-        .from("ledger_entries")
-        .insert({
+    const c = contracts.get(it.employeeId);
+    const a = c ? overtimeSides({ contract: c, month: Number(it.date.slice(5, 7)) }, it.minutes, it.rate) : null;
+    const lines = a && decision === "approved" ? sideLines(a, side) : [];
+    const { data: rec } = await supabase
+      .from("overtime_records")
+      .upsert(
+        {
+          company_id: s.companyId,
+          employee_id: it.employeeId,
+          work_date: it.date,
+          period: it.date.slice(0, 7),
+          minutes: it.minutes,
+          rate: it.rate,
+          pay_side: side,
+          official_gross: a?.officialGross ?? null,
+          official_net: a?.officialNet ?? null,
+          cash_amount: a?.cash ?? null,
+          amount: lines.reduce((x, l) => x + l.amount, 0) || null,
+          source: f.get("manual") ? "MANUAL" : "AUTO",
+          status: decision,
+          decided_by: s.userId,
+          decided_at: new Date().toISOString(),
+        },
+        { onConflict: "employee_id,work_date" },
+      )
+      .select("id")
+      .single();
+    if (!writeLedger || !rec || !lines.length) continue;
+    const label = `Fazla mesai ${Math.floor(it.minutes / 60)} sa ${it.minutes % 60} dk ×${it.rate}`;
+    const { data: entries } = await supabase
+      .from("ledger_entries")
+      .insert(
+        lines.map((l) => ({
           company_id: s.companyId,
           employee_id: it.employeeId,
           period: it.date.slice(0, 7),
           entry_date: it.date,
           type: "OVERTIME",
           channel: "NONE",
-          amount,
-          note: `Fazla mesai ${Math.floor(it.minutes / 60)} sa ${it.minutes % 60} dk ×${it.rate}`,
-        })
-        .select("id")
-        .single();
-      ledgerId = data?.id ?? null;
-    }
-    await supabase.from("overtime_records").upsert(
-      {
-        company_id: s.companyId,
-        employee_id: it.employeeId,
-        work_date: it.date,
-        period: it.date.slice(0, 7),
-        minutes: it.minutes,
-        rate: it.rate,
-        amount: decision === "approved" ? amount : null,
-        source: "AUTO",
-        status: decision,
-        ledger_entry_id: ledgerId,
-        decided_by: s.userId,
-        decided_at: new Date().toISOString(),
-      },
-      { onConflict: "employee_id,work_date" },
-    );
+          amount: l.amount,
+          pay_side: l.side,
+          gross_amount: l.grossAmount,
+          note: `${label} (${l.side === "OFFICIAL" ? "resmi, bordroya brüt" : "elden"})`,
+        })),
+      )
+      .select("id");
+    if (entries?.length) await supabase.from("overtime_ledger_links").insert(entries.map((e) => ({ overtime_id: rec.id, ledger_entry_id: e.id })));
   }
   revalidatePath("/fazla-mesai");
 }
@@ -162,6 +170,8 @@ export async function addManualOvertime(_: { message: string } | null, f: FormDa
   const fd = new FormData();
   fd.append("item", `${employeeId}|${date}|${minutes}|${rate}`);
   fd.append("decision", "approve");
+  fd.append("pay_side", String(f.get("pay_side") ?? "BOTH"));
+  fd.append("manual", "1");
   await approveOvertime(fd);
   return { message: "Fazla mesai eklendi ve onaylandı." };
 }
@@ -171,8 +181,12 @@ export async function cancelOvertime(f: FormData) {
   if (!canHr(s.role)) return;
   const supabase = await createClient();
   const id = String(f.get("id"));
-  const { data: r } = await supabase.from("overtime_records").select("ledger_entry_id").eq("id", id).single();
-  if (r?.ledger_entry_id && canManagePay(s.role)) await supabase.rpc("void_ledger_entry", { p_id: r.ledger_entry_id, p_reason: "Fazla mesai iptal edildi" });
+  const [{ data: r }, { data: links }] = await Promise.all([
+    supabase.from("overtime_records").select("ledger_entry_id").eq("id", id).single(),
+    supabase.from("overtime_ledger_links").select("ledger_entry_id").eq("overtime_id", id),
+  ]);
+  const ids = [...(links ?? []).map((l) => l.ledger_entry_id as string), ...(r?.ledger_entry_id ? [r.ledger_entry_id as string] : [])];
+  if (canManagePay(s.role)) for (const lid of ids) await supabase.rpc("void_ledger_entry", { p_id: lid, p_reason: "Fazla mesai geri alındı" });
   await supabase.from("overtime_records").delete().eq("id", id);
   revalidatePath("/fazla-mesai");
 }
