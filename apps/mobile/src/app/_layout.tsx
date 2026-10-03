@@ -1,12 +1,11 @@
 import { Stack, useRouter, useSegments } from "expo-router";
-import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, isManager, useAuth } from "@/lib/auth";
 import { appRoute } from "@/lib/format";
-import { registerPush } from "@/lib/push";
+import { onNotificationTap, registerPush } from "@/lib/push";
 import { configured } from "@/lib/supabase";
 import { C } from "@/lib/theme";
 
@@ -35,11 +34,12 @@ function Gate() {
   }, [profile]);
 
   // Bildirime dokununca ilgili ekrana git
-  const response = Notifications.useLastNotificationResponse();
   useEffect(() => {
-    const link = response?.notification.request.content.data?.link as string | undefined;
-    if (response && profile) router.push(appRoute(link, isManager(profile.role)) as never);
-  }, [response, profile, router]);
+    if (!profile) return;
+    let off = () => {};
+    onNotificationTap((link) => router.push(appRoute(link, isManager(profile.role)) as never)).then((f) => (off = f));
+    return () => off();
+  }, [profile, router]);
 
   if (loading) {
     return (
