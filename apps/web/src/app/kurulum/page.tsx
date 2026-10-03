@@ -12,7 +12,16 @@ async function setup(formData: FormData) {
   redirect("/");
 }
 
-export default function SetupPage() {
+export const dynamic = "force-dynamic";
+
+export default async function SetupPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/giris");
+  const { data: m } = await supabase.from("memberships").select("company_id").eq("user_id", user.id).limit(1).maybeSingle();
+  if (m) redirect("/");
   return (
     <main className="min-h-screen grid place-items-center px-4">
       <form action={setup} className="w-full max-w-md bg-white border border-line rounded-2xl p-8 flex flex-col gap-5">
