@@ -1,0 +1,12 @@
+{
+  "name": "mb-personel-bordro",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter @mb/core build && pnpm --filter web build",
+    "test": "pnpm --filter @mb/core test",
+    "lint": "pnpm --filter web lint",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
