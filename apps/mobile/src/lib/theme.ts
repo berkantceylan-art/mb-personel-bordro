@@ -1,0 +1,18 @@
+export const C = {
+  brand900: "#072A50",
+  brand800: "#0A2540",
+  brand700: "#0A3D73",
+  accent: "#00A6D6",
+  accentInk: "#00607F",
+  ground: "#F3F6F9",
+  line: "#E1E7EE",
+  muted: "#5A6878",
+  ink: "#14202E",
+  okBg: "#E6F4EC",
+  ok: "#17603C",
+  warnBg: "#FFF4E0",
+  warn: "#8A5300",
+  badBg: "#FDECEA",
+  bad: "#9B1C14",
+  white: "#FFFFFF",
+};

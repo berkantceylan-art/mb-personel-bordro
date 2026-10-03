@@ -67,6 +67,7 @@ export async function decideLeave(f: FormData) {
   const supabase = await createClient();
   await supabase.from("leave_requests").update({ status, decided_by: s.userId, decided_at: new Date().toISOString() }).eq("id", String(f.get("id")));
   revalidatePath("/izin");
+  revalidatePath("/talepler");
   revalidatePath("/puantaj");
 }
 

@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { PERSONNEL_DOMAIN } from "@/lib/constants";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,10 +17,11 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const login = email.includes("@") ? email.trim() : `${email.trim().toLowerCase()}@${PERSONNEL_DOMAIN}`;
+    const { error } = await supabase.auth.signInWithPassword({ email: login, password });
     setBusy(false);
     if (error) {
-      setError("E-posta veya şifre hatalı.");
+      setError("Kullanıcı adı / e-posta veya şifre hatalı.");
       return;
     }
     router.replace("/");
@@ -37,11 +40,11 @@ export default function LoginPage() {
           </div>
         </div>
         <label className="flex flex-col gap-1.5 text-sm text-muted">
-          E-posta
+          E-posta veya kullanıcı adı (PDKS no)
           <input
-            type="email"
+            type="text"
             required
-            autoComplete="email"
+            autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="h-12 rounded-lg border border-line px-3 text-ink text-base"
@@ -62,6 +65,7 @@ export default function LoginPage() {
         <button disabled={busy} className="h-12 rounded-lg bg-brand-700 text-white font-semibold disabled:opacity-60">
           {busy ? "Giriş yapılıyor…" : "Giriş yap"}
         </button>
+        <Link href="/davet" className="text-center text-sm text-brand-700 font-semibold">Davet kodum var · hesap oluştur</Link>
       </form>
     </main>
   );

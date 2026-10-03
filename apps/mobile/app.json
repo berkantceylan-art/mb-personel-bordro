@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "MB Personel",
+    "slug": "mb-personel",
+    "scheme": "mbpersonel",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#072A50"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.mbdental.personel",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Giriş-çıkış kaydı için işyerinde olduğunuzu doğrulamak amacıyla konumunuz kullanılır.",
+        "NSCameraUsageDescription": "Giriş-çıkış için işyerindeki QR kodu okutmak amacıyla kamera kullanılır."
+      }
+    },
+    "android": {
+      "package": "app.mbdental.personel",
+      "adaptiveIcon": {
+        "backgroundColor": "#072A50",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Giriş-çıkış için işyerindeki QR kodu okutmak amacıyla kamera kullanılır.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Giriş-çıkış kaydı için işyerinde olduğunuzu doğrulamak amacıyla konumunuz kullanılır."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#00A6D6"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {}
+    }
+  }
+}

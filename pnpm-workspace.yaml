@@ -1,3 +1,5 @@
 packages:
   - "apps/*"
   - "packages/*"
+  # Expo uygulaması kendi npm kurulumunu kullanır (Vercel derlemesini etkilemez)
+  - "!apps/mobile"

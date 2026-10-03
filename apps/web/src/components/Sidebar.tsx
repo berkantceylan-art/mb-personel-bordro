@@ -2,34 +2,57 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV: Array<{ group: string; items: Array<{ label: string; href: string; soon?: boolean }> }> = [
-  { group: "Genel", items: [{ label: "Gösterge Paneli", href: "/" }, { label: "Personel", href: "/personel" }] },
+type Item = { label: string; href: string; roles?: string[] };
+const MANAGERS = ["owner", "accountant", "hr", "branch_manager", "safety"];
+const PAY = ["owner", "accountant"];
+const HR = ["owner", "hr", "branch_manager"];
+
+const NAV: Array<{ group: string; items: Item[] }> = [
+  {
+    group: "Genel",
+    items: [
+      { label: "Gösterge Paneli", href: "/", roles: MANAGERS },
+      { label: "Benim sayfam", href: "/benim", roles: ["employee"] },
+      { label: "Personel", href: "/personel", roles: MANAGERS },
+    ],
+  },
+  {
+    group: "İletişim",
+    items: [
+      { label: "Duyurular", href: "/duyurular" },
+      { label: "Mesajlar", href: "/mesajlar" },
+      { label: "Talepler", href: "/talepler", roles: [...new Set([...PAY, ...HR])] },
+      { label: "Bildirimler", href: "/bildirimler" },
+    ],
+  },
   {
     group: "Zaman",
     items: [
-      { label: "Puantaj", href: "/puantaj" },
-      { label: "Vardiyalar", href: "/vardiyalar" },
-      { label: "İzin", href: "/izin" },
-      { label: "Fazla Mesai", href: "/fazla-mesai" },
+      { label: "Puantaj", href: "/puantaj", roles: MANAGERS },
+      { label: "Vardiyalar", href: "/vardiyalar", roles: MANAGERS },
+      { label: "İzin", href: "/izin", roles: MANAGERS },
+      { label: "Fazla Mesai", href: "/fazla-mesai", roles: MANAGERS },
     ],
   },
   {
     group: "Para",
     items: [
-      { label: "Avans & Ödemeler", href: "/odemeler/yeni" },
-      { label: "Dönemler", href: "/donemler" },
-      { label: "Zamlar", href: "/zamlar" },
-      { label: "Bordro", href: "/bordro" },
-      { label: "BES", href: "/bes" },
-      { label: "İcra & Nafaka", href: "/icra" },
+      { label: "Avans & Ödemeler", href: "/odemeler/yeni", roles: PAY },
+      { label: "Dönemler", href: "/donemler", roles: PAY },
+      { label: "Zamlar", href: "/zamlar", roles: PAY },
+      { label: "Bordro", href: "/bordro", roles: PAY },
+      { label: "BES", href: "/bes", roles: PAY },
+      { label: "İcra & Nafaka", href: "/icra", roles: PAY },
     ],
   },
-  { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg" }, { label: "Sağlık", href: "/saglik" }] },
-  { group: "Analiz", items: [{ label: "Raporlar", href: "/raporlar" }, { label: "Excel'den Aktar", href: "/ice-aktar" }] },
+  { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg", roles: MANAGERS }, { label: "Sağlık", href: "/saglik", roles: ["owner", "hr", "safety"] }] },
+  { group: "Analiz", items: [{ label: "Raporlar", href: "/raporlar", roles: MANAGERS }, { label: "Excel'den Aktar", href: "/ice-aktar", roles: PAY }] },
+  { group: "Sistem", items: [{ label: "Yönetim", href: "/yonetim", roles: ["owner", "hr"] }] },
 ];
 
-export function Sidebar({ companyName }: { companyName: string }) {
+export function Sidebar({ companyName, role, badges = {} }: { companyName: string; role: string; badges?: Record<string, number> }) {
   const path = usePathname();
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(role)) })).filter((g) => g.items.length);
   const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   return (
     <nav aria-label="Ana menü" className="print:hidden md:w-62 md:shrink-0 bg-brand-900 text-[#C9D6E5] flex flex-col gap-5 px-3.5 py-5">
@@ -44,24 +67,23 @@ export function Sidebar({ companyName }: { companyName: string }) {
         </div>
       </div>
       <div className="flex md:flex-col gap-4 overflow-x-auto md:overflow-visible">
-        {NAV.map((g) => (
+        {groups.map((g) => (
           <div key={g.group} className="flex md:flex-col gap-0.5 shrink-0">
             <span className="hidden md:block text-[11px] uppercase tracking-[0.08em] text-[#6F8AA8] px-2.5 pb-1">{g.group}</span>
-            {g.items.map((n) =>
-              n.soon ? (
-                <span key={n.href} className="px-3 py-2.5 rounded-lg text-[#6F8AA8] whitespace-nowrap" title="Sonraki aşamada">
-                  {n.label}
-                </span>
-              ) : (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  className={`px-3 py-2.5 rounded-lg whitespace-nowrap ${isActive(n.href) ? "bg-brand-600 text-white font-semibold" : "hover:bg-white/5"}`}
-                >
-                  {n.label}
-                </Link>
-              ),
-            )}
+            {g.items.map((n) => (
+              <Link
+                key={n.href}
+                href={n.href}
+                className={`px-3 py-2.5 rounded-lg whitespace-nowrap flex items-center justify-between gap-2 ${isActive(n.href) ? "bg-brand-600 text-white font-semibold" : "hover:bg-white/5"}`}
+              >
+                {n.label}
+                {(badges[n.href] ?? 0) > 0 && (
+                  <span className="min-w-5 h-5 px-1.5 rounded-full bg-accent text-white text-[11px] font-bold grid place-items-center" aria-label={`${badges[n.href]} okunmamış`}>
+                    {badges[n.href]! > 99 ? "99+" : badges[n.href]}
+                  </span>
+                )}
+              </Link>
+            ))}
           </div>
         ))}
       </div>

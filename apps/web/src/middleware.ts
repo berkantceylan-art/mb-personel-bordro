@@ -1,9 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/giris", "/auth"];
+const PUBLIC_PATHS = ["/giris", "/auth", "/davet"];
 
 export async function middleware(request: NextRequest) {
+  // Sunucu bileşenleri (layout) mevcut yolu bilsin
+  request.headers.set("x-pathname", request.nextUrl.pathname);
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
