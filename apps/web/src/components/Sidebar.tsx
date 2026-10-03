@@ -25,14 +25,14 @@ const NAV: Array<{ group: string; items: Array<{ label: string; href: string; so
     ],
   },
   { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg" }, { label: "Sağlık", href: "/saglik" }] },
-  { group: "Analiz", items: [{ label: "Raporlar", href: "/raporlar", soon: true }, { label: "Excel'den Aktar", href: "/ice-aktar" }] },
+  { group: "Analiz", items: [{ label: "Raporlar", href: "/raporlar" }, { label: "Excel'den Aktar", href: "/ice-aktar" }] },
 ];
 
 export function Sidebar({ companyName }: { companyName: string }) {
   const path = usePathname();
   const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   return (
-    <nav aria-label="Ana menü" className="md:w-62 md:shrink-0 bg-brand-900 text-[#C9D6E5] flex flex-col gap-5 px-3.5 py-5">
+    <nav aria-label="Ana menü" className="print:hidden md:w-62 md:shrink-0 bg-brand-900 text-[#C9D6E5] flex flex-col gap-5 px-3.5 py-5">
       <div className="flex items-center gap-3 px-2">
         <div className="w-11 h-11 rounded-[10px] bg-white grid place-items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
