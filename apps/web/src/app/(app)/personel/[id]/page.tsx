@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canManagePay, currentPeriod, formatDate, getSession, periodLabel } from "@/lib/session";
 import { deleteContract } from "../../zamlar/actions";
 import { deleteDocument, uploadDocument } from "./document-actions";
+import { cellStyle, loadCompliance } from "@/lib/compliance";
 
 function yearsSince(iso: string) {
   const d = new Date(iso);
@@ -77,6 +78,11 @@ export default async function EmployeeProfile({
     supabase.from("bes_enrollments").select("status, rate, enrolled_on").eq("employee_id", id).order("enrolled_on", { ascending: false }).limit(1),
   ]);
 
+  const showHealth = ["owner", "hr", "safety"].includes(s.role);
+  const [isgData, healthData] = await Promise.all([
+    loadCompliance(supabase, "TRAINING", { employeeId: id }),
+    showHealth ? loadCompliance(supabase, "HEALTH", { employeeId: id }) : Promise.resolve(null),
+  ]);
   const active = (entries ?? []).filter((r) => !r.voided_at);
   const ledger: LedgerEntry[] = active.map((r) => ({ id: r.id, period: r.period, date: r.entry_date, type: r.type, channel: r.channel, amount: Number(r.amount) }));
   const rows = withRunningBalance(ledger);
@@ -348,6 +354,28 @@ export default async function EmployeeProfile({
               </div>
             </Card>
           )}
+
+          {[["İş güvenliği eğitimleri", isgData, "/isg"], ["Sağlık muayeneleri", healthData, "/saglik"]].map(([title, d, base]) => {
+            const data = d as Awaited<ReturnType<typeof loadCompliance>> | null;
+            if (!data || !data.employees[0]) return null;
+            const row = data.cells.get(id)!;
+            return (
+              <Card key={base as string} title={title as string} action={<Link href={`${base}?sekme=kayit&personel=${id}`} className="text-[13px] font-semibold text-brand-700">+ Kayıt</Link>}>
+                {data.types.map((t) => {
+                  const c = row.get(t.id)!;
+                  if (!t.required && c.status === "MISSING") return null;
+                  const v = cellStyle(c);
+                  return (
+                    <div key={t.id} className="flex gap-2.5 items-center text-[13px]">
+                      <span className={`num w-10 h-7 rounded grid place-items-center text-xs ${v.cls}`}>{v.text}</span>
+                      <span className="flex-1">{t.name}</span>
+                      <span className="num text-xs text-muted">{c.expiresOn ? formatDate(c.expiresOn) : c.doneOn ? formatDate(c.doneOn) : "yok"}</span>
+                    </div>
+                  );
+                })}
+              </Card>
+            );
+          })}
 
           <Card title="Özlük dosyası" action={<span className="num text-xs text-muted">Zorunlu: {required.length - missing} / {required.length}</span>}>
             {types.map((d) => {

@@ -3,6 +3,7 @@ import { formatTL } from "@mb/core";
 import { Card, PageHeader, PrimaryLink, SecondaryLink, Stat, ChannelChip, TYPE_LABEL } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { currentPeriod, formatDate, getSession, periodLabel } from "@/lib/session";
+import { loadCompliance } from "@/lib/compliance";
 
 type SummaryRow = { employee_id: string; accrued: number | null; paid_bank: number | null; paid_cash: number | null; deductions: number | null; balance: number | null };
 
@@ -24,6 +25,17 @@ export default async function DashboardPage() {
     supabase.from("employees").select("department_id, departments(name)").eq("status", "active"),
   ]);
 
+  const canSeeHealth = ["owner", "hr", "safety"].includes(s.role);
+  const [isg, health, { count: pendingLeave }, { count: pendingOt }] = await Promise.all([
+    loadCompliance(supabase, "TRAINING"),
+    canSeeHealth ? loadCompliance(supabase, "HEALTH") : Promise.resolve(null),
+    supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    supabase.from("overtime_records").select("id", { count: "exact", head: true }).eq("status", "pending"),
+  ]);
+  const urgent = [...isg.alerts.map((a) => ({ ...a, href: "/isg" })), ...(health?.alerts ?? []).map((a) => ({ ...a, href: "/saglik" }))]
+    .filter((a) => a.level !== "MISSING")
+    .sort((a, b) => (a.daysLeft ?? 0) - (b.daysLeft ?? 0))
+    .slice(0, 6);
   const rows = (summary ?? []) as SummaryRow[];
   const n = (v: number | null) => Number(v ?? 0);
   const total = {
@@ -71,6 +83,23 @@ export default async function DashboardPage() {
             <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-sm bg-accent" />Elden <b className="num">{formatTL(total.cash)}</b></span>
             <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-sm bg-[#E9EEF4] border border-[#C5D0DC]" />Kalan <b className="num">{formatTL(total.balance)}</b></span>
           </div>
+        </Card>
+
+        <Card title="Uyarılar" action={<span className="text-xs text-muted">30 / 15 / 7 gün kala</span>}>
+          <div className="flex flex-wrap gap-2 text-xs font-semibold">
+            <Link href="/isg" className="px-2.5 py-1.5 rounded-full bg-bad-bg text-bad">İSG: {isg.counts.expired + isg.counts.d7} acil · {isg.counts.d15 + isg.counts.d30} yaklaşan · {isg.counts.missing} eksik</Link>
+            {health && <Link href="/saglik" className="px-2.5 py-1.5 rounded-full bg-warn-bg text-warn">Sağlık: {health.counts.expired + health.counts.d7} acil · {health.counts.d15 + health.counts.d30} yaklaşan · {health.counts.missing} eksik</Link>}
+            {(pendingLeave ?? 0) > 0 && <Link href="/izin" className="px-2.5 py-1.5 rounded-full bg-[#E7F1FB] text-brand-700">Onay bekleyen izin: {pendingLeave}</Link>}
+            {(pendingOt ?? 0) > 0 && <Link href="/fazla-mesai" className="px-2.5 py-1.5 rounded-full bg-[#E7F1FB] text-brand-700">Onay bekleyen FM: {pendingOt}</Link>}
+          </div>
+          {urgent.map((a) => (
+            <Link key={`${a.href}${a.employeeId}${a.typeId}`} href={a.href} className="flex gap-3 items-center p-2.5 rounded-lg bg-[#F7F9FB] hover:bg-[#EEF2F6] text-[13px]">
+              <span className={`text-[11px] font-bold px-2 py-1 rounded-md ${a.daysLeft !== null && a.daysLeft <= 7 ? "bg-bad-bg text-bad" : "bg-warn-bg text-warn"}`}>{a.daysLeft !== null && a.daysLeft < 0 ? "Geçti" : `${a.daysLeft} gün`}</span>
+              <span className="flex-1"><b>{a.name}</b> · {a.typeName}</span>
+              <span className="num text-xs text-muted">{a.expiresOn ? formatDate(a.expiresOn) : ""}</span>
+            </Link>
+          ))}
+          {urgent.length === 0 && <p className="text-sm text-ok">Süresi yaklaşan eğitim veya muayene yok.</p>}
         </Card>
 
         <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(340px,1fr))]">

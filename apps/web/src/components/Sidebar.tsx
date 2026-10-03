@@ -24,7 +24,7 @@ const NAV: Array<{ group: string; items: Array<{ label: string; href: string; so
       { label: "İcra & Nafaka", href: "/icra" },
     ],
   },
-  { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg", soon: true }, { label: "Sağlık", href: "/saglik", soon: true }] },
+  { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg" }, { label: "Sağlık", href: "/saglik" }] },
   { group: "Analiz", items: [{ label: "Raporlar", href: "/raporlar", soon: true }, { label: "Excel'den Aktar", href: "/ice-aktar" }] },
 ];
 
