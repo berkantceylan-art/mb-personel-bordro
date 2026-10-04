@@ -293,3 +293,57 @@ export const CONTACT = {
   email: "info@mbdentaire.com",
   address: ["Aşık Veysel Mah. 5821/1 Sokak No:15", "Karabağlar / İzmir"],
 };
+
+/** Ürün kategorileri ve ürün sayfalarındaki sabit metinler */
+export const PRODUCT_UI: Record<
+  Locale,
+  {
+    categories: Record<"sabit" | "hareketli" | "ortodonti" | "dijital", string>;
+    all: string;
+    lead: string;
+    highlights: string;
+    others: string;
+    cta: string;
+    ctaText: string;
+    send: string;
+    back: string;
+    more: string;
+  }
+> = {
+  tr: {
+    categories: { sabit: "Sabit protezler", hareketli: "Hareketli protezler", ortodonti: "Ortodonti", dijital: "Dijital hizmetler" },
+    all: "Ürünler",
+    lead: "Laboratuvarımızda ürettiğimiz her şey. Bir ürüne tıklayın, üretim sürecini ve malzemeleri görün.",
+    highlights: "Öne çıkanlar",
+    others: "Aynı gruptan",
+    cta: "Bu ürün için vaka gönderin",
+    ctaText: "Ölçünüzü ya da ağız içi tarama dosyanızı gönderin; teslim tarihini aynı gün bildirelim.",
+    send: "Vaka gönder",
+    back: "Tüm ürünler",
+    more: "Ayrıntılar",
+  },
+  en: {
+    categories: { sabit: "Fixed prosthetics", hareketli: "Removable prosthetics", ortodonti: "Orthodontics", dijital: "Digital services" },
+    all: "Products",
+    lead: "Everything we make in our lab. Open a product to see how it is made and which materials we use.",
+    highlights: "Highlights",
+    others: "In the same group",
+    cta: "Send a case for this product",
+    ctaText: "Send your impression or intraoral scan; we confirm the delivery date the same day.",
+    send: "Send a case",
+    back: "All products",
+    more: "Details",
+  },
+  fr: {
+    categories: { sabit: "Prothèse fixe", hareketli: "Prothèse amovible", ortodonti: "Orthodontie", dijital: "Services numériques" },
+    all: "Produits",
+    lead: "Tout ce que nous réalisons au laboratoire. Ouvrez un produit pour voir sa fabrication et les matériaux utilisés.",
+    highlights: "Points forts",
+    others: "Dans le même groupe",
+    cta: "Envoyer un cas pour ce produit",
+    ctaText: "Envoyez votre empreinte ou votre scan intra-oral ; nous confirmons la date de livraison le jour même.",
+    send: "Envoyer un cas",
+    back: "Tous les produits",
+    more: "Détails",
+  },
+};

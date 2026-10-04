@@ -46,16 +46,16 @@ export function UploadForm({
       const supabase = createClient();
       for (const input of inputs) {
         data.delete(input.name);
-        const file = input.files?.[0];
-        if (!file) continue;
-        if (file.size > MAX) throw new Error(`"${file.name}" 50 MB'tan büyük.`);
-        if (!ALLOWED.includes(file.type)) throw new Error(`"${file.name}" desteklenmeyen tür. JPG, PNG, WebP, AVIF, SVG, MP4 ya da WebM yükleyin.`);
-        setUploading(file.name);
-        const safe = file.name.toLowerCase().replace(/[^a-z0-9.\-_]+/g, "-").slice(-80);
-        const path = `${folder}/${crypto.randomUUID()}-${safe}`;
-        const { error: upErr } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
-        if (upErr) throw new Error(`"${file.name}" yüklenemedi: ${upErr.message}`);
-        data.set(`${input.name}__path`, path);
+        for (const file of Array.from(input.files ?? [])) {
+          if (file.size > MAX) throw new Error(`"${file.name}" 50 MB'tan büyük.`);
+          if (!ALLOWED.includes(file.type)) throw new Error(`"${file.name}" desteklenmeyen tür. JPG, PNG, WebP, AVIF, SVG, MP4 ya da WebM yükleyin.`);
+          setUploading(file.name);
+          const safe = file.name.toLowerCase().replace(/[^a-z0-9.\-_]+/g, "-").slice(-80);
+          const path = `${folder}/${crypto.randomUUID()}-${safe}`;
+          const { error: upErr } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+          if (upErr) throw new Error(`"${file.name}" yüklenemedi: ${upErr.message}`);
+          data.append(`${input.name}__path`, path);
+        }
       }
     } catch (err) {
       setUploading(null);

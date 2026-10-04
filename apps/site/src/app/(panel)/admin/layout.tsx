@@ -9,9 +9,9 @@ const NAV: { href: string; label: string; soon?: boolean }[] = [
   { href: "/admin", label: "Pano" },
   { href: "/admin/slaytlar", label: "Slaytlar" },
   { href: "/admin/duyurular", label: "Duyurular" },
+  { href: "/admin/urunler", label: "Ürünler" },
   { href: "#", label: "Hikâyeler", soon: true },
   { href: "#", label: "Sayfalar", soon: true },
-  { href: "#", label: "Ürünler", soon: true },
   { href: "#", label: "Vaka galerisi", soon: true },
   { href: "#", label: "Medya kütüphanesi", soon: true },
   { href: "#", label: "Gelen kutusu", soon: true },
@@ -43,7 +43,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <Link
                 key={n.href}
                 href={n.href}
-                aria-current={path === n.href ? "page" : undefined}
+                aria-current={path === n.href || (n.href !== "/admin" && path.startsWith(`${n.href}/`)) ? "page" : undefined}
                 className="shrink-0 rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white aria-[current=page]:bg-white/15"
               >
                 {n.label}
