@@ -2,15 +2,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnnouncementBar, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { ToothChart } from "@/components/ToothChart";
+import { CaseCard } from "@/components/CaseCard";
+import { Popup } from "@/components/Popup";
 import { Stories, type StoryView } from "@/components/Stories";
-import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicPages, publicProducts, publicSlides, publicStories } from "@/lib/cms";
+import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicCases, publicPages, publicProducts, publicSlides, publicStories } from "@/lib/cms";
 import { mediaKind } from "@/lib/media";
 import { getSettings, telHref } from "@/lib/settings";
-import { DICTS, PAGE_UI, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
+import { CASE_UI, DICTS, PAGE_UI, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
 
 export const revalidate = 60;
 
 const TOOTH_WORD: Record<Locale, string> = { tr: "Diş", en: "Tooth", fr: "Dent" };
+const POPUP_LABELS: Record<Locale, { more: string; close: string }> = {
+  tr: { more: "Ayrıntılar", close: "Kapat" },
+  en: { more: "Learn more", close: "Close" },
+  fr: { more: "En savoir plus", close: "Fermer" },
+};
 const NEWS_TITLE: Record<Locale, string> = { tr: "Duyurular", en: "News", fr: "Actualités" };
 const STORY_LABELS: Record<Locale, { title: string; close: string; prev: string; next: string; mute: string; unmute: string; pause: string; play: string }> = {
   tr: { title: "Hikâyeler", close: "Kapat", prev: "Önceki", next: "Sonraki", mute: "Sesi kapat", unmute: "Sesi aç", pause: "Duraklat", play: "Oynat" },
@@ -22,14 +29,18 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const d = DICTS[locale];
-  const [banners, news, slides, products, storyRows, pages] = await Promise.all([
+  const [banners, news, slides, products, storyRows, pages, featuredCases, popups] = await Promise.all([
     publicAnnouncements("banner"),
     publicAnnouncements("news"),
     publicSlides("home"),
     publicProducts(),
     publicStories(),
     publicPages(),
+    publicCases({ featured: true }),
+    publicAnnouncements("popup"),
   ]);
+  const productNames = Object.fromEntries(products.map((p) => [p.slug, t(p.name, locale)]));
+  const popup = popups[0];
   const techPages = pages.filter((p) => p.group === "teknoloji");
   const qualityPages = pages.filter((p) => p.group === "kalite");
   const st = await getSettings();
@@ -182,6 +193,29 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
           </div>
         </section>
 
+        {/* Öne çıkan vakalar */}
+        {featuredCases.length > 0 && (
+          <section aria-labelledby="vakalar-baslik" className="border-t border-gypsum">
+            <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <h2 id="vakalar-baslik" className="display text-4xl font-semibold text-navy">
+                  {CASE_UI[locale].home}
+                </h2>
+                <Link href={`/${locale}/vakalar`} className="font-semibold text-smile-ink hover:underline">
+                  {CASE_UI[locale].all} →
+                </Link>
+              </div>
+              <ul className="mt-10 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+                {featuredCases.slice(0, 3).map((c) => (
+                  <li key={c.id}>
+                    <CaseCard c={c} locale={locale} productName={c.product_slug ? productNames[c.product_slug] : undefined} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
+
         {/* Dijital iş akışı (gerçek bir sıra → numaralı) */}
         <section id="teknoloji" aria-labelledby="teknoloji-baslik" className="scroll-mt-6 bg-white">
           <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
@@ -310,6 +344,17 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
       </main>
 
       <SiteFooter locale={locale} />
+      {popup && (t(popup.title, locale) || t(popup.body, locale)) && (
+        <Popup
+          id={popup.id}
+          version={popup.updated_at}
+          title={t(popup.title, locale)}
+          body={t(popup.body, locale)}
+          image={mediaUrl(popup.image_path)}
+          link={popup.link_href ? { href: popup.link_href, label: POPUP_LABELS[locale].more } : null}
+          closeLabel={POPUP_LABELS[locale].close}
+        />
+      )}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd).replace(/</g, "\\u003c") }} />
     </>
   );

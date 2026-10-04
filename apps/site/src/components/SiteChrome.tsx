@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DICTS, LOCALES, LOCALE_NAMES, t, type Locale } from "@/lib/i18n";
+import { CASE_UI, DICTS, LOCALES, LOCALE_NAMES, t, type Locale } from "@/lib/i18n";
 import { getSettings, telHref } from "@/lib/settings";
 import { publicPages, type Announcement } from "@/lib/cms";
 
@@ -145,6 +145,11 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
                 <li>
                   <Link href={`/${locale}/urunler`} className="hover:text-smile">
                     {d.nav.products}
+                  </Link>
+                </li>
+                <li>
+                  <Link href={`/${locale}/vakalar`} className="hover:text-smile">
+                    {CASE_UI[locale].title}
                   </Link>
                 </li>
                 {pages.map((p) => (

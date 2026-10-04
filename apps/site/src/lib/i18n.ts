@@ -378,3 +378,43 @@ export const PAGE_UI: Record<Locale, { groups: Record<"kurumsal" | "teknoloji" |
     more: "Détails",
   },
 };
+
+/** Vaka galerisi metinleri */
+export const CASE_UI: Record<Locale, { title: string; lead: string; before: string; after: string; slider: string; teeth: string; product: string; all: string; empty: string; home: string }> = {
+  tr: {
+    title: "Vakalar",
+    lead: "Laboratuvarımızdan çıkan işlerden örnekler. Kaydırıcıyı sürükleyerek öncesini ve sonrasını karşılaştırın.",
+    before: "Öncesi",
+    after: "Sonrası",
+    slider: "Öncesi ve sonrası karşılaştırma",
+    teeth: "Diş",
+    product: "Ürün",
+    all: "Tüm vakalar",
+    empty: "Yakında burada örnek vakalar olacak.",
+    home: "Laboratuvardan vakalar",
+  },
+  en: {
+    title: "Cases",
+    lead: "Examples of work from our laboratory. Drag the slider to compare before and after.",
+    before: "Before",
+    after: "After",
+    slider: "Before and after comparison",
+    teeth: "Teeth",
+    product: "Product",
+    all: "All cases",
+    empty: "Case examples are coming soon.",
+    home: "Cases from the lab",
+  },
+  fr: {
+    title: "Cas cliniques",
+    lead: "Exemples de travaux réalisés dans notre laboratoire. Faites glisser le curseur pour comparer avant et après.",
+    before: "Avant",
+    after: "Après",
+    slider: "Comparaison avant / après",
+    teeth: "Dents",
+    product: "Produit",
+    all: "Tous les cas",
+    empty: "Des exemples de cas arrivent bientôt.",
+    home: "Cas du laboratoire",
+  },
+};

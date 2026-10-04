@@ -8,7 +8,7 @@ import { I18nField, toLocalInput } from "./ui";
 const KINDS: { value: Announcement["kind"]; label: string; note: string }[] = [
   { value: "banner", label: "Üst bant", note: "Sayfanın en üstünde ince şerit. Aynı anda en yüksek öncelikli olan görünür." },
   { value: "news", label: "Haber", note: "Anasayfadaki Duyurular listesinde görünür." },
-  { value: "popup", label: "Açılır pencere", note: "Ziyaretçiye bir kez gösterilir (portal ile birlikte devreye girecek)." },
+  { value: "popup", label: "Açılır pencere", note: "Anasayfada ziyaretçiye bir kez açılan pencere. Aynı anda en yüksek öncelikli olan görünür." },
 ];
 
 export function AnnouncementForm({ item }: { item?: Announcement }) {
