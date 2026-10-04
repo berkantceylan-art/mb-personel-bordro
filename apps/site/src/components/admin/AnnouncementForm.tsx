@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { saveAnnouncement } from "@/lib/admin-actions";
 import { mediaUrl, type Announcement } from "@/lib/cms";
+import { UploadForm } from "./UploadForm";
 import { I18nField, toLocalInput } from "./ui";
 
 const KINDS: { value: Announcement["kind"]; label: string; note: string }[] = [
@@ -12,7 +13,16 @@ const KINDS: { value: Announcement["kind"]; label: string; note: string }[] = [
 export function AnnouncementForm({ item }: { item?: Announcement }) {
   const img = mediaUrl(item?.image_path);
   return (
-    <form action={saveAnnouncement} className="grid max-w-3xl gap-5">
+    <UploadForm
+      action={saveAnnouncement}
+      folder="duyurular"
+      submitLabel={item ? "Değişiklikleri kaydet" : "Duyuruyu ekle"}
+      footer={
+        <Link href="/admin/duyurular" className="px-3 py-3 font-semibold text-slate hover:text-navy">
+          Vazgeç
+        </Link>
+      }
+    >
       {item && <input type="hidden" name="id" value={item.id} />}
 
       <fieldset className="rounded-xl border border-gypsum bg-white p-4">
@@ -81,14 +91,6 @@ export function AnnouncementForm({ item }: { item?: Announcement }) {
         Yayında
       </label>
 
-      <div className="flex gap-3">
-        <button type="submit" className="rounded-full bg-navy px-6 py-3 font-semibold text-white hover:bg-blue">
-          {item ? "Değişiklikleri kaydet" : "Duyuruyu ekle"}
-        </button>
-        <Link href="/admin/duyurular" className="px-3 py-3 font-semibold text-slate hover:text-navy">
-          Vazgeç
-        </Link>
-      </div>
-    </form>
+    </UploadForm>
   );
 }

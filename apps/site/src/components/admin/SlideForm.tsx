@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { saveSlide } from "@/lib/admin-actions";
 import { mediaUrl, type Slide } from "@/lib/cms";
+import { UploadForm } from "./UploadForm";
 import { I18nField, toLocalInput } from "./ui";
 
 function MediaInput({ name, label, accept, current, hint }: { name: string; label: string; accept: string; current: string | null; hint: string }) {
@@ -31,7 +32,16 @@ function MediaInput({ name, label, accept, current, hint }: { name: string; labe
 
 export function SlideForm({ slide }: { slide?: Slide }) {
   return (
-    <form action={saveSlide} className="grid max-w-3xl gap-5">
+    <UploadForm
+      action={saveSlide}
+      folder="slaytlar"
+      submitLabel={slide ? "Değişiklikleri kaydet" : "Slaytı ekle"}
+      footer={
+        <Link href="/admin/slaytlar" className="px-3 py-3 font-semibold text-slate hover:text-navy">
+          Vazgeç
+        </Link>
+      }
+    >
       {slide && <input type="hidden" name="id" value={slide.id} />}
       <I18nField name="title" label="Başlık" value={slide?.title} required />
       <I18nField name="subtitle" label="Alt başlık" value={slide?.subtitle} multiline hint="Kısa tutun: bir ya da iki cümle." />
@@ -69,14 +79,6 @@ export function SlideForm({ slide }: { slide?: Slide }) {
         Yayında
       </label>
 
-      <div className="flex gap-3">
-        <button type="submit" className="rounded-full bg-navy px-6 py-3 font-semibold text-white hover:bg-blue">
-          {slide ? "Değişiklikleri kaydet" : "Slaytı ekle"}
-        </button>
-        <Link href="/admin/slaytlar" className="px-3 py-3 font-semibold text-slate hover:text-navy">
-          Vazgeç
-        </Link>
-      </div>
-    </form>
+    </UploadForm>
   );
 }
