@@ -5,6 +5,7 @@ import { contractsAt, SIDE_LABEL } from "@/lib/contracts";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
 import { loadMonth } from "@/lib/timekeeping";
+import { cumulativeBases } from "@/lib/payroll";
 
 const canEdit = (r: string) => ["owner", "accountant", "hr", "branch_manager"].includes(r);
 
@@ -136,6 +137,7 @@ export async function applyMissingDays(_: { ok: boolean; message: string } | nul
     supabase.from("ledger_entries").select("employee_id").eq("period", period).eq("type", "DEDUCTION").like("note", "Eksik gün%").is("voided_at", null),
   ]);
   const done = new Set((existing.data ?? []).map((r) => r.employee_id));
+  const cum = await cumulativeBases(supabase, period, month.employees.map((e) => ({ id: e.id, hire_date: e.hireDate })), contracts);
 
   const rows: Record<string, unknown>[] = [];
   let people = 0;
@@ -152,7 +154,7 @@ export async function applyMissingDays(_: { ok: boolean; message: string } | nul
     const days = Math.min(30, absent + unpaid + sick);
     if (!days) continue;
     const parts = [absent && `devamsızlık ${absent}`, unpaid && `ücretsiz izin ${unpaid}`, sick && `rapor ${sick}`].filter(Boolean).join(", ");
-    const lines = sideLines(absenceSides({ contract: c, month: Number(period.slice(5, 7)) }, days), side);
+    const lines = sideLines(absenceSides({ contract: c, month: Number(period.slice(5, 7)), cumulativeTaxBaseBefore: cum.get(e.id) ?? 0 }, days), side);
     if (!lines.length) continue;
     people++;
     for (const l of lines) {

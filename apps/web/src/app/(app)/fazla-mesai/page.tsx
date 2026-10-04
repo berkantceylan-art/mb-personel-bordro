@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatTL, nextPeriod, overtimeSides, previousPeriod } from "@mb/core";
 import { PaySideSelect } from "@/components/PaySideSelect";
 import { contractsAt, SIDE_LABEL } from "@/lib/contracts";
+import { cumulativeBases } from "@/lib/payroll";
 import { Card, PageHeader } from "@/components/ui";
 import { ManualOvertimeForm } from "@/components/LeaveOtForms";
 import { approveOvertime, cancelOvertime } from "@/lib/leave-ot-actions";
@@ -26,6 +27,7 @@ export default async function OvertimePage({ searchParams }: { searchParams: Pro
   ]);
   const contracts = await contractsAt(supabase, m.employees.map((e) => e.id), `${period}-28`);
   const month = Number(period.slice(5, 7));
+  const cum = await cumulativeBases(supabase, period, m.employees.map((e) => ({ id: e.id, hire_date: e.hireDate })), contracts);
   const name = new Map(m.employees.map((e) => [e.id, e.name]));
   const done = new Set((records ?? []).map((r) => `${r.employee_id}|${r.work_date}`));
   const suggestions = m.employees.flatMap((e) =>
@@ -71,7 +73,7 @@ export default async function OvertimePage({ searchParams }: { searchParams: Pro
                         <td className={td}>×{x.rate}</td>
                         {pay && (() => {
                           const c = contracts.get(x.employeeId);
-                          const a = c ? overtimeSides({ contract: c, month }, x.minutes, x.rate) : null;
+                          const a = c ? overtimeSides({ contract: c, month, cumulativeTaxBaseBefore: cum.get(x.employeeId) ?? 0 }, x.minutes, x.rate) : null;
                           return a ? (
                             <><td className={`num ${td} text-right`}>{formatTL(a.officialGross)}</td><td className={`num ${td} text-right`}>{formatTL(a.officialNet)}</td><td className={`num ${td} text-right`}>{formatTL(a.cash)}</td></>
                           ) : <td className={`${td} text-muted`} colSpan={3}>Ücret kaydı yok</td>;

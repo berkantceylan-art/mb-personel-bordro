@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
-import { PERSONNEL_DOMAIN } from "@/lib/constants";
+import { PERSONNEL_DOMAIN, formatInviteCode } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 
@@ -38,7 +38,7 @@ export default async function PrintInvites() {
               <div className="font-semibold text-[14px]">{i.display_name}</div>
               <div className="text-[#5A6878]">{e?.departments?.name ?? ""}</div>
               <div className="mt-2 grid grid-cols-[90px_1fr] gap-y-1">
-                <span className="text-[#5A6878]">Davet kodu</span><b className="font-mono text-[18px] tracking-[0.2em]">{i.code}</b>
+                <span className="text-[#5A6878]">Davet kodu</span><b className="font-mono text-[18px] tracking-[0.12em] whitespace-nowrap">{formatInviteCode(i.code)}</b>
                 <span className="text-[#5A6878]">Kullanıcı adı</span><b className="font-mono">{login}</b>
                 <span className="text-[#5A6878]">Son geçerlilik</span><span>{formatDate(i.expires_at)}</span>
               </div>

@@ -21,13 +21,41 @@ const fmt = new Intl.NumberFormat("tr-TR", {
 export const formatTL = (k: Kurus): string =>
   (k < 0 ? "−₺" : "₺") + fmt.format(Math.abs(k) / 100);
 
-/** "12.345,67" veya "12345.67" → kuruş */
+/**
+ * Kullanıcının yazdığı tutarı kuruşa çevirir. Türkçe yazımı esas alır:
+ *   "5.000" → 5.000 TL · "12.500,50" → 12.500,50 TL · "1234,5" → 1.234,50 TL · "1234.56" → 1.234,56 TL
+ * İki ayraç birlikte varsa sondaki ondalıktır ("1,234.56" de okunur).
+ * Tek nokta + tam 3 hane binlik sayılır ("5.000"); 3'ten fazla ondalık hane belirsiz sayılıp reddedilir.
+ */
 export const parseTL = (s: string): Kurus => {
-  const clean = s.replace(/[₺\s]/g, "");
-  const normalized = clean.includes(",")
-    ? clean.replace(/\./g, "").replace(",", ".")
-    : clean;
-  const n = Number(normalized);
-  if (!Number.isFinite(n)) throw new Error(`Geçersiz tutar: ${s}`);
-  return tl(n);
+  const clean = String(s).replace(/₺|TL|\s/gi, "");
+  const fail = () => {
+    throw new Error(`Geçersiz tutar: ${s}`);
+  };
+  if (!/^-?[\d.,]+$/.test(clean) || !/\d/.test(clean)) fail();
+  const lastDot = clean.lastIndexOf(".");
+  const lastComma = clean.lastIndexOf(",");
+  let intPart = clean;
+  let frac = "";
+  if (lastDot >= 0 && lastComma >= 0) {
+    const dec = lastDot > lastComma ? "." : ",";
+    const thou = dec === "." ? "," : ".";
+    const at = clean.lastIndexOf(dec);
+    intPart = clean.slice(0, at).split(thou).join("");
+    frac = clean.slice(at + 1);
+  } else if (lastComma >= 0) {
+    const parts = clean.split(",");
+    if (parts.length > 2) intPart = parts.join(""); // 1,234,567 → binlik
+    else [intPart, frac] = [parts[0]!, parts[1]!];
+  } else if (lastDot >= 0) {
+    const parts = clean.split(".");
+    if (parts.length > 2 || parts[1]!.length === 3) intPart = parts.join(""); // 5.000 / 1.250.000 → binlik
+    else [intPart, frac] = [parts[0]!, parts[1]!];
+  }
+  if (intPart.includes(".") || intPart.includes(",")) fail();
+  if (!/^-?\d+$/.test(intPart || "0") || !/^\d{0,2}$/.test(frac)) fail();
+  const neg = intPart.startsWith("-");
+  const k = Math.abs(Number(intPart || "0")) * 100 + Number((frac + "00").slice(0, 2));
+  if (!Number.isSafeInteger(k)) fail();
+  return neg ? -k : k;
 };

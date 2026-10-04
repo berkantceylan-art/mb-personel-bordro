@@ -33,7 +33,8 @@ export default async function NotificationsPage() {
                 <span className="text-xs text-muted whitespace-nowrap">{new Date(n.created_at).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
               </div>
             );
-            return <li key={n.id}>{n.link ? <Link href={n.link} className="block hover:bg-[#F6F8FA]">{inner}</Link> : inner}</li>;
+            const internal = typeof n.link === "string" && n.link.startsWith("/") && !n.link.startsWith("//");
+            return <li key={n.id}>{internal ? <Link href={n.link} className="block hover:bg-[#F6F8FA]">{inner}</Link> : inner}</li>;
           })}
           {(data ?? []).length === 0 && <li className="p-8 text-center text-muted">Bildirim yok.</li>}
         </ul>

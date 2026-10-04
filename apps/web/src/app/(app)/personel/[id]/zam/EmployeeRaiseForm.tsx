@@ -1,6 +1,6 @@
 "use client";
 import { useActionState, useState } from "react";
-import { applyRaise, formatTL, raisePercent, tl, type RaiseKind } from "@mb/core";
+import { applyRaise, formatTL, raisePercent, type RaiseKind, parseTL } from "@mb/core";
 import { applyEmployeeRaise } from "../../../zamlar/actions";
 
 export function EmployeeRaiseForm(props: {
@@ -15,9 +15,14 @@ export function EmployeeRaiseForm(props: {
   const [kind, setKind] = useState<RaiseKind>(props.current ? "PERCENT" : "SET");
   const [value, setValue] = useState("");
   const [insurance, setInsurance] = useState(props.insuranceType);
-  const cleaned = kind === "PERCENT" ? value.replace(",", ".") : value.replace(/\./g, "").replace(",", ".");
-  const v = Number(cleaned);
-  const next = Number.isFinite(v) && v > 0 ? applyRaise(props.current ?? 0, { kind, value: kind === "PERCENT" ? v : tl(v) }) : null;
+  const v = (() => {
+    try {
+      return kind === "PERCENT" ? Number(value.replace(",", ".")) : parseTL(value);
+    } catch {
+      return NaN;
+    }
+  })();
+  const next = Number.isFinite(v) && v > 0 ? applyRaise(props.current ?? 0, { kind, value: v }) : null;
   const seg = (on: boolean) => `h-11 px-4 rounded-[10px] font-semibold ${on ? "bg-brand-700 text-white" : "border border-[#D5DEE8] bg-white text-[#33414F]"}`;
   const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white";
 

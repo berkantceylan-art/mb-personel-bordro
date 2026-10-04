@@ -6,6 +6,7 @@ import {
   settlement,
   splitContract,
   type GarnishmentFile,
+  type PayContract,
   type PayrollResult,
 } from "@mb/core";
 import { contractsAt } from "@/lib/contracts";
@@ -60,11 +61,7 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
     supabase.from("payroll_lines").select("employee_id, posted, data").eq("period", period).in("employee_id", ids),
   ]);
 
-  const cum = new Map<string, { period: string; v: number }>();
-  for (const l of prevLines.data ?? []) {
-    const cur = cum.get(l.employee_id);
-    if (!cur || l.period > cur.period) cum.set(l.employee_id, { period: l.period, v: Number(l.cumulative_tax_base_after) });
-  }
+  const cum = latestCumulative(prevLines.data ?? []);
   const besRate = new Map<string, number>();
   for (const b of bes.data ?? []) {
     const on = b.enrolled_on <= end && (b.status === "active" || (b.status_date && b.status_date > end));
@@ -92,17 +89,7 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
     const employed = accrualForPeriod({ period, contracts: contractSlices.get(e.id) ?? [], hireDate: e.hire_date, terminationDate: e.termination_date }).days;
 
     // Kümülatif matrah: önceki bordrolardan; yoksa yıl başından beri aynı ücretle çalışılmış varsayılır
-    let cumulativeBefore = cum.get(e.id)?.v ?? 0;
-    let cumulativeEstimated = false;
-    if (!cum.has(e.id) && month > 1) {
-      const hireMonth = e.hire_date.slice(0, 4) === year ? Number(e.hire_date.slice(5, 7)) : 1;
-      const priorMonths = Math.max(0, month - hireMonth);
-      if (priorMonths > 0) {
-        const s = splitContract(c, 1, 0);
-        cumulativeBefore = grossToNet({ gross: s.official.gross, month: 1, cumulativeTaxBaseBefore: 0 }).taxBase * priorMonths;
-        cumulativeEstimated = true;
-      }
-    }
+    const { value: cumulativeBefore, estimated: cumulativeEstimated } = resolveCumulative(cum.get(e.id), c, e.hire_date, period);
 
     const savedLine = savedMap.get(e.id);
     const result = savedLine?.posted ? savedLine.result : runPayroll({
@@ -150,4 +137,53 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
     });
   }
   return rows.sort((a, b) => a.dept.localeCompare(b.dept, "tr") || a.name.localeCompare(b.name, "tr"));
+}
+
+function latestCumulative(lines: Array<{ employee_id: string; period: string; cumulative_tax_base_after: number }>) {
+  const cum = new Map<string, { period: string; v: number }>();
+  for (const l of lines) {
+    const cur = cum.get(l.employee_id);
+    if (!cur || l.period > cur.period) cum.set(l.employee_id, { period: l.period, v: Number(l.cumulative_tax_base_after) });
+  }
+  return cum;
+}
+
+/** Önceki bordro yoksa: yıl başından (veya işe girişten) bu yana aynı resmi ücretle çalışılmış kabul edilir */
+function resolveCumulative(prev: { v: number } | undefined, c: PayContract, hireDate: string, period: string) {
+  if (prev) return { value: prev.v, estimated: false };
+  const month = Number(period.slice(5, 7));
+  const year = period.slice(0, 4);
+  if (month <= 1) return { value: 0, estimated: false };
+  const hireMonth = hireDate.slice(0, 4) === year ? Number(hireDate.slice(5, 7)) : 1;
+  const priorMonths = Math.max(0, month - hireMonth);
+  if (!priorMonths) return { value: 0, estimated: false };
+  const s = splitContract(c, 1, 0);
+  return { value: grossToNet({ gross: s.official.gross, month: 1, cumulativeTaxBaseBefore: 0 }).taxBase * priorMonths, estimated: true };
+}
+
+/**
+ * Fazla mesai / eksik gün gibi ay içi hesaplar için personelin o döneme kadarki kümülatif GV matrahı.
+ * Bordroyla aynı kural: önceki kaydedilmiş bordro, yoksa tahmin.
+ */
+export async function cumulativeBases(
+  supabase: SB,
+  period: string,
+  employees: Array<{ id: string; hire_date: string }>,
+  contracts: Map<string, PayContract>,
+): Promise<Map<string, number>> {
+  const ids = employees.map((e) => e.id);
+  const out = new Map<string, number>();
+  if (!ids.length) return out;
+  const { data } = await supabase
+    .from("payroll_lines")
+    .select("employee_id, period, cumulative_tax_base_after")
+    .in("employee_id", ids)
+    .gte("period", `${period.slice(0, 4)}-01`)
+    .lt("period", period);
+  const cum = latestCumulative(data ?? []);
+  for (const e of employees) {
+    const c = contracts.get(e.id);
+    if (c) out.set(e.id, resolveCumulative(cum.get(e.id), c, e.hire_date, period).value);
+  }
+  return out;
 }

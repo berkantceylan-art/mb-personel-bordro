@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { countLeaveDays, overtimeSides, roundKurus, sideLines, type PaySide } from "@mb/core";
 import { contractsAt } from "@/lib/contracts";
+import { cumulativeBases } from "@/lib/payroll";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
 
@@ -106,10 +107,15 @@ export async function approveOvertime(f: FormData) {
   const supabase = await createClient();
   const contracts = await contractsAt(supabase, [...new Set(items.map((i) => i.employeeId))], items.map((i) => i.date).sort().at(-1)!);
   const writeLedger = decision === "approved" && canManagePay(s.role);
+  // Resmi net etkisi personelin yıl içi kümülatif matrahıyla hesaplanır (bordroyla aynı)
+  const { data: emps } = await supabase.from("employees").select("id, hire_date").in("id", [...new Set(items.map((i) => i.employeeId))]);
+  const cumByPeriod = new Map<string, Map<string, number>>();
+  for (const p of new Set(items.map((i) => i.date.slice(0, 7)))) cumByPeriod.set(p, await cumulativeBases(supabase, p, emps ?? [], contracts));
 
   for (const it of items) {
     const c = contracts.get(it.employeeId);
-    const a = c ? overtimeSides({ contract: c, month: Number(it.date.slice(5, 7)) }, it.minutes, it.rate) : null;
+    const cum = cumByPeriod.get(it.date.slice(0, 7))?.get(it.employeeId) ?? 0;
+    const a = c ? overtimeSides({ contract: c, month: Number(it.date.slice(5, 7)), cumulativeTaxBaseBefore: cum }, it.minutes, it.rate) : null;
     const lines = a && decision === "approved" ? sideLines(a, side) : [];
     const { data: rec } = await supabase
       .from("overtime_records")

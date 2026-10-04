@@ -33,7 +33,8 @@ export async function POST(req: Request) {
 
   const { data: subs } = await admin.from("web_push_subscriptions").select("endpoint, p256dh, auth").eq("user_id", n.user_id);
   webpush.setVapidDetails("mailto:destek@mbdental.app", pub, priv);
-  const payload = JSON.stringify({ title: n.title, body: n.body ?? "", link: n.link ?? "/", tag: n.link?.startsWith("/mesajlar/") ? n.link : undefined });
+  const link = n.link && n.link.startsWith("/") && !n.link.startsWith("//") ? n.link : "/";
+  const payload = JSON.stringify({ title: n.title, body: n.body ?? "", link, tag: link.startsWith("/mesajlar/") ? link : undefined });
   let sent = 0;
   await Promise.all(
     (subs ?? []).map(async (s) => {

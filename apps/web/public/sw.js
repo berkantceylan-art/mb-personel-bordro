@@ -2,6 +2,16 @@
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
+// Bildirim bağlantısı yalnız site içi bir yol olabilir (dış siteye yönlendirme / oltalama engeli)
+function safeLink(link) {
+  try {
+    const u = new URL(typeof link === "string" ? link : "/", self.location.origin);
+    return u.origin === self.location.origin ? u.pathname + u.search : "/";
+  } catch {
+    return "/";
+  }
+}
+
 self.addEventListener("push", (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch { d = { title: "MB Personel", body: event.data && event.data.text() }; }
@@ -11,18 +21,21 @@ self.addEventListener("push", (event) => {
       icon: "/icon-192.png",
       badge: "/icon-192.png",
       tag: d.tag || undefined,
-      data: { link: d.link || "/" },
+      data: { link: safeLink(d.link) },
     }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const link = (event.notification.data && event.notification.data.link) || "/";
+  const link = safeLink(event.notification.data && event.notification.data.link);
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (list) => {
       for (const c of list) {
-        if ("focus" in c) { c.navigate(link); return c.focus(); }
+        if ("focus" in c) {
+          try { await c.navigate(link); } catch { /* kontrolsüz pencere: yeni pencere açılır */ }
+          return c.focus();
+        }
       }
       return self.clients.openWindow(link);
     }),

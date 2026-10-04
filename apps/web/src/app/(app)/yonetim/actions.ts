@@ -2,17 +2,19 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
-import { PERSONNEL_DOMAIN } from "@/lib/constants";
+import { PERSONNEL_DOMAIN, formatInviteCode } from "@/lib/constants";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 type R = { ok: boolean; message: string };
 const ROLES = ["owner", "accountant", "hr", "branch_manager", "safety", "employee"];
 
+/** 12 karakterlik davet kodu (32 harfli alfabe → 60 bit); karışan harfler (0/O, 1/I) yok */
 const code = () => {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
   return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
 };
+const HR_INVITE_ROLES = ["employee", "branch_manager", "safety"];
 
 async function requireAdmin() {
   const s = await getSession();
@@ -30,7 +32,7 @@ export async function createInvite(_: R | null, f: FormData): Promise<R> {
   const s = await requireAdmin();
   const role = str(f, "role");
   if (!ROLES.includes(role)) return { ok: false, message: "Rol seçin." };
-  if (role === "owner" && s.role !== "owner") return { ok: false, message: "Şirket sahibi davetini sadece sahip oluşturabilir." };
+  if (s.role !== "owner" && !HR_INVITE_ROLES.includes(role)) return { ok: false, message: "İK yalnız personel, şube sorumlusu ve İSG uzmanı daveti oluşturabilir." };
   const supabase = await createClient();
   const employeeId = str(f, "employeeId") || null;
   let login = str(f, "email").toLowerCase();
@@ -49,7 +51,7 @@ export async function createInvite(_: R | null, f: FormData): Promise<R> {
   const { error } = await supabase.from("invites").insert({ company_id: s.companyId, code: c, role, employee_id: employeeId, display_name: name, login_email: login });
   if (error) return { ok: false, message: error.message };
   revalidatePath("/yonetim");
-  return { ok: true, message: `Davet kodu: ${c} · giriş: ${login}` };
+  return { ok: true, message: `Davet kodu: ${formatInviteCode(c)} · giriş: ${login}` };
 }
 
 /** Hesabı olmayan tüm aktif personele davet kodu üretir */

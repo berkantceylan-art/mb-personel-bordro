@@ -20,12 +20,11 @@ export default function InvitePage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { data, error } = await createClient().rpc("invite_preview", { p_code: code });
+    const res = await fetch("/api/davet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+    const body = (await res.json().catch(() => ({}))) as { preview?: Preview; error?: string };
     setBusy(false);
-    const p = data as Preview | null;
-    if (error || !p) return setError("Davet kodu bulunamadı.");
-    if (!p.valid) return setError("Bu davet kodu kullanılmış ya da süresi dolmuş.");
-    setPreview(p);
+    if (!res.ok || !body.preview?.valid) return setError(body.error ?? "Davet kodu geçersiz, kullanılmış ya da süresi dolmuş.");
+    setPreview(body.preview);
   }
 
   async function register(e: React.FormEvent) {
@@ -51,9 +50,10 @@ export default function InvitePage() {
       setBusy(false);
       return setError(/invalid login/i.test(error.message) ? "Bu kullanıcı adıyla daha önce farklı bir şifreyle hesap açılmış. Yöneticinize bildirin." : error.message);
     }
-    const { error: claimErr } = await supabase.rpc("claim_invite", { p_code: code });
+    const { data: claim, error: claimErr } = await supabase.rpc("claim_invite", { p_code: code });
     setBusy(false);
-    if (claimErr) return setError(claimErr.message);
+    const claimMsg = claimErr?.message ?? (claim as { error?: string } | null)?.error;
+    if (claimMsg) return setError(claimMsg);
     router.replace(preview.role === "employee" ? "/benim" : "/");
     router.refresh();
   }
@@ -74,7 +74,7 @@ export default function InvitePage() {
         {!preview ? (
           <form onSubmit={check} className="flex flex-col gap-4">
             <label className="flex flex-col gap-1.5 text-sm text-muted">Davet kodu
-              <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} required maxLength={12} autoCapitalize="characters" className={`${input} font-mono tracking-[0.25em] text-lg`} />
+              <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} required maxLength={16} autoCapitalize="characters" placeholder="ABCD-2345-EFGH" className={`${input} font-mono tracking-[0.12em] text-lg`} />
             </label>
             {error && <p className="text-sm text-bad bg-bad-bg rounded-lg px-3 py-2">{error}</p>}
             <button disabled={busy} className="h-12 rounded-lg bg-brand-700 text-white font-semibold disabled:opacity-60">{busy ? "Kontrol ediliyor…" : "Devam"}</button>

@@ -3,6 +3,7 @@ import { useActionState, useMemo, useRef, useState } from "react";
 import { formatTL } from "@mb/core";
 import { savePayment, type SaveResult } from "./actions";
 import { SignaturePad, type SignaturePadHandle } from "@/components/SignaturePad";
+import { AmountInput } from "@/components/AmountInput";
 
 export interface EmployeeOption {
   id: string;
@@ -140,7 +141,7 @@ export function PaymentForm({
           </label>
           <label className="flex flex-col gap-1.5 text-[13px] text-muted">
             Tutar (kişi başı) *
-            <input name="amount" required inputMode="decimal" placeholder="10.000,00" className="num h-[52px] rounded-[10px] border-2 border-brand-700 px-3 text-xl font-bold text-ink" />
+            <AmountInput key={state?.ok ? `ok-${state.message}-${(state.printIds ?? []).join()}` : "amount"} required placeholder="10.000,00" className="num h-[52px] rounded-[10px] border-2 border-brand-700 px-3 text-xl font-bold text-ink" />
           </label>
         </div>
         <label className="flex flex-col gap-1.5 text-[13px] text-muted">

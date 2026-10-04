@@ -1,5 +1,6 @@
 "use client";
 import { useActionState, useEffect, useState } from "react";
+import { AmountInput } from "./AmountInput";
 import { markAnnouncementsRead, publishAnnouncement, requestAdvance, requestLeaveSelf } from "@/lib/comms-actions";
 
 const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white w-full";
@@ -56,7 +57,7 @@ export function AdvanceRequestForm() {
   const [state, action, pending] = useActionState(requestAdvance, null);
   return (
     <form action={action} className="flex flex-wrap gap-3 items-end" key={state?.ok ? state.message : "f"}>
-      <label className="flex flex-col gap-1.5 text-sm text-muted w-40">Tutar (TL) *<input name="amount" required inputMode="decimal" placeholder="5.000" className={input} /></label>
+      <label className="flex flex-col gap-1.5 text-sm text-muted w-40">Tutar (TL) *<AmountInput required placeholder="5.000" className={input} /></label>
       <label className="flex flex-col gap-1.5 text-sm text-muted flex-1 min-w-48">Açıklama<input name="reason" maxLength={200} className={input} /></label>
       <button disabled={pending} className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-60">Avans iste</button>
       <Status s={state} />

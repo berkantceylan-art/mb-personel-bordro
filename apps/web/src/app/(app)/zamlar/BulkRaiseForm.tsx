@@ -1,6 +1,6 @@
 "use client";
 import { useActionState, useMemo, useState } from "react";
-import { applyRaise, formatTL, raisePercent, tl, type RaiseKind } from "@mb/core";
+import { applyRaise, formatTL, parseTL, raisePercent, type RaiseKind } from "@mb/core";
 import { applyBulkRaise, type RaiseResult } from "./actions";
 
 export interface RaiseEmployee {
@@ -19,9 +19,9 @@ export function BulkRaiseForm({ employees, departments, defaultDate }: { employe
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
 
   const ruleValue = useMemo(() => {
-    const v = Number(value.replace(/\./g, "").replace(",", "."));
-    if (!Number.isFinite(v) || v <= 0) return null;
-    return kind === "PERCENT" ? Number(value.replace(",", ".")) : tl(v);
+    let v = NaN;
+    try { v = kind === "PERCENT" ? Number(value.replace(",", ".")) : parseTL(value); } catch { v = NaN; }
+    return Number.isFinite(v) && v > 0 ? v : null;
   }, [value, kind]);
 
   const scoped = employees.filter((e) => e.current !== null && (depts.size === 0 || depts.has(e.dept)));

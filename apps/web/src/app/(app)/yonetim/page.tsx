@@ -1,3 +1,4 @@
+import { formatInviteCode } from "@/lib/constants";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, PageHeader } from "@/components/ui";
@@ -106,7 +107,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 <tbody>
                   {(invites.data ?? []).map((i) => (
                     <tr key={i.id}>
-                      <td className={`${td} font-mono font-bold tracking-widest`}>{i.code}</td>
+                      <td className={`${td} font-mono font-bold tracking-widest`}>{formatInviteCode(i.code)}</td>
                       <td className={td}>{i.display_name ?? (i.employee_id ? empName.get(i.employee_id) : "—")}</td>
                       <td className={td}>{ROLE[i.role]}</td>
                       <td className={`${td} text-xs`}>{i.login_email}</td>
