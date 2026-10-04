@@ -6,6 +6,7 @@ import { formatDate, getSession, todayIso } from "@/lib/session";
 import { EmployeeForm } from "../../EmployeeForm";
 import { reactivateEmployee, terminateEmployee } from "../../employee-actions";
 import { DeleteEmployeeForm } from "./DeleteEmployeeForm";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 export default async function EditEmployeePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -42,7 +43,7 @@ export default async function EditEmployeePage({ params }: { params: Promise<{ i
               <input type="hidden" name="id" value={id} />
               <label className="flex flex-col gap-1.5 text-sm text-muted">Çıkış tarihi<input type="date" name="termination_date" required defaultValue={todayIso()} className="h-11 rounded-[10px] border border-[#D5DEE8] px-3" /></label>
               <label className="flex flex-col gap-1.5 text-sm text-muted flex-1 min-w-56">Çıkış nedeni<input name="termination_reason" placeholder="ör. İstifa" className="h-11 rounded-[10px] border border-[#D5DEE8] px-3" /></label>
-              <button className="h-11 px-5 rounded-[10px] border border-[#B42318] text-[#B42318] font-semibold">İşten çıkar</button>
+              <ConfirmSubmit label="İşten çıkar" question="Personel işten çıkarılsın mı?" className="h-11 px-5 rounded-[10px] border border-[#B42318] text-[#B42318] font-semibold" />
             </form>
           )}
           <p className="text-xs text-muted">İşten çıkarılan personelin geçmiş kayıtları korunur; çıkış ayında çalıştığı gün kadar hakediş yazılır.</p>

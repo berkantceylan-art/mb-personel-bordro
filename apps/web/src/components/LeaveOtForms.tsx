@@ -1,14 +1,14 @@
 "use client";
-import { useActionState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
 import { addManualOvertime, createLeave } from "@/lib/leave-ot-actions";
 import { PaySideSelect } from "./PaySideSelect";
 
 const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white w-full";
 
 export function LeaveForm({ employees, types, defaultEmployee }: { employees: Array<{ id: string; name: string }>; types: Array<{ id: string; name: string }>; defaultEmployee?: string }) {
-  const [state, action, pending] = useActionState(createLeave, null);
+  const { state, pending, formProps: actionProps } = useActionForm(createLeave);
   return (
-    <form action={action} className="grid gap-4 md:grid-cols-3">
+    <form {...actionProps} className="grid gap-4 md:grid-cols-3">
       <label className="flex flex-col gap-1.5 text-sm text-muted">Personel *
         <select name="employeeId" required defaultValue={defaultEmployee ?? ""} className={input}>
           <option value="">Seçin</option>
@@ -35,9 +35,9 @@ export function LeaveForm({ employees, types, defaultEmployee }: { employees: Ar
 }
 
 export function ManualOvertimeForm({ employees }: { employees: Array<{ id: string; name: string }> }) {
-  const [state, action, pending] = useActionState(addManualOvertime, null);
+  const { state, pending, formProps: actionProps } = useActionForm(addManualOvertime);
   return (
-    <form action={action} className="flex flex-wrap gap-3 items-end">
+    <form {...actionProps} className="flex flex-wrap gap-3 items-end">
       <label className="flex flex-col gap-1.5 text-sm text-muted min-w-56">Personel
         <select name="employeeId" required className={input}><option value="">Seçin</option>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
       </label>

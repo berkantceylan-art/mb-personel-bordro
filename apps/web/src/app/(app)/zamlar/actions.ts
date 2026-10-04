@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { applyRaise, parseTL, type RaiseKind } from "@mb/core";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
+import { fail } from "@/lib/flash";
 
 export interface RaiseResult {
   ok: boolean;
@@ -162,12 +163,12 @@ export async function applyEmployeeRaise(_: RaiseResult | null, f: FormData): Pr
 
 export async function deleteContract(f: FormData) {
   const s = await getSession();
-  if (!canManagePay(s.role)) throw new Error("Yetkiniz yok");
+  if (!canManagePay(s.role)) await fail("Yetkiniz yok");
   const id = String(f.get("id"));
   const employeeId = String(f.get("employeeId"));
   const supabase = await createClient();
   const { error } = await supabase.from("pay_contracts").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) await fail(error.message);
   revalidatePath(`/personel/${employeeId}`);
   revalidatePath("/zamlar");
 }

@@ -9,6 +9,7 @@ import { approveOvertime, cancelOvertime } from "@/lib/leave-ot-actions";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, currentPeriod, formatDate, getSession, periodLabel } from "@/lib/session";
 import { hhmm, loadMonth } from "@/lib/timekeeping";
+import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
 
 const STATUS: Record<string, [string, string]> = {
   approved: ["Onaylandı", "bg-ok-bg text-ok"],
@@ -85,8 +86,8 @@ export default async function OvertimePage({ searchParams }: { searchParams: Pro
               </div>
               <div className="flex gap-3 items-end flex-wrap">
                 <PaySideSelect />
-                <button name="decision" value="approve" className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold">Seçilenleri onayla</button>
-                <button name="decision" value="reject" className="h-11 px-5 rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-bad">Seçilenleri reddet</button>
+                <PendingSubmit name="decision" value="approve" className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold">Seçilenleri onayla</PendingSubmit>
+                <PendingSubmit name="decision" value="reject" className="h-11 px-5 rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-bad">Seçilenleri reddet</PendingSubmit>
               </div>
             </form>
           )}
@@ -112,7 +113,7 @@ export default async function OvertimePage({ searchParams }: { searchParams: Pro
                       {pay && <><td className={td}>{SIDE_LABEL[r.pay_side] ?? "—"}</td><td className={`num ${td} text-right`}>{r.amount ? formatTL(Number(r.amount)) : "—"}</td></>}
                       <td className={td}><span className={`text-xs font-semibold px-2 py-1 rounded-full ${cls}`}>{l}</span></td>
                       <td className={`${td} text-right`}>
-                        <form action={cancelOvertime}><input type="hidden" name="id" value={r.id} /><button className="text-xs font-semibold text-muted">Geri al</button></form>
+                        <form action={cancelOvertime}><input type="hidden" name="id" value={r.id} /><ConfirmSubmit label="Geri al" question="Fazla mesai ve cari kaydı geri alınsın mı?" className="text-xs font-semibold text-muted" /></form>
                       </td>
                     </tr>
                   );

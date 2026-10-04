@@ -1,5 +1,6 @@
 "use client";
-import { useActionState, useEffect, useState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
+import { useEffect, useState } from "react";
 import { AmountInput } from "./AmountInput";
 import { markAnnouncementsRead, publishAnnouncement, requestAdvance, requestLeaveSelf } from "@/lib/comms-actions";
 
@@ -8,10 +9,10 @@ const Status = ({ s }: { s: { ok: boolean; message: string } | null }) =>
   s ? <span role="status" className={`text-sm rounded-lg px-3 py-1.5 ${s.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{s.message}</span> : null;
 
 export function AnnouncementForm({ departments, branches }: { departments: Array<{ id: string; name: string }>; branches: Array<{ id: string; name: string }> }) {
-  const [state, action, pending] = useActionState(publishAnnouncement, null);
+  const { state, pending, formProps: actionProps } = useActionForm(publishAnnouncement);
   const [audience, setAudience] = useState("ALL");
   return (
-    <form action={action} className="grid gap-4 md:grid-cols-2" key={state?.ok ? state.message : "f"}>
+    <form {...actionProps} className="grid gap-4 md:grid-cols-2" key={state?.ok ? state.message : "f"}>
       <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Başlık *<input name="title" required maxLength={140} className={input} /></label>
       <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Metin *
         <textarea name="body" required rows={5} className="rounded-[10px] border border-[#D5DEE8] p-3 bg-white w-full" />
@@ -54,9 +55,9 @@ export function MarkRead({ ids }: { ids: string[] }) {
 }
 
 export function AdvanceRequestForm() {
-  const [state, action, pending] = useActionState(requestAdvance, null);
+  const { state, pending, formProps: actionProps } = useActionForm(requestAdvance);
   return (
-    <form action={action} className="flex flex-wrap gap-3 items-end" key={state?.ok ? state.message : "f"}>
+    <form {...actionProps} className="flex flex-wrap gap-3 items-end" key={state?.ok ? state.message : "f"}>
       <label className="flex flex-col gap-1.5 text-sm text-muted w-40">Tutar (TL) *<AmountInput required placeholder="5.000" className={input} /></label>
       <label className="flex flex-col gap-1.5 text-sm text-muted flex-1 min-w-48">Açıklama<input name="reason" maxLength={200} className={input} /></label>
       <button disabled={pending} className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-60">Avans iste</button>
@@ -66,9 +67,9 @@ export function AdvanceRequestForm() {
 }
 
 export function LeaveRequestForm({ types }: { types: Array<{ id: string; name: string }> }) {
-  const [state, action, pending] = useActionState(requestLeaveSelf, null);
+  const { state, pending, formProps: actionProps } = useActionForm(requestLeaveSelf);
   return (
-    <form action={action} className="grid gap-3 md:grid-cols-4 items-end" key={state?.ok ? state.message : "f"}>
+    <form {...actionProps} className="grid gap-3 md:grid-cols-4 items-end" key={state?.ok ? state.message : "f"}>
       <label className="flex flex-col gap-1.5 text-sm text-muted">İzin türü
         <select name="typeId" required className={input}>{types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
       </label>

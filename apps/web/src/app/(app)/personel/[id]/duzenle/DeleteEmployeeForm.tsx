@@ -1,11 +1,11 @@
 "use client";
-import { useActionState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
 import { deleteEmployee } from "../../employee-actions";
 
 export function DeleteEmployeeForm({ id }: { id: string }) {
-  const [state, action, pending] = useActionState(deleteEmployee, null);
+  const { state, pending, formProps: actionProps } = useActionForm(deleteEmployee);
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form {...actionProps} className="flex flex-col gap-3">
       <input type="hidden" name="id" value={id} />
       <label className="flex flex-col gap-1.5 text-sm text-muted">
         Onay için SİL yazın

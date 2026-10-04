@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { parseTL } from "@mb/core";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession, todayIso } from "@/lib/session";
+import { done, fail, must } from "@/lib/flash";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 type R = { ok: boolean; message: string };
@@ -32,7 +33,7 @@ export async function deleteAnnouncement(f: FormData) {
   const s = await getSession();
   if (!["owner", "hr", "branch_manager"].includes(s.role)) return;
   const supabase = await createClient();
-  await supabase.from("announcements").delete().eq("id", str(f, "id"));
+  await must(supabase.from("announcements").delete().eq("id", str(f, "id")));
   revalidatePath("/duyurular");
 }
 
@@ -97,7 +98,7 @@ export async function decideAdvance(f: FormData) {
   const supabase = await createClient();
   let amount: number | null = null;
   try { amount = str(f, "amount") ? parseTL(str(f, "amount")) : null; } catch { amount = null; }
-  await supabase.rpc("decide_advance", {
+  const res = await supabase.rpc("decide_advance", {
     p_id: str(f, "id"),
     p_approve: str(f, "decision") === "approve",
     p_channel: str(f, "channel") === "BANK" ? "BANK" : "CASH",
@@ -105,14 +106,16 @@ export async function decideAdvance(f: FormData) {
     p_amount: amount,
     p_note: str(f, "note") || null,
   });
+  if (res.error) await fail(res.error.message);
   revalidatePath("/talepler");
   revalidatePath("/");
+  await done(str(f, "decision") === "approve" ? "Avans onaylandı ve cari hesaba işlendi." : "Avans talebi reddedildi.");
 }
 
 export async function cancelAdvance(f: FormData) {
   await getSession();
   const supabase = await createClient();
-  await supabase.from("advance_requests").update({ status: "cancelled" }).eq("id", str(f, "id")).eq("status", "pending");
+  await must(supabase.from("advance_requests").update({ status: "cancelled" }).eq("id", str(f, "id")).eq("status", "pending"));
   revalidatePath("/benim");
 }
 

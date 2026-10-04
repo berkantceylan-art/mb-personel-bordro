@@ -1,7 +1,8 @@
 "use client";
-import { useActionState, useMemo, useRef, useState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
+import { useMemo, useRef, useState } from "react";
 import { formatTL } from "@mb/core";
-import { savePayment, type SaveResult } from "./actions";
+import { savePayment } from "./actions";
 import { SignaturePad, type SignaturePadHandle } from "@/components/SignaturePad";
 import { AmountInput } from "@/components/AmountInput";
 
@@ -33,14 +34,22 @@ export function PaymentForm({
   today: string;
   periods: Array<{ value: string; label: string }>;
 }) {
-  const [state, action, pending] = useActionState<SaveResult | null, FormData>(savePayment, null);
+  const { state, pending, formProps: actionProps } = useActionForm(savePayment, {
+    prepare: (fd) => fd.set("signature", isCashRef.current ? (sig.current?.toDataURL() ?? "") : ""),
+    // Bir sonraki ödemeye önceki kişinin imzası taşınmasın
+    onSuccess: () => {
+      sig.current?.clear();
+      setSignature("");
+    },
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultSelected));
   const [dept, setDept] = useState("");
   const [q, setQ] = useState("");
   const [type, setType] = useState("ADVANCE");
   const [channel, setChannel] = useState("CASH");
   const sig = useRef<SignaturePadHandle>(null);
-  const [signature, setSignature] = useState("");
+  const isCashRef = useRef(false);
+  const [, setSignature] = useState("");
 
   const list = useMemo(
     () =>
@@ -61,15 +70,15 @@ export function PaymentForm({
 
   const hasChannel = type === "ADVANCE" || type === "SALARY";
   const isCash = hasChannel && channel === "CASH";
+  // İmza kişiye özeldir: yalnız tek kişi seçiliyken alınır ve kaydedilir
+  const signable = isCash && selected.size === 1;
+  isCashRef.current = signable;
   const seg = (on: boolean) =>
     `flex-1 h-[52px] rounded-[10px] font-semibold ${on ? "bg-brand-700 text-white" : "border border-[#D5DEE8] bg-white text-[#33414F]"}`;
 
   return (
     <form
-      action={(fd) => {
-        fd.set("signature", isCash ? (sig.current?.toDataURL() ?? signature) : "");
-        return action(fd);
-      }}
+      {...actionProps}
       className="grid gap-5 lg:grid-cols-[360px_1fr]"
     >
       <section className="bg-white border border-line rounded-2xl p-4 flex flex-col gap-3 lg:max-h-[calc(100vh-140px)]">
@@ -149,7 +158,10 @@ export function PaymentForm({
           <input name="note" placeholder="İsteğe bağlı not" className="h-12 rounded-[10px] border border-[#D5DEE8] px-3 text-ink" />
         </label>
 
-        {isCash && (
+        {isCash && !signable && selected.size > 1 && (
+          <p className="text-xs text-muted">Birden çok kişi seçili: imza alınmaz. İmzalı makbuz için kişileri tek tek kaydedin.</p>
+        )}
+        {signable && (
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center">
               <span className="font-semibold">Personel imzası</span>

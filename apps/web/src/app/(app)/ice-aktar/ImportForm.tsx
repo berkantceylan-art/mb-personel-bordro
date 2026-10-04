@@ -1,11 +1,11 @@
 "use client";
-import { useActionState } from "react";
-import { importExcel, type ImportResult } from "./actions";
+import { useActionForm } from "@/lib/use-action-form";
+import { importExcel } from "./actions";
 
 export function ImportForm({ year, today }: { year: number; today: string }) {
-  const [state, action, pending] = useActionState<ImportResult | null, FormData>(importExcel, null);
+  const { state, pending, formProps: actionProps } = useActionForm(importExcel);
   return (
-    <form action={action} className="bg-white border border-line rounded-2xl p-6 flex flex-col gap-5 max-w-2xl">
+    <form {...actionProps} className="bg-white border border-line rounded-2xl p-6 flex flex-col gap-5 max-w-2xl">
       <label className="flex flex-col gap-1.5 text-sm text-muted">
         Aylık maaş listesi (.xlsx)
         <input type="file" name="file" accept=".xlsx" required className="h-12 rounded-[10px] border border-[#D5DEE8] px-3 py-2.5 text-ink" />

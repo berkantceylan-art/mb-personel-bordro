@@ -1,5 +1,6 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
+import { useState } from "react";
 import { saveBes, saveGarnishment } from "@/lib/bes-icra-actions";
 
 const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white w-full";
@@ -9,9 +10,9 @@ const Msg = ({ s }: { s: { ok: boolean; message: string } | null }) =>
   s ? <span role="status" className={`text-sm rounded-lg px-3 py-1.5 ${s.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{s.message}</span> : null;
 
 export function BesForm({ employees }: { employees: Emp[] }) {
-  const [state, action, pending] = useActionState(saveBes, null);
+  const { state, pending, formProps: actionProps } = useActionForm(saveBes);
   return (
-    <form action={action} className="grid gap-4 md:grid-cols-5 items-end">
+    <form {...actionProps} className="grid gap-4 md:grid-cols-5 items-end">
       <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Personel
         <select name="employeeId" required className={input}><option value="">Seçin</option>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
       </label>
@@ -27,10 +28,10 @@ export function BesForm({ employees }: { employees: Emp[] }) {
 }
 
 export function GarnishmentForm({ employees }: { employees: Emp[] }) {
-  const [state, action, pending] = useActionState(saveGarnishment, null);
+  const { state, pending, formProps: actionProps } = useActionForm(saveGarnishment);
   const [kind, setKind] = useState("ENFORCEMENT");
   return (
-    <form action={action} className="grid gap-4 md:grid-cols-4 items-end">
+    <form {...actionProps} className="grid gap-4 md:grid-cols-4 items-end">
       <label className="flex flex-col gap-1.5 text-sm text-muted">Tür
         <select name="kind" value={kind} onChange={(e) => setKind(e.target.value)} className={input}>
           <option value="ENFORCEMENT">İcra (borç)</option>

@@ -5,6 +5,7 @@ import { HAZARD_LABEL, loadCompliance } from "@/lib/compliance";
 import { deleteComplianceRecord } from "@/lib/compliance-actions";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 const RESULT: Record<string, [string, string]> = {
   UYGUN: ["Uygun", "bg-ok-bg text-ok"],
@@ -66,7 +67,7 @@ export default async function HealthPage({ searchParams }: { searchParams: Promi
                           <td className={td}>{[r.doctor, r.institution].filter(Boolean).join(" · ") || "—"}</td>
                           <td className={`num ${td}`}>{r.expires_on ? formatDate(r.expires_on) : "süresiz"}</td>
                           <td className={td}>{r.report_path && signed.get(r.report_path) ? <a href={signed.get(r.report_path)} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand-700">Aç</a> : "—"}</td>
-                          <td className={`${td} text-right`}><form action={deleteComplianceRecord}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="category" value="HEALTH" /><button className="text-xs font-semibold text-bad">Sil</button></form></td>
+                          <td className={`${td} text-right`}><form action={deleteComplianceRecord}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="category" value="HEALTH" /><ConfirmSubmit label="Sil" /></form></td>
                         </tr>
                       );
                     })}

@@ -206,3 +206,6 @@ drop policy if exists notif_insert on notifications;
 alter table notifications drop constraint if exists notifications_link_internal;
 update notifications set link = null where link is not null and (link not like '/%' or link like '//%');
 alter table notifications add constraint notifications_link_internal check (link is null or (link like '/%' and link not like '//%'));
+
+-- API şema önbelleğini yenile (yeni fonksiyonlar hemen görünsün)
+notify pgrst, 'reload schema';

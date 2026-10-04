@@ -1,7 +1,8 @@
 "use client";
-import { useActionState, useMemo, useState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
+import { useMemo, useState } from "react";
 import { applyRaise, formatTL, parseTL, raisePercent, type RaiseKind } from "@mb/core";
-import { applyBulkRaise, type RaiseResult } from "./actions";
+import { applyBulkRaise } from "./actions";
 
 export interface RaiseEmployee {
   id: string;
@@ -11,7 +12,7 @@ export interface RaiseEmployee {
 }
 
 export function BulkRaiseForm({ employees, departments, defaultDate }: { employees: RaiseEmployee[]; departments: string[]; defaultDate: string }) {
-  const [state, action, pending] = useActionState<RaiseResult | null, FormData>(applyBulkRaise, null);
+  const { state, pending, formProps: actionProps } = useActionForm(applyBulkRaise);
   const [depts, setDepts] = useState<Set<string>>(new Set());
   const [kind, setKind] = useState<RaiseKind>("PERCENT");
   const [value, setValue] = useState("");
@@ -39,7 +40,7 @@ export function BulkRaiseForm({ employees, departments, defaultDate }: { employe
   const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white";
 
   return (
-    <form action={action} className="flex flex-col gap-5">
+    <form {...actionProps} className="flex flex-col gap-5">
       <input type="hidden" name="kind" value={kind} />
       <input type="hidden" name="scope" value={depts.size ? [...depts].join(", ") : "Tüm personel"} />
       <section className="bg-white border border-line rounded-2xl p-5 flex flex-col gap-4">

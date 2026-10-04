@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { parseTL } from "@mb/core";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
+import { fail, must } from "@/lib/flash";
 
 const str = (f: FormData, k: string) => {
   const v = String(f.get(k) ?? "").trim();
@@ -55,6 +56,20 @@ export async function saveEmployee(_: EmployeeSaveResult | null, f: FormData): P
   const tc = str(f, "national_id");
   if (tc && !/^\d{11}$/.test(tc)) return { message: "TC kimlik no 11 haneli olmalı." };
 
+  // Tutarları kayıttan ÖNCE doğrula (yarım kayıt kalmasın)
+  let totalNet: number | null = null;
+  let fixedNet: number | null = null;
+  const insurance = str(f, "insurance_type") === "FIXED_NET" ? "FIXED_NET" : "MIN_WAGE";
+  if (!id && str(f, "total_net")) {
+    try {
+      totalNet = parseTL(str(f, "total_net")!);
+      fixedNet = insurance === "FIXED_NET" && str(f, "fixed_official_net") ? parseTL(str(f, "fixed_official_net")!) : null;
+    } catch {
+      return { message: "Ücret tutarı okunamadı. Örnek: 40.000 veya 28.075,50" };
+    }
+    if (totalNet <= 0) return { message: "Toplam ücret sıfırdan büyük olmalı." };
+  }
+
   const employee = {
     company_id: s.companyId,
     branch_id: branchId,
@@ -76,23 +91,25 @@ export async function saveEmployee(_: EmployeeSaveResult | null, f: FormData): P
     const { data, error } = await supabase.from("employees").insert(employee).select("id").single();
     if (error || !data) return { message: error?.message.includes("card_no") ? "Bu PDKS numarası başka personelde kayıtlı." : (error?.message ?? "Kaydedilemedi") };
     employeeId = data.id;
+    // Bundan sonraki adım hata verirse personel zaten oluştu: tekrar "kaydet" ikinci kopya açmasın diye düzenleme sayfasına git
+    const created = employeeId;
+    const toEdit = (msg: string) => redirect(`/personel/${created}/duzenle?hata=${encodeURIComponent(`Personel oluşturuldu ama ${msg} Eksikleri buradan tamamlayın.`)}`);
 
-    const total = str(f, "total_net");
-    if (total) {
-      const insurance = str(f, "insurance_type") === "FIXED_NET" ? "FIXED_NET" : "MIN_WAGE";
-      const fixed = str(f, "fixed_official_net");
-      await supabase.from("pay_contracts").insert({
+    if (totalNet) {
+      const { error: cErr } = await supabase.from("pay_contracts").insert({
         company_id: s.companyId,
         employee_id: employeeId,
         valid_from: hireDate,
-        total_net: parseTL(total),
+        total_net: totalNet,
         insurance_type: insurance,
-        fixed_official_net: insurance === "FIXED_NET" && fixed ? parseTL(fixed) : null,
+        fixed_official_net: fixedNet,
         bes_rate: f.get("bes") === "on" ? 0.03 : 0,
         change_reason: "İşe giriş",
       });
+      if (cErr) toEdit(`ücret kaydı yazılamadı (${cErr.message}).`);
       if (f.get("bes") === "on") {
-        await supabase.from("bes_enrollments").insert({ company_id: s.companyId, employee_id: employeeId, enrolled_on: hireDate, rate: 0.03 });
+        const { error: bErr } = await supabase.from("bes_enrollments").insert({ company_id: s.companyId, employee_id: employeeId, enrolled_on: hireDate, rate: 0.03 });
+        if (bErr) toEdit(`BES kaydı yazılamadı (${bErr.message}).`);
       }
     }
   }
@@ -101,7 +118,10 @@ export async function saveEmployee(_: EmployeeSaveResult | null, f: FormData): P
   for (const k of PRIVATE_FIELDS) priv[k] = INT_FIELDS.has(k) ? int(f, k) : str(f, k);
   priv.iban = iban;
   const { error: pErr } = await supabase.from("employee_private").upsert(priv, { onConflict: "employee_id" });
-  if (pErr) return { message: `Kişisel bilgiler kaydedilemedi: ${pErr.message}` };
+  if (pErr) {
+    if (!id) redirect(`/personel/${employeeId}/duzenle?hata=${encodeURIComponent(`Personel oluşturuldu ama kişisel bilgiler kaydedilemedi (${pErr.message}). Buradan tamamlayın.`)}`);
+    return { message: `Kişisel bilgiler kaydedilemedi: ${pErr.message}` };
+  }
   if (employee.card_no) await supabase.rpc("link_punches_to_employees", { p_company: s.companyId });
 
   revalidatePath("/personel");
@@ -111,24 +131,26 @@ export async function saveEmployee(_: EmployeeSaveResult | null, f: FormData): P
 
 export async function terminateEmployee(f: FormData) {
   const s = await getSession();
-  if (!["owner", "accountant", "hr"].includes(s.role)) throw new Error("Yetkiniz yok");
+  if (!["owner", "accountant", "hr"].includes(s.role)) await fail("Yetkiniz yok.");
   const id = String(f.get("id"));
   const date = str(f, "termination_date");
-  if (!date) throw new Error("Çıkış tarihi zorunlu");
+  if (!date) await fail("Çıkış tarihi zorunlu.");
   const supabase = await createClient();
   const { error } = await supabase
     .from("employees")
     .update({ termination_date: date, termination_reason: str(f, "termination_reason"), status: "terminated" })
     .eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) await fail(error.message);
   revalidatePath(`/personel/${id}`);
   redirect(`/personel/${id}`);
 }
 
 export async function reactivateEmployee(f: FormData) {
+  const s = await getSession();
+  if (!["owner", "accountant", "hr"].includes(s.role)) await fail("Yetkiniz yok.");
   const id = String(f.get("id"));
   const supabase = await createClient();
-  await supabase.from("employees").update({ termination_date: null, termination_reason: null, status: "active" }).eq("id", id);
+  await must(supabase.from("employees").update({ termination_date: null, termination_reason: null, status: "active" }).eq("id", id));
   revalidatePath(`/personel/${id}`);
   redirect(`/personel/${id}`);
 }

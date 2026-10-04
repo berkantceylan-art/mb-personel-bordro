@@ -1,5 +1,6 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
+import { useState } from "react";
 import { correctLedgerEntry } from "@/lib/ledger-actions";
 
 const TYPES: Array<[string, string]> = [
@@ -24,12 +25,12 @@ export function EntryEditForm(props: {
   amount: string;
   note: string;
 }) {
-  const [state, action, pending] = useActionState(correctLedgerEntry, null);
+  const { state, pending, formProps: actionProps } = useActionForm(correctLedgerEntry);
   const [type, setType] = useState(props.type);
   const hasChannel = type === "ADVANCE" || type === "SALARY";
   const input = "h-12 rounded-[10px] border border-[#D5DEE8] px-3 text-ink bg-white";
   return (
-    <form action={action} className="bg-white border border-line rounded-2xl p-6 flex flex-col gap-4">
+    <form {...actionProps} className="bg-white border border-line rounded-2xl p-6 flex flex-col gap-4">
       <input type="hidden" name="id" value={props.id} />
       <input type="hidden" name="employeeId" value={props.employeeId} />
       <div className="grid gap-4 md:grid-cols-2">

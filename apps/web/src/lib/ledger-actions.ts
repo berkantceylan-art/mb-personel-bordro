@@ -4,18 +4,19 @@ import { redirect } from "next/navigation";
 import { parseTL } from "@mb/core";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
+import { fail } from "@/lib/flash";
 
 const TYPES = ["ACCRUAL", "BONUS", "OVERTIME", "ADVANCE", "SALARY", "BES", "GARNISHMENT", "DEDUCTION", "ADJUSTMENT"];
 
 export async function deleteLedgerEntry(formData: FormData) {
   const s = await getSession();
-  if (!canManagePay(s.role)) throw new Error("Yetkiniz yok");
+  if (!canManagePay(s.role)) await fail("Yetkiniz yok");
   const id = String(formData.get("id"));
   const employeeId = String(formData.get("employeeId"));
   const reason = String(formData.get("reason") ?? "").trim() || "Silindi";
   const supabase = await createClient();
   const { error } = await supabase.rpc("void_ledger_entry", { p_id: id, p_reason: reason });
-  if (error) throw new Error(error.message);
+  if (error) await fail(error.message);
   revalidatePath(`/personel/${employeeId}`);
   revalidatePath("/");
   redirect(`/personel/${employeeId}`);

@@ -1,5 +1,6 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
+import { useState } from "react";
 import { bulkInvites, createInvite, saveBranch } from "./actions";
 
 const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white w-full";
@@ -7,10 +8,10 @@ type R = { ok: boolean; message: string } | null;
 const Msg = ({ s }: { s: R }) => (s ? <span role="status" className={`text-sm rounded-lg px-3 py-1.5 ${s.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{s.message}</span> : null);
 
 export function InviteForm({ employees, isOwner }: { employees: Array<{ id: string; name: string }>; isOwner: boolean }) {
-  const [state, action, pending] = useActionState(createInvite, null);
+  const { state, pending, formProps: actionProps } = useActionForm(createInvite);
   const [role, setRole] = useState("employee");
   return (
-    <form action={action} className="grid gap-4 md:grid-cols-4 items-end">
+    <form {...actionProps} className="grid gap-4 md:grid-cols-4 items-end">
       <label className="flex flex-col gap-1.5 text-sm text-muted">Rol
         <select name="role" value={role} onChange={(e) => setRole(e.target.value)} className={input}>
           <option value="employee">Personel (mobil uygulama)</option>
@@ -38,9 +39,9 @@ export function InviteForm({ employees, isOwner }: { employees: Array<{ id: stri
 }
 
 export function BulkInviteForm({ departments }: { departments: Array<{ id: string; name: string }> }) {
-  const [state, action, pending] = useActionState(bulkInvites, null);
+  const { state, pending, formProps: actionProps } = useActionForm(bulkInvites);
   return (
-    <form action={action} className="flex flex-wrap gap-3 items-end">
+    <form {...actionProps} className="flex flex-wrap gap-3 items-end">
       <label className="flex flex-col gap-1.5 text-sm text-muted">Bölüm
         <select name="department_id" className="h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white">
           <option value="">Tüm bölümler</option>
@@ -55,7 +56,7 @@ export function BulkInviteForm({ departments }: { departments: Array<{ id: strin
 }
 
 export function BranchForm({ branch }: { branch?: { id: string; name: string; address: string | null; lat: number | null; lng: number | null; radius_m: number; mobile_punch_enabled: boolean } }) {
-  const [state, action, pending] = useActionState(saveBranch, null);
+  const { state, pending, formProps: actionProps } = useActionForm(saveBranch);
   const [lat, setLat] = useState(branch?.lat?.toString() ?? "");
   const [lng, setLng] = useState(branch?.lng?.toString() ?? "");
   const [geoMsg, setGeoMsg] = useState("");
@@ -69,7 +70,7 @@ export function BranchForm({ branch }: { branch?: { id: string; name: string; ad
     );
   };
   return (
-    <form action={action} className="grid gap-3 md:grid-cols-6 items-end">
+    <form {...actionProps} className="grid gap-3 md:grid-cols-6 items-end">
       {branch && <input type="hidden" name="id" value={branch.id} />}
       <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Şube adı<input name="name" required defaultValue={branch?.name} className={input} /></label>
       <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-4">Adres<input name="address" defaultValue={branch?.address ?? ""} className={input} /></label>

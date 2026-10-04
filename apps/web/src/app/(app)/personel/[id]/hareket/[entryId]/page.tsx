@@ -19,6 +19,8 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
     .eq("employee_id", id)
     .maybeSingle();
   if (!e) notFound();
+  const { data: per } = await supabase.from("payroll_periods").select("status").eq("period", e.period).maybeSingle();
+  const closed = per?.status === "closed";
   const emp = e.employees as unknown as { first_name: string; last_name: string };
   const amountText = (Number(e.amount) / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2 });
 
@@ -32,6 +34,10 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
       <div className="p-6 md:p-8 flex flex-col gap-6 max-w-3xl">
         {e.voided_at ? (
           <p className="text-sm rounded-lg px-3 py-2 bg-warn-bg text-warn">Bu hareket {formatDate(e.voided_at)} tarihinde iptal edilmiş: {e.void_reason}</p>
+        ) : closed ? (
+          <p className="text-sm rounded-lg px-3 py-2 bg-warn-bg text-warn">
+            {e.period} dönemi kapalı; bu hareket düzeltilemez veya silinemez. Gerekirse <Link href="/donemler" className="font-semibold underline">Dönemler</Link> sayfasından dönemi yeniden açın ya da açık döneme düzeltme hareketi girin.
+          </p>
         ) : (
           <>
             <EntryEditForm

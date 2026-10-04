@@ -6,6 +6,7 @@ import { HAZARD_LABEL, loadCompliance } from "@/lib/compliance";
 import { closeIncident, deleteComplianceRecord, returnPpe, setHazardClass } from "@/lib/compliance-actions";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 const KIND: Record<string, string> = { KAZA: "İş kazası", RAMAK_KALA: "Ramak kala", MESLEK_HASTALIGI: "Meslek hastalığı" };
 
@@ -68,7 +69,7 @@ export default async function SafetyPage({ searchParams }: { searchParams: Promi
                         <td className={`num ${td}`}>{r.hours ? `${Number(r.hours)} sa` : "—"}</td>
                         <td className={td}>{[r.trainer, r.provider].filter(Boolean).join(" · ") || "—"}</td>
                         <td className={`num ${td}`}>{r.expires_on ? formatDate(r.expires_on) : "süresiz"}</td>
-                        <td className={`${td} text-right`}><form action={deleteComplianceRecord}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="category" value="TRAINING" /><button className="text-xs font-semibold text-bad">Sil</button></form></td>
+                        <td className={`${td} text-right`}><form action={deleteComplianceRecord}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="category" value="TRAINING" /><ConfirmSubmit label="Sil" /></form></td>
                       </tr>
                     ))}
                   </tbody>

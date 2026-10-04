@@ -6,6 +6,7 @@ import { formatDate, getSession } from "@/lib/session";
 import { hhmm, loadMonth } from "@/lib/timekeeping";
 import { ManualPunchForm } from "../../PunchForms";
 import { deletePunch } from "../../actions";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 const STATUS: Record<string, string> = {
   WORKED: "Çalıştı", INCOMPLETE: "Eksik okutma", ABSENT: "Devamsız", WEEKLY_OFF: "Hafta tatili",
@@ -74,7 +75,7 @@ export default async function DayPage({ params }: { params: Promise<{ employeeId
                   <td className="py-2 text-right">
                     <form action={deletePunch}>
                       <input type="hidden" name="id" value={p.id} />
-                      <button className="text-xs font-semibold text-bad" aria-label={`${p.punched_at.slice(11, 16)} okutmasını sil`}>Sil</button>
+                      <ConfirmSubmit label="Sil" question={`${p.punched_at.slice(11, 16)} okutması silinsin mi?`} />
                     </form>
                   </td>
                 </tr>

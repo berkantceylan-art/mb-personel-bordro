@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { expiryDate, type ComplianceType, type HazardClass } from "@mb/core";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
+import { must } from "@/lib/flash";
 
 const canSafety = (r: string) => ["owner", "hr", "safety"].includes(r);
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
@@ -81,7 +82,7 @@ export async function deleteComplianceRecord(f: FormData) {
   const s = await getSession();
   if (!canSafety(s.role)) return;
   const supabase = await createClient();
-  await supabase.from(str(f, "category") === "HEALTH" ? "health_exams" : "training_records").delete().eq("id", str(f, "id"));
+  await must(supabase.from(str(f, "category") === "HEALTH" ? "health_exams" : "training_records").delete().eq("id", str(f, "id")));
   revalidatePath("/isg");
   revalidatePath("/saglik");
   if (str(f, "employeeId")) revalidatePath(`/personel/${str(f, "employeeId")}`);

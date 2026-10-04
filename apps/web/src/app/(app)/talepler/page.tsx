@@ -6,6 +6,7 @@ import { decideAdvance } from "@/lib/comms-actions";
 import { decideLeave } from "@/lib/leave-ot-actions";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, formatDate, getSession, todayIso } from "@/lib/session";
+import { PendingSubmit } from "@/components/ConfirmSubmit";
 
 const STATUS: Record<string, [string, string]> = {
   pending: ["Bekliyor", "bg-warn-bg text-warn"],
@@ -60,8 +61,8 @@ export default async function RequestsPage() {
                             <select name="channel" aria-label="Ödeme kanalı" className={input} defaultValue="CASH"><option value="CASH">Elden</option><option value="BANK">Banka</option></select>
                             <input type="date" name="date" aria-label="Ödeme tarihi" defaultValue={todayIso()} className={input} />
                             <input name="note" aria-label="Not" placeholder="Not" className={`${input} w-32`} />
-                            <button name="decision" value="approve" className="h-9 px-3 rounded-lg bg-brand-700 text-white text-xs font-semibold">Onayla ve öde</button>
-                            <button name="decision" value="reject" className="h-9 px-3 rounded-lg border border-[#D5DEE8] text-xs font-semibold text-bad">Reddet</button>
+                            <PendingSubmit name="decision" value="approve" className="h-9 px-3 rounded-lg bg-brand-700 text-white text-xs font-semibold">Onayla ve öde</PendingSubmit>
+                            <PendingSubmit name="decision" value="reject" className="h-9 px-3 rounded-lg border border-[#D5DEE8] text-xs font-semibold text-bad">Reddet</PendingSubmit>
                           </form>
                         </td>
                       </tr>

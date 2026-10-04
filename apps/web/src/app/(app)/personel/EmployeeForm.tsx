@@ -1,5 +1,5 @@
 "use client";
-import { useActionState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
 import { saveEmployee } from "./employee-actions";
 
 export type EmployeeFormValues = Record<string, string | number | null | undefined>;
@@ -99,9 +99,9 @@ export function EmployeeForm({
   departments: Array<{ id: string; name: string }>;
   isNew: boolean;
 }) {
-  const [state, action, pending] = useActionState(saveEmployee, null);
+  const { state, pending, formProps: actionProps } = useActionForm(saveEmployee);
   return (
-    <form action={action} className="flex flex-col gap-5">
+    <form {...actionProps} className="flex flex-col gap-5">
       {values.id && <input type="hidden" name="id" value={String(values.id)} />}
       <fieldset className="bg-white border border-line rounded-2xl p-5 grid gap-4 md:grid-cols-3">
         <legend className="font-display font-semibold text-brand-800 px-1">Görev bilgileri</legend>

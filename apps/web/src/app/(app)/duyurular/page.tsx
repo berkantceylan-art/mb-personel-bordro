@@ -3,6 +3,7 @@ import { AnnouncementForm, MarkRead } from "@/components/CommsForms";
 import { deleteAnnouncement } from "@/lib/comms-actions";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 export default async function AnnouncementsPage() {
   const s = await getSession();
@@ -56,7 +57,7 @@ export default async function AnnouncementsPage() {
               {canPublish && (
                 <form action={deleteAnnouncement} className="ml-auto">
                   <input type="hidden" name="id" value={a.id} />
-                  <button className="text-bad font-semibold">Kaldır</button>
+                  <ConfirmSubmit label="Kaldır" question="Duyuru kaldırılsın mı?" className="text-bad font-semibold" />
                 </form>
               )}
             </div>

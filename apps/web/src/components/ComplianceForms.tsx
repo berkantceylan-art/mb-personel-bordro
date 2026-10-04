@@ -1,5 +1,6 @@
 "use client";
-import { useActionState, useMemo, useState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
+import { useMemo, useState } from "react";
 import { addComplianceRecords, addIncident, addPpe, addSickReport } from "@/lib/compliance-actions";
 
 const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white w-full";
@@ -35,10 +36,10 @@ function EmployeePicker({ employees, preselect }: { employees: Emp[]; preselect?
 }
 
 export function RecordForm({ category, types, employees, preselect }: { category: "TRAINING" | "HEALTH"; types: Array<{ id: string; name: string }>; employees: Emp[]; preselect?: string[] }) {
-  const [state, action, pending] = useActionState(addComplianceRecords, null);
+  const { state, pending, formProps: actionProps } = useActionForm(addComplianceRecords);
   const training = category === "TRAINING";
   return (
-    <form action={action} className="grid gap-4 md:grid-cols-4 items-end">
+    <form {...actionProps} className="grid gap-4 md:grid-cols-4 items-end">
       <input type="hidden" name="category" value={category} />
       <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">{training ? "Eğitim" : "Muayene / tetkik"}
         <select name="typeId" required className={input}>{types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
@@ -72,9 +73,9 @@ export function RecordForm({ category, types, employees, preselect }: { category
 }
 
 export function PpeForm({ employees }: { employees: Emp[] }) {
-  const [state, action, pending] = useActionState(addPpe, null);
+  const { state, pending, formProps: actionProps } = useActionForm(addPpe);
   return (
-    <form action={action} className="grid gap-4 md:grid-cols-5 items-end">
+    <form {...actionProps} className="grid gap-4 md:grid-cols-5 items-end">
       <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Malzeme
         <input name="item" required list="ppe-items" placeholder="ör. Toz maskesi FFP2" className={input} />
         <datalist id="ppe-items">{["Toz maskesi FFP2", "Toz maskesi FFP3", "Koruyucu gözlük", "Kulak tıkacı", "Eldiven (nitril)", "İş önlüğü", "Yüz siperi", "İş ayakkabısı"].map((x) => <option key={x} value={x} />)}</datalist>
@@ -90,9 +91,9 @@ export function PpeForm({ employees }: { employees: Emp[] }) {
 }
 
 export function IncidentForm({ employees }: { employees: Emp[] }) {
-  const [state, action, pending] = useActionState(addIncident, null);
+  const { state, pending, formProps: actionProps } = useActionForm(addIncident);
   return (
-    <form action={action} className="grid gap-4 md:grid-cols-4 items-end">
+    <form {...actionProps} className="grid gap-4 md:grid-cols-4 items-end">
       <label className="flex flex-col gap-1.5 text-sm text-muted">Tür
         <select name="kind" className={input}><option value="RAMAK_KALA">Ramak kala</option><option value="KAZA">İş kazası</option><option value="MESLEK_HASTALIGI">Meslek hastalığı</option></select>
       </label>
@@ -112,9 +113,9 @@ export function IncidentForm({ employees }: { employees: Emp[] }) {
 }
 
 export function SickReportForm({ employees }: { employees: Emp[] }) {
-  const [state, action, pending] = useActionState(addSickReport, null);
+  const { state, pending, formProps: actionProps } = useActionForm(addSickReport);
   return (
-    <form action={action} className="grid gap-4 md:grid-cols-4 items-end">
+    <form {...actionProps} className="grid gap-4 md:grid-cols-4 items-end">
       <label className="flex flex-col gap-1.5 text-sm text-muted">Personel
         <select name="employeeId" required className={input}><option value="">Seçin</option>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
       </label>

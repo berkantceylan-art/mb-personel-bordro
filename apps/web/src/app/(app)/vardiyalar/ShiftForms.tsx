@@ -1,5 +1,5 @@
 "use client";
-import { useActionState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
 import { assignDefaultShift, saveShift } from "./actions";
 import type { ShiftRow } from "@/lib/timekeeping";
 
@@ -8,10 +8,10 @@ const COLORS = ["#E7F1FB", "#1E3550", "#E0F5FB", "#F1ECFA", "#E6F4EC", "#FFF4E0"
 const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white w-full";
 
 export function ShiftForm({ shift, employees }: { shift?: ShiftRow; employees: Array<{ id: string; name: string }> }) {
-  const [state, action, pending] = useActionState(saveShift, null);
+  const { state, pending, formProps: actionProps } = useActionForm(saveShift);
   const wd = new Set(shift?.weekdays ?? [1, 2, 3, 4, 5, 6]);
   return (
-    <form action={action} className="bg-white border border-line rounded-2xl p-5 flex flex-col gap-4">
+    <form {...actionProps} className="bg-white border border-line rounded-2xl p-5 flex flex-col gap-4">
       {shift && <input type="hidden" name="id" value={shift.id} />}
       <div className="grid gap-4 md:grid-cols-4">
         <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Vardiya adı *<input name="name" required defaultValue={shift?.name} placeholder="ör. Gündüz" className={input} /></label>
@@ -58,9 +58,9 @@ export function ShiftForm({ shift, employees }: { shift?: ShiftRow; employees: A
 }
 
 export function DefaultShiftForm({ shifts, departments }: { shifts: ShiftRow[]; departments: Array<{ id: string; name: string }> }) {
-  const [state, action, pending] = useActionState(assignDefaultShift, null);
+  const { state, pending, formProps: actionProps } = useActionForm(assignDefaultShift);
   return (
-    <form action={action} className="flex flex-col gap-3">
+    <form {...actionProps} className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-1.5">
         {departments.map((d) => (
           <label key={d.id} className="text-[13px] px-3 py-1.5 rounded-full bg-[#EEF2F6] text-[#33414F] cursor-pointer has-[:checked]:bg-brand-700 has-[:checked]:text-white">

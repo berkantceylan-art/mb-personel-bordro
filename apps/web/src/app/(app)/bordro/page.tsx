@@ -6,7 +6,6 @@ import { computePayroll } from "@/lib/payroll";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, currentPeriod, getSession, periodLabel } from "@/lib/session";
 import { PayrollButtons } from "./PayrollButtons";
-import { unpostDeductions } from "./actions";
 
 export default async function PayrollPage({ searchParams }: { searchParams: Promise<{ donem?: string; bolum?: string; gorunum?: string }> }) {
   const s = await getSession();
@@ -50,13 +49,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
       />
       <div className="p-4 md:p-6 flex flex-col gap-4">
         <div className="flex flex-wrap gap-4 items-start justify-between">
-          <PayrollButtons period={period} canPost={savedCount > postedCount} />
-          {postedCount > 0 && (
-            <form action={unpostDeductions}>
-              <input type="hidden" name="period" value={period} />
-              <button className="h-11 px-4 rounded-[10px] border border-[#D5DEE8] bg-white text-sm font-semibold text-muted">Kesintileri geri al</button>
-            </form>
-          )}
+          <PayrollButtons period={period} canPost={savedCount > postedCount} canUnpost={postedCount > 0} />
         </div>
 
         <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">

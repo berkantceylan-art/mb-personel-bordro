@@ -1,12 +1,12 @@
 "use client";
-import { useActionState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
 import { PaySideSelect } from "@/components/PaySideSelect";
-import { addManualPunch, applyMissingDays, importPunches, type ImportPunchResult } from "./actions";
+import { addManualPunch, applyMissingDays, importPunches } from "./actions";
 
 export function ImportPunchForm() {
-  const [state, action, pending] = useActionState<ImportPunchResult | null, FormData>(importPunches, null);
+  const { state, pending, formProps: actionProps } = useActionForm(importPunches);
   return (
-    <form action={action} className="bg-white border border-line rounded-2xl p-6 flex flex-col gap-4 max-w-2xl">
+    <form {...actionProps} className="bg-white border border-line rounded-2xl p-6 flex flex-col gap-4 max-w-2xl">
       <label className="flex flex-col gap-1.5 text-sm text-muted">
         PDKS cihaz dosyası (.txt)
         <input type="file" name="file" accept=".txt,.csv,.dat" required className="h-12 rounded-[10px] border border-[#D5DEE8] px-3 py-2.5 text-ink" />
@@ -28,10 +28,10 @@ export function ImportPunchForm() {
 }
 
 export function ManualPunchForm({ employeeId, date }: { employeeId: string; date: string }) {
-  const [state, action, pending] = useActionState(addManualPunch, null);
+  const { state, pending, formProps: actionProps } = useActionForm(addManualPunch);
   const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white";
   return (
-    <form action={action} className="flex flex-wrap gap-3 items-end">
+    <form {...actionProps} className="flex flex-wrap gap-3 items-end">
       <input type="hidden" name="employeeId" value={employeeId} />
       <label className="flex flex-col gap-1.5 text-sm text-muted">Yön
         <select name="direction" className={input}><option value="IN">Giriş</option><option value="OUT">Çıkış</option></select>
@@ -46,9 +46,9 @@ export function ManualPunchForm({ employeeId, date }: { employeeId: string; date
 }
 
 export function MissingDaysButton({ period }: { period: string }) {
-  const [state, action, pending] = useActionState(applyMissingDays, null);
+  const { state, pending, formProps: actionProps } = useActionForm(applyMissingDays);
   return (
-    <form action={action} className="flex flex-col gap-2 items-start">
+    <form {...actionProps} className="flex flex-col gap-2 items-start">
       <input type="hidden" name="period" value={period} />
       <div className="flex gap-2 items-end flex-wrap">
         <PaySideSelect label="Eksik gün nereden kesilsin" />

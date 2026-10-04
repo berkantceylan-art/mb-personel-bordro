@@ -7,6 +7,7 @@ import { EnablePush } from "@/components/Pwa";
 import { cancelAdvance } from "@/lib/comms-actions";
 import { createClient } from "@/lib/supabase/server";
 import { currentPeriod, formatDate, getSession, periodLabel } from "@/lib/session";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 const STATUS: Record<string, [string, string]> = {
   pending: ["Bekliyor", "bg-warn-bg text-warn"],
@@ -97,7 +98,7 @@ export default async function MyPage() {
                   <Chip s={a.status} />
                   <span className="text-xs text-muted flex-1 truncate">{a.decision_note ?? a.reason ?? ""}</span>
                   {a.status === "pending" && (
-                    <form action={cancelAdvance}><input type="hidden" name="id" value={a.id} /><button className="text-xs font-semibold text-bad">İptal</button></form>
+                    <form action={cancelAdvance}><input type="hidden" name="id" value={a.id} /><ConfirmSubmit label="İptal" question="Talep iptal edilsin mi?" /></form>
                   )}
                 </li>
               ))}

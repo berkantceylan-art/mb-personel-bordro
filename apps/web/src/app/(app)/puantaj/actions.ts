@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
 import { loadMonth } from "@/lib/timekeeping";
 import { cumulativeBases } from "@/lib/payroll";
+import { must } from "@/lib/flash";
 
 const canEdit = (r: string) => ["owner", "accountant", "hr", "branch_manager"].includes(r);
 
@@ -116,7 +117,7 @@ export async function deletePunch(f: FormData) {
   const s = await getSession();
   if (!canEdit(s.role)) return;
   const supabase = await createClient();
-  await supabase.from("attendance_punches").delete().eq("id", String(f.get("id")));
+  await must(supabase.from("attendance_punches").delete().eq("id", String(f.get("id"))));
   revalidatePath("/puantaj");
 }
 

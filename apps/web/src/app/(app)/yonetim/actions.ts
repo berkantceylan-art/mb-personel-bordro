@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { PERSONNEL_DOMAIN, formatInviteCode } from "@/lib/constants";
+import { done, fail, must } from "@/lib/flash";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 type R = { ok: boolean; message: string };
@@ -18,7 +19,7 @@ const HR_INVITE_ROLES = ["employee", "branch_manager", "safety"];
 
 async function requireAdmin() {
   const s = await getSession();
-  if (!["owner", "hr"].includes(s.role)) throw new Error("Yetkiniz yok");
+  if (!["owner", "hr"].includes(s.role)) await fail("Yetkiniz yok");
   return s;
 }
 
@@ -81,24 +82,26 @@ export async function bulkInvites(_: R | null, f: FormData): Promise<R> {
 export async function deleteInvite(f: FormData) {
   await requireAdmin();
   const supabase = await createClient();
-  await supabase.from("invites").delete().eq("id", str(f, "id"));
+  await must(supabase.from("invites").delete().eq("id", str(f, "id")));
   revalidatePath("/yonetim");
 }
 
 export async function updateMember(f: FormData) {
   const s = await getSession();
-  if (s.role !== "owner") throw new Error("Rolleri sadece şirket sahibi değiştirebilir");
+  if (s.role !== "owner") await fail("Rolleri sadece şirket sahibi değiştirebilir.");
   const userId = str(f, "userId");
   const role = str(f, "role");
   if (!ROLES.includes(role)) return;
-  if (userId === s.userId && role !== "owner") throw new Error("Kendi sahiplik rolünüzü kaldıramazsınız");
+  if (userId === s.userId && role !== "owner") await fail("Kendi sahiplik rolünüzü kaldıramazsınız.");
   const supabase = await createClient();
   const branches = f.getAll("branch_id").map(String);
   const all = f.get("all_branches") === "on";
-  await supabase.from("memberships").update({ role, all_branches: all, display_name: str(f, "display_name") || null }).eq("user_id", userId).eq("company_id", s.companyId);
-  await supabase.from("membership_branches").delete().eq("user_id", userId).eq("company_id", s.companyId);
-  if (!all && branches.length) await supabase.from("membership_branches").insert(branches.map((b) => ({ user_id: userId, company_id: s.companyId, branch_id: b })));
+  if (!all && !branches.length) await fail("Tüm şubeler seçili değilse en az bir şube seçin.");
+  await must(supabase.from("memberships").update({ role, all_branches: all, display_name: str(f, "display_name") || null }).eq("user_id", userId).eq("company_id", s.companyId));
+  await must(supabase.from("membership_branches").delete().eq("user_id", userId).eq("company_id", s.companyId));
+  if (!all) await must(supabase.from("membership_branches").insert(branches.map((b) => ({ user_id: userId, company_id: s.companyId, branch_id: b }))));
   revalidatePath("/yonetim");
+  await done("Kullanıcı güncellendi.");
 }
 
 export async function removeMember(f: FormData) {
@@ -107,9 +110,10 @@ export async function removeMember(f: FormData) {
   const userId = str(f, "userId");
   if (userId === s.userId) return;
   const supabase = await createClient();
-  await supabase.from("employees").update({ user_id: null }).eq("user_id", userId);
-  await supabase.from("memberships").delete().eq("user_id", userId).eq("company_id", s.companyId);
+  await must(supabase.from("employees").update({ user_id: null }).eq("user_id", userId).eq("company_id", s.companyId));
+  await must(supabase.from("memberships").delete().eq("user_id", userId).eq("company_id", s.companyId));
   revalidatePath("/yonetim");
+  await done("Kullanıcının erişimi kaldırıldı.");
 }
 
 export async function saveBranch(_: R | null, f: FormData): Promise<R> {

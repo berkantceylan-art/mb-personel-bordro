@@ -1,11 +1,11 @@
 "use client";
-import { useActionState } from "react";
-import { createPeriod, type PeriodResult } from "./actions";
+import { useActionForm } from "@/lib/use-action-form";
+import { createPeriod } from "./actions";
 
 export function CreatePeriodButton({ period, label, variant = "primary" }: { period: string; label: string; variant?: "primary" | "secondary" }) {
-  const [state, action, pending] = useActionState<PeriodResult | null, FormData>(createPeriod, null);
+  const { state, pending, formProps: actionProps } = useActionForm(createPeriod);
   return (
-    <form action={action} className="flex flex-col gap-2 items-start">
+    <form {...actionProps} className="flex flex-col gap-2 items-start">
       <input type="hidden" name="period" value={period} />
       <button
         disabled={pending}

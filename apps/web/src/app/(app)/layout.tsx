@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { FlashMessage } from "@/components/FlashMessage";
 import { MobileNav } from "@/components/MobileNav";
 import { InstallHint } from "@/components/Pwa";
 import { Sidebar } from "@/components/Sidebar";
@@ -32,6 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar companyName={s.companyName} role={s.role} badges={badges} />
       <MobileNav companyName={s.companyName} role={s.role} badges={badges} />
       <main className="flex-1 min-w-0 flex flex-col pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">
+        <FlashMessage />
         <InstallHint />
         {children}
       </main>

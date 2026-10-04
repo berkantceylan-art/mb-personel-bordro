@@ -7,6 +7,7 @@ import { canManagePay, currentPeriod, formatDate, getSession, periodLabel } from
 import { deleteContract } from "../../zamlar/actions";
 import { deleteDocument, uploadDocument } from "./document-actions";
 import { cellStyle, loadCompliance } from "@/lib/compliance";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 function yearsSince(iso: string) {
   const d = new Date(iso);
@@ -303,7 +304,7 @@ export default async function EmployeeProfile({
                               <form action={deleteContract}>
                                 <input type="hidden" name="id" value={c.id} />
                                 <input type="hidden" name="employeeId" value={id} />
-                                <button className="text-xs font-semibold text-bad">Kaydı sil</button>
+                                <ConfirmSubmit label="Kaydı sil" question="Ücret kaydı silinsin mi?" />
                               </form>
                             )}
                           </td>
@@ -399,7 +400,7 @@ export default async function EmployeeProfile({
                         <form action={deleteDocument}>
                           <input type="hidden" name="id" value={f.id} />
                           <input type="hidden" name="employeeId" value={id} />
-                          <button className="text-bad font-semibold" aria-label={`${d.name} dosyasını sil`}>Sil</button>
+                          <ConfirmSubmit label="Sil" question="Dosya silinsin mi?" className="text-bad font-semibold" />
                         </form>
                       )}
                     </div>

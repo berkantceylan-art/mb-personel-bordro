@@ -5,6 +5,7 @@ import { contractsAt } from "@/lib/contracts";
 import { cumulativeBases } from "@/lib/payroll";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
+import { done, fail, must } from "@/lib/flash";
 
 const canHr = (r: string) => ["owner", "accountant", "hr", "branch_manager"].includes(r);
 
@@ -66,7 +67,16 @@ export async function decideLeave(f: FormData) {
   const status = String(f.get("status"));
   if (!["approved", "rejected", "cancelled"].includes(status)) return;
   const supabase = await createClient();
-  await supabase.from("leave_requests").update({ status, decided_by: s.userId, decided_at: new Date().toISOString() }).eq("id", String(f.get("id")));
+  // Onay/ret yalnız bekleyen talepte, iptal yalnız onaylı izinde (çift tıklama veya eski ekran durumu değiştirmesin)
+  const from = status === "cancelled" ? "approved" : "pending";
+  const { data: changed, error } = await supabase
+    .from("leave_requests")
+    .update({ status, decided_by: s.userId, decided_at: new Date().toISOString() })
+    .eq("id", String(f.get("id")))
+    .eq("status", from)
+    .select("id");
+  if (error) await fail(error.message);
+  if (!changed?.length) await fail("Bu talep zaten sonuçlanmış.");
   revalidatePath("/izin");
   revalidatePath("/talepler");
   revalidatePath("/puantaj");
@@ -106,7 +116,6 @@ export async function approveOvertime(f: FormData) {
   if (!items.length) return;
   const supabase = await createClient();
   const contracts = await contractsAt(supabase, [...new Set(items.map((i) => i.employeeId))], items.map((i) => i.date).sort().at(-1)!);
-  const writeLedger = decision === "approved" && canManagePay(s.role);
   // Resmi net etkisi personelin yıl içi kümülatif matrahıyla hesaplanır (bordroyla aynı)
   const { data: emps } = await supabase.from("employees").select("id, hire_date").in("id", [...new Set(items.map((i) => i.employeeId))]);
   const cumByPeriod = new Map<string, Map<string, number>>();
@@ -141,28 +150,19 @@ export async function approveOvertime(f: FormData) {
       )
       .select("id")
       .single();
-    if (!writeLedger || !rec || !lines.length) continue;
+    if (!rec) await fail("Fazla mesai kaydedilemedi.");
+    // Cari hesap yalnız sahip/muhasebe tarafından yazılır; ret ise önceki kayıtları iptal eder (boş liste)
+    if (!canManagePay(s.role) || !rec) continue;
     const label = `Fazla mesai ${Math.floor(it.minutes / 60)} sa ${it.minutes % 60} dk ×${it.rate}`;
-    const { data: entries } = await supabase
-      .from("ledger_entries")
-      .insert(
-        lines.map((l) => ({
-          company_id: s.companyId,
-          employee_id: it.employeeId,
-          period: it.date.slice(0, 7),
-          entry_date: it.date,
-          type: "OVERTIME",
-          channel: "NONE",
-          amount: l.amount,
-          pay_side: l.side,
-          gross_amount: l.grossAmount,
-          note: `${label} (${l.side === "OFFICIAL" ? "resmi, bordroya brüt" : "elden"})`,
-        })),
-      )
-      .select("id");
-    if (entries?.length) await supabase.from("overtime_ledger_links").insert(entries.map((e) => ({ overtime_id: rec.id, ledger_entry_id: e.id })));
+    // Öncekiler iptal + yenileri tek işlemde: aynı günü ikinci kez onaylamak çift ödeme yaratmaz
+    const { error } = await supabase.rpc("set_overtime_ledger", {
+      p_overtime: rec.id,
+      p_lines: lines.map((l) => ({ side: l.side, amount: l.amount, gross: l.grossAmount, note: `${label} (${l.side === "OFFICIAL" ? "resmi, bordroya brüt" : "elden"})` })),
+    });
+    if (error) await fail(error.message);
   }
   revalidatePath("/fazla-mesai");
+  if (!f.get("manual")) await done(`${items.length} fazla mesai ${decision === "approved" ? "onaylandı" : "reddedildi"}.`);
 }
 
 export async function addManualOvertime(_: { message: string } | null, f: FormData): Promise<{ message: string }> {
@@ -193,7 +193,11 @@ export async function cancelOvertime(f: FormData) {
     supabase.from("overtime_ledger_links").select("ledger_entry_id").eq("overtime_id", id),
   ]);
   const ids = [...(links ?? []).map((l) => l.ledger_entry_id as string), ...(r?.ledger_entry_id ? [r.ledger_entry_id as string] : [])];
-  if (canManagePay(s.role)) for (const lid of ids) await supabase.rpc("void_ledger_entry", { p_id: lid, p_reason: "Fazla mesai geri alındı" });
-  await supabase.from("overtime_records").delete().eq("id", id);
+  if (ids.length && !canManagePay(s.role)) await fail("Cari hesaba yazılmış fazla mesaiyi yalnız sahip veya muhasebe geri alabilir.");
+  for (const lid of ids) {
+    const { error } = await supabase.rpc("void_ledger_entry", { p_id: lid, p_reason: "Fazla mesai geri alındı" });
+    if (error && !/zaten|iptal edilmiş/i.test(error.message)) await fail(error.message);
+  }
+  await must(supabase.from("overtime_records").delete().eq("id", id));
   revalidatePath("/fazla-mesai");
 }

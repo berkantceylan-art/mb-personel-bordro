@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { accrualForPeriod, periodBounds } from "@mb/core";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
+import { done, fail } from "@/lib/flash";
 
 export interface PeriodResult {
   ok: boolean;
@@ -84,15 +85,21 @@ export async function createPeriod(_: PeriodResult | null, formData: FormData): 
   return { ok: true, message: `${rows.length} personele hakediş yazıldı.${skipped}${missing}` };
 }
 
+/** Kapat: kalan bakiyeler sonraki aya devredilir, dönem kilitlenir. Aç: devirler geri alınır. */
 export async function setPeriodStatus(formData: FormData) {
   const s = await getSession();
-  if (!canManagePay(s.role)) return;
+  if (!canManagePay(s.role)) await fail("Yetkiniz yok.");
   const period = String(formData.get("period"));
-  const status = formData.get("status") === "closed" ? "closed" : "open";
+  const close = formData.get("status") === "closed";
   const supabase = await createClient();
-  await supabase
-    .from("payroll_periods")
-    .update({ status, closed_at: status === "closed" ? new Date().toISOString() : null, closed_by: status === "closed" ? s.userId : null })
-    .eq("period", period);
+  const { data, error } = await supabase.rpc(close ? "close_period" : "reopen_period", { p_period: period });
+  if (error) await fail(error.message);
   revalidatePath("/donemler");
+  revalidatePath("/");
+  revalidatePath("/bordro");
+  if (close) {
+    const r = data as { carried: number; next: string };
+    await done(`${period} kapatıldı. ${r.carried} personelin kalan bakiyesi ${r.next} dönemine devredildi.`);
+  }
+  await done(`${period} yeniden açıldı; devir hareketleri geri alındı.`);
 }

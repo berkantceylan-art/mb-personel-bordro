@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { BranchForm, BulkInviteForm, InviteForm } from "./AdminForms";
 import { deleteDepartment, deleteDevice, deleteInvite, removeMember, saveDepartment, saveDevice, updateMember } from "./actions";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 const ROLE: Record<string, string> = { owner: "Şirket sahibi", accountant: "Muhasebe", hr: "İnsan kaynakları", branch_manager: "Şube sorumlusu", safety: "İSG uzmanı", employee: "Personel" };
 const TABLE: Record<string, string> = {
@@ -82,7 +83,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                       </td>
                       <td className={`${td} text-right`}>
                         {isOwner && m.user_id !== s.userId && (
-                          <form action={removeMember}><input type="hidden" name="userId" value={m.user_id} /><button className="text-xs font-semibold text-bad">Erişimi kaldır</button></form>
+                          <form action={removeMember}><input type="hidden" name="userId" value={m.user_id} /><ConfirmSubmit label="Erişimi kaldır" question="Kullanıcının erişimi kaldırılsın mı?" /></form>
                         )}
                       </td>
                     </tr>
@@ -112,7 +113,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                       <td className={td}>{ROLE[i.role]}</td>
                       <td className={`${td} text-xs`}>{i.login_email}</td>
                       <td className={td}>{i.used_at ? <span className="text-xs font-semibold text-ok">Kullanıldı {formatDate(i.used_at)}</span> : new Date(i.expires_at) < new Date() ? <span className="text-xs text-bad">Süresi doldu</span> : <span className="text-xs text-warn">Bekliyor · {formatDate(i.expires_at)}&apos;e kadar</span>}</td>
-                      <td className={`${td} text-right`}>{!i.used_at && <form action={deleteInvite}><input type="hidden" name="id" value={i.id} /><button className="text-xs font-semibold text-bad">Sil</button></form>}</td>
+                      <td className={`${td} text-right`}>{!i.used_at && <form action={deleteInvite}><input type="hidden" name="id" value={i.id} /><ConfirmSubmit label="Sil" /></form>}</td>
                     </tr>
                   ))}
                   {(invites.data ?? []).length === 0 && <tr><td colSpan={6} className="py-6 text-center text-muted">Davet yok.</td></tr>}
@@ -144,7 +145,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                   <span className="text-xs text-muted w-20">{deptCount.get(d.id) ?? 0} kişi</span>
                   <button className="h-10 px-3 rounded-lg border border-[#D5DEE8] text-xs font-semibold text-brand-700">Kaydet</button>
                 </form>
-                {!deptCount.get(d.id) && <form action={deleteDepartment}><input type="hidden" name="id" value={d.id} /><button className="text-xs font-semibold text-bad">Sil</button></form>}
+                {!deptCount.get(d.id) && <form action={deleteDepartment}><input type="hidden" name="id" value={d.id} /><ConfirmSubmit label="Sil" /></form>}
               </div>
             ))}
             <form action={saveDepartment} className="flex gap-2 items-center pt-2 border-t border-line">
@@ -167,7 +168,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                   <input name="name" defaultValue={d.name ?? ""} placeholder="Ad" aria-label="Cihaz adı" className="h-10 rounded-lg border border-[#D5DEE8] px-3" />
                   {isOwner && <button className="h-10 px-3 rounded-lg border border-[#D5DEE8] text-xs font-semibold text-brand-700">Kaydet</button>}
                 </form>
-                {isOwner && <form action={deleteDevice}><input type="hidden" name="id" value={d.id} /><button className="text-xs font-semibold text-bad">Sil</button></form>}
+                {isOwner && <form action={deleteDevice}><input type="hidden" name="id" value={d.id} /><ConfirmSubmit label="Sil" /></form>}
               </div>
             ))}
             {isOwner && (

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canManagePay, currentPeriod, getSession, periodLabel } from "@/lib/session";
 import { CreatePeriodButton } from "./CreatePeriodButton";
 import { setPeriodStatus } from "./actions";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 type Sum = { period: string; accrued: number | null; paid_bank: number | null; paid_cash: number | null; deductions: number | null; balance: number | null };
 
@@ -82,7 +83,11 @@ export default async function PeriodsPage() {
                         <form action={setPeriodStatus}>
                           <input type="hidden" name="period" value={p.period} />
                           <input type="hidden" name="status" value={open ? "closed" : "open"} />
-                          <button className="h-9 px-3 rounded-lg border border-[#D5DEE8] bg-white text-[13px] font-semibold text-[#33414F]">{open ? "Kapat" : "Yeniden aç"}</button>
+                          <ConfirmSubmit
+                            label={open ? "Kapat" : "Yeniden aç"}
+                            question={open ? "Kalan bakiyeler sonraki aya devredilip dönem kilitlensin mi?" : "Dönem açılsın ve devirler geri alınsın mı?"}
+                            className="h-9 px-3 rounded-lg border border-[#D5DEE8] bg-white text-[13px] font-semibold text-[#33414F]"
+                          />
                         </form>
                       </div>
                     </td>
@@ -93,7 +98,7 @@ export default async function PeriodsPage() {
             </tbody>
           </table>
         </section>
-        <p className="text-xs text-muted">Kapalı döneme avans, ödeme veya kesinti girilemez. &quot;Eksikleri tamamla&quot; sonradan eklenen personelin hakedişini yazar.</p>
+        <p className="text-xs text-muted">Kapalı döneme avans, ödeme veya kesinti girilemez, mevcut hareketler de iptal edilemez. Kapatınca her personelin kalan alacağı/borcu otomatik olarak sonraki aya devredilir; yeniden açınca devir geri alınır. &quot;Eksikleri tamamla&quot; sonradan eklenen personelin hakedişini yazar.</p>
       </div>
     </>
   );

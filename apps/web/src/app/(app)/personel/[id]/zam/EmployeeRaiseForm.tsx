@@ -1,5 +1,6 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionForm } from "@/lib/use-action-form";
+import { useState } from "react";
 import { applyRaise, formatTL, raisePercent, type RaiseKind, parseTL } from "@mb/core";
 import { applyEmployeeRaise } from "../../../zamlar/actions";
 
@@ -11,7 +12,7 @@ export function EmployeeRaiseForm(props: {
   bes: boolean;
   defaultDate: string;
 }) {
-  const [state, action, pending] = useActionState(applyEmployeeRaise, null);
+  const { state, pending, formProps: actionProps } = useActionForm(applyEmployeeRaise);
   const [kind, setKind] = useState<RaiseKind>(props.current ? "PERCENT" : "SET");
   const [value, setValue] = useState("");
   const [insurance, setInsurance] = useState(props.insuranceType);
@@ -27,7 +28,7 @@ export function EmployeeRaiseForm(props: {
   const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white";
 
   return (
-    <form action={action} className="bg-white border border-line rounded-2xl p-6 flex flex-col gap-4">
+    <form {...actionProps} className="bg-white border border-line rounded-2xl p-6 flex flex-col gap-4">
       <input type="hidden" name="employeeId" value={props.employeeId} />
       <input type="hidden" name="kind" value={kind} />
       <div className="flex flex-wrap gap-1.5">
