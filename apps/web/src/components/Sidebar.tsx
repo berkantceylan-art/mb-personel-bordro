@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SignOutForm } from "./SignOut";
 
 type Item = { label: string; href: string; roles?: string[] };
 const MANAGERS = ["owner", "accountant", "hr", "branch_manager", "safety"];
@@ -37,6 +38,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
   {
     group: "Para",
     items: [
+      { label: "Ay sonu", href: "/ay-sonu", roles: PAY },
       { label: "Avans & Ödemeler", href: "/odemeler/yeni", roles: PAY },
       { label: "Dönemler", href: "/donemler", roles: PAY },
       { label: "Zamlar", href: "/zamlar", roles: PAY },
@@ -87,9 +89,7 @@ export function Sidebar({ companyName, role, badges = {} }: { companyName: strin
           </div>
         ))}
       </div>
-      <form action="/auth/signout" method="post" className="mt-auto px-1">
-        <button className="w-full text-left px-3 py-2.5 rounded-lg text-[#8FA6BF] hover:bg-white/5">Çıkış yap</button>
-      </form>
+      <SignOutForm className="mt-auto px-1" buttonClassName="w-full text-left px-3 py-2.5 rounded-lg text-[#8FA6BF] hover:bg-white/5" />
     </nav>
   );
 }

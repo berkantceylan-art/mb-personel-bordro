@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { NAV } from "./Sidebar";
+import { SignOutForm } from "./SignOut";
 
 type Tab = { label: string; href: string; icon: string };
 const ICONS: Record<string, React.ReactNode> = {
@@ -85,9 +86,7 @@ export function MobileNav({ role, companyName, badges }: { role: string; company
                 </div>
               </div>
             ))}
-            <form action="/auth/signout" method="post">
-              <button className="w-full h-11 rounded-xl border border-line text-bad font-semibold">Çıkış yap</button>
-            </form>
+            <SignOutForm buttonClassName="w-full h-11 rounded-xl border border-line text-bad font-semibold" />
           </div>
         </div>
       )}

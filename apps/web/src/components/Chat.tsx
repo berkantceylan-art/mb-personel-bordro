@@ -12,7 +12,6 @@ export function ChatThread({ conversationId, me, names, isGroup, initial }: { co
   const [text, setText] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   useEffect(() => {
     setMsgs(initial);
@@ -58,7 +57,6 @@ export function ChatThread({ conversationId, me, names, isGroup, initial }: { co
       setText(body);
     } else {
       setMsgs((c) => c.map((x) => (x.id === temp.id ? { ...x, pending: false } : x)));
-      router.refresh();
     }
   }
 
@@ -171,12 +169,18 @@ export function MessagesShell({ me, convs, people, departments, children }: { me
   const router = useRouter();
   // Başka konuşmalara gelen mesajlarda listeyi tazele
   useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
     const supabase = createClient();
     const ch = supabase
       .channel("inbox")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => router.refresh())
+      // Art arda gelen mesajlarda listeyi tek seferde tazele (her mesajda tüm sayfa yenilenmesin)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => {
+        if (t) clearTimeout(t);
+        t = setTimeout(() => router.refresh(), 1500);
+      })
       .subscribe();
     return () => {
+      if (t) clearTimeout(t);
       supabase.removeChannel(ch);
     };
   }, [router]);

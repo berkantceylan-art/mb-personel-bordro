@@ -82,6 +82,27 @@ export async function decideLeave(f: FormData) {
   revalidatePath("/puantaj");
 }
 
+/** Seçilen bekleyen izin taleplerini toplu onaylar / reddeder */
+export async function decideLeavesBulk(f: FormData) {
+  const s = await getSession();
+  if (!canHr(s.role)) await fail("Yetkiniz yok.");
+  const status = f.get("status") === "rejected" ? "rejected" : "approved";
+  const ids = f.getAll("id").map(String).filter((x) => /^[0-9a-f-]{36}$/i.test(x));
+  if (!ids.length) await fail("Önce listeden talep seçin.");
+  const supabase = await createClient();
+  const { data: changed, error } = await supabase
+    .from("leave_requests")
+    .update({ status, decided_by: s.userId, decided_at: new Date().toISOString() })
+    .in("id", ids)
+    .eq("status", "pending")
+    .select("id");
+  if (error) await fail(error.message);
+  revalidatePath("/izin");
+  revalidatePath("/talepler");
+  revalidatePath("/puantaj");
+  await done(`${changed?.length ?? 0} izin talebi ${status === "approved" ? "onaylandı" : "reddedildi"}.${(changed?.length ?? 0) < ids.length ? " Diğerleri zaten sonuçlanmıştı." : ""}`);
+}
+
 export async function addLeaveAdjustment(f: FormData) {
   const s = await getSession();
   if (!["owner", "accountant", "hr"].includes(s.role)) return;
@@ -162,6 +183,7 @@ export async function approveOvertime(f: FormData) {
     if (error) await fail(error.message);
   }
   revalidatePath("/fazla-mesai");
+  revalidatePath("/ay-sonu");
   if (!f.get("manual")) await done(`${items.length} fazla mesai ${decision === "approved" ? "onaylandı" : "reddedildi"}.`);
 }
 
@@ -200,4 +222,5 @@ export async function cancelOvertime(f: FormData) {
   }
   await must(supabase.from("overtime_records").delete().eq("id", id));
   revalidatePath("/fazla-mesai");
+  revalidatePath("/ay-sonu");
 }

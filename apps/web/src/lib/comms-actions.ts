@@ -112,6 +112,34 @@ export async function decideAdvance(f: FormData) {
   await done(str(f, "decision") === "approve" ? "Avans onaylandı ve cari hesaba işlendi." : "Avans talebi reddedildi.");
 }
 
+/** Seçilen avans taleplerini istenen tutarla toplu onaylar (tek kanal ve tarih) veya reddeder */
+export async function decideAdvancesBulk(f: FormData) {
+  const s = await getSession();
+  if (!canManagePay(s.role)) await fail("Yetkiniz yok.");
+  const approve = str(f, "decision") === "approve";
+  const ids = f.getAll("id").map(String).filter((x) => /^[0-9a-f-]{36}$/i.test(x));
+  if (!ids.length) await fail("Önce listeden talep seçin.");
+  const supabase = await createClient();
+  let ok = 0;
+  const errors: string[] = [];
+  for (const id of ids) {
+    const res = await supabase.rpc("decide_advance", {
+      p_id: id,
+      p_approve: approve,
+      p_channel: str(f, "channel") === "BANK" ? "BANK" : "CASH",
+      p_date: str(f, "date") || todayIso(),
+      p_amount: null,
+      p_note: str(f, "note") || null,
+    });
+    if (res.error) errors.push(res.error.message);
+    else ok++;
+  }
+  revalidatePath("/talepler");
+  revalidatePath("/");
+  if (!ok) await fail(errors[0] ?? "İşlem yapılamadı.");
+  await done(`${ok} avans talebi ${approve ? "onaylandı ve cari hesaba işlendi" : "reddedildi"}.${errors.length ? ` ${errors.length} talep işlenemedi (${errors[0]}).` : ""}`);
+}
+
 export async function cancelAdvance(f: FormData) {
   await getSession();
   const supabase = await createClient();

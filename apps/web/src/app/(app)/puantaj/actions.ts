@@ -180,5 +180,6 @@ export async function applyMissingDays(_: { ok: boolean; message: string } | nul
   }
   revalidatePath("/puantaj");
   revalidatePath("/donemler");
+  revalidatePath("/ay-sonu");
   return { ok: true, message: people ? `${people} personele eksik gün kesintisi yazıldı (${SIDE_LABEL[side]}).` : "Yazılacak eksik gün yok (daha önce yazılanlar atlanır)." };
 }

@@ -37,10 +37,16 @@ export default async function AdvanceReceipts({ searchParams }: { searchParams: 
     if (sp.bit && iso.test(sp.bit)) q = q.lte("entry_date", sp.bit);
     q = q.eq("type", sp.tur === "SALARY" ? "SALARY" : "ADVANCE");
     if (sp.kanal === "CASH" || sp.kanal === "BANK") q = q.eq("channel", sp.kanal);
-    if (!sp.bas && !sp.bit) q = q.limit(0);
   }
-  const { data } = await q;
-  let entries = (data ?? []) as unknown as Entry[];
+  // Geniş tarih aralığında 1000 satır sınırını aşmak için sayfalı okuma
+  const data: unknown[] = [];
+  const noFilter = !ids.length && !sp.bas && !sp.bit;
+  for (let from = 0; !noFilter; from += 1000) {
+    const { data: page } = await q.range(from, from + 999);
+    data.push(...(page ?? []));
+    if (!page || page.length < 1000 || ids.length) break;
+  }
+  let entries = data as unknown as Entry[];
   if (sp.bolum) entries = entries.filter((e) => e.employees?.departments?.name === sp.bolum);
 
   const empIds = [...new Set(entries.map((e) => e.employee_id))];
@@ -62,9 +68,10 @@ export default async function AdvanceReceipts({ searchParams }: { searchParams: 
         <span className="text-xs text-[#5A6878]">Her A4 sayfaya iki makbuz basılır; ortadan kesilebilir.</span>
       </div>
       <div className="max-w-[194mm] mx-auto py-6 print:py-0 flex flex-col gap-4 print:gap-0">
-        {entries.map((e, i) => {
+        {entries.map((e) => {
           const name = `${e.employees?.first_name ?? ""} ${e.employees?.last_name ?? ""}`.trim();
-          const no = `${e.entry_date.replaceAll("-", "")}-${String(i + 1).padStart(3, "0")}`;
+          // Kayda bağlı sabit numara: aynı ödeme her baskıda aynı numarayı alır
+          const no = `${e.entry_date.replaceAll("-", "")}-${e.id.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
           const sig = e.signature_path ? sigUrl.get(e.signature_path) : undefined;
           return (
             <section key={e.id} className="slip bg-white border border-[#C5D0DC] print:border-0 print:border-b print:border-dashed rounded-lg print:rounded-none p-6 flex flex-col">

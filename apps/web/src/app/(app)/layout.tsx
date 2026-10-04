@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { FlashMessage } from "@/components/FlashMessage";
 import { MobileNav } from "@/components/MobileNav";
 import { InstallHint } from "@/components/Pwa";
+import { LiveUpdates } from "@/components/LiveUpdates";
 import { Sidebar } from "@/components/Sidebar";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
@@ -34,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <MobileNav companyName={s.companyName} role={s.role} badges={badges} />
       <main className="flex-1 min-w-0 flex flex-col pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">
         <FlashMessage />
+        <LiveUpdates userId={s.userId} />
         <InstallHint />
         {children}
       </main>

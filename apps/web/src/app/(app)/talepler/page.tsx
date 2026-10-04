@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { formatTL } from "@mb/core";
 import { Card, PageHeader } from "@/components/ui";
-import { decideAdvance } from "@/lib/comms-actions";
-import { decideLeave } from "@/lib/leave-ot-actions";
+import { decideAdvance, decideAdvancesBulk } from "@/lib/comms-actions";
+import { decideLeave, decideLeavesBulk } from "@/lib/leave-ot-actions";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, formatDate, getSession, todayIso } from "@/lib/session";
 import { PendingSubmit } from "@/components/ConfirmSubmit";
@@ -15,6 +15,7 @@ const STATUS: Record<string, [string, string]> = {
   cancelled: ["İptal", "bg-[#EEF2F6] text-[#33414F]"],
 };
 const input = "h-9 rounded-lg border border-[#D5DEE8] px-2 bg-white text-sm";
+const check = "w-5 h-5 accent-[#0A3D73]";
 
 export default async function RequestsPage() {
   const s = await getSession();
@@ -44,12 +45,13 @@ export default async function RequestsPage() {
           <Card title="Avans talepleri">
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[900px]">
-                <thead><tr className="text-left text-xs text-muted"><th className={th}>Personel</th><th className={th}>Talep</th><th className={`${th} text-right`}>Tutar</th><th className={th}>Açıklama</th><th className={th}>Karar</th></tr></thead>
+                <thead><tr className="text-left text-xs text-muted"><th className={`${th} w-10`}><span className="sr-only">Seç</span></th><th className={th}>Personel</th><th className={th}>Talep</th><th className={`${th} text-right`}>Tutar</th><th className={th}>Açıklama</th><th className={th}>Karar</th></tr></thead>
                 <tbody>
                   {pendingAdv.map((a) => {
                     const e = emp(a.employees);
                     return (
                       <tr key={a.id}>
+                        <td className={td}><input type="checkbox" name="id" value={a.id} form="bulk-adv" aria-label={`${e?.first_name} ${e?.last_name} seç`} className={check} /></td>
                         <td className={td}><Link href={`/personel/${a.employee_id}`} className="font-semibold text-brand-700">{e?.first_name} {e?.last_name}</Link><div className="text-xs text-muted">{e?.departments?.name}</div></td>
                         <td className={td}>{formatDate(a.created_at)}</td>
                         <td className={`${td} text-right num font-semibold`}>{formatTL(Number(a.amount))}</td>
@@ -68,10 +70,19 @@ export default async function RequestsPage() {
                       </tr>
                     );
                   })}
-                  {pendingAdv.length === 0 && <tr><td colSpan={5} className="py-6 text-center text-muted">Bekleyen avans talebi yok.</td></tr>}
+                  {pendingAdv.length === 0 && <tr><td colSpan={6} className="py-6 text-center text-muted">Bekleyen avans talebi yok.</td></tr>}
                 </tbody>
               </table>
             </div>
+            {pendingAdv.length > 1 && (
+              <form id="bulk-adv" action={decideAdvancesBulk} className="flex flex-wrap gap-2 items-center rounded-xl bg-[#F2F6FB] border border-[#D5DEE8] p-3">
+                <span className="text-sm font-semibold text-brand-800">Seçilenler:</span>
+                <select name="channel" aria-label="Ödeme kanalı" className={input} defaultValue="CASH"><option value="CASH">Elden</option><option value="BANK">Banka</option></select>
+                <input type="date" name="date" aria-label="Ödeme tarihi" defaultValue={todayIso()} className={input} />
+                <PendingSubmit name="decision" value="approve" className="h-9 px-3 rounded-lg bg-brand-700 text-white text-xs font-semibold">İstenen tutarla onayla ve öde</PendingSubmit>
+                <PendingSubmit name="decision" value="reject" className="h-9 px-3 rounded-lg border border-[#D5DEE8] bg-white text-xs font-semibold text-bad">Reddet</PendingSubmit>
+              </form>
+            )}
             <p className="text-xs text-muted">Onaylanan avans, seçilen tarih ve kanalla personelin cari hesabına &quot;Avans&quot; olarak işlenir. Tutarı boş bırakırsanız istenen tutar ödenir.</p>
           </Card>
         )}
@@ -80,12 +91,13 @@ export default async function RequestsPage() {
           <Card title="İzin talepleri" action={<Link href="/izin" className="text-sm font-semibold text-brand-700">Tüm izinler →</Link>}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[760px]">
-                <thead><tr className="text-left text-xs text-muted"><th className={th}>Personel</th><th className={th}>Tür</th><th className={th}>Tarih</th><th className={`${th} text-right`}>Gün</th><th className={th}>Açıklama</th><th className={th}>Karar</th></tr></thead>
+                <thead><tr className="text-left text-xs text-muted"><th className={`${th} w-10`}><span className="sr-only">Seç</span></th><th className={th}>Personel</th><th className={th}>Tür</th><th className={th}>Tarih</th><th className={`${th} text-right`}>Gün</th><th className={th}>Açıklama</th><th className={th}>Karar</th></tr></thead>
                 <tbody>
                   {(leaves ?? []).map((l) => {
                     const e = emp(l.employees);
                     return (
                       <tr key={l.id}>
+                        <td className={td}><input type="checkbox" name="id" value={l.id} form="bulk-leave" aria-label={`${e?.first_name} ${e?.last_name} seç`} className={check} /></td>
                         <td className={td}><span className="font-semibold">{e?.first_name} {e?.last_name}</span><div className="text-xs text-muted">{e?.departments?.name}</div></td>
                         <td className={td}>{(l.leave_types as unknown as { name: string } | null)?.name}</td>
                         <td className={td}>{formatDate(l.start_date)}{l.end_date !== l.start_date && ` – ${formatDate(l.end_date)}`}</td>
@@ -100,10 +112,17 @@ export default async function RequestsPage() {
                       </tr>
                     );
                   })}
-                  {(leaves ?? []).length === 0 && <tr><td colSpan={6} className="py-6 text-center text-muted">Bekleyen izin talebi yok.</td></tr>}
+                  {(leaves ?? []).length === 0 && <tr><td colSpan={7} className="py-6 text-center text-muted">Bekleyen izin talebi yok.</td></tr>}
                 </tbody>
               </table>
             </div>
+            {(leaves ?? []).length > 1 && (
+              <form id="bulk-leave" action={decideLeavesBulk} className="flex flex-wrap gap-2 items-center rounded-xl bg-[#F2F6FB] border border-[#D5DEE8] p-3">
+                <span className="text-sm font-semibold text-brand-800">Seçilenler:</span>
+                <PendingSubmit name="status" value="approved" className="h-9 px-3 rounded-lg bg-brand-700 text-white text-xs font-semibold">Onayla</PendingSubmit>
+                <PendingSubmit name="status" value="rejected" className="h-9 px-3 rounded-lg border border-[#D5DEE8] bg-white text-xs font-semibold text-bad">Reddet</PendingSubmit>
+              </form>
+            )}
           </Card>
         )}
 

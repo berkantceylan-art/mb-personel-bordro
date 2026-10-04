@@ -390,11 +390,14 @@ export const REPORTS: ReportDef[] = [
     params: ["year", "department"],
     roles: HR,
     async run(sb, p) {
-      const [{ data: emps }, { data: privs }, { data: adjs }, { data: leaves }] = await Promise.all([
+      // İzin geçmişi yıllar içinde 1000 satırı aşar: sayfalayarak okunur
+      const [{ data: emps }, { data: privs }, adjs, leaves] = await Promise.all([
         sb.from("employees").select("id, first_name, last_name, hire_date, departments(name)").eq("status", "active"),
         sb.from("employee_private").select("employee_id, birth_date"),
-        sb.from("leave_adjustments").select("employee_id, days"),
-        sb.from("leave_requests").select("employee_id, days, start_date, leave_types(code)").eq("status", "approved"),
+        fetchAll<{ employee_id: string; days: number }>((a, b) => sb.from("leave_adjustments").select("employee_id, days").order("id").range(a, b)),
+        fetchAll<{ employee_id: string; days: number; start_date: string; leave_types: unknown }>((a, b) =>
+          sb.from("leave_requests").select("employee_id, days, start_date, leave_types(code)").eq("status", "approved").order("id").range(a, b),
+        ),
       ]);
       const birth = new Map((privs ?? []).map((x) => [x.employee_id, x.birth_date as string | null]));
       const today = todayIso();

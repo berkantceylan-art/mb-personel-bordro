@@ -46,6 +46,7 @@ export async function savePayroll(_: RunResult | null, f: FormData): Promise<Run
     if (error) return { ok: false, message: error.message };
   }
   revalidatePath("/bordro");
+  revalidatePath("/ay-sonu");
   return { ok: true, message: `${toSave.length} bordro kaydedildi.${posted.length ? ` ${posted.length} bordronun kesintileri cariye yazıldığı için değiştirilmedi.` : ""}` };
 }
 
@@ -59,6 +60,7 @@ export async function postDeductions(_: RunResult | null, f: FormData): Promise<
   if (error) return { ok: false, message: error.message };
   const r = data as { lines: number; deductions: number };
   revalidatePath("/bordro");
+  revalidatePath("/ay-sonu");
   revalidatePath("/icra");
   if (!r.lines) return { ok: false, message: "Yazılacak kesinti yok: önce bordroyu hesaplayıp kaydedin (veya kesintiler zaten yazılmış)." };
   return { ok: true, message: `${r.lines} bordro için ${r.deductions} kesinti cari hesaba yazıldı.` };
@@ -72,6 +74,7 @@ export async function unpostDeductions(_: RunResult | null, f: FormData): Promis
   const { data, error } = await supabase.rpc("unpost_payroll_deductions", { p_period: period });
   if (error) return { ok: false, message: error.message };
   revalidatePath("/bordro");
+  revalidatePath("/ay-sonu");
   revalidatePath("/icra");
   return { ok: true, message: `${(data as { voided: number }).voided} kesinti geri alındı.` };
 }
