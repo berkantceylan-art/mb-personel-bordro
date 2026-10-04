@@ -42,7 +42,7 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
           actions={
             <div className="flex gap-2 flex-wrap items-center">
               <Link href="/raporlar" className="text-sm font-semibold text-brand-700 mr-2">← Raporlar</Link>
-              <a href={`/raporlar/${key}/excel${qs ? `?${qs}` : ""}`} className="h-11 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white font-semibold">Excel indir</a>
+              <a href={`/raporlar/${key}/excel${qs ? `?${qs}` : ""}`} className="h-11 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white font-semibold">{key === "banka-maas" ? "Garanti dosyası indir" : key === "bes-liste" ? "Garanti Emeklilik dosyası indir" : "Excel indir"}</a>
               <PrintButton />
             </div>
           }
@@ -65,6 +65,9 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
               <label className="flex flex-col gap-1 text-xs text-muted">Başlangıç<input type="date" name="bas" defaultValue={p.from} className={input} /></label>
               <label className="flex flex-col gap-1 text-xs text-muted">Bitiş<input type="date" name="bit" defaultValue={p.to} className={input} /></label>
             </>
+          )}
+          {def.params.includes("payDate") && (
+            <label className="flex flex-col gap-1 text-xs text-muted">Ödeme tarihi<input type="date" name="odeme" defaultValue={p.payDate} className={input} /></label>
           )}
           {def.params.includes("bankSource") && (
             <label className="flex flex-col gap-1 text-xs text-muted">Tutar

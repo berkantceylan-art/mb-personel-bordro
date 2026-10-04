@@ -19,8 +19,8 @@ export interface ReportResult {
   warnings?: string[];
   fileName: string;
 }
-export type ParamKind = "period" | "dateRange" | "department" | "year" | "bankSource";
-export interface ReportParams { period: string; from: string; to: string; department?: string; year: number; source: string }
+export type ParamKind = "period" | "dateRange" | "department" | "year" | "bankSource" | "payDate";
+export interface ReportParams { period: string; from: string; to: string; department?: string; year: number; source: string; payDate: string }
 export interface ReportDef {
   key: string;
   title: string;
@@ -46,6 +46,7 @@ export function parseParams(sp: Record<string, string | undefined>): ReportParam
     department: sp.bolum || undefined,
     year: Number(sp.yil) || new Date().getFullYear(),
     source: sp.kaynak === "bordro" ? "bordro" : "kalan",
+    payDate: sp.odeme && /^\d{4}-\d{2}-\d{2}$/.test(sp.odeme) ? sp.odeme : todayIso(),
   };
 }
 
@@ -58,9 +59,9 @@ export const REPORTS: ReportDef[] = [
   {
     key: "banka-maas",
     title: "Banka maaş ödeme listesi (Garanti BBVA)",
-    description: "Dönemin bankaya yatacak maaşları: TCKN, ad soyad, IBAN, tutar, açıklama. Bankanın toplu ödeme ekranına yüklenir.",
+    description: "Dönemin bankaya yatacak maaşları. Excel, Garanti BBVA'nın \"TGB Yeni Maaş Dosyası\" formatında iner; doğrudan bankaya yüklenir.",
     group: "Ödeme listeleri",
-    params: ["period", "bankSource", "department"],
+    params: ["period", "payDate", "bankSource", "department"],
     roles: PAY,
     async run(sb, p) {
       const rows = await deptFilter(await computePayroll(sb, p.period), p.department);
@@ -111,9 +112,9 @@ export const REPORTS: ReportDef[] = [
   {
     key: "bes-liste",
     title: "BES ödeme listesi (Garanti BBVA Emeklilik)",
-    description: "Kaydedilmiş bordrolardaki BES kesintileri: TCKN, poliçe, prime esas kazanç, kesinti.",
+    description: "Kaydedilmiş bordrolardaki BES kesintileri. Excel, Garanti BBVA Emeklilik otomatik katılım ödeme dosyası (.xls) formatında iner.",
     group: "Ödeme listeleri",
-    params: ["period"],
+    params: ["period", "payDate"],
     roles: PAY,
     async run(sb, p) {
       const [{ data: lines }, { data: emps }, { data: privs }, { data: enr }] = await Promise.all([

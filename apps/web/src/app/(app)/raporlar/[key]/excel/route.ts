@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import { NextResponse, type NextRequest } from "next/server";
+import { garantiEmeklilikXls, garantiMaasXlsx } from "@/lib/bank-files";
 import { findReport, parseParams, visibleColumns } from "@/lib/reports";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
@@ -14,6 +15,36 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
   const supabase = await createClient();
   const res = await def.run(supabase, p);
   const cols = visibleColumns(def, res, s.role);
+
+  // Banka formatındaki dosyalar (?bicim=tablo ile düz Excel de alınabilir)
+  if (req.nextUrl.searchParams.get("bicim") !== "tablo") {
+    if (key === "banka-maas") {
+      const buf = await garantiMaasXlsx(
+        res.rows.map((r) => ({ tckn: String(r.tckn ?? ""), ad: String(r.ad ?? ""), iban: String(r.iban ?? ""), tutar: Number(r.tutar ?? 0) })),
+        p.period,
+        p.payDate,
+      );
+      return new NextResponse(new Uint8Array(buf), {
+        headers: {
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(`GARANTI-MAAS-${p.period}`)}.xlsx`,
+        },
+      });
+    }
+    if (key === "bes-liste") {
+      const buf = garantiEmeklilikXls(
+        res.rows.map((r) => ({ tckn: String(r.tckn ?? ""), ad: String(r.ad ?? ""), soyad: String(r.soyad ?? ""), oran: Number(r.oran ?? 3), tutar: Number(r.tutar ?? 0) })),
+        p.period,
+        p.payDate,
+      );
+      return new NextResponse(new Uint8Array(buf), {
+        headers: {
+          "Content-Type": "application/vnd.ms-excel",
+          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(`GARANTI-EMEKLILIK-BES-${p.period}`)}.xls`,
+        },
+      });
+    }
+  }
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "MB Personel & Bordro";
