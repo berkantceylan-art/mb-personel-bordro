@@ -208,7 +208,7 @@ export const TOPIC_LABELS: Record<MessageTopic, string> = { general: "Genel", ca
 // ---------------------------------------------------------------------
 export const PAGE_GROUPS = ["kurumsal", "teknoloji", "kalite", "diger"] as const;
 export type PageGroup = (typeof PAGE_GROUPS)[number];
-export const RESERVED_SLUGS = ["urunler", "iletisim", "vaka-gonder", "admin", "giris", "auth", "api", "sayfa"];
+export const RESERVED_SLUGS = ["urunler", "iletisim", "vaka-gonder", "vakalar", "admin", "giris", "auth", "api", "sayfa"];
 
 export type SitePage = {
   id: string;
@@ -247,5 +247,38 @@ export async function publicPage(slug: string): Promise<SitePage | null> {
     return (data as SitePage | null) ?? null;
   } catch {
     return null;
+  }
+}
+
+// ---------------------------------------------------------------------
+// Vaka galerisi
+// ---------------------------------------------------------------------
+export type CaseItem = {
+  id: string;
+  title: I18nText;
+  description: I18nText;
+  product_slug: string | null;
+  teeth: string | null;
+  before_path: string | null;
+  after_path: string | null;
+  gallery: string[];
+  featured: boolean;
+  sort: number;
+  is_active: boolean;
+  deleted_at: string | null;
+  updated_at: string;
+};
+
+export async function publicCases(opts: { product?: string; featured?: boolean } = {}): Promise<CaseItem[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    let q = supabase.from("cms_cases").select("*").is("deleted_at", null).eq("is_active", true);
+    if (opts.product) q = q.eq("product_slug", opts.product);
+    if (opts.featured) q = q.eq("featured", true);
+    const { data } = await q.order("sort");
+    return (data ?? []) as CaseItem[];
+  } catch {
+    return [];
   }
 }

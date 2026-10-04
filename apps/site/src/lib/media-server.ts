@@ -10,12 +10,13 @@ type Row = Record<string, unknown> & { id: string; title?: I18nText; name?: I18n
  */
 export async function mediaUsage(): Promise<Map<string, MediaUse[]>> {
   const supabase = await createClient();
-  const [slides, anns, products, stories, pages] = await Promise.all([
+  const [slides, anns, products, stories, pages, cases] = await Promise.all([
     supabase.from("cms_slides").select("id, title, image_path, image_mobile_path, video_path, deleted_at"),
     supabase.from("cms_announcements").select("id, title, image_path, deleted_at"),
     supabase.from("cms_products").select("id, name, image_path, gallery, deleted_at"),
     supabase.from("cms_stories").select("id, title, cover_path, frames, deleted_at"),
     supabase.from("cms_pages").select("id, title, image_path, gallery, deleted_at"),
+    supabase.from("cms_cases").select("id, title, before_path, after_path, gallery, deleted_at"),
   ]);
   const map = new Map<string, MediaUse[]>();
   const add = (path: unknown, use: MediaUse) => {
@@ -47,6 +48,12 @@ export async function mediaUsage(): Promise<Map<string, MediaUse[]>> {
   for (const r of (pages.data ?? []) as Row[]) {
     const use = { type: "Sayfa", label: (t(r.title, "tr") || "(başlıksız)") + trash(r), href: `/admin/sayfalar/${r.id}` };
     add(r.image_path, use);
+    for (const g of (r.gallery as string[] | null) ?? []) add(g, use);
+  }
+  for (const r of (cases.data ?? []) as Row[]) {
+    const use = { type: "Vaka", label: (t(r.title, "tr") || "(başlıksız)") + trash(r), href: `/admin/vakalar/${r.id}` };
+    add(r.before_path, use);
+    add(r.after_path, use);
     for (const g of (r.gallery as string[] | null) ?? []) add(g, use);
   }
   return map;

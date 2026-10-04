@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CaseCard } from "@/components/CaseCard";
 import { RichText } from "@/components/RichText";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
-import { mediaUrl, publicProduct, publicProducts } from "@/lib/cms";
-import { DICTS, LOCALES, PRODUCT_UI, isLocale, t } from "@/lib/i18n";
+import { mediaUrl, publicCases, publicProduct, publicProducts } from "@/lib/cms";
+import { CASE_UI, DICTS, LOCALES, PRODUCT_UI, isLocale, t } from "@/lib/i18n";
 
 export const revalidate = 60;
 
@@ -43,7 +44,8 @@ export default async function ProductPage({ params }: { params: Params }) {
     .filter(Boolean);
   const img = mediaUrl(p.image_path);
   const gallery = p.gallery.map((g) => mediaUrl(g)).filter((u): u is string => !!u);
-  const siblings = (await publicProducts()).filter((x) => x.category === p.category && x.id !== p.id).slice(0, 3);
+  const [allProducts, cases] = await Promise.all([publicProducts(), publicCases({ product: p.slug })]);
+  const siblings = allProducts.filter((x) => x.category === p.category && x.id !== p.id).slice(0, 3);
   const caseHref = `/${locale}/vaka-gonder?urun=${p.slug}`;
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
 
@@ -132,6 +134,23 @@ export default async function ProductPage({ params }: { params: Params }) {
             </div>
           </aside>
         </div>
+
+        {cases.length > 0 && (
+          <section aria-labelledby="urun-vakalar" className="border-t border-gypsum">
+            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+              <h2 id="urun-vakalar" className="display text-2xl font-semibold text-navy">
+                {CASE_UI[locale].title}
+              </h2>
+              <ul className="mt-6 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+                {cases.slice(0, 6).map((c) => (
+                  <li key={c.id}>
+                    <CaseCard c={c} locale={locale} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
 
         {siblings.length > 0 && (
           <section aria-labelledby="ayni-grup" className="border-t border-gypsum bg-white">

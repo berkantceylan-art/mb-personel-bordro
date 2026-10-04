@@ -11,7 +11,7 @@ create table cms_pages (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique check (
     slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and length(slug) <= 60
-    and slug not in ('urunler', 'iletisim', 'vaka-gonder', 'admin', 'giris', 'auth', 'api', 'sayfa')
+    and slug not in ('urunler', 'iletisim', 'vaka-gonder', 'vakalar', 'admin', 'giris', 'auth', 'api', 'sayfa')
   ),
   "group" text not null default 'kurumsal' check ("group" in ('kurumsal', 'teknoloji', 'kalite', 'diger')),
   title jsonb not null default '{}'::jsonb check (is_i18n_text(title)),

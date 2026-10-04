@@ -3,7 +3,7 @@ import { ConfirmButton } from "./ConfirmButton";
 
 const btn = "rounded-full border border-gypsum bg-white px-3 py-1 text-xs font-semibold text-slate hover:border-navy hover:text-navy";
 
-export function RowActions({ table, id, active, trashed }: { table: "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages"; id: string; active: boolean; trashed: boolean }) {
+export function RowActions({ table, id, active, trashed }: { table: "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages" | "cms_cases"; id: string; active: boolean; trashed: boolean }) {
   if (trashed) {
     return (
       <div className="flex flex-wrap gap-2">

@@ -8,15 +8,16 @@ export const dynamic = "force-dynamic";
 
 const NAV: { href: string; label: string; soon?: boolean }[] = [
   { href: "/admin", label: "Pano" },
+  { href: "/admin/gelen-kutusu", label: "Gelen kutusu" },
   { href: "/admin/slaytlar", label: "Slaytlar" },
+  { href: "/admin/hikayeler", label: "Hikâyeler" },
   { href: "/admin/duyurular", label: "Duyurular" },
   { href: "/admin/urunler", label: "Ürünler" },
-  { href: "/admin/medya", label: "Medya kütüphanesi" },
-  { href: "/admin/hikayeler", label: "Hikâyeler" },
+  { href: "/admin/vakalar", label: "Vaka galerisi" },
   { href: "/admin/sayfalar", label: "Sayfalar" },
-  { href: "#", label: "Vaka galerisi", soon: true },
-  { href: "/admin/gelen-kutusu", label: "Gelen kutusu" },
+  { href: "/admin/medya", label: "Medya kütüphanesi" },
   { href: "/admin/ayarlar", label: "Site ayarları" },
+  { href: "/admin/gecmis", label: "Değişiklik geçmişi" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

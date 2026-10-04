@@ -10,8 +10,8 @@ import { mediaUsage } from "./media-server";
 import { LOCALES, type I18nText } from "./i18n";
 import { createClient } from "./supabase/server";
 
-type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages";
-const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler", cms_pages: "/admin/sayfalar" };
+type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages" | "cms_cases";
+const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler", cms_pages: "/admin/sayfalar", cms_cases: "/admin/vakalar" };
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -45,7 +45,7 @@ function refresh(table: Table) {
   revalidatePath(LIST_PATH[table]);
   revalidatePath("/admin");
   for (const l of LOCALES) revalidatePath(`/${l}`);
-  if (table === "cms_products" || table === "cms_pages") revalidatePath("/", "layout"); // ürün/kurumsal sayfalar, anasayfa, alt bilgi, sitemap
+  if (table === "cms_products" || table === "cms_pages" || table === "cms_cases") revalidatePath("/", "layout"); // ürün/kurumsal sayfalar, anasayfa, alt bilgi, sitemap
 }
 
 /** Tarayıcının depolamaya yüklediği dosyanın yolu (form alanı: `<ad>__path`) */
@@ -335,7 +335,7 @@ export async function moveStory(form: FormData) {
 // Kurumsal sayfalar
 // ---------------------------------------------------------------------
 const PAGE_GROUP_KEYS = ["kurumsal", "teknoloji", "kalite", "diger"];
-const RESERVED = ["urunler", "iletisim", "vaka-gonder", "admin", "giris", "auth", "api", "sayfa"];
+const RESERVED = ["urunler", "iletisim", "vaka-gonder", "vakalar", "admin", "giris", "auth", "api", "sayfa"];
 
 export async function savePage(_prev: FormState, form: FormData): Promise<FormState> {
   await requireSiteEditor();
@@ -405,6 +405,75 @@ export async function movePage(form: FormData) {
   for (let k = 0; k < same.length; k++) if (same[k].sort !== slots[k]) await supabase.from("cms_pages").update({ sort: slots[k] }).eq("id", same[k].id);
   refresh("cms_pages");
   back("cms_pages", "Sıra güncellendi.");
+}
+
+// ---------------------------------------------------------------------
+// Vaka galerisi
+// ---------------------------------------------------------------------
+export async function saveCase(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const supabase = await createClient();
+  let before: string | undefined, after: string | undefined, added: string[];
+  try {
+    before = uploadedPath(form, "before");
+    after = uploadedPath(form, "after");
+    added = uploadedPaths(form, "gallery");
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  const title = i18n(form, "title");
+  if (!title.tr) return { error: "Türkçe başlık zorunlu." };
+  const product = str(form, "product_slug");
+  const row: Record<string, unknown> = {
+    title,
+    description: i18n(form, "description"),
+    product_slug: /^[a-z0-9-]{1,60}$/.test(product) ? product : null,
+    teeth: str(form, "teeth").slice(0, 80) || null,
+    featured: form.get("featured") === "on",
+    is_active: form.get("is_active") === "on",
+  };
+  if (form.get("remove_before") === "on") row.before_path = null;
+  if (form.get("remove_after") === "on") row.after_path = null;
+  if (before !== undefined) row.before_path = before;
+  if (after !== undefined) row.after_path = after;
+  const keep = form.getAll("gallery_keep").map(String);
+  const removed = new Set(form.getAll("remove_gallery").map(String));
+  row.gallery = [...keep.filter((p) => !removed.has(p)), ...added].slice(0, 24);
+
+  if (id) {
+    const { data: cur } = await supabase.from("cms_cases").select("before_path, after_path, gallery").eq("id", id).maybeSingle();
+    const c = (cur ?? {}) as { before_path?: string | null; after_path?: string | null };
+    const hasAny = ("after_path" in row ? row.after_path : c.after_path) || ("before_path" in row ? row.before_path : c.before_path) || (row.gallery as string[]).length;
+    if (!hasAny) return { error: "En az bir görsel ekleyin (öncesi, sonrası ya da galeri)." };
+    const { error } = await supabase.from("cms_cases").update(row).eq("id", id);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  } else {
+    if (!row.after_path && !row.before_path && !(row.gallery as string[]).length) return { error: "En az bir görsel ekleyin (öncesi, sonrası ya da galeri)." };
+    const { data: last } = await supabase.from("cms_cases").select("sort").order("sort", { ascending: false }).limit(1);
+    row.sort = ((last?.[0]?.sort as number | undefined) ?? 0) + 10;
+    const { error } = await supabase.from("cms_cases").insert(row);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  }
+  refresh("cms_cases");
+  back("cms_cases", id ? "Vaka güncellendi." : "Vaka eklendi.");
+}
+
+export async function moveCase(form: FormData) {
+  await requireSiteEditor();
+  const supabase = await createClient();
+  const id = str(form, "id");
+  const dir = str(form, "dir") === "up" ? "up" : "down";
+  const { data } = await supabase.from("cms_cases").select("id, sort").is("deleted_at", null).order("sort");
+  const list = (data ?? []) as { id: string; sort: number }[];
+  const i = list.findIndex((r) => r.id === id);
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (i < 0 || j < 0 || j >= list.length) back("cms_cases", "Sıra değişmedi.");
+  const order = list.map((r) => r.id);
+  [order[i], order[j]] = [order[j], order[i]];
+  for (let k = 0; k < order.length; k++) await supabase.from("cms_cases").update({ sort: (k + 1) * 10 }).eq("id", order[k]);
+  refresh("cms_cases");
+  back("cms_cases", "Sıra güncellendi.");
 }
 
 // ---------------------------------------------------------------------
