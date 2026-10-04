@@ -31,6 +31,18 @@ export async function requireSiteEditor() {
   return u;
 }
 
+/** Portal (hekim / klinik / aracı) kullanıcısı mı: hesaba bağlı ya da kayıt bilgisi var */
+export async function isPortalUser(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+  if ((user.user_metadata as { portal?: unknown } | null)?.portal) return true;
+  const { data } = await supabase.from("portal_members").select("account_id").eq("user_id", user.id).limit(1);
+  return !!data?.length;
+}
+
 /**
  * Girişten sonra kişinin gideceği yer.
  * Şimdilik: site editörü → /admin, laboratuvar personeli → ERP (bordro uygulaması).

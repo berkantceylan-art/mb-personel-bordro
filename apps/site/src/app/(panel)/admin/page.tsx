@@ -8,13 +8,15 @@ export const metadata = { title: "Pano" };
 
 export default async function Dashboard() {
   const supabase = await createClient();
-  const [{ data: slides }, { data: anns }, { count: productCount }, { data: unread }, { data: msgs }, { data: changes }] = await Promise.all([
+  const [{ data: slides }, { data: anns }, { count: productCount }, { data: unread }, { data: msgs }, { data: changes }, { count: openCases }, { data: pendingAcc }] = await Promise.all([
     supabase.from("cms_slides").select("*").is("deleted_at", null).order("sort"),
     supabase.from("cms_announcements").select("*").is("deleted_at", null).order("updated_at", { ascending: false }),
     supabase.from("cms_products").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("is_active", true),
     supabase.rpc("cms_unread_messages"),
     supabase.from("cms_messages").select("id, name, company, message, topic, status, created_at").neq("status", "archived").order("created_at", { ascending: false }).limit(5),
     supabase.rpc("cms_audit", { p_limit: 8, p_before: null, p_table: null }),
+    supabase.from("portal_cases").select("id", { count: "exact", head: true }).not("status", "in", "(delivered,cancelled)"),
+    supabase.rpc("portal_pending_count"),
   ]);
   const recentMessages = (msgs ?? []) as { id: string; name: string; company: string | null; message: string; topic: keyof typeof TOPIC_LABELS; status: string; created_at: string }[];
   const recentChanges = (changes ?? []) as { id: number; table_name: string; action: string; at: string; actor_email: string | null; label: string }[];
@@ -26,6 +28,8 @@ export default async function Dashboard() {
   );
 
   const tiles = [
+    { label: "Açık portal vakası", value: openCases ?? 0, href: "/admin/portal/vakalar" },
+    { label: "Onay bekleyen hesap", value: typeof pendingAcc === "number" ? pendingAcc : 0, href: "/admin/portal" },
     { label: "Okunmamış mesaj", value: typeof unread === "number" ? unread : 0, href: "/admin/gelen-kutusu?kutu=yeni" },
     { label: "Yayında ürün", value: productCount ?? 0, href: "/admin/urunler?durum=yayinda" },
     { label: "Yayında slayt", value: s.filter((r) => liveState(r) === "live").length, href: "/admin/slaytlar?durum=yayinda" },
@@ -37,7 +41,7 @@ export default async function Dashboard() {
   return (
     <>
       <PageHead title="Pano" lead="Sitede şu an yayında olanlar ve yakında süresi dolacaklar." />
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {tiles.map((tile) => (
           <li key={tile.label}>
             <Link href={tile.href} className="block rounded-2xl border border-gypsum bg-white p-5 hover:border-navy">

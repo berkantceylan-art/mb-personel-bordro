@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { canManageSite, currentUser, homeFor } from "@/lib/auth";
+import { canManageSite, currentUser, homeFor, isPortalUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export type LoginState = { error?: string };
@@ -21,6 +21,7 @@ export async function signIn(_: LoginState, form: FormData): Promise<LoginState>
   const roles = u?.roles ?? [];
   // Admin sayfasına dönülmek isteniyorsa ve yetki varsa oraya
   if (next.startsWith("/admin") && canManageSite(roles)) redirect(next);
+  if (!canManageSite(roles) && (await isPortalUser())) redirect(next.startsWith("/portal") ? next : "/portal");
   redirect(homeFor(roles));
 }
 
