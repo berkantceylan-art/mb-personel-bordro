@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSiteEditor } from "./auth";
+import type { FormState } from "@/components/admin/UploadForm";
 import { MEDIA_BUCKET } from "./cms";
 import { LOCALES, type I18nText } from "./i18n";
 import { createClient } from "./supabase/server";
@@ -44,34 +45,28 @@ function refresh(table: Table) {
   for (const l of LOCALES) revalidatePath(`/${l}`);
 }
 
-async function uploadIfAny(f: FormData, field: string, folder: string): Promise<string | null | undefined> {
-  const file = f.get(field);
-  if (!(file instanceof File) || file.size === 0) return undefined; // değişiklik yok
-  if (file.size > 50 * 1024 * 1024) throw new Error("Dosya 50 MB'tan büyük olamaz.");
-  const allowed = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/svg+xml", "video/mp4", "video/webm"];
-  if (!allowed.includes(file.type)) throw new Error("Desteklenmeyen dosya türü. JPG, PNG, WebP, AVIF, SVG, MP4 ya da WebM yükleyin.");
-  const supabase = await createClient();
-  const safe = file.name.toLowerCase().replace(/[^a-z0-9.\-_]+/g, "-").slice(-80);
-  const path = `${folder}/${crypto.randomUUID()}-${safe}`;
-  const { error } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
-  if (error) throw new Error(`Yükleme başarısız: ${error.message}`);
-  return path;
+/** Tarayıcının depolamaya yüklediği dosyanın yolu (form alanı: `<ad>__path`) */
+function uploadedPath(f: FormData, field: string, folder: string): string | undefined {
+  const v = str(f, `${field}__path`);
+  if (!v) return undefined; // değişiklik yok
+  if (!new RegExp(`^${folder}/[0-9a-f-]{36}-[a-z0-9.\\-_]{1,80}$`).test(v)) throw new Error("Geçersiz dosya yolu.");
+  return v;
 }
 
 // ---------------------------------------------------------------------
 // Slaytlar
 // ---------------------------------------------------------------------
-export async function saveSlide(form: FormData) {
+export async function saveSlide(_prev: FormState, form: FormData): Promise<FormState> {
   await requireSiteEditor();
   const id = str(form, "id");
   const supabase = await createClient();
-  let image: string | null | undefined, imageMobile: string | null | undefined, video: string | null | undefined;
+  let image: string | undefined, imageMobile: string | undefined, video: string | undefined;
   try {
-    image = await uploadIfAny(form, "image", "slaytlar");
-    imageMobile = await uploadIfAny(form, "image_mobile", "slaytlar");
-    video = await uploadIfAny(form, "video", "slaytlar");
+    image = uploadedPath(form, "image", "slaytlar");
+    imageMobile = uploadedPath(form, "image_mobile", "slaytlar");
+    video = uploadedPath(form, "video", "slaytlar");
   } catch (e) {
-    back("cms_slides", (e as Error).message, "hata");
+    return { error: (e as Error).message };
   }
   const row: Record<string, unknown> = {
     placement: str(form, "placement") || "home",
@@ -83,23 +78,25 @@ export async function saveSlide(form: FormData) {
     starts_at: istanbul(str(form, "starts_at")),
     ends_at: istanbul(str(form, "ends_at")),
   };
-  if (image !== undefined) row.image_path = image;
-  if (imageMobile !== undefined) row.image_mobile_path = imageMobile;
-  if (video !== undefined) row.video_path = video;
   if (form.get("remove_image") === "on") row.image_path = null;
   if (form.get("remove_image_mobile") === "on") row.image_mobile_path = null;
   if (form.get("remove_video") === "on") row.video_path = null;
+  if (image !== undefined) row.image_path = image;
+  if (imageMobile !== undefined) row.image_mobile_path = imageMobile;
+  if (video !== undefined) row.video_path = video;
 
-  if (!(row.title as I18nText).tr) back("cms_slides", "Türkçe başlık zorunlu.", "hata");
+  if (!(row.title as I18nText).tr) return { error: "Türkçe başlık zorunlu." };
+  if (row.starts_at && row.ends_at && (row.ends_at as string) <= (row.starts_at as string))
+    return { error: "Bitiş tarihi başlangıçtan sonra olmalı." };
 
   if (id) {
     const { error } = await supabase.from("cms_slides").update(row).eq("id", id);
-    if (error) back("cms_slides", `Kaydedilemedi: ${error.message}`, "hata");
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
   } else {
     const { data: last } = await supabase.from("cms_slides").select("sort").order("sort", { ascending: false }).limit(1);
     row.sort = ((last?.[0]?.sort as number | undefined) ?? 0) + 10;
     const { error } = await supabase.from("cms_slides").insert(row);
-    if (error) back("cms_slides", `Kaydedilemedi: ${error.message}`, "hata");
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
   }
   refresh("cms_slides");
   back("cms_slides", id ? "Slayt güncellendi." : "Slayt eklendi.");
@@ -108,15 +105,15 @@ export async function saveSlide(form: FormData) {
 // ---------------------------------------------------------------------
 // Duyurular
 // ---------------------------------------------------------------------
-export async function saveAnnouncement(form: FormData) {
+export async function saveAnnouncement(_prev: FormState, form: FormData): Promise<FormState> {
   await requireSiteEditor();
   const id = str(form, "id");
   const supabase = await createClient();
-  let image: string | null | undefined;
+  let image: string | undefined;
   try {
-    image = await uploadIfAny(form, "image", "duyurular");
+    image = uploadedPath(form, "image", "duyurular");
   } catch (e) {
-    back("cms_announcements", (e as Error).message, "hata");
+    return { error: (e as Error).message };
   }
   const kind = str(form, "kind");
   const audience = str(form, "audience");
@@ -131,14 +128,16 @@ export async function saveAnnouncement(form: FormData) {
     starts_at: istanbul(str(form, "starts_at")),
     ends_at: istanbul(str(form, "ends_at")),
   };
-  if (image !== undefined) row.image_path = image;
   if (form.get("remove_image") === "on") row.image_path = null;
-  if (!(row.title as I18nText).tr) back("cms_announcements", "Türkçe başlık zorunlu.", "hata");
+  if (image !== undefined) row.image_path = image;
+  if (!(row.title as I18nText).tr) return { error: "Türkçe başlık zorunlu." };
+  if (row.starts_at && row.ends_at && (row.ends_at as string) <= (row.starts_at as string))
+    return { error: "Bitiş tarihi başlangıçtan sonra olmalı." };
 
   const { error } = id
     ? await supabase.from("cms_announcements").update(row).eq("id", id)
     : await supabase.from("cms_announcements").insert(row);
-  if (error) back("cms_announcements", `Kaydedilemedi: ${error.message}`, "hata");
+  if (error) return { error: `Kaydedilemedi: ${error.message}` };
   refresh("cms_announcements");
   back("cms_announcements", id ? "Duyuru güncellendi." : "Duyuru eklendi.");
 }
