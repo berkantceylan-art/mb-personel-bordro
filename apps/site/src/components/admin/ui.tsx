@@ -55,11 +55,13 @@ export function I18nField({
   multiline,
   required,
   hint,
+  rows = 4,
 }: {
   name: string;
   label: string;
   value?: I18nText;
   multiline?: boolean;
+  rows?: number;
   required?: boolean;
   hint?: string;
 }) {
@@ -75,7 +77,7 @@ export function I18nField({
           <label key={l} className="grid gap-1 text-xs text-slate sm:grid-cols-[5.5rem_1fr] sm:items-start sm:gap-3">
             <span className="pt-2">{LOCALE_NAMES[l]}</span>
             {multiline ? (
-              <textarea name={`${name}.${l}`} defaultValue={value?.[l] ?? ""} rows={4} required={required && l === "tr"} lang={l} className="field" />
+              <textarea name={`${name}.${l}`} defaultValue={value?.[l] ?? ""} rows={rows} required={required && l === "tr"} lang={l} className="field" />
             ) : (
               <input name={`${name}.${l}`} defaultValue={value?.[l] ?? ""} required={required && l === "tr"} lang={l} className="field" />
             )}

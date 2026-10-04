@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnnouncementBar, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { ToothChart } from "@/components/ToothChart";
-import { mediaUrl, publicAnnouncements, publicSlides } from "@/lib/cms";
-import { DICTS, isLocale, t, type Locale } from "@/lib/i18n";
+import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicProducts, publicSlides } from "@/lib/cms";
+import { DICTS, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
 
 export const revalidate = 60;
 
@@ -14,7 +14,15 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const d = DICTS[locale];
-  const [banners, news, slides] = await Promise.all([publicAnnouncements("banner"), publicAnnouncements("news"), publicSlides("home")]);
+  const [banners, news, slides, products] = await Promise.all([publicAnnouncements("banner"), publicAnnouncements("news"), publicSlides("home"), publicProducts()]);
+  // Ürünler admin panelinden gelir; veritabanı boşsa sözlükteki sabit liste gösterilir
+  const productGroups =
+    products.length > 0
+      ? PRODUCT_CATEGORIES.map((c) => ({
+          name: PRODUCT_UI[locale].categories[c],
+          items: products.filter((p) => p.category === c).map((p) => ({ name: t(p.name, locale), note: t(p.summary, locale), href: `/${locale}/urunler/${p.slug}` })),
+        })).filter((g) => g.items.length > 0)
+      : d.products.groups.map((g) => ({ ...g, items: g.items.map((it) => ({ ...it, href: undefined as string | undefined })) }));
 
   return (
     <>
@@ -87,17 +95,28 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
               <p className="mt-3 text-lg text-slate">{d.products.lead}</p>
             </div>
             <div className="mt-12 grid gap-12 md:grid-cols-3">
-              {d.products.groups.map((g) => (
+              {productGroups.map((g) => (
                 <div key={g.name}>
                   <h3 className="display border-b-2 border-navy pb-3 text-xl font-semibold text-navy">{g.name}</h3>
-                  <dl>
+                  <ul>
                     {g.items.map((it) => (
-                      <div key={it.name} className="border-b border-gypsum py-4">
-                        <dt className="font-semibold">{it.name}</dt>
-                        <dd className="mt-0.5 text-sm text-slate">{it.note}</dd>
-                      </div>
+                      <li key={it.name} className="border-b border-gypsum">
+                        {it.href ? (
+                          <Link href={it.href} className="group block py-4">
+                            <span className="flex items-center justify-between gap-3 font-semibold group-hover:text-blue">
+                              {it.name} <span aria-hidden="true" className="text-smile-ink transition-transform group-hover:translate-x-1">→</span>
+                            </span>
+                            <span className="mt-0.5 block text-sm text-slate">{it.note}</span>
+                          </Link>
+                        ) : (
+                          <div className="py-4">
+                            <span className="block font-semibold">{it.name}</span>
+                            <span className="mt-0.5 block text-sm text-slate">{it.note}</span>
+                          </div>
+                        )}
+                      </li>
                     ))}
-                  </dl>
+                  </ul>
                 </div>
               ))}
             </div>

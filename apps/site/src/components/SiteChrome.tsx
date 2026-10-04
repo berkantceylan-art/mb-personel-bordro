@@ -29,14 +29,15 @@ export function AnnouncementBar({ items, locale }: { items: Announcement[]; loca
   );
 }
 
-export function SiteHeader({ locale }: { locale: Locale }) {
+/** altPath: dil değiştirince aynı sayfada kalmak için dil önekinden sonraki yol (ör. "/urunler/zirkonyum") */
+export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; altPath?: string; current?: "products" }) {
   const d = DICTS[locale];
-  const links: [string, string][] = [
-    ["#urunler", d.nav.products],
-    ["#teknoloji", d.nav.technology],
-    ["#teslimat", d.nav.delivery],
-    ["#kalite", d.nav.quality],
-    ["#iletisim", d.nav.contact],
+  const links: [string, string, boolean][] = [
+    [`/${locale}/urunler`, d.nav.products, current === "products"],
+    [`/${locale}#teknoloji`, d.nav.technology, false],
+    [`/${locale}#teslimat`, d.nav.delivery, false],
+    [`/${locale}#kalite`, d.nav.quality, false],
+    [`/${locale}#iletisim`, d.nav.contact, false],
   ];
   return (
     <header className="bg-navy text-white">
@@ -47,10 +48,10 @@ export function SiteHeader({ locale }: { locale: Locale }) {
           <span className="display text-xl font-semibold tracking-tight">MB Dental</span>
         </Link>
         <nav aria-label="Ana menü" className="ml-4 hidden gap-5 text-sm text-white/80 lg:flex">
-          {links.map(([href, label]) => (
-            <a key={href} href={href} className="hover:text-white">
+          {links.map(([href, label, on]) => (
+            <Link key={href} href={href} aria-current={on ? "page" : undefined} className="hover:text-white aria-[current=page]:font-semibold aria-[current=page]:text-white">
               {label}
-            </a>
+            </Link>
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-3">
@@ -58,7 +59,7 @@ export function SiteHeader({ locale }: { locale: Locale }) {
             {LOCALES.map((l) => (
               <Link
                 key={l}
-                href={`/${l}`}
+                href={`/${l}${altPath}`}
                 hrefLang={l}
                 lang={l}
                 aria-current={l === locale ? "true" : undefined}

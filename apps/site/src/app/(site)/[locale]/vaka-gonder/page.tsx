@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
-import { CONTACT, isLocale, type Locale } from "@/lib/i18n";
+import { publicProduct } from "@/lib/cms";
+import { CONTACT, isLocale, t, type Locale } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -40,20 +41,25 @@ export default async function SendCase({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ dis?: string }>;
+  searchParams: Promise<{ dis?: string; urun?: string }>;
 }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
-  const { dis } = await searchParams;
+  const { dis, urun } = await searchParams;
   const tooth = dis && /^[1-4][1-8]$/.test(dis) ? dis : null;
+  const product = urun ? await publicProduct(urun) : null;
+  const productName = product ? t(product.name, locale) : null;
   const c = COPY[locale];
-  const subject = encodeURIComponent(tooth ? `${c.subject} — ${c.tooth} ${tooth}` : c.subject);
+  const subject = encodeURIComponent([c.subject, productName, tooth ? `${c.tooth} ${tooth}` : null].filter(Boolean).join(" — "));
 
   return (
     <>
-      <SiteHeader locale={locale} />
+      <SiteHeader locale={locale} altPath="/vaka-gonder" />
       <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6">
         <h1 className="display text-5xl font-semibold text-navy">{c.title}</h1>
+        {productName && (
+          <p className="mr-2 mt-6 inline-flex items-baseline gap-3 rounded-full bg-smile px-5 py-2 font-semibold text-navy">{productName}</p>
+        )}
         {tooth && (
           <p className="mt-6 inline-flex items-baseline gap-3 rounded-full bg-navy px-5 py-2 text-white">
             <span className="text-sm text-white/70">{c.tooth}</span>

@@ -96,3 +96,53 @@ export function liveState(r: { is_active: boolean; starts_at: string | null; end
   if (r.ends_at && Date.parse(r.ends_at) <= now) return "expired";
   return "live";
 }
+
+// ---------------------------------------------------------------------
+// Ürünler
+// ---------------------------------------------------------------------
+export const PRODUCT_CATEGORIES = ["sabit", "hareketli", "ortodonti", "dijital"] as const;
+export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+
+export type Product = {
+  id: string;
+  slug: string;
+  category: ProductCategory;
+  name: I18nText;
+  summary: I18nText;
+  body: I18nText;
+  highlights: I18nText;
+  seo_title: I18nText;
+  seo_description: I18nText;
+  image_path: string | null;
+  gallery: string[];
+  sort: number;
+  is_active: boolean;
+  deleted_at: string | null;
+  updated_at: string;
+};
+
+/** Ürünlerde tarih aralığı yok; rozet için ortak durum hesabına uyarlar */
+export const productState = (p: Product) => liveState({ ...p, starts_at: null, ends_at: null });
+
+export async function publicProducts(): Promise<Product[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_products").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
+    const rows = (data ?? []) as Product[];
+    return rows.sort((a, b) => PRODUCT_CATEGORIES.indexOf(a.category) - PRODUCT_CATEGORIES.indexOf(b.category) || a.sort - b.sort);
+  } catch {
+    return [];
+  }
+}
+
+export async function publicProduct(slug: string): Promise<Product | null> {
+  if (!hasSupabase() || !/^[a-z0-9-]{1,60}$/.test(slug)) return null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_products").select("*").eq("slug", slug).is("deleted_at", null).eq("is_active", true).maybeSingle();
+    return (data as Product | null) ?? null;
+  } catch {
+    return null;
+  }
+}
