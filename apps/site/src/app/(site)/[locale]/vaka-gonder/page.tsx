@@ -2,15 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { publicProduct } from "@/lib/cms";
-import { CONTACT, isLocale, t, type Locale } from "@/lib/i18n";
+import { ContactForm } from "@/components/ContactForm";
+import { isLocale, t, type Locale } from "@/lib/i18n";
+import { getSettings, telHref } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
-const COPY: Record<Locale, { title: string; tooth: string; lead: string; mail: string; call: string; back: string; subject: string }> = {
+const COPY: Record<Locale, { title: string; tooth: string; lead: string; mail: string; call: string; back: string; subject: string; files: string }> = {
   tr: {
     title: "Vaka gönder",
     tooth: "Seçilen diş",
-    lead: "Çevrim içi vaka formu ve dosya yükleme hekim portalıyla birlikte açılacak. O zamana kadar vakanızı e-postayla gönderin ya da bizi arayın; tarama dosyalarını (STL, ZIP) e-postaya ekleyebilirsiniz.",
+    lead: "Vakanızı kısaca yazın; aynı gün dönüp teslim tarihini bildirelim. Dosya yükleme hekim portalıyla birlikte açılacak.",
+    files: "Tarama dosyalarınızı (STL, ZIP) şimdilik e-postayla gönderebilirsiniz:",
     mail: "E-postayla gönder",
     call: "Ara",
     back: "Anasayfa",
@@ -19,7 +22,8 @@ const COPY: Record<Locale, { title: string; tooth: string; lead: string; mail: s
   en: {
     title: "Send a case",
     tooth: "Selected tooth",
-    lead: "The online case form and file upload will open with the dentist portal. Until then, email us your case or give us a call; you can attach scan files (STL, ZIP).",
+    lead: "Describe your case briefly; we get back to you the same day with a delivery date. File upload will open with the dentist portal.",
+    files: "For now you can email your scan files (STL, ZIP):",
     mail: "Send by email",
     call: "Call",
     back: "Home",
@@ -28,7 +32,8 @@ const COPY: Record<Locale, { title: string; tooth: string; lead: string; mail: s
   fr: {
     title: "Envoyer un cas",
     tooth: "Dent sélectionnée",
-    lead: "Le formulaire en ligne et l'envoi de fichiers ouvriront avec l'espace praticien. D'ici là, envoyez votre cas par e-mail ou appelez-nous ; vous pouvez joindre vos fichiers (STL, ZIP).",
+    lead: "Décrivez brièvement votre cas ; nous revenons vers vous le jour même avec une date de livraison. L'envoi de fichiers ouvrira avec l'espace praticien.",
+    files: "En attendant, envoyez vos fichiers (STL, ZIP) par e-mail :",
     mail: "Envoyer par e-mail",
     call: "Appeler",
     back: "Accueil",
@@ -50,6 +55,7 @@ export default async function SendCase({
   const product = urun ? await publicProduct(urun) : null;
   const productName = product ? t(product.name, locale) : null;
   const c = COPY[locale];
+  const st = await getSettings();
   const subject = encodeURIComponent([c.subject, productName, tooth ? `${c.tooth} ${tooth}` : null].filter(Boolean).join(" — "));
 
   return (
@@ -67,12 +73,22 @@ export default async function SendCase({
           </p>
         )}
         <p className="mt-6 text-lg leading-relaxed text-slate">{c.lead}</p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <a href={`mailto:${CONTACT.email}?subject=${subject}`} className="rounded-full bg-navy px-6 py-3 font-semibold text-white hover:bg-blue">
+        <div className="mt-8 rounded-3xl border border-gypsum bg-white p-6 sm:p-8">
+          <ContactForm
+            locale={locale}
+            topic="case"
+            compact
+            page={`/${locale}/vaka-gonder`}
+            hidden={{ ...(tooth ? { tooth } : {}), ...(product ? { product: product.slug } : {}) }}
+          />
+        </div>
+        <p className="mt-8 text-sm text-slate">{c.files}</p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <a href={`mailto:${st.email}?subject=${subject}`} className="rounded-full bg-navy px-6 py-3 font-semibold text-white hover:bg-blue">
             {c.mail}
           </a>
-          <a href={CONTACT.phoneHref} className="rounded-full border border-navy px-6 py-3 font-semibold text-navy hover:bg-white">
-            {c.call} {CONTACT.phone}
+          <a href={telHref(st.phone)} className="rounded-full border border-navy px-6 py-3 font-semibold text-navy hover:bg-white">
+            {c.call} {st.phone}
           </a>
           <Link href={`/${locale}`} className="px-2 py-3 font-semibold text-slate hover:text-navy">
             {c.back}
