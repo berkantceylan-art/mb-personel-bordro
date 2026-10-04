@@ -34,7 +34,7 @@ export function Card({ title, action, children, className = "" }: { title?: stri
   );
 }
 
-export function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+export function Stat({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
   return (
     <div className="bg-white border border-line rounded-[14px] px-3.5 py-3 md:px-5 md:py-4 flex flex-col gap-1 md:gap-1.5 min-w-0">
       <span className="text-xs md:text-[13px] text-muted leading-tight">{label}</span>

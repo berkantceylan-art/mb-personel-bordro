@@ -4,26 +4,32 @@ import { Card, PageHeader, PrimaryLink, SecondaryLink, Stat, ChannelChip, TYPE_L
 import { createClient } from "@/lib/supabase/server";
 import { currentPeriod, formatDate, getSession, periodLabel } from "@/lib/session";
 import { loadCompliance } from "@/lib/compliance";
+import { PeriodPicker } from "@/components/PeriodPicker";
 
 type SummaryRow = { employee_id: string; accrued: number | null; paid_bank: number | null; paid_cash: number | null; deductions: number | null; balance: number | null };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ donem?: string }> }) {
   const s = await getSession();
   const supabase = await createClient();
-  const period = currentPeriod();
+  const sp = await searchParams;
+  const period = sp.donem && /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.donem) ? sp.donem : currentPeriod();
+  const isCurrent = period === currentPeriod();
 
-  const [{ count: employeeCount }, { data: summary }, { data: moves }, { data: depts }] = await Promise.all([
+  const [{ count: employeeCount }, { data: summary }, { data: moves }, { data: depts }, { data: periodRows }] = await Promise.all([
     supabase.from("employees").select("id", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("ledger_period_summary").select("employee_id, accrued, paid_bank, paid_cash, deductions, balance").eq("period", period),
     supabase
       .from("ledger_entries")
       .select("id, entry_date, type, channel, amount, employees(first_name, last_name)")
       .is("voided_at", null)
+      .eq("period", period)
       .order("entry_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(8),
     supabase.from("employees").select("department_id, departments(name)").eq("status", "active"),
+    supabase.from("payroll_periods").select("period").order("period", { ascending: false }),
   ]);
+  const periodOptions = [...new Set([currentPeriod(), ...(periodRows ?? []).map((r) => r.period as string)])];
 
   const canSeeHealth = ["owner", "hr", "safety"].includes(s.role);
   const [isg, health, { count: pendingLeave }, { count: pendingOt }] = await Promise.all([
@@ -57,9 +63,10 @@ export default async function DashboardPage() {
     <>
       <PageHeader
         title="Gösterge Paneli"
-        subtitle={`Dönem: ${periodLabel(period)}`}
+        subtitle={`Dönem: ${periodLabel(period)}${isCurrent ? " (içinde bulunulan ay)" : ""}`}
         actions={
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
+            <PeriodPicker value={period} options={periodOptions} />
             <SecondaryLink href="/ice-aktar">Excel&apos;den aktar</SecondaryLink>
             {(s.role === "owner" || s.role === "accountant") && <PrimaryLink href="/odemeler/yeni">+ Hızlı Avans / Ödeme</PrimaryLink>}
           </div>
@@ -69,7 +76,7 @@ export default async function DashboardPage() {
         <section className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
           <Stat label={`${periodLabel(period)} toplam hakediş`} value={formatTL(total.accrued)} sub={`${rows.length} personelde hakediş kaydı`} />
           <Stat label="Şu ana kadar ödenen" value={formatTL(paid)} sub={`Banka ${formatTL(total.bank)} · Elden ${formatTL(total.cash)}`} />
-          <Stat label="Kalan ödenecek" value={formatTL(total.balance)} />
+          <Stat label="Kalan ödenecek" value={formatTL(total.balance)} sub={<Link href={`/ay-sonu?donem=${period}`} className="font-semibold text-brand-700">Ay sonu adımları →</Link>} />
           <Stat label="Aktif personel" value={String(employeeCount ?? 0)} sub={`${deptCount.size} bölüm`} />
         </section>
 
@@ -103,7 +110,7 @@ export default async function DashboardPage() {
         </Card>
 
         <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(min(340px,100%),1fr))]">
-          <Card title="Son ödeme hareketleri">
+          <Card title={`Son hareketler · ${periodLabel(period)}`} action={<Link href={`/donemler/${period}`} className="text-[13px] font-semibold text-brand-700">Dönem ayrıntısı →</Link>}>
             <div className="overflow-x-auto">
               <table className="w-full text-[13px] min-w-[480px]">
                 <thead>
@@ -129,7 +136,7 @@ export default async function DashboardPage() {
                     );
                   })}
                   {(moves ?? []).length === 0 && (
-                    <tr><td colSpan={5} className="py-6 text-center text-muted">Henüz hareket yok.</td></tr>
+                    <tr><td colSpan={5} className="py-6 text-center text-muted">Bu dönemde hareket yok.</td></tr>
                   )}
                 </tbody>
               </table>
