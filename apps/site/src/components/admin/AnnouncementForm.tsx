@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { saveAnnouncement } from "@/lib/admin-actions";
 import { mediaUrl, type Announcement } from "@/lib/cms";
+import { MediaField } from "./MediaField";
 import { UploadForm } from "./UploadForm";
 import { I18nField, toLocalInput } from "./ui";
 
@@ -56,7 +57,9 @@ export function AnnouncementForm({ item }: { item?: Announcement }) {
             </label>
           </div>
         )}
-        <input id="image" type="file" name="image" accept="image/*" className="mt-2 block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-navy file:px-4 file:py-2 file:text-white" />
+        <div className="mt-2">
+          <MediaField name="image" kind="image" />
+        </div>
       </div>
 
       <div className="grid gap-4 rounded-xl border border-gypsum bg-white p-4 sm:grid-cols-2">

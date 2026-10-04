@@ -1,13 +1,10 @@
 "use client";
 
 import { useActionState, useRef, useState, startTransition, type ReactNode } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { uploadMedia } from "@/lib/upload-client";
 
 export type FormState = { error?: string };
 
-const MEDIA_BUCKET = "site-media";
-const MAX = 50 * 1024 * 1024;
-const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/svg+xml", "video/mp4", "video/webm"];
 
 /**
  * Admin formu: dosyalar tarayıcıdan doğrudan Supabase depolamaya yüklenir,
@@ -43,17 +40,11 @@ export function UploadForm({
     const inputs = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="file"]'));
 
     try {
-      const supabase = createClient();
       for (const input of inputs) {
         data.delete(input.name);
         for (const file of Array.from(input.files ?? [])) {
-          if (file.size > MAX) throw new Error(`"${file.name}" 50 MB'tan büyük.`);
-          if (!ALLOWED.includes(file.type)) throw new Error(`"${file.name}" desteklenmeyen tür. JPG, PNG, WebP, AVIF, SVG, MP4 ya da WebM yükleyin.`);
           setUploading(file.name);
-          const safe = file.name.toLowerCase().replace(/[^a-z0-9.\-_]+/g, "-").slice(-80);
-          const path = `${folder}/${crypto.randomUUID()}-${safe}`;
-          const { error: upErr } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
-          if (upErr) throw new Error(`"${file.name}" yüklenemedi: ${upErr.message}`);
+          const { path } = await uploadMedia(file, folder);
           data.append(`${input.name}__path`, path);
         }
       }

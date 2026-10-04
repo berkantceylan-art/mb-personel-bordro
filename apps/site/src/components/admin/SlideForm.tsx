@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { saveSlide } from "@/lib/admin-actions";
 import { mediaUrl, type Slide } from "@/lib/cms";
+import { MediaField } from "./MediaField";
 import { UploadForm } from "./UploadForm";
 import { I18nField, toLocalInput } from "./ui";
 
@@ -25,7 +26,7 @@ function MediaInput({ name, label, accept, current, hint }: { name: string; labe
           </label>
         </div>
       )}
-      <input id={name} type="file" name={name} accept={accept} className="block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-navy file:px-4 file:py-2 file:text-white" />
+      <MediaField name={name} kind={accept.startsWith("video") ? "video" : "image"} />
     </div>
   );
 }
@@ -48,7 +49,7 @@ export function SlideForm({ slide }: { slide?: Slide }) {
 
       <MediaInput name="image" label="Görsel (masaüstü)" accept="image/*" current={slide?.image_path ?? null} hint="Önerilen: 1600×1200 ya da daha büyük, en fazla 50 MB. WebP ya da JPG." />
       <MediaInput name="image_mobile" label="Görsel (mobil, isteğe bağlı)" accept="image/*" current={slide?.image_mobile_path ?? null} hint="Boş bırakırsanız mobilde masaüstü görseli kullanılır." />
-      <MediaInput name="video" label="Video (isteğe bağlı)" accept="video/mp4,video/webm" current={slide?.video_path ?? null} hint="MP4 ya da WebM, en fazla 50 MB." />
+      <MediaInput name="video" label="Video (isteğe bağlı)" accept="video/mp4,video/webm,video/quicktime" current={slide?.video_path ?? null} hint="MP4, WebM ya da MOV, en fazla 50 MB." />
 
       <I18nField name="button_label" label="Buton yazısı" value={slide?.button_label} hint="Boş bırakılırsa buton gösterilmez." />
       <label className="grid gap-1 text-sm font-semibold text-navy">
