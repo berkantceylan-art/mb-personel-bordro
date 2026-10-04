@@ -15,36 +15,15 @@ const SECTIONS: Record<string, string> = {
 
 const MAP: Record<string, [string, keyof typeof SECTIONS | null]> = {
   // Türkçe
-  "/hakkimizda": ["tr", null],
   "/bizden-haberler": ["tr", null],
-  "/malzemelerekipmanlar": ["tr", "technology"],
   "/teslimat-sureleri": ["tr", "delivery"],
-  "/kalite-yonetim-sistemleri": ["tr", "quality"],
-  "/son-kontrol-sureci": ["tr", "quality"],
-  "/3d-tasarim": ["tr", "technology"],
-  "/3d-baski-modelleme": ["tr", "technology"],
-  "/cnc-isleme": ["tr", "technology"],
   "/klinik": ["tr", null],
   // English
-  "/en/about-us": ["en", null],
   "/en/news-from-us": ["en", null],
-  "/en/materials-equipment": ["en", "technology"],
   "/en/delivery-times": ["en", "delivery"],
-  "/en/quality-management-systems": ["en", "quality"],
-  "/en/final-control-process": ["en", "quality"],
-  "/en/3d-design": ["en", "technology"],
-  "/en/3d-printing-modeling": ["en", "technology"],
-  "/en/cnc-machining": ["en", "technology"],
   // Français
-  "/fr/a-propos-de-nous": ["fr", null],
   "/fr/nouvelles-de-nous": ["fr", null],
-  "/fr/materiel-et-equipement": ["fr", "technology"],
   "/fr/delais-de-livraison": ["fr", "delivery"],
-  "/fr/systemes-de-gestion-de-la-qualite": ["fr", "quality"],
-  "/fr/processus-de-controle-final": ["fr", "quality"],
-  "/fr/conception-3d": ["fr", "technology"],
-  "/fr/modelisation-par-impression-3d": ["fr", "technology"],
-  "/fr/cnc": ["fr", "technology"],
 };
 
 /** Ürün sayfaları → yeni ürün sayfası; ürün grubu sayfaları → ürün listesindeki grup */
@@ -82,6 +61,27 @@ const PRODUCTS: Record<string, [string, string]> = {
   "/iletisim": ["tr", "/iletisim"],
   "/en/contact": ["en", "/iletisim"],
   "/fr/communication": ["fr", "/iletisim"],
+  "/hakkimizda": ["tr", "/hakkimizda"],
+  "/3d-tasarim": ["tr", "/3d-tasarim"],
+  "/cnc-isleme": ["tr", "/cnc-isleme"],
+  "/3d-baski-modelleme": ["tr", "/3d-baski"],
+  "/malzemelerekipmanlar": ["tr", "/hakkimizda"],
+  "/kalite-yonetim-sistemleri": ["tr", "/kalite"],
+  "/son-kontrol-sureci": ["tr", "/kalite"],
+  "/en/about-us": ["en", "/hakkimizda"],
+  "/en/3d-design": ["en", "/3d-tasarim"],
+  "/en/cnc-machining": ["en", "/cnc-isleme"],
+  "/en/3d-printing-modeling": ["en", "/3d-baski"],
+  "/en/materials-equipment": ["en", "/hakkimizda"],
+  "/en/quality-management-systems": ["en", "/kalite"],
+  "/en/final-control-process": ["en", "/kalite"],
+  "/fr/a-propos-de-nous": ["fr", "/hakkimizda"],
+  "/fr/conception-3d": ["fr", "/3d-tasarim"],
+  "/fr/cnc": ["fr", "/cnc-isleme"],
+  "/fr/modelisation-par-impression-3d": ["fr", "/3d-baski"],
+  "/fr/materiel-et-equipement": ["fr", "/hakkimizda"],
+  "/fr/systemes-de-gestion-de-la-qualite": ["fr", "/kalite"],
+  "/fr/processus-de-controle-final": ["fr", "/kalite"],
 };
 
 export function legacyRedirect(pathname: string): Target | null {

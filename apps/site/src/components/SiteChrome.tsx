@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { DICTS, LOCALES, LOCALE_NAMES, t, type Locale } from "@/lib/i18n";
 import { getSettings, telHref } from "@/lib/settings";
-import type { Announcement } from "@/lib/cms";
+import { publicPages, type Announcement } from "@/lib/cms";
 
 export function AnnouncementBar({ items, locale }: { items: Announcement[]; locale: Locale }) {
   const a = items[0];
@@ -30,14 +30,17 @@ export function AnnouncementBar({ items, locale }: { items: Announcement[]; loca
   );
 }
 
+const ABOUT: Record<Locale, string> = { tr: "Hakkımızda", en: "About", fr: "À propos" };
+
 /** altPath: dil değiştirince aynı sayfada kalmak için dil önekinden sonraki yol (ör. "/urunler/zirkonyum") */
-export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; altPath?: string; current?: "products" | "contact" }) {
+export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; altPath?: string; current?: "products" | "contact" | "about" }) {
   const d = DICTS[locale];
   const links: [string, string, boolean][] = [
     [`/${locale}/urunler`, d.nav.products, current === "products"],
     [`/${locale}#teknoloji`, d.nav.technology, false],
     [`/${locale}#teslimat`, d.nav.delivery, false],
     [`/${locale}#kalite`, d.nav.quality, false],
+    [`/${locale}/hakkimizda`, ABOUT[locale], current === "about"],
     [`/${locale}/iletisim`, d.nav.contact, current === "contact"],
   ];
   return (
@@ -90,10 +93,10 @@ const SOCIAL_ICONS: Record<"instagram" | "facebook" | "linkedin" | "youtube", { 
   youtube: { label: "YouTube", path: "M22 8.2a3 3 0 0 0-2.1-2.1C18 5.6 12 5.6 12 5.6s-6 0-7.9.5A3 3 0 0 0 2 8.2 31 31 0 0 0 1.6 12a31 31 0 0 0 .4 3.8 3 3 0 0 0 2.1 2.1c1.9.5 7.9.5 7.9.5s6 0 7.9-.5a3 3 0 0 0 2.1-2.1 31 31 0 0 0 .4-3.8 31 31 0 0 0-.4-3.8zM10 15.2V8.8l5.2 3.2z" },
 };
 
-const FOOTER_COPY: Record<Locale, { hours: string; map: string; write: string; whatsapp: string }> = {
-  tr: { hours: "Çalışma saatleri", map: "Haritada aç", write: "Bize yazın", whatsapp: "WhatsApp ile yazın" },
-  en: { hours: "Opening hours", map: "Open in maps", write: "Write to us", whatsapp: "Message us on WhatsApp" },
-  fr: { hours: "Horaires", map: "Ouvrir le plan", write: "Écrivez-nous", whatsapp: "Écrivez-nous sur WhatsApp" },
+const FOOTER_COPY: Record<Locale, { hours: string; map: string; write: string; whatsapp: string; pages: string }> = {
+  tr: { hours: "Çalışma saatleri", map: "Haritada aç", write: "Bize yazın", whatsapp: "WhatsApp ile yazın", pages: "Kurumsal" },
+  en: { hours: "Opening hours", map: "Open in maps", write: "Write to us", whatsapp: "Message us on WhatsApp", pages: "Company" },
+  fr: { hours: "Horaires", map: "Ouvrir le plan", write: "Écrivez-nous", whatsapp: "Écrivez-nous sur WhatsApp", pages: "Entreprise" },
 };
 
 export async function SiteFooter({ locale }: { locale: Locale }) {
@@ -103,10 +106,11 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
   const hours = t(st.hours, locale);
   const blurb = t(st.footer_text, locale) || d.meta.description;
   const socials = (Object.keys(SOCIAL_ICONS) as (keyof typeof SOCIAL_ICONS)[]).filter((k) => st.social[k]);
+  const pages = (await publicPages()).filter((p) => p.show_in_footer);
   return (
     <>
       <footer id="iletisim" className="bg-navy text-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.2fr_1fr_1fr]">
+        <div className={`mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 ${pages.length ? "md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1fr]" : "md:grid-cols-[1.2fr_1fr_1fr]"}`}>
           <div>
             <div className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -134,6 +138,25 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
               </ul>
             )}
           </div>
+          {pages.length > 0 && (
+            <nav aria-label={fc.pages}>
+              <h2 className="display text-lg font-semibold">{fc.pages}</h2>
+              <ul className="mt-3 space-y-2 text-sm text-white/80">
+                <li>
+                  <Link href={`/${locale}/urunler`} className="hover:text-smile">
+                    {d.nav.products}
+                  </Link>
+                </li>
+                {pages.map((p) => (
+                  <li key={p.id}>
+                    <Link href={`/${locale}/${p.slug}`} className="hover:text-smile">
+                      {t(p.title, locale)}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
           <div>
             <h2 className="display text-lg font-semibold">{d.contact.title}</h2>
             <dl className="mt-3 space-y-2 text-sm text-white/80">

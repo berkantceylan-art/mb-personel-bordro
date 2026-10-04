@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import { AnnouncementBar, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { ToothChart } from "@/components/ToothChart";
 import { Stories, type StoryView } from "@/components/Stories";
-import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicProducts, publicSlides, publicStories } from "@/lib/cms";
+import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicPages, publicProducts, publicSlides, publicStories } from "@/lib/cms";
 import { mediaKind } from "@/lib/media";
 import { getSettings, telHref } from "@/lib/settings";
-import { DICTS, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
+import { DICTS, PAGE_UI, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
 
 export const revalidate = 60;
 
@@ -22,13 +22,16 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const d = DICTS[locale];
-  const [banners, news, slides, products, storyRows] = await Promise.all([
+  const [banners, news, slides, products, storyRows, pages] = await Promise.all([
     publicAnnouncements("banner"),
     publicAnnouncements("news"),
     publicSlides("home"),
     publicProducts(),
     publicStories(),
+    publicPages(),
   ]);
+  const techPages = pages.filter((p) => p.group === "teknoloji");
+  const qualityPages = pages.filter((p) => p.group === "kalite");
   const st = await getSettings();
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
   // Arama motorları için kurum bilgisi
@@ -197,6 +200,19 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
                 </li>
               ))}
             </ol>
+            {techPages.length > 0 && (
+              <ul className="mt-12 grid gap-4 md:grid-cols-3">
+                {techPages.map((p) => (
+                  <li key={p.id}>
+                    <Link href={`/${locale}/${p.slug}`} className="group block h-full rounded-2xl border border-gypsum p-6 hover:border-navy">
+                      <span className="display block text-xl font-semibold text-navy">{t(p.title, locale)}</span>
+                      <span className="mt-1 block text-sm text-slate">{t(p.summary, locale)}</span>
+                      <span className="mt-3 block text-sm font-semibold text-smile-ink group-hover:underline">{PAGE_UI[locale].more} →</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
             <div className="mt-14 rounded-2xl bg-porcelain p-6">
               <h3 className="font-semibold text-navy">{d.tech.materials}</h3>
               <ul className="mt-3 flex flex-wrap gap-2">
@@ -253,6 +269,11 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
                 {d.quality.title}
               </h2>
               <p className="mt-3 text-lg text-slate">{d.quality.text}</p>
+              {qualityPages.map((p) => (
+                <Link key={p.id} href={`/${locale}/${p.slug}`} className="mt-5 mr-4 inline-block font-semibold text-smile-ink hover:underline">
+                  {t(p.title, locale)} →
+                </Link>
+              ))}
             </div>
             <ul className="grid gap-4 sm:grid-cols-2">
               {d.quality.standards.map((s) => (
