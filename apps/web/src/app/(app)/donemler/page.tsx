@@ -7,6 +7,7 @@ import { canManagePay, currentPeriod, getSession, periodLabel } from "@/lib/sess
 import { CreatePeriodButton } from "./CreatePeriodButton";
 import { setPeriodStatus } from "./actions";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
+import { DeletePeriodButton } from "./DeletePeriodButton";
 
 type Sum = { period: string; accrued: number | null; paid_bank: number | null; paid_cash: number | null; deductions: number | null; balance: number | null };
 
@@ -89,6 +90,7 @@ export default async function PeriodsPage() {
                             className="h-9 px-3 rounded-lg border border-[#D5DEE8] bg-white text-[13px] font-semibold text-[#33414F]"
                           />
                         </form>
+                        {open && s.role === "owner" && <DeletePeriodButton period={p.period} label={periodLabel(p.period)} />}
                       </div>
                     </td>
                   </tr>
@@ -98,7 +100,7 @@ export default async function PeriodsPage() {
             </tbody>
           </table>
         </section>
-        <p className="text-xs text-muted">Kapalı döneme avans, ödeme veya kesinti girilemez, mevcut hareketler de iptal edilemez. Kapatınca her personelin kalan alacağı/borcu otomatik olarak sonraki aya devredilir; yeniden açınca devir geri alınır. &quot;Eksikleri tamamla&quot; sonradan eklenen personelin hakedişini yazar.</p>
+        <p className="text-xs text-muted">Kapalı döneme avans, ödeme veya kesinti girilemez, mevcut hareketler de iptal edilemez. Kapatınca her personelin kalan alacağı/borcu otomatik olarak sonraki aya devredilir; yeniden açınca devir geri alınır. &quot;Eksikleri tamamla&quot; sonradan eklenen personelin hakedişini yazar. &quot;Sil&quot; (yalnız şirket sahibi, açık dönemde) dönemi tüm hareketleriyle kalıcı olarak siler; yanlış aktarılan bir ayı baştan girmek için kullanılır.</p>
       </div>
     </>
   );
