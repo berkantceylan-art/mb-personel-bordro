@@ -2,10 +2,9 @@ import Link from "next/link";
 import { saveProduct } from "@/lib/admin-actions";
 import { PRODUCT_CATEGORIES, mediaUrl, type Product } from "@/lib/cms";
 import { PRODUCT_UI } from "@/lib/i18n";
+import { MediaField } from "./MediaField";
 import { UploadForm } from "./UploadForm";
 import { I18nField } from "./ui";
-
-const fileCls = "block w-full text-sm file:mr-3 file:rounded-full file:border-0 file:bg-navy file:px-4 file:py-2 file:text-white";
 
 export function ProductForm({ product }: { product?: Product }) {
   const img = mediaUrl(product?.image_path);
@@ -80,14 +79,14 @@ export function ProductForm({ product }: { product?: Product }) {
             </label>
           </div>
         )}
-        <input id="image" type="file" name="image" accept="image/*" className={fileCls} />
+        <MediaField name="image" kind="image" />
       </div>
 
       <div className="rounded-xl border border-gypsum bg-white p-4">
         <label className="block text-sm font-semibold text-navy" htmlFor="gallery">
           Galeri
         </label>
-        <p className="mb-3 text-xs text-slate">Birden fazla görsel seçebilirsiniz; en fazla 24. Kaldırmak istediklerinizi işaretleyin.</p>
+        <p className="mb-3 text-xs text-slate">Bilgisayardan birden fazla görsel yükleyebilir ya da kütüphaneden seçebilirsiniz; en fazla 24. Kaldırmak istediklerinizi işaretleyin.</p>
         {gallery.length > 0 && (
           <ul className="mb-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
             {gallery.map((p) => (
@@ -102,7 +101,7 @@ export function ProductForm({ product }: { product?: Product }) {
             ))}
           </ul>
         )}
-        <input id="gallery" type="file" name="gallery" accept="image/*" multiple className={fileCls} />
+        <MediaField name="gallery" kind="image" multiple />
       </div>
 
       <details className="rounded-xl border border-gypsum bg-white p-4">

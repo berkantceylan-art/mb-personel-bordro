@@ -10,10 +10,10 @@ const NAV: { href: string; label: string; soon?: boolean }[] = [
   { href: "/admin/slaytlar", label: "Slaytlar" },
   { href: "/admin/duyurular", label: "Duyurular" },
   { href: "/admin/urunler", label: "Ürünler" },
+  { href: "/admin/medya", label: "Medya kütüphanesi" },
   { href: "#", label: "Hikâyeler", soon: true },
   { href: "#", label: "Sayfalar", soon: true },
   { href: "#", label: "Vaka galerisi", soon: true },
-  { href: "#", label: "Medya kütüphanesi", soon: true },
   { href: "#", label: "Gelen kutusu", soon: true },
   { href: "#", label: "Site ayarları", soon: true },
 ];

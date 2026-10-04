@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { requireSiteEditor } from "./auth";
 import type { FormState } from "@/components/admin/UploadForm";
 import { MEDIA_BUCKET } from "./cms";
+import { MEDIA_MIME, isMediaPath, type MediaItem } from "./media";
+import { mediaUsage } from "./media-server";
 import { LOCALES, type I18nText } from "./i18n";
 import { createClient } from "./supabase/server";
 
@@ -47,19 +49,21 @@ function refresh(table: Table) {
 }
 
 /** Tarayıcının depolamaya yüklediği dosyanın yolu (form alanı: `<ad>__path`) */
-const pathRe = (folder: string) => new RegExp(`^${folder}/[0-9a-f-]{36}-[a-z0-9.\\-_]{1,80}$`);
-
-function uploadedPath(f: FormData, field: string, folder: string): string | undefined {
+/**
+ * Tarayıcının depoya yüklediği ya da kütüphaneden seçilen dosyanın yolu (form alanı: `<ad>__path`).
+ * Kütüphaneden seçilen dosya başka bir klasörde olabilir; bilinen klasörlerin hepsi kabul edilir.
+ */
+function uploadedPath(f: FormData, field: string, _folder?: string): string | undefined {
   const v = str(f, `${field}__path`);
   if (!v) return undefined; // değişiklik yok
-  if (!pathRe(folder).test(v)) throw new Error("Geçersiz dosya yolu.");
+  if (!isMediaPath(v)) throw new Error("Geçersiz dosya yolu.");
   return v;
 }
 
 /** Çoklu dosya alanı (galeri): aynı adla birden fazla yol gelir */
-function uploadedPaths(f: FormData, field: string, folder: string): string[] {
-  const list = f.getAll(`${field}__path`).map((v) => String(v).trim()).filter(Boolean);
-  if (list.some((v) => !pathRe(folder).test(v))) throw new Error("Geçersiz dosya yolu.");
+function uploadedPaths(f: FormData, field: string, _folder?: string): string[] {
+  const list = [...new Set(f.getAll(`${field}__path`).map((v) => String(v).trim()).filter(Boolean))];
+  if (list.some((v) => !isMediaPath(v))) throw new Error("Geçersiz dosya yolu.");
   return list;
 }
 
@@ -292,13 +296,9 @@ export async function deleteForever(form: FormData) {
   // Yalnız çöpteki kayıt kalıcı silinebilir
   const { data } = await supabase.from(table).select("*").eq("id", id).not("deleted_at", "is", null).maybeSingle();
   if (!data) back(table, "Kalıcı silmek için kayıt önce çöp kutusunda olmalı.", "hata", "&durum=cop");
-  const rec = data as Record<string, unknown>;
-  const paths = [...["image_path", "image_mobile_path", "video_path"].map((k) => rec[k]), ...((rec.gallery as string[] | undefined) ?? [])].filter(
-    (p): p is string => typeof p === "string" && !!p,
-  );
+  // Dosyalar silinmez: medya kütüphanesinde kalır, başka yerde de kullanılıyor olabilir
   const { error } = await supabase.from(table).delete().eq("id", id);
   if (error) back(table, error.message, "hata", "&durum=cop");
-  if (paths.length) await supabase.storage.from(MEDIA_BUCKET).remove(paths);
   refresh(table);
   back(table, "Kalıcı olarak silindi.", "ok", "&durum=cop");
 }
@@ -324,4 +324,76 @@ export async function moveSlide(form: FormData) {
   }
   refresh("cms_slides");
   back("cms_slides", "Sıra güncellendi.");
+}
+
+// ---------------------------------------------------------------------
+// Medya kütüphanesi
+// ---------------------------------------------------------------------
+export type MediaUpload = { path: string; mime: string; size: number; width?: number | null; height?: number | null };
+
+/** Tarayıcı depoya yükledikten sonra çağrılır: dosyayı kütüphaneye kaydeder */
+export async function registerMedia(items: MediaUpload[]): Promise<{ error?: string }> {
+  await requireSiteEditor();
+  const rows = items
+    .filter((i) => isMediaPath(i.path) && MEDIA_MIME.includes(i.mime))
+    .map((i) => ({
+      path: i.path,
+      mime: i.mime,
+      size: Number.isFinite(i.size) ? Math.round(i.size) : null,
+      width: i.width && i.width > 0 ? Math.round(i.width) : null,
+      height: i.height && i.height > 0 ? Math.round(i.height) : null,
+      title: i.path.split("/").pop()!.replace(/^[0-9a-f-]{37}/, "").replace(/\.[a-z0-9]+$/, "").replace(/[-_]+/g, " ").trim() || null,
+    }));
+  if (rows.length === 0) return {};
+  const supabase = await createClient();
+  const { error } = await supabase.from("cms_media").upsert(rows, { onConflict: "path", ignoreDuplicates: true });
+  if (error) return { error: error.message };
+  revalidatePath("/admin/medya");
+  return {};
+}
+
+/** Kütüphaneden seçme penceresi için liste */
+export async function listMedia(opts: { q?: string; kind?: "image" | "video" | "all"; offset?: number }): Promise<{ items: MediaItem[]; more: boolean }> {
+  await requireSiteEditor();
+  const supabase = await createClient();
+  const limit = 48;
+  const offset = Math.max(0, opts.offset ?? 0);
+  let q = supabase.from("cms_media").select("*").order("created_at", { ascending: false }).range(offset, offset + limit);
+  if (opts.kind === "image") q = q.like("mime", "image/%");
+  if (opts.kind === "video") q = q.like("mime", "video/%");
+  const term = (opts.q ?? "").trim().slice(0, 60).replace(/[%_,()]/g, " ");
+  if (term) q = q.or(`title.ilike.%${term}%,path.ilike.%${term}%`);
+  const { data } = await q;
+  const items = (data ?? []) as MediaItem[];
+  return { items: items.slice(0, limit), more: items.length > limit };
+}
+
+export async function updateMedia(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("cms_media")
+    .update({ title: str(form, "title").slice(0, 200) || null, alt: i18n(form, "alt") })
+    .eq("id", id);
+  if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  revalidatePath("/admin/medya");
+  redirect(`/admin/medya?ok=${encodeURIComponent("Bilgiler kaydedildi.")}`);
+}
+
+export async function deleteMedia(form: FormData) {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const supabase = await createClient();
+  const { data } = await supabase.from("cms_media").select("path").eq("id", id).maybeSingle();
+  const path = (data as { path: string } | null)?.path;
+  if (!path) redirect(`/admin/medya?hata=${encodeURIComponent("Dosya bulunamadı.")}`);
+  const uses = (await mediaUsage()).get(path!) ?? [];
+  if (uses.length > 0)
+    redirect(`/admin/medya/${id}?hata=${encodeURIComponent(`Bu dosya ${uses.length} yerde kullanılıyor. Önce oralardan kaldırın.`)}`);
+  const { error } = await supabase.storage.from(MEDIA_BUCKET).remove([path!]);
+  if (error) redirect(`/admin/medya/${id}?hata=${encodeURIComponent(`Silinemedi: ${error.message}`)}`);
+  await supabase.from("cms_media").delete().eq("id", id);
+  revalidatePath("/admin/medya");
+  redirect(`/admin/medya?ok=${encodeURIComponent("Dosya silindi.")}`);
 }
