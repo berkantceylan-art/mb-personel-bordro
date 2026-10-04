@@ -9,3 +9,4 @@ export * from "./timekeeping";
 export * from "./sides";
 export * from "./payroll-run";
 export * from "./compliance";
+export * from "./settings";

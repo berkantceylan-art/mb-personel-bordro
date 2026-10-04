@@ -349,7 +349,7 @@ export const REPORTS: ReportDef[] = [
         columns: [
           { key: "bolum", label: "Bölüm" }, { key: "ad", label: "Personel", width: 22 }, { key: "pdks", label: "PDKS" }, { key: "gun", label: "Çalışılan gün", type: "number" }, { key: "saat", label: "Saat", type: "number" },
           { key: "devamsiz", label: "Devamsız", type: "number" }, { key: "eksik_okutma", label: "Eksik okutma", type: "number" }, { key: "gec", label: "Geç gün", type: "number" }, { key: "gec_dk", label: "Geç dk", type: "number" },
-          { key: "erken_dk", label: "Erken dk", type: "number" }, { key: "fm_saat", label: "FM saat", type: "number" }, { key: "izin", label: "İzin", type: "number" }, { key: "rapor", label: "Rapor", type: "number" },
+          { key: "erken_dk", label: "Erken dk", type: "number" }, { key: "fm_saat", label: "Vardiya aşımı saat", type: "number" }, { key: "izin", label: "İzin", type: "number" }, { key: "rapor", label: "Rapor", type: "number" },
         ],
         rows: out, totals: { ad: `${out.length} kişi`, ...sumBy(out, ["gun", "saat", "devamsiz", "eksik_okutma", "gec", "gec_dk", "erken_dk", "fm_saat", "izin", "rapor"]) }, fileName: `puantaj-${p.period}`,
       };

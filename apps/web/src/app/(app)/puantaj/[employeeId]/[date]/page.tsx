@@ -53,7 +53,7 @@ export default async function DayPage({ params }: { params: Promise<{ employeeId
             ["Net çalışma", hhmm(c.workedMin)],
             ["Geç gelme", c.lateMin ? `${c.lateMin} dk` : "—"],
             ["Erken çıkma", c.earlyLeaveMin ? `${c.earlyLeaveMin} dk` : "—"],
-            ["Fazla mesai", c.overtimeMin ? `${hhmm(c.overtimeMin)} (×${c.overtimeRate})` : "—"],
+            [c.status === "HOLIDAY" || c.halfHoliday ? "Tatil çalışması" : "Vardiya aşımı", c.overtimeMin ? `${hhmm(c.overtimeMin)}${c.status === "HOLIDAY" || c.halfHoliday ? ` (maaşa ek ×${c.overtimeRate})` : ""}` : "—"],
           ].map(([l, v]) => (
             <div key={l} className="bg-white border border-line rounded-[14px] px-4 py-3 flex flex-col gap-1">
               <span className="text-xs text-muted">{l}</span>

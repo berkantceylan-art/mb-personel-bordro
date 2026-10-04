@@ -44,7 +44,7 @@ export function ManualOvertimeForm({ employees }: { employees: Array<{ id: strin
       <label className="flex flex-col gap-1.5 text-sm text-muted">Tarih<input type="date" name="date" required className={input} /></label>
       <label className="flex flex-col gap-1.5 text-sm text-muted w-28">Saat<input name="hours" required inputMode="decimal" placeholder="2,5" className={input} /></label>
       <label className="flex flex-col gap-1.5 text-sm text-muted">Oran
-        <select name="rate" className={input}><option value="1.5">%50 (normal)</option><option value="2">%100 (resmi tatil)</option></select>
+        <select name="rate" className={input}><option value="1.5">%50 fazla mesai</option><option value="1">Resmi tatil (maaşa ek ×1)</option><option value="2">Resmi tatil (maaşa ek ×2)</option></select>
       </label>
       <PaySideSelect />
       <button disabled={pending} className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-60">Ekle</button>

@@ -25,7 +25,7 @@ function Official({ r, period, company, priv, position }: { r: PayrollRow; perio
       <header className="flex justify-between items-start border-b-2 border-[#0A3D73] pb-2 mb-3">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="" className="w-12 h-10 object-contain" />
+          <img src="/logo.svg" alt="" className="w-11 h-11 object-contain" />
           <div><div className="font-bold text-[15px]">{company}</div><div className="text-[11px] text-[#5A6878]">Ücret hesap pusulası (resmi bordro)</div></div>
         </div>
         <div className="text-right"><div className="font-bold">{periodLabel(period)}</div><div className="text-[11px] text-[#5A6878]">{r.result.days} gün</div></div>
@@ -91,7 +91,7 @@ function Internal({ r, period, company, entries }: { r: PayrollRow; period: stri
       <header className="flex justify-between items-start border-b-2 border-[#00A6D6] pb-2 mb-3">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="" className="w-12 h-10 object-contain" />
+          <img src="/logo.svg" alt="" className="w-11 h-11 object-contain" />
           <div><div className="font-bold text-[15px]">{company}</div><div className="text-[11px] text-[#5A6878]">İç hakediş ve ödeme fişi</div></div>
         </div>
         <div className="text-right"><div className="font-bold">{periodLabel(period)}</div><div className="text-[11px] text-[#5A6878]">{r.name} · {r.dept}</div></div>

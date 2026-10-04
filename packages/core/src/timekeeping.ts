@@ -24,6 +24,8 @@ const hm = (t: string) => {
   const [h, m] = t.split(":").map(Number) as [number, number];
   return h * 60 + m;
 };
+/** Arife günü mesai bitişi (13:00) */
+const HALF_DAY_END = 13 * 60;
 const minOfDay = (local: string) => hm(local.slice(11, 16));
 const dayDiff = (a: string, b: string) =>
   (Date.parse(b.slice(0, 10) + "T00:00:00Z") - Date.parse(a.slice(0, 10) + "T00:00:00Z")) / 86_400_000;
@@ -50,8 +52,10 @@ export interface DayEvaluation {
   lateMin: number;
   earlyLeaveMin: number;
   overtimeMin: number;
-  /** Tatil günü çalışması ise 2, normal fazla mesai 1.5 */
+  /** Normal fazla mesai 1.5; resmi tatil çalışmasında şirket ayarındaki ek ücret katı */
   overtimeRate: number;
+  /** Arife günü (13:00'ten sonrası tatil) */
+  halfHoliday?: boolean;
 }
 
 export interface EvaluateDayInput {
@@ -61,6 +65,10 @@ export interface EvaluateDayInput {
   /** Bu gün planlı hafta tatili mi (atama veya vardiya günleri) */
   weeklyOff?: boolean;
   holiday?: boolean;
+  /** Arife: öğleden sonrası (13:00 sonrası) resmi tatil */
+  halfHoliday?: boolean;
+  /** Resmi tatil çalışmasında maaşa ek saat ücreti katı (İş K. 47; varsayılan 1) */
+  holidayRate?: number;
   leave?: boolean;
   /** Eşleşmemiş (anomali) okutma var mı */
   hasAnomaly?: boolean;
@@ -82,10 +90,19 @@ export function evaluateDay(i: EvaluateDayInput): DayEvaluation {
       status: i.holiday ? "HOLIDAY" : "WEEKLY_OFF",
       workedMin: net,
       overtimeMin: net >= threshold ? net : 0,
-      overtimeRate: i.holiday ? 2 : 1.5,
+      overtimeRate: i.holiday ? (i.holidayRate ?? 1) : 1.5,
     };
   }
-  if (!i.shift) return { ...base, status: t ? "WORKED" : i.hasAnomaly ? "INCOMPLETE" : "NO_SHIFT", workedMin: net };
+  if (!i.shift) {
+    // Vardiyasız personelde arife: 13:00 sonrası çalışma tatil çalışmasıdır
+    if (i.halfHoliday && t) {
+      const fIn = minOfDay(t.firstIn);
+      const lOut = minOfDay(t.lastOut) + dayDiff(t.workDate, t.lastOut) * 1440;
+      const afterNoon = Math.max(0, Math.min(net, lOut - Math.max(fIn, HALF_DAY_END)));
+      return { ...base, status: i.hasAnomaly ? "INCOMPLETE" : "WORKED", workedMin: net, overtimeMin: afterNoon >= 30 ? afterNoon : 0, overtimeRate: i.holidayRate ?? 1, halfHoliday: true };
+    }
+    return { ...base, status: t ? "WORKED" : i.hasAnomaly ? "INCOMPLETE" : "NO_SHIFT", workedMin: net };
+  }
   if (!t) return { ...base, status: i.hasAnomaly ? "INCOMPLETE" : "ABSENT" };
 
   const s = i.shift;
@@ -94,6 +111,23 @@ export function evaluateDay(i: EvaluateDayInput): DayEvaluation {
   const late = firstIn - start;
   const end = hm(s.end) + (s.crossesMidnight || hm(s.end) <= start ? 1440 : 0);
   const lastOut = minOfDay(t.lastOut) + dayDiff(t.workDate, t.lastOut) * 1440;
+
+  // Arife: mesai 13:00'te biter; 13:00 sonrası çalışma resmi tatil çalışmasıdır
+  if (i.halfHoliday && start < HALF_DAY_END) {
+    const early = HALF_DAY_END - lastOut;
+    const afterNoon = Math.max(0, Math.min(net, lastOut - Math.max(firstIn, HALF_DAY_END)));
+    return {
+      ...base,
+      status: i.hasAnomaly ? "INCOMPLETE" : "WORKED",
+      workedMin: net,
+      lateMin: late > s.lateToleranceMin ? late : 0,
+      earlyLeaveMin: early > s.earlyToleranceMin ? early : 0,
+      overtimeMin: afterNoon >= s.overtimeThresholdMin ? afterNoon : 0,
+      overtimeRate: i.holidayRate ?? 1,
+      halfHoliday: true,
+    };
+  }
+
   const early = end - lastOut;
   const planned = shiftNetMinutes(s);
   const over = net - planned;
@@ -106,6 +140,52 @@ export function evaluateDay(i: EvaluateDayInput): DayEvaluation {
     earlyLeaveMin: early > s.earlyToleranceMin ? early : 0,
     overtimeMin: over >= s.overtimeThresholdMin ? over : 0,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Haftalık 45 saat esaslı fazla mesai (İş K. 41, 63)                  */
+/* ------------------------------------------------------------------ */
+
+export interface WeekSummary {
+  /** Haftanın pazartesisi */
+  weekStart: string;
+  weekEnd: string;
+  /** Haftalık sayılan çalışma (resmi tatil ve izin günleri hariç) */
+  workedMin: number;
+  /** 45 saati aşan kısım (yuvarlanmamış) */
+  overtimeMin: number;
+  /** Fazla mesainin yazılacağı gün: haftanın son çalışılan günü */
+  lastWorkedDate: string | null;
+  /** 11 saati aşan günler */
+  longDays: Array<{ date: string; workedMin: number }>;
+}
+
+const addDays = (iso: string, n: number) => new Date(Date.parse(iso + "T00:00:00Z") + n * 86_400_000).toISOString().slice(0, 10);
+export const weekStartOf = (iso: string) => addDays(iso, 1 - isoWeekday(iso));
+
+/**
+ * Günlük değerlendirmeleri pazartesi–pazar haftalarına toplar. Resmi tatil (tam gün) ve izin
+ * günleri haftalık toplama girmez; resmi tatil çalışması ayrıca ödenir.
+ */
+export function weeklySummaries(days: Array<Pick<DayEvaluation, "date" | "status" | "workedMin"> & { halfHoliday?: boolean; overtimeMin?: number }>, limitMin = 45 * 60): WeekSummary[] {
+  const weeks = new Map<string, WeekSummary>();
+  for (const d of [...days].sort((a, b) => a.date.localeCompare(b.date))) {
+    const ws = weekStartOf(d.date);
+    const w = weeks.get(ws) ?? { weekStart: ws, weekEnd: addDays(ws, 6), workedMin: 0, overtimeMin: 0, lastWorkedDate: null, longDays: [] };
+    if (d.workedMin > 11 * 60) w.longDays.push({ date: d.date, workedMin: d.workedMin });
+    if (d.status === "WORKED" || d.status === "INCOMPLETE" || d.status === "WEEKLY_OFF") {
+      // Arifede 13:00 sonrası tatil çalışması olarak ayrıca ödenir
+      const counted = d.halfHoliday ? Math.max(0, d.workedMin - (d.overtimeMin ?? 0)) : d.workedMin;
+      if (counted > 0) {
+        w.workedMin += counted;
+        // Arifede tatil çalışması aynı güne ayrı kayıt olarak yazıldığı için o gün seçilmez
+        if (!(d.halfHoliday && (d.overtimeMin ?? 0) > 0) || !w.lastWorkedDate) w.lastWorkedDate = d.date;
+      }
+    }
+    weeks.set(ws, w);
+  }
+  for (const w of weeks.values()) w.overtimeMin = Math.max(0, w.workedMin - limitMin);
+  return [...weeks.values()];
 }
 
 /* ------------------------------------------------------------------ */

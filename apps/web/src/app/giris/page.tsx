@@ -33,7 +33,7 @@ export default function LoginPage() {
       <form onSubmit={onSubmit} className="w-full max-w-sm bg-white rounded-2xl p-8 flex flex-col gap-5 shadow-xl">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="MB Dental logosu" className="w-12 h-11 object-contain" />
+          <img src="/logo.svg" alt="MB Dental logosu" className="w-12 h-12 object-contain" />
           <div>
             <h1 className="font-display font-bold text-lg text-brand-800">MB DENTAL</h1>
             <p className="text-sm text-muted">Personel &amp; Bordro</p>

@@ -47,7 +47,7 @@ export function MobileNav({ role, companyName, badges }: { role: string; company
     <>
       <header className="md:hidden print:hidden sticky top-0 z-30 bg-brand-900 text-white flex items-center gap-3 px-4 pb-2.5" style={{ paddingTop: "calc(env(safe-area-inset-top) + 10px)" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icon-192.png" alt="" className="w-8 h-8 rounded-lg" />
+        <img src="/logo.svg" alt="" className="w-8 h-8" />
         <span className="font-display font-bold flex-1 truncate">{companyName.toUpperCase() || "MB DENTAL"}</span>
       </header>
 

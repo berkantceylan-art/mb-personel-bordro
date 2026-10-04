@@ -5,6 +5,8 @@ import { roundKurus, type Kurus } from "./money";
  * - Nafaka dosyaları önceliklidir ve aylık tutarları tam kesilir.
  * - Diğer icra dosyaları tebliğ sırasına göre, kalan haczedilebilir
  *   tutardan (varsayılan resmi netin 1/4'ü) sırayla karşılanır.
+ * - afterAlimony: 1/4, nafaka düşüldükten sonra kalan netten hesaplanır (İİK 83 yorumu).
+ * - Toplam kesinti hiçbir durumda verilen netten fazla olamaz.
  */
 export interface GarnishmentFile {
   id: string;
@@ -27,7 +29,9 @@ export function allocateGarnishments(
   officialNet: Kurus,
   files: GarnishmentFile[],
   seizableRatio = 0.25,
+  opts: { afterAlimony?: boolean } = {},
 ): { lines: GarnishmentLine[]; total: Kurus } {
+  officialNet = Math.max(0, officialNet);
   const active = files.filter((f) => f.active);
   const lines: GarnishmentLine[] = [];
 
@@ -43,7 +47,8 @@ export function allocateGarnishments(
     }
   }
 
-  let pool = Math.min(roundKurus(officialNet * seizableRatio), left);
+  const seizableBase = opts.afterAlimony ? left : officialNet;
+  let pool = Math.min(roundKurus(seizableBase * seizableRatio), left);
   const enforcement = active
     .filter((f) => f.kind === "ENFORCEMENT")
     .sort((a, b) => a.servedAt.localeCompare(b.servedAt));

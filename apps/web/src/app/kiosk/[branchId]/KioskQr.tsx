@@ -32,7 +32,7 @@ export function KioskQr({ branchId }: { branchId: string }) {
       <div className="flex items-center gap-3">
         <div className="w-14 h-14 rounded-xl bg-white grid place-items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="" className="w-11 h-10 object-contain" />
+          <img src="/logo.svg" alt="" className="w-11 h-11 object-contain" />
         </div>
         <div>
           <div className="font-display font-bold text-2xl">MB DENTAL</div>

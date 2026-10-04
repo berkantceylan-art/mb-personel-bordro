@@ -7,8 +7,10 @@ import {
   pairPunches,
   type DayEvaluation,
   type Punch,
+  type CompanySettings,
   type ShiftDef,
 } from "@mb/core";
+import { getCompanySettings } from "@/lib/settings";
 import { createClient } from "@/lib/supabase/server";
 
 type SB = Awaited<ReturnType<typeof createClient>>;
@@ -85,6 +87,7 @@ export interface MonthData {
   holidays: Map<string, { name: string; half_day: boolean }>;
   anomalies: Array<{ employeeId: string; kind: string; at: string; detail: string }>;
   unknownCards: Array<{ cardNo: string; count: number; first: string }>;
+  settings: CompanySettings;
 }
 
 const shiftDate = (iso: string, delta: number) => new Date(Date.parse(iso + "T00:00:00Z") + delta * 86_400_000).toISOString().slice(0, 10);
@@ -101,7 +104,7 @@ export async function loadMonth(supabase: SB, period: string, opts: { employeeId
     .or(`termination_date.is.null,termination_date.gte.${first}`)
     .order("first_name");
   if (opts.employeeId) empQ = empQ.eq("id", opts.employeeId);
-  const [{ data: emps }, { data: shiftRows }, { data: hol }, leaveRows] = await Promise.all([
+  const [{ data: emps }, { data: shiftRows }, { data: hol }, leaveRows, settings] = await Promise.all([
     empQ,
     supabase.from("shifts").select("*"),
     supabase.from("public_holidays").select("date, name, half_day").gte("date", first).lte("date", last),
@@ -111,6 +114,7 @@ export async function loadMonth(supabase: SB, period: string, opts: { employeeId
       .eq("status", "approved")
       .lte("start_date", last)
       .gte("end_date", first),
+    getCompanySettings(supabase),
   ]);
 
   let employees: MonthEmployee[] = (emps ?? []).map((e) => ({
@@ -197,6 +201,8 @@ export async function loadMonth(supabase: SB, period: string, opts: { employeeId
         shift: shift ? { ...toShiftDef(shift), weekdays: a?.shift_id ? [1, 2, 3, 4, 5, 6, 7] : shift.weekdays } : null,
         weeklyOff,
         holiday: !!holiday && !holiday.half_day,
+        halfHoliday: !!holiday?.half_day,
+        holidayRate: settings.holidayExtraRate,
         leave: leaves.has(k),
         hasAnomaly: anomalyDays.has(k),
       });
@@ -225,6 +231,7 @@ export async function loadMonth(supabase: SB, period: string, opts: { employeeId
       .filter((a) => a.kind !== "DUPLICATE_MERGED" && inMonth(a.at))
       .map((a) => ({ employeeId: a.cardNo, kind: a.kind, at: a.at, detail: a.detail })),
     unknownCards: [],
+    settings,
   };
 }
 

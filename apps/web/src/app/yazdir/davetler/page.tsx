@@ -32,7 +32,7 @@ export default async function PrintInvites() {
             <div key={i.code} className="slip bg-white border border-dashed border-[#9AA6B2] rounded-lg p-4 text-[12px] text-[#14202E]">
               <div className="flex items-center gap-2 mb-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="" className="w-8 h-7 object-contain" />
+                <img src="/logo.svg" alt="" className="w-8 h-8 object-contain" />
                 <b className="text-[13px]">MB Personel uygulaması</b>
               </div>
               <div className="font-semibold text-[14px]">{i.display_name}</div>

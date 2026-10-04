@@ -47,7 +47,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
   },
   { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg", roles: MANAGERS }, { label: "Sağlık", href: "/saglik", roles: ["owner", "hr", "safety"] }] },
   { group: "Analiz", items: [{ label: "Raporlar", href: "/raporlar", roles: MANAGERS }, { label: "Excel'den Aktar", href: "/ice-aktar", roles: PAY }] },
-  { group: "Sistem", items: [{ label: "Yönetim", href: "/yonetim", roles: ["owner", "hr"] }] },
+  { group: "Sistem", items: [{ label: "Yönetim", href: "/yonetim", roles: ["owner", "hr"] }, { label: "Mevzuat ayarları", href: "/mevzuat", roles: PAY }] },
 ];
 
 export function Sidebar({ companyName, role, badges = {} }: { companyName: string; role: string; badges?: Record<string, number> }) {
@@ -59,7 +59,7 @@ export function Sidebar({ companyName, role, badges = {} }: { companyName: strin
       <div className="flex items-center gap-3 px-2">
         <div className="w-11 h-11 rounded-[10px] bg-white grid place-items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="" className="w-9 h-8 object-contain" />
+          <img src="/logo.svg" alt="" className="w-9 h-9 object-contain" />
         </div>
         <div className="flex flex-col">
           <span className="font-display font-bold text-white text-[15px] tracking-wide">{companyName.toUpperCase() || "MB DENTAL"}</span>

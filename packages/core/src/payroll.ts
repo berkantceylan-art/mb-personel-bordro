@@ -35,8 +35,10 @@ export interface GrossToNetInput {
   days?: number;
   /** Otomatik katılım BES oranı; 0 = üye değil */
   besRate?: number;
-  /** 5 puanlık işveren teşviki uygulanıyor mu */
+  /** İşveren teşviki uygulanıyor mu */
   employerDiscount?: boolean;
+  /** İşveren SGK oranı (verilirse employerDiscount yerine kullanılır; şirket teşvik ayarı) */
+  employerRate?: number;
   params?: LegalParams;
 }
 
@@ -107,9 +109,8 @@ export function grossToNet(input: GrossToNetInput): PayrollBreakdown {
     gross - sgkEmployee - unemploymentEmployee - incomeTaxValue - stampTax;
   const bes = roundKurus(sgkBase * (input.besRate ?? 0));
 
-  const employerRate = input.employerDiscount
-    ? p.sgkEmployerRateDiscounted
-    : p.sgkEmployerRate;
+  const employerRate =
+    input.employerRate ?? (input.employerDiscount ? p.sgkEmployerRateDiscounted : p.sgkEmployerRate);
   const sgkEmployer = roundKurus(sgkBase * employerRate);
   const unemploymentEmployer = roundKurus(sgkBase * p.unemploymentEmployerRate);
 

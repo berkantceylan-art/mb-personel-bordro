@@ -20,7 +20,7 @@ function cellView(c: DayCell): { text: string; cls: string; title: string } {
       return {
         text: fmtMin(c.workedMin),
         cls: c.lateMin || c.earlyLeaveMin ? "bg-warn-bg text-warn" : c.overtimeMin ? "bg-[#E0F5FB] text-accent-ink" : "bg-ok-bg text-ok",
-        title: `${fmtMin(c.workedMin)} saat${c.lateMin ? ` · ${c.lateMin} dk geç` : ""}${c.earlyLeaveMin ? ` · ${c.earlyLeaveMin} dk erken` : ""}${c.overtimeMin ? ` · FM ${c.overtimeMin} dk` : ""}`,
+        title: `${fmtMin(c.workedMin)} saat${c.lateMin ? ` · ${c.lateMin} dk geç` : ""}${c.earlyLeaveMin ? ` · ${c.earlyLeaveMin} dk erken` : ""}${c.overtimeMin ? ` · vardiya aşımı ${c.overtimeMin} dk` : ""}`,
       };
     case "INCOMPLETE":
       return { text: "?", cls: "bg-bad-bg text-bad font-bold", title: "Eksik giriş/çıkış" };
@@ -99,7 +99,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
                 <th className="py-2 px-2 font-semibold border-b border-line text-right text-muted">Saat</th>
                 <th className="py-2 px-2 font-semibold border-b border-line text-right text-muted">Devams.</th>
                 <th className="py-2 px-2 font-semibold border-b border-line text-right text-muted">Geç</th>
-                <th className="py-2 px-2 font-semibold border-b border-line text-right text-muted">FM sa</th>
+                <th className="py-2 px-2 font-semibold border-b border-line text-right text-muted" title="Vardiya süresini aşan çalışma. Ödenecek fazla mesai (haftalık 45 saat esası) Fazla mesai sayfasında hesaplanır.">Aşım sa</th>
               </tr>
             </thead>
             <tbody>

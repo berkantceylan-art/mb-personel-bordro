@@ -49,7 +49,7 @@ describe("gün değerlendirme", () => {
     const sun = evaluateDay({ date: "2026-10-04", total: tot("2026-10-04", "2026-10-04T09:00", "2026-10-04T13:00", 240), shift: day });
     expect(sun).toMatchObject({ status: "WEEKLY_OFF", overtimeMin: 180, overtimeRate: 1.5 });
     const hol = evaluateDay({ date: "2026-10-29", total: tot("2026-10-29", "2026-10-29T09:00", "2026-10-29T13:00", 240), shift: day, holiday: true });
-    expect(hol).toMatchObject({ status: "HOLIDAY", overtimeRate: 2 });
+    expect(hol).toMatchObject({ status: "HOLIDAY", overtimeRate: 1 });
   });
 });
 

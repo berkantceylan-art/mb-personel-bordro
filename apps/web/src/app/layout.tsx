@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "Personel, puantaj, avans ve bordro yönetimi",
   applicationName: "MB Personel",
   appleWebApp: { capable: true, title: "MB Personel", statusBarStyle: "black-translucent" },
-  icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
+  icons: { icon: [{ url: "/logo.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192" }], apple: "/apple-touch-icon.png" },
   formatDetection: { telephone: false },
 };
 

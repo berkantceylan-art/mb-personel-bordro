@@ -12,6 +12,7 @@ import {
 import { contractsAt } from "@/lib/contracts";
 import type { createClient } from "@/lib/supabase/server";
 import { fetchAll } from "@/lib/timekeeping";
+import { getCompanySettings } from "@/lib/settings";
 
 type SB = Awaited<ReturnType<typeof createClient>>;
 
@@ -47,10 +48,10 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
   const ids = (emps ?? []).map((e) => e.id);
   if (!ids.length) return [];
 
-  const [contracts, allContracts, entries, prevLines, bes, garn, saved] = await Promise.all([
+  const [contracts, allContracts, entries, prevLines, bes, garn, saved, settings] = await Promise.all([
     contractsAt(supabase, ids, end),
-    fetchAll<{ employee_id: string; valid_from: string; valid_to: string | null; total_net: number }>((a, b) =>
-      supabase.from("pay_contracts").select("employee_id, valid_from, valid_to, total_net").in("employee_id", ids).lte("valid_from", end).range(a, b),
+    fetchAll<{ employee_id: string; valid_from: string; valid_to: string | null; total_net: number; insurance_type: "MIN_WAGE" | "FIXED_NET"; fixed_official_net: number | null; bes_rate: number }>((a, b) =>
+      supabase.from("pay_contracts").select("employee_id, valid_from, valid_to, total_net, insurance_type, fixed_official_net, bes_rate").in("employee_id", ids).lte("valid_from", end).range(a, b),
     ),
     fetchAll<{ employee_id: string; type: string; channel: string; amount: number; pay_side: string | null; gross_amount: number | null; days: number | null }>((a, b) =>
       supabase.from("ledger_entries").select("employee_id, type, channel, amount, pay_side, gross_amount, days").eq("period", period).is("voided_at", null).in("employee_id", ids).range(a, b),
@@ -59,6 +60,7 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
     supabase.from("bes_enrollments").select("employee_id, rate, status, enrolled_on, status_date").in("employee_id", ids),
     supabase.from("garnishment_balances").select("id, employee_id, kind, served_at, monthly_amount, remaining, seizable_ratio, status").in("employee_id", ids).eq("status", "active"),
     supabase.from("payroll_lines").select("employee_id, posted, data").eq("period", period).in("employee_id", ids),
+    getCompanySettings(supabase),
   ]);
 
   const cum = latestCumulative(prevLines.data ?? []);
@@ -86,7 +88,24 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
     const sum = (f: (x: (typeof mine)[number]) => boolean, k: "amount" | "gross_amount" | "days" = "amount") => mine.filter(f).reduce((a, x) => a + Number(x[k] ?? 0), 0);
     const officialMissingDays = sum((x) => x.type === "DEDUCTION" && x.pay_side === "OFFICIAL", "days");
     const officialOvertimeGross = sum((x) => x.type === "OVERTIME" && x.pay_side === "OFFICIAL", "gross_amount");
-    const employed = accrualForPeriod({ period, contracts: contractSlices.get(e.id) ?? [], hireDate: e.hire_date, terminationDate: e.termination_date }).days;
+    const acc = accrualForPeriod({ period, contracts: contractSlices.get(e.id) ?? [], hireDate: e.hire_date, terminationDate: e.termination_date });
+    const employed = acc.days;
+    // Ay ortası ücret değişikliği: her dilimin sözleşmesi, resmi brüt güne bölünür
+    const mineContracts = allContracts.filter((x) => x.employee_id === e.id).sort((a, b) => a.valid_from.localeCompare(b.valid_from));
+    const contractSegments = acc.segments.length > 1
+      ? acc.segments.map((sg) => {
+          const k = mineContracts.filter((x) => x.valid_from <= sg.from).at(-1) ?? mineContracts[0]!;
+          return {
+            days: sg.days,
+            contract: {
+              totalNet: Number(k.total_net),
+              insuranceType: k.insurance_type,
+              fixedOfficialNet: k.fixed_official_net === null ? undefined : Number(k.fixed_official_net),
+              besRate: besRate.has(e.id) ? besRate.get(e.id)! : Number(k.bes_rate),
+            } as PayContract,
+          };
+        })
+      : undefined;
 
     // Kümülatif matrah: önceki bordrolardan; yoksa yıl başından beri aynı ücretle çalışılmış varsayılır
     const { value: cumulativeBefore, estimated: cumulativeEstimated } = resolveCumulative(cum.get(e.id), c, e.hire_date, period);
@@ -101,6 +120,10 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
       officialOvertimeGross,
       garnishments: garnByEmp.get(e.id) ?? [],
       employerDiscount: c.employerDiscount,
+      sgkIncentivePoints: settings.sgkIncentivePoints,
+      contractSegments,
+      garnishmentAfterAlimony: settings.garnishmentAfterAlimony,
+      garnishmentAfterBes: settings.garnishmentAfterBes,
     });
 
     const ledger = {

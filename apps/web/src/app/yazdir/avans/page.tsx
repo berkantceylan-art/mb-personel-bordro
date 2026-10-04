@@ -71,7 +71,7 @@ export default async function AdvanceReceipts({ searchParams }: { searchParams: 
               <header className="flex justify-between items-start border-b-2 border-[#0A3D73] pb-2 mb-4">
                 <div className="flex items-center gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logo.png" alt="" className="w-12 h-10 object-contain" />
+                  <img src="/logo.svg" alt="" className="w-11 h-11 object-contain" />
                   <div>
                     <div className="font-bold text-[15px]">{s.companyName}</div>
                     <div className="text-[12px] text-[#5A6878]">{e.type === "ADVANCE" ? "Avans ödeme makbuzu" : "Maaş ödeme makbuzu"}</div>

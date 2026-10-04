@@ -42,7 +42,7 @@ export function InstallHint() {
     <div className="md:hidden mx-4 mt-3 rounded-xl bg-brand-900 text-white px-3 py-2.5 text-sm">
       <div className="flex items-center gap-2.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icon-192.png" alt="" className="w-7 h-7 rounded-md" />
+        <img src="/logo.svg" alt="" className="w-7 h-7" />
         <span className="flex-1 font-semibold">Uygulama olarak ekleyin</span>
         {bip ? (
           <button onClick={async () => { await bip.prompt(); close(); }} className="h-9 px-3 rounded-lg bg-accent font-semibold">Ekle</button>
