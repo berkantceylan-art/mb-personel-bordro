@@ -5,6 +5,7 @@ import { ToothChart } from "@/components/ToothChart";
 import { Stories, type StoryView } from "@/components/Stories";
 import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicProducts, publicSlides, publicStories } from "@/lib/cms";
 import { mediaKind } from "@/lib/media";
+import { getSettings, telHref } from "@/lib/settings";
 import { DICTS, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
 
 export const revalidate = 60;
@@ -28,6 +29,21 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
     publicProducts(),
     publicStories(),
   ]);
+  const st = await getSettings();
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
+  // Arama motorları için kurum bilgisi
+  const orgLd = {
+    "@context": "https://schema.org",
+    "@type": "MedicalBusiness",
+    name: "MB Dental",
+    description: d.meta.description,
+    url: `${site}/${locale}`,
+    logo: `${site}/logo.svg`,
+    telephone: telHref(st.phone).replace("tel:", ""),
+    email: st.email,
+    address: { "@type": "PostalAddress", streetAddress: st.address1, addressLocality: st.address2, addressCountry: "TR" },
+    sameAs: Object.values(st.social).filter(Boolean),
+  };
   const stories: StoryView[] = storyRows.map((s) => {
     const first = s.frames[0]?.path ?? null;
     const coverPath = s.cover_path ?? first;
@@ -273,6 +289,7 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
       </main>
 
       <SiteFooter locale={locale} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd).replace(/</g, "\\u003c") }} />
     </>
   );
 }

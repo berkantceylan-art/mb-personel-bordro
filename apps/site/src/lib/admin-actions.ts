@@ -480,3 +480,82 @@ export async function deleteMedia(form: FormData) {
   revalidatePath("/admin/medya");
   redirect(`/admin/medya?ok=${encodeURIComponent("Dosya silindi.")}`);
 }
+
+// ---------------------------------------------------------------------
+// Site ayarları
+// ---------------------------------------------------------------------
+export async function saveSettings(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireSiteEditor();
+  const httpsOrEmpty = (k: string) => {
+    const v = str(form, k);
+    if (v && !/^https:\/\/\S+$/.test(v)) throw new Error(`“${k}” https:// ile başlayan tam bir adres olmalı.`);
+    return v;
+  };
+  let data: Record<string, unknown>;
+  try {
+    const email = str(form, "email");
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("E-posta adresini kontrol edin.");
+    const whatsapp = str(form, "whatsapp").replace(/\D/g, "");
+    if (whatsapp && (whatsapp.length < 10 || whatsapp.length > 15)) throw new Error("WhatsApp numarasını ülke koduyla yazın, ör. 905321234567.");
+    data = {
+      phone: str(form, "phone").slice(0, 40),
+      email,
+      whatsapp,
+      address1: str(form, "address1").slice(0, 160),
+      address2: str(form, "address2").slice(0, 160),
+      map_url: httpsOrEmpty("map_url"),
+      hours: i18n(form, "hours"),
+      footer_text: i18n(form, "footer_text"),
+      social: {
+        instagram: httpsOrEmpty("instagram"),
+        facebook: httpsOrEmpty("facebook"),
+        linkedin: httpsOrEmpty("linkedin"),
+        youtube: httpsOrEmpty("youtube"),
+      },
+      seo_title: i18n(form, "seo_title"),
+      seo_description: i18n(form, "seo_description"),
+    };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.from("site_settings").update({ data }).eq("id", 1);
+  if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  revalidatePath("/", "layout");
+  redirect(`/admin/ayarlar?ok=${encodeURIComponent("Ayarlar kaydedildi. Sitede birkaç saniye içinde görünür.")}`);
+}
+
+// ---------------------------------------------------------------------
+// Gelen kutusu
+// ---------------------------------------------------------------------
+const MSG_STATUS = ["new", "read", "archived"];
+
+export async function setMessageStatus(form: FormData) {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const status = str(form, "status");
+  const back = str(form, "back") || "/admin/gelen-kutusu";
+  if (!MSG_STATUS.includes(status)) redirect(back);
+  const supabase = await createClient();
+  await supabase.from("cms_messages").update({ status }).eq("id", id);
+  revalidatePath("/admin", "layout");
+  redirect(back.startsWith("/admin/gelen-kutusu") ? back : "/admin/gelen-kutusu");
+}
+
+export async function saveMessageNote(form: FormData) {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const supabase = await createClient();
+  await supabase.from("cms_messages").update({ note: str(form, "note").slice(0, 2000) || null }).eq("id", id);
+  revalidatePath(`/admin/gelen-kutusu/${id}`);
+  redirect(`/admin/gelen-kutusu/${id}?ok=${encodeURIComponent("Not kaydedildi.")}`);
+}
+
+export async function deleteMessage(form: FormData) {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const supabase = await createClient();
+  await supabase.from("cms_messages").delete().eq("id", id);
+  revalidatePath("/admin", "layout");
+  redirect(`/admin/gelen-kutusu?ok=${encodeURIComponent("Mesaj silindi.")}`);
+}

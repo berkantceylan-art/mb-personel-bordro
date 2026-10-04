@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import "../../globals.css";
-import { DICTS, LOCALES, isLocale } from "@/lib/i18n";
+import { DICTS, LOCALES, isLocale, t } from "@/lib/i18n";
+import { getSettings } from "@/lib/settings";
 
 export function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }));
@@ -11,16 +12,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const d = DICTS[locale];
+  const st = await getSettings();
+  const title = t(st.seo_title, locale) || d.meta.title;
+  const description = t(st.seo_description, locale) || d.meta.description;
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
   return {
     metadataBase: new URL(site),
-    title: d.meta.title,
-    description: d.meta.description,
+    title,
+    description,
     alternates: {
       canonical: `/${locale}`,
       languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}`])),
     },
-    openGraph: { title: d.meta.title, description: d.meta.description, siteName: "MB Dental", locale },
+    openGraph: { title, description, siteName: "MB Dental", locale },
     icons: { icon: "/favicon.ico", apple: "/apple-touch-icon.png" },
   };
 }

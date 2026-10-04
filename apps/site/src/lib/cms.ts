@@ -180,3 +180,25 @@ export async function publicStories(): Promise<Story[]> {
     return [];
   }
 }
+
+// ---------------------------------------------------------------------
+// Gelen kutusu
+// ---------------------------------------------------------------------
+export type MessageTopic = "general" | "case" | "price" | "partner";
+export type Message = {
+  id: string;
+  topic: MessageTopic;
+  status: "new" | "read" | "archived";
+  name: string;
+  email: string;
+  phone: string | null;
+  company: string | null;
+  country: string | null;
+  message: string;
+  meta: { tooth?: string; product?: string };
+  locale: "tr" | "en" | "fr" | null;
+  page: string | null;
+  note: string | null;
+  created_at: string;
+};
+export const TOPIC_LABELS: Record<MessageTopic, string> = { general: "Genel", case: "Vaka", price: "Fiyat", partner: "İş birliği" };

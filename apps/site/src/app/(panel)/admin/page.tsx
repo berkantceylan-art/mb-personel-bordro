@@ -8,10 +8,11 @@ export const metadata = { title: "Pano" };
 
 export default async function Dashboard() {
   const supabase = await createClient();
-  const [{ data: slides }, { data: anns }, { count: productCount }] = await Promise.all([
+  const [{ data: slides }, { data: anns }, { count: productCount }, { data: unread }] = await Promise.all([
     supabase.from("cms_slides").select("*").is("deleted_at", null).order("sort"),
     supabase.from("cms_announcements").select("*").is("deleted_at", null).order("updated_at", { ascending: false }),
     supabase.from("cms_products").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("is_active", true),
+    supabase.rpc("cms_unread_messages"),
   ]);
   const s = (slides ?? []) as Slide[];
   const a = (anns ?? []) as Announcement[];
@@ -21,6 +22,7 @@ export default async function Dashboard() {
   );
 
   const tiles = [
+    { label: "Okunmamış mesaj", value: typeof unread === "number" ? unread : 0, href: "/admin/gelen-kutusu?kutu=yeni" },
     { label: "Yayında ürün", value: productCount ?? 0, href: "/admin/urunler?durum=yayinda" },
     { label: "Yayında slayt", value: s.filter((r) => liveState(r) === "live").length, href: "/admin/slaytlar?durum=yayinda" },
     { label: "Yayında duyuru", value: a.filter((r) => liveState(r) === "live").length, href: "/admin/duyurular?durum=yayinda" },
@@ -31,7 +33,7 @@ export default async function Dashboard() {
   return (
     <>
       <PageHead title="Pano" lead="Sitede şu an yayında olanlar ve yakında süresi dolacaklar." />
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {tiles.map((tile) => (
           <li key={tile.label}>
             <Link href={tile.href} className="block rounded-2xl border border-gypsum bg-white p-5 hover:border-navy">

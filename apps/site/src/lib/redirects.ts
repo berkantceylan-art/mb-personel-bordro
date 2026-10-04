@@ -24,7 +24,6 @@ const MAP: Record<string, [string, keyof typeof SECTIONS | null]> = {
   "/3d-tasarim": ["tr", "technology"],
   "/3d-baski-modelleme": ["tr", "technology"],
   "/cnc-isleme": ["tr", "technology"],
-  "/iletisim": ["tr", "contact"],
   "/klinik": ["tr", null],
   // English
   "/en/about-us": ["en", null],
@@ -36,7 +35,6 @@ const MAP: Record<string, [string, keyof typeof SECTIONS | null]> = {
   "/en/3d-design": ["en", "technology"],
   "/en/3d-printing-modeling": ["en", "technology"],
   "/en/cnc-machining": ["en", "technology"],
-  "/en/contact": ["en", "contact"],
   // Français
   "/fr/a-propos-de-nous": ["fr", null],
   "/fr/nouvelles-de-nous": ["fr", null],
@@ -47,7 +45,6 @@ const MAP: Record<string, [string, keyof typeof SECTIONS | null]> = {
   "/fr/conception-3d": ["fr", "technology"],
   "/fr/modelisation-par-impression-3d": ["fr", "technology"],
   "/fr/cnc": ["fr", "technology"],
-  "/fr/communication": ["fr", "contact"],
 };
 
 /** Ürün sayfaları → yeni ürün sayfası; ürün grubu sayfaları → ürün listesindeki grup */
@@ -82,6 +79,9 @@ const PRODUCTS: Record<string, [string, string]> = {
   "/en/removable-dentures": ["en", "/urunler#hareketli"],
   "/fr/protheses-fixes": ["fr", "/urunler#sabit"],
   "/fr/protheses-amovibles": ["fr", "/urunler#hareketli"],
+  "/iletisim": ["tr", "/iletisim"],
+  "/en/contact": ["en", "/iletisim"],
+  "/fr/communication": ["fr", "/iletisim"],
 };
 
 export function legacyRedirect(pathname: string): Target | null {
