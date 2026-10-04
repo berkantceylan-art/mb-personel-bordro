@@ -2,19 +2,50 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AnnouncementBar, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { ToothChart } from "@/components/ToothChart";
-import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicProducts, publicSlides } from "@/lib/cms";
+import { Stories, type StoryView } from "@/components/Stories";
+import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicProducts, publicSlides, publicStories } from "@/lib/cms";
+import { mediaKind } from "@/lib/media";
 import { DICTS, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
 
 export const revalidate = 60;
 
 const TOOTH_WORD: Record<Locale, string> = { tr: "Diş", en: "Tooth", fr: "Dent" };
 const NEWS_TITLE: Record<Locale, string> = { tr: "Duyurular", en: "News", fr: "Actualités" };
+const STORY_LABELS: Record<Locale, { title: string; close: string; prev: string; next: string; mute: string; unmute: string; pause: string; play: string }> = {
+  tr: { title: "Hikâyeler", close: "Kapat", prev: "Önceki", next: "Sonraki", mute: "Sesi kapat", unmute: "Sesi aç", pause: "Duraklat", play: "Oynat" },
+  en: { title: "Stories", close: "Close", prev: "Previous", next: "Next", mute: "Mute", unmute: "Unmute", pause: "Pause", play: "Play" },
+  fr: { title: "Stories", close: "Fermer", prev: "Précédent", next: "Suivant", mute: "Couper le son", unmute: "Activer le son", pause: "Pause", play: "Lecture" },
+};
 
 export default async function Home({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const d = DICTS[locale];
-  const [banners, news, slides, products] = await Promise.all([publicAnnouncements("banner"), publicAnnouncements("news"), publicSlides("home"), publicProducts()]);
+  const [banners, news, slides, products, storyRows] = await Promise.all([
+    publicAnnouncements("banner"),
+    publicAnnouncements("news"),
+    publicSlides("home"),
+    publicProducts(),
+    publicStories(),
+  ]);
+  const stories: StoryView[] = storyRows.map((s) => {
+    const first = s.frames[0]?.path ?? null;
+    const coverPath = s.cover_path ?? first;
+    const label = t(s.link_label, locale);
+    return {
+      id: s.id,
+      version: s.updated_at,
+      title: t(s.title, locale),
+      cover: mediaUrl(coverPath),
+      coverIsVideo: !s.cover_path && !!first && mediaKind(null, first) === "video",
+      frames: s.frames.map((f) => ({
+        url: mediaUrl(f.path) ?? "",
+        kind: mediaKind(null, f.path) === "video" ? ("video" as const) : ("image" as const),
+        caption: t(f.caption, locale),
+      })),
+      link: s.link_href && label ? { href: s.link_href, label } : null,
+    };
+  });
   // Ürünler admin panelinden gelir; veritabanı boşsa sözlükteki sabit liste gösterilir
   const productGroups =
     products.length > 0
@@ -48,6 +79,15 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
             <ToothChart locale={locale} upperLabel={d.hero.upper} lowerLabel={d.hero.lower} hint={d.hero.chartHint} toothWord={TOOTH_WORD[locale]} />
           </div>
         </section>
+
+        {/* Hikâyeler (admin panelinden) */}
+        {stories.length > 0 && (
+          <section aria-label={STORY_LABELS[locale].title} className="border-b border-gypsum bg-white">
+            <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+              <Stories stories={stories} labels={STORY_LABELS[locale]} />
+            </div>
+          </section>
+        )}
 
         {/* Admin panelinden yönetilen slaytlar */}
         {slides.length > 0 && (

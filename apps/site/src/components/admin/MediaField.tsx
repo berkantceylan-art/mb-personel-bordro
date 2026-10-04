@@ -93,14 +93,14 @@ export function MediaField({
   );
 }
 
-function MediaPicker({
+export function MediaPicker({
   kind,
   multiple,
   initial,
   onClose,
   onPick,
 }: {
-  kind: "image" | "video";
+  kind: "image" | "video" | "all";
   multiple: boolean;
   initial: string[];
   onClose: () => void;
@@ -142,7 +142,7 @@ function MediaPicker({
       <div className="flex max-h-[85dvh] flex-col">
         <div className="flex flex-wrap items-center gap-3 border-b border-gypsum bg-white px-5 py-4">
           <h2 id="picker-title" className="display mr-auto text-lg font-semibold text-navy">
-            {kind === "image" ? "Görsel seç" : "Video seç"}
+            {kind === "image" ? "Görsel seç" : kind === "video" ? "Video seç" : "Görsel ya da video seç"}
           </h2>
           <div role="search" className="flex gap-2">
             <label className="sr-only" htmlFor="picker-q">

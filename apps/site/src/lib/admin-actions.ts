@@ -10,8 +10,8 @@ import { mediaUsage } from "./media-server";
 import { LOCALES, type I18nText } from "./i18n";
 import { createClient } from "./supabase/server";
 
-type Table = "cms_slides" | "cms_announcements" | "cms_products";
-const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler" };
+type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories";
+const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler" };
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -249,11 +249,94 @@ export async function moveProduct(form: FormData) {
 }
 
 // ---------------------------------------------------------------------
+// Hikâyeler
+// ---------------------------------------------------------------------
+function parseFrames(raw: string): { path: string; caption: I18nText }[] {
+  let list: unknown;
+  try {
+    list = JSON.parse(raw || "[]");
+  } catch {
+    throw new Error("Kareler okunamadı.");
+  }
+  if (!Array.isArray(list)) throw new Error("Kareler okunamadı.");
+  if (list.length > 30) throw new Error("Bir hikâyede en fazla 30 kare olabilir.");
+  return list.map((f) => {
+    const path = String((f as { path?: unknown })?.path ?? "");
+    if (!isMediaPath(path)) throw new Error("Geçersiz kare dosyası.");
+    const cap = ((f as { caption?: unknown })?.caption ?? {}) as Record<string, unknown>;
+    const caption: I18nText = {};
+    for (const l of LOCALES) {
+      const v = typeof cap[l] === "string" ? (cap[l] as string).trim().slice(0, 300) : "";
+      if (v) caption[l] = v;
+    }
+    return { path, caption };
+  });
+}
+
+export async function saveStory(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const supabase = await createClient();
+  let frames: { path: string; caption: I18nText }[], cover: string | undefined;
+  try {
+    frames = parseFrames(str(form, "frames"));
+    cover = uploadedPath(form, "cover");
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  const title = i18n(form, "title");
+  if (!title.tr) return { error: "Türkçe başlık zorunlu." };
+  if (frames.length === 0) return { error: "En az bir kare (görsel ya da video) ekleyin." };
+  const row: Record<string, unknown> = {
+    title,
+    frames,
+    link_href: safeHref(str(form, "link_href")),
+    link_label: i18n(form, "link_label"),
+    is_active: form.get("is_active") === "on",
+    starts_at: istanbul(str(form, "starts_at")),
+    ends_at: istanbul(str(form, "ends_at")),
+  };
+  if (form.get("remove_cover") === "on") row.cover_path = null;
+  if (cover !== undefined) row.cover_path = cover;
+  if (row.starts_at && row.ends_at && (row.ends_at as string) <= (row.starts_at as string))
+    return { error: "Bitiş tarihi başlangıçtan sonra olmalı." };
+
+  if (id) {
+    const { error } = await supabase.from("cms_stories").update(row).eq("id", id);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  } else {
+    const { data: last } = await supabase.from("cms_stories").select("sort").order("sort", { ascending: false }).limit(1);
+    row.sort = ((last?.[0]?.sort as number | undefined) ?? 0) + 10;
+    const { error } = await supabase.from("cms_stories").insert(row);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  }
+  refresh("cms_stories");
+  back("cms_stories", id ? "Hikâye güncellendi." : "Hikâye eklendi.");
+}
+
+export async function moveStory(form: FormData) {
+  await requireSiteEditor();
+  const supabase = await createClient();
+  const id = str(form, "id");
+  const dir = str(form, "dir") === "up" ? "up" : "down";
+  const { data } = await supabase.from("cms_stories").select("id, sort").is("deleted_at", null).order("sort");
+  const list = (data ?? []) as { id: string; sort: number }[];
+  const i = list.findIndex((r) => r.id === id);
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (i < 0 || j < 0 || j >= list.length) back("cms_stories", "Sıra değişmedi.");
+  const order = list.map((r) => r.id);
+  [order[i], order[j]] = [order[j], order[i]];
+  for (let k = 0; k < order.length; k++) await supabase.from("cms_stories").update({ sort: (k + 1) * 10 }).eq("id", order[k]);
+  refresh("cms_stories");
+  back("cms_stories", "Sıra güncellendi.");
+}
+
+// ---------------------------------------------------------------------
 // Ortak: yayına al / kaldır, çöpe at, geri al, kalıcı sil, sırala
 // ---------------------------------------------------------------------
 function tableOf(form: FormData): Table {
   const t = str(form, "table");
-  if (t !== "cms_slides" && t !== "cms_announcements" && t !== "cms_products") throw new Error("Geçersiz tablo");
+  if (t !== "cms_slides" && t !== "cms_announcements" && t !== "cms_products" && t !== "cms_stories") throw new Error("Geçersiz tablo");
   return t;
 }
 
