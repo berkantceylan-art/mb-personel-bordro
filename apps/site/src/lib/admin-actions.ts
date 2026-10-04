@@ -10,8 +10,8 @@ import { mediaUsage } from "./media-server";
 import { LOCALES, type I18nText } from "./i18n";
 import { createClient } from "./supabase/server";
 
-type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories";
-const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler" };
+type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages";
+const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler", cms_pages: "/admin/sayfalar" };
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -45,7 +45,7 @@ function refresh(table: Table) {
   revalidatePath(LIST_PATH[table]);
   revalidatePath("/admin");
   for (const l of LOCALES) revalidatePath(`/${l}`);
-  if (table === "cms_products") revalidatePath("/", "layout"); // ürün sayfaları, anasayfa, sitemap
+  if (table === "cms_products" || table === "cms_pages") revalidatePath("/", "layout"); // ürün/kurumsal sayfalar, anasayfa, alt bilgi, sitemap
 }
 
 /** Tarayıcının depolamaya yüklediği dosyanın yolu (form alanı: `<ad>__path`) */
@@ -332,12 +332,88 @@ export async function moveStory(form: FormData) {
 }
 
 // ---------------------------------------------------------------------
+// Kurumsal sayfalar
+// ---------------------------------------------------------------------
+const PAGE_GROUP_KEYS = ["kurumsal", "teknoloji", "kalite", "diger"];
+const RESERVED = ["urunler", "iletisim", "vaka-gonder", "admin", "giris", "auth", "api", "sayfa"];
+
+export async function savePage(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const supabase = await createClient();
+  let image: string | undefined, added: string[];
+  try {
+    image = uploadedPath(form, "image");
+    added = uploadedPaths(form, "gallery");
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  const title = i18n(form, "title");
+  if (!title.tr) return { error: "Türkçe sayfa başlığı zorunlu." };
+  const slug = slugify(str(form, "slug") || title.tr);
+  if (!slug) return { error: "Adres (slug) boş olamaz." };
+  if (RESERVED.includes(slug)) return { error: `“${slug}” adresi sitede başka bir bölüm için ayrılmış. Farklı bir adres yazın.` };
+  const group = str(form, "group");
+  const row: Record<string, unknown> = {
+    slug,
+    group: PAGE_GROUP_KEYS.includes(group) ? group : "kurumsal",
+    title,
+    summary: i18n(form, "summary"),
+    body: i18n(form, "body"),
+    seo_title: i18n(form, "seo_title"),
+    seo_description: i18n(form, "seo_description"),
+    show_in_footer: form.get("show_in_footer") === "on",
+    is_active: form.get("is_active") === "on",
+  };
+  if (form.get("remove_image") === "on") row.image_path = null;
+  if (image !== undefined) row.image_path = image;
+  const keep = form.getAll("gallery_keep").map(String);
+  const removed = new Set(form.getAll("remove_gallery").map(String));
+  row.gallery = [...keep.filter((p) => !removed.has(p)), ...added].slice(0, 24);
+
+  const dup = await supabase.from("cms_pages").select("id").eq("slug", slug).neq("id", id || "00000000-0000-0000-0000-000000000000").maybeSingle();
+  if (dup.data) return { error: `“${slug}” adresi başka bir sayfada kullanılıyor.` };
+
+  if (id) {
+    const { error } = await supabase.from("cms_pages").update(row).eq("id", id);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  } else {
+    const { data: last } = await supabase.from("cms_pages").select("sort").order("sort", { ascending: false }).limit(1);
+    row.sort = ((last?.[0]?.sort as number | undefined) ?? 0) + 10;
+    const { error } = await supabase.from("cms_pages").insert(row);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  }
+  refresh("cms_pages");
+  back("cms_pages", id ? "Sayfa güncellendi." : "Sayfa eklendi.");
+}
+
+export async function movePage(form: FormData) {
+  await requireSiteEditor();
+  const supabase = await createClient();
+  const id = str(form, "id");
+  const dir = str(form, "dir") === "up" ? "up" : "down";
+  const { data } = await supabase.from("cms_pages").select("id, sort, group").is("deleted_at", null).order("sort");
+  const list = (data ?? []) as { id: string; sort: number; group: string }[];
+  const me = list.find((r) => r.id === id);
+  if (!me) back("cms_pages", "Sayfa bulunamadı.", "hata");
+  const same = list.filter((r) => r.group === me!.group);
+  const i = same.findIndex((r) => r.id === id);
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (j < 0 || j >= same.length) back("cms_pages", "Sıra değişmedi.");
+  [same[i], same[j]] = [same[j], same[i]];
+  const slots = same.map((r) => r.sort).sort((a, b) => a - b);
+  for (let k = 0; k < same.length; k++) if (same[k].sort !== slots[k]) await supabase.from("cms_pages").update({ sort: slots[k] }).eq("id", same[k].id);
+  refresh("cms_pages");
+  back("cms_pages", "Sıra güncellendi.");
+}
+
+// ---------------------------------------------------------------------
 // Ortak: yayına al / kaldır, çöpe at, geri al, kalıcı sil, sırala
 // ---------------------------------------------------------------------
 function tableOf(form: FormData): Table {
   const t = str(form, "table");
-  if (t !== "cms_slides" && t !== "cms_announcements" && t !== "cms_products" && t !== "cms_stories") throw new Error("Geçersiz tablo");
-  return t;
+  if (!(t in LIST_PATH)) throw new Error("Geçersiz tablo");
+  return t as Table;
 }
 
 export async function setActive(form: FormData) {

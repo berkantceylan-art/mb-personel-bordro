@@ -347,3 +347,34 @@ export const PRODUCT_UI: Record<
     more: "Détails",
   },
 };
+
+/** Kurumsal sayfalardaki sabit metinler */
+export const PAGE_UI: Record<Locale, { groups: Record<"kurumsal" | "teknoloji" | "kalite" | "diger", string>; related: string; cta: string; ctaText: string; contact: string; send: string; more: string }> = {
+  tr: {
+    groups: { kurumsal: "Kurumsal", teknoloji: "Teknoloji", kalite: "Kalite", diger: "Bilgi" },
+    related: "Bu bölümde",
+    cta: "Birlikte çalışalım",
+    ctaText: "İlk vakanızı gönderin ya da fiyat listesi isteyin; aynı gün dönüş yapalım.",
+    contact: "Bize yazın",
+    send: "Vaka gönder",
+    more: "Ayrıntılar",
+  },
+  en: {
+    groups: { kurumsal: "Company", teknoloji: "Technology", kalite: "Quality", diger: "Information" },
+    related: "In this section",
+    cta: "Let's work together",
+    ctaText: "Send your first case or ask for our price list; we reply the same day.",
+    contact: "Write to us",
+    send: "Send a case",
+    more: "Details",
+  },
+  fr: {
+    groups: { kurumsal: "Entreprise", teknoloji: "Technologie", kalite: "Qualité", diger: "Informations" },
+    related: "Dans cette rubrique",
+    cta: "Travaillons ensemble",
+    ctaText: "Envoyez votre premier cas ou demandez nos tarifs ; nous répondons le jour même.",
+    contact: "Écrivez-nous",
+    send: "Envoyer un cas",
+    more: "Détails",
+  },
+};

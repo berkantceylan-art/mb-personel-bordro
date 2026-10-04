@@ -202,3 +202,50 @@ export type Message = {
   created_at: string;
 };
 export const TOPIC_LABELS: Record<MessageTopic, string> = { general: "Genel", case: "Vaka", price: "Fiyat", partner: "İş birliği" };
+
+// ---------------------------------------------------------------------
+// Kurumsal sayfalar
+// ---------------------------------------------------------------------
+export const PAGE_GROUPS = ["kurumsal", "teknoloji", "kalite", "diger"] as const;
+export type PageGroup = (typeof PAGE_GROUPS)[number];
+export const RESERVED_SLUGS = ["urunler", "iletisim", "vaka-gonder", "admin", "giris", "auth", "api", "sayfa"];
+
+export type SitePage = {
+  id: string;
+  slug: string;
+  group: PageGroup;
+  title: I18nText;
+  summary: I18nText;
+  body: I18nText;
+  seo_title: I18nText;
+  seo_description: I18nText;
+  image_path: string | null;
+  gallery: string[];
+  show_in_footer: boolean;
+  sort: number;
+  is_active: boolean;
+  deleted_at: string | null;
+  updated_at: string;
+};
+
+export async function publicPages(): Promise<SitePage[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_pages").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
+    return ((data ?? []) as SitePage[]).sort((a, b) => PAGE_GROUPS.indexOf(a.group) - PAGE_GROUPS.indexOf(b.group) || a.sort - b.sort);
+  } catch {
+    return [];
+  }
+}
+
+export async function publicPage(slug: string): Promise<SitePage | null> {
+  if (!hasSupabase() || !/^[a-z0-9-]{1,60}$/.test(slug)) return null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_pages").select("*").eq("slug", slug).is("deleted_at", null).eq("is_active", true).maybeSingle();
+    return (data as SitePage | null) ?? null;
+  } catch {
+    return null;
+  }
+}
