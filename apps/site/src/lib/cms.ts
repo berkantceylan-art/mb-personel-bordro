@@ -146,3 +146,37 @@ export async function publicProduct(slug: string): Promise<Product | null> {
     return null;
   }
 }
+
+// ---------------------------------------------------------------------
+// Hikâyeler
+// ---------------------------------------------------------------------
+export type StoryFrame = { path: string; caption?: I18nText };
+
+export type Story = {
+  id: string;
+  title: I18nText;
+  cover_path: string | null;
+  frames: StoryFrame[];
+  link_href: string | null;
+  link_label: I18nText;
+  sort: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  deleted_at: string | null;
+  updated_at: string;
+};
+
+export async function publicStories(): Promise<Story[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_stories").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
+    const now = Date.now();
+    return ((data ?? []) as Story[]).filter(
+      (s) => s.frames.length > 0 && (!s.starts_at || Date.parse(s.starts_at) <= now) && (!s.ends_at || Date.parse(s.ends_at) > now),
+    );
+  } catch {
+    return [];
+  }
+}

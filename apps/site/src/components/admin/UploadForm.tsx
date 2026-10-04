@@ -37,7 +37,7 @@ export function UploadForm({
     setClientError(null);
     const form = e.currentTarget;
     const data = new FormData(form);
-    const inputs = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="file"]'));
+    const inputs = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="file"][name]'));
 
     try {
       for (const input of inputs) {

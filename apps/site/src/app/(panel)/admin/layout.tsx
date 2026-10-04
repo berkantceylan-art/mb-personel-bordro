@@ -11,7 +11,7 @@ const NAV: { href: string; label: string; soon?: boolean }[] = [
   { href: "/admin/duyurular", label: "Duyurular" },
   { href: "/admin/urunler", label: "Ürünler" },
   { href: "/admin/medya", label: "Medya kütüphanesi" },
-  { href: "#", label: "Hikâyeler", soon: true },
+  { href: "/admin/hikayeler", label: "Hikâyeler" },
   { href: "#", label: "Sayfalar", soon: true },
   { href: "#", label: "Vaka galerisi", soon: true },
   { href: "#", label: "Gelen kutusu", soon: true },
