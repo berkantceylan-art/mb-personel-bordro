@@ -30,6 +30,12 @@ export default async function PeriodsPage() {
     a.bal += Number(r.balance ?? 0);
     agg.set(r.period, a);
   }
+  // Hareketi olup dönem kaydı olmayan aylar (ör. Excel'den aktarılmış) da listelensin
+  const known = new Set((periods ?? []).map((p) => p.period));
+  const rowsAll = [
+    ...(periods ?? []),
+    ...[...agg.keys()].filter((k) => !known.has(k)).map((period) => ({ period, status: "open", employee_count: null as number | null, created_at: "" })),
+  ].sort((a, b) => b.period.localeCompare(a.period));
   const latest = periods?.[0]?.period;
   const next = latest ? nextPeriod(latest) : currentPeriod();
 
@@ -61,7 +67,7 @@ export default async function PeriodsPage() {
               </tr>
             </thead>
             <tbody>
-              {(periods ?? []).map((p) => {
+              {rowsAll.map((p) => {
                 const a = agg.get(p.period) ?? { accrued: 0, bank: 0, cash: 0, ded: 0, bal: 0 };
                 const open = p.status === "open";
                 return (
@@ -72,7 +78,7 @@ export default async function PeriodsPage() {
                     <td className="py-3 px-4 border-b border-[#EEF2F6]">
                       <span className={`text-xs font-semibold px-2 py-1 rounded-full ${open ? "bg-ok-bg text-ok" : "bg-[#EEF2F6] text-[#33414F]"}`}>{open ? "Açık" : "Kapalı"}</span>
                     </td>
-                    <td className="num py-3 px-4 border-b border-[#EEF2F6] text-right">{p.employee_count}</td>
+                    <td className="num py-3 px-4 border-b border-[#EEF2F6] text-right">{p.employee_count ?? "—"}</td>
                     <td className="num py-3 px-4 border-b border-[#EEF2F6] text-right font-semibold">{formatTL(a.accrued)}</td>
                     <td className="num py-3 px-4 border-b border-[#EEF2F6] text-right">{formatTL(a.bank)}</td>
                     <td className="num py-3 px-4 border-b border-[#EEF2F6] text-right">{formatTL(a.cash)}</td>
@@ -96,7 +102,7 @@ export default async function PeriodsPage() {
                   </tr>
                 );
               })}
-              {(periods ?? []).length === 0 && <tr><td colSpan={9} className="py-8 text-center text-muted">Henüz dönem yok.</td></tr>}
+              {rowsAll.length === 0 && <tr><td colSpan={9} className="py-8 text-center text-muted">Henüz dönem yok.</td></tr>}
             </tbody>
           </table>
         </section>
