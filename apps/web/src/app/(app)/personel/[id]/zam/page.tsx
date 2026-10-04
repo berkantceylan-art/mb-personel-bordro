@@ -23,7 +23,7 @@ export default async function EmployeeRaisePage({ params }: { params: Promise<{ 
         subtitle="Yeni ücret geçerlilik tarihinden itibaren uygulanır; ay ortasındaki değişiklik o ayın hakedişine günlere bölünerek yansır."
         actions={<Link href={`/personel/${id}`} className="text-sm font-semibold text-brand-700">← Profile dön</Link>}
       />
-      <div className="p-6 md:p-8 max-w-4xl">
+      <div className="p-4 md:p-8 max-w-4xl">
         <EmployeeRaiseForm
           employeeId={id}
           current={c ? Number(c.total_net) : null}

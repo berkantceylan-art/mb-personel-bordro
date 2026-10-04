@@ -35,7 +35,7 @@ export default async function PeriodsPage() {
   return (
     <>
       <PageHeader title="Dönemler" subtitle="Her ay tek tuşla açılır; aktif personelin hakedişi ücret kayıtlarından otomatik yazılır." />
-      <div className="p-6 md:p-8 flex flex-col gap-6 max-w-[1240px]">
+      <div className="p-4 md:p-8 flex flex-col gap-6 max-w-[1240px]">
         <Card title={`Sıradaki dönem: ${periodLabel(next)}`}>
           <p className="text-sm text-muted">
             Aktif personelin güncel ücreti üzerinden hakediş yazılır. Ay içinde işe giren / çıkan personele çalıştığı gün kadar,

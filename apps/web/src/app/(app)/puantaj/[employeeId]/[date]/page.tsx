@@ -47,7 +47,7 @@ export default async function DayPage({ params }: { params: Promise<{ employeeId
           </div>
         }
       />
-      <div className="p-6 md:p-8 flex flex-col gap-5 max-w-4xl">
+      <div className="p-4 md:p-8 flex flex-col gap-5 max-w-4xl">
         <section className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
           {[
             ["Net çalışma", hhmm(c.workedMin)],

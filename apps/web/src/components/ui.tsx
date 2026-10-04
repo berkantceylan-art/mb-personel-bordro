@@ -10,9 +10,9 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-center gap-4 px-6 md:px-8 py-4 bg-white border-b border-line">
+    <header className="flex flex-wrap items-center gap-4 px-4 md:px-8 py-3 md:py-4 bg-white border-b border-line">
       <div className="flex-1 min-w-60">
-        <h1 className="font-display text-[22px] font-bold text-brand-800">{title}</h1>
+        <h1 className="font-display text-xl md:text-[22px] font-bold text-brand-800">{title}</h1>
         {subtitle && <p className="text-[13px] text-muted">{subtitle}</p>}
       </div>
       {actions}
@@ -36,10 +36,10 @@ export function Card({ title, action, children, className = "" }: { title?: stri
 
 export function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-white border border-line rounded-[14px] px-5 py-4 flex flex-col gap-1.5">
-      <span className="text-[13px] text-muted">{label}</span>
-      <span className="num font-display text-[26px] font-bold text-brand-800">{value}</span>
-      {sub && <span className="text-xs text-muted">{sub}</span>}
+    <div className="bg-white border border-line rounded-[14px] px-3.5 py-3 md:px-5 md:py-4 flex flex-col gap-1 md:gap-1.5 min-w-0">
+      <span className="text-xs md:text-[13px] text-muted leading-tight">{label}</span>
+      <span className="num font-display text-lg md:text-[26px] font-bold text-brand-800 leading-tight break-words">{value}</span>
+      {sub && <span className="text-[11px] md:text-xs text-muted leading-snug">{sub}</span>}
     </div>
   );
 }

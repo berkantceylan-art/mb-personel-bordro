@@ -43,8 +43,8 @@ export default async function PeriodDetailPage({ params, searchParams }: { param
         subtitle="Personel 1 ayda ne hak etti, bankadan ve elden ne aldı, ne kaldı"
         actions={<Link href="/donemler" className="text-sm font-semibold text-brand-700">← Dönemler</Link>}
       />
-      <div className="p-6 md:p-8 flex flex-col gap-5 max-w-[1240px]">
-        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+      <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1240px]">
+        <section className="grid gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
           <Stat label="Hakediş" value={formatTL(t.acc)} sub={`${rows.length} personel`} />
           <Stat label="Bankadan ödenen" value={formatTL(t.bank)} />
           <Stat label="Elden ödenen" value={formatTL(t.cash)} />

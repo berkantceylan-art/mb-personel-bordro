@@ -27,7 +27,7 @@ export default async function EditEmployeePage({ params }: { params: Promise<{ i
         title={`${e.first_name} ${e.last_name} — düzenle`}
         actions={<Link href={`/personel/${id}`} className="text-sm font-semibold text-brand-700">← Profile dön</Link>}
       />
-      <div className="p-6 md:p-8 max-w-5xl flex flex-col gap-6">
+      <div className="p-4 md:p-8 max-w-5xl flex flex-col gap-6">
         <EmployeeForm values={{ ...(p ?? {}), ...e }} branches={branches ?? []} departments={departments ?? []} isNew={false} />
 
         <section className="bg-white border border-line rounded-2xl p-5 flex flex-col gap-3">

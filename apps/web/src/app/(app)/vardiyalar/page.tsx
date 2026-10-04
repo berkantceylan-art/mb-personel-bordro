@@ -28,7 +28,7 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
   return (
     <>
       <PageHeader title="Vardiyalar" subtitle="Vardiyaları tanımlayın, personele varsayılan vardiya atayın, haftalık planı düzenleyin." actions={<PrimaryLink href="/vardiyalar/plan">Haftalık plan</PrimaryLink>} />
-      <div className="p-6 md:p-8 flex flex-col gap-6 max-w-[1240px]">
+      <div className="p-4 md:p-8 flex flex-col gap-6 max-w-[1240px]">
         <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
           {rows.map((s) => (
             <article key={s.id} className={`bg-white border border-line rounded-2xl p-4 flex flex-col gap-2 ${s.active ? "" : "opacity-50"}`}>

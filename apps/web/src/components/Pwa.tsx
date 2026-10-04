@@ -27,6 +27,7 @@ type BIP = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome:
 export function InstallHint() {
   const [show, setShow] = useState(false);
   const [bip, setBip] = useState<BIP | null>(null);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     let dismissed = false;
     try { dismissed = localStorage.getItem("mb-install-dismissed") === "1"; } catch {}
@@ -38,20 +39,23 @@ export function InstallHint() {
   if (!show) return null;
   const close = () => { setShow(false); try { localStorage.setItem("mb-install-dismissed", "1"); } catch {} };
   return (
-    <div className="md:hidden mx-4 mt-3 rounded-[14px] bg-brand-900 text-white p-4 flex gap-3 items-start">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/icon-192.png" alt="" className="w-11 h-11 rounded-[10px]" />
-      <div className="flex-1 text-sm">
-        <div className="font-semibold">Uygulama olarak ekleyin</div>
+    <div className="md:hidden mx-4 mt-3 rounded-xl bg-brand-900 text-white px-3 py-2.5 text-sm">
+      <div className="flex items-center gap-2.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/icon-192.png" alt="" className="w-7 h-7 rounded-md" />
+        <span className="flex-1 font-semibold">Uygulama olarak ekleyin</span>
         {bip ? (
-          <button onClick={async () => { await bip.prompt(); close(); }} className="mt-2 h-10 px-4 rounded-lg bg-accent font-semibold">Ana ekrana ekle</button>
-        ) : isIos() ? (
-          <p className="text-[#C9D6E5] mt-0.5">Safari&apos;de alttaki <b>Paylaş</b> simgesine (kare ve yukarı ok), sonra <b>Ana Ekrana Ekle</b>&apos;ye dokunun.</p>
+          <button onClick={async () => { await bip.prompt(); close(); }} className="h-9 px-3 rounded-lg bg-accent font-semibold">Ekle</button>
         ) : (
-          <p className="text-[#C9D6E5] mt-0.5">Tarayıcı menüsünden (⋮) <b>Ana ekrana ekle</b> / <b>Uygulamayı yükle</b>&apos;yi seçin.</p>
+          <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="h-9 px-3 rounded-lg bg-white/10 font-semibold">{open ? "Gizle" : "Nasıl?"}</button>
         )}
+        <button onClick={close} aria-label="Kapat" className="w-9 h-9 grid place-items-center text-[#8FA6BF] text-xl">×</button>
       </div>
-      <button onClick={close} aria-label="Kapat" className="text-[#8FA6BF] text-xl leading-none px-1">×</button>
+      {open && !bip && (
+        <p className="text-[#C9D6E5] mt-2 leading-snug">
+          {isIos() ? <>Safari&apos;de alttaki <b>Paylaş</b> simgesine (kare ve yukarı ok), sonra <b>Ana Ekrana Ekle</b>&apos;ye dokunun.</> : <>Tarayıcı menüsünden (⋮) <b>Ana ekrana ekle</b> / <b>Uygulamayı yükle</b>&apos;yi seçin.</>}
+        </p>
+      )}
     </div>
   );
 }

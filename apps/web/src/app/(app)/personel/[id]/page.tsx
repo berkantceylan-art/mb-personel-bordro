@@ -164,7 +164,7 @@ export default async function EmployeeProfile({
         </div>
       </section>
 
-      <div className="p-6 md:p-8 flex flex-wrap gap-5 items-start max-w-[1320px]">
+      <div className="p-4 md:p-8 flex flex-wrap gap-5 items-start max-w-[1320px]">
         <div className="flex-[999_1_560px] min-w-0 flex flex-col gap-5">
           {pay && (
             <Card

@@ -77,7 +77,7 @@ export function BulkRaiseForm({ employees, departments, defaultDate }: { employe
         </div>
       </section>
 
-      <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+      <section className="grid gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
         {[
           ["Zam alacak personel", String(selected.length)],
           ["Mevcut aylık toplam", formatTL(before)],
@@ -122,7 +122,7 @@ export function BulkRaiseForm({ employees, departments, defaultDate }: { employe
       </section>
 
       {state && <p role="status" className={`text-sm rounded-lg px-3 py-2 ${state.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{state.message}</p>}
-      <div className="sticky bottom-0 bg-ground py-3">
+      <div className="sticky-save bg-ground py-3 border-t border-line md:border-0">
         <button disabled={pending || ruleValue === null || selected.length === 0} className="h-12 px-6 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-50">
           {pending ? "Uygulanıyor…" : `Zammı ${selected.length} personele uygula`}
         </button>

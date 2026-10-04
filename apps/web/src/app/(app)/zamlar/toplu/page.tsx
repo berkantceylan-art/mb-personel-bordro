@@ -28,7 +28,7 @@ export default async function BulkRaisePage() {
         subtitle="Bölüm veya tüm personel için; uygulamadan önce kişi kişi önizleyin, istemediklerinizi çıkarın."
         actions={<Link href="/zamlar" className="text-sm font-semibold text-brand-700">← Zam raporu</Link>}
       />
-      <div className="p-6 md:p-8 max-w-[1240px]">
+      <div className="p-4 md:p-8 max-w-[1240px]">
         <BulkRaiseForm employees={employees} departments={departments} defaultDate={defaultDate} />
       </div>
     </>

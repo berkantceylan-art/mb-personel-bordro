@@ -16,7 +16,7 @@ export default async function ReportsPage() {
   return (
     <>
       <PageHeader title="Raporlar" subtitle="Tüm modüllerden filtreli raporlar; ekranda görüntüleyin veya Excel olarak indirin." />
-      <div className="p-6 md:p-8 flex flex-col gap-7 max-w-[1240px]">
+      <div className="p-4 md:p-8 flex flex-col gap-7 max-w-[1240px]">
         {GROUPS.map((g) => {
           const items = [...list.filter((r) => r.group === g).map((r) => ({ href: `/raporlar/${r.key}`, title: r.title, description: r.description })), ...OTHER.filter((o) => o.group === g && o.roles.includes(s.role))];
           if (!items.length) return null;

@@ -30,3 +30,35 @@ body {
 .num {
   font-variant-numeric: tabular-nums;
 }
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Grid hücreleri içeriğe göre büyüyüp sayfayı genişletmesin (geniş tablolar kendi kutusunda kaysın) */
+.grid > * {
+  min-width: 0;
+}
+/* Kaydırma kutusu içindeki gizli (sr-only) etiketler kutudan taşıp sayfayı genişletmesin */
+.overflow-x-auto {
+  position: relative;
+}
+
+/* Telefonda: yazı alanları 16px (iPhone dokununca yakınlaştırmasın), dokunma hedefleri rahat */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  /* Alttaki menünün üstünde kalan yapışkan kaydet çubukları */
+  .sticky-save {
+    bottom: calc(72px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+.sticky-save {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+}

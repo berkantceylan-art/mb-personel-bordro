@@ -55,7 +55,7 @@ export default async function OvertimePage({ searchParams }: { searchParams: Pro
           </div>
         }
       />
-      <div className="p-6 md:p-8 flex flex-col gap-5 max-w-[1240px]">
+      <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1240px]">
         <Card title={`Puantajdan gelen öneriler (${suggestions.length})`}>
           <p className="text-sm text-muted">Vardiya süresini fazla mesai eşiği kadar aşan çalışmalar ile hafta tatili / resmi tatil çalışmaları. Saatlik ücret = aylık / 225. Resmi kısım resmi brüt ücretten hesaplanır ve bordroya brüt girer; elden kısım elden ücretten hesaplanır. Onaylarken hangisinden ödeneceğini seçin.</p>
           {suggestions.length > 0 && (

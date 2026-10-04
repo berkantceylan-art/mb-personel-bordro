@@ -7,7 +7,7 @@ export default async function ImportPage() {
   return (
     <>
       <PageHeader title="Excel'den Aktar" subtitle="Mevcut aylık maaş listenizi yükleyin; aynı isimli personel tekrar oluşturulmaz." />
-      <div className="p-6 md:p-8">
+      <div className="p-4 md:p-8">
         <ImportForm year={new Date().getFullYear()} today={todayIso()} />
       </div>
     </>

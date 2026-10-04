@@ -43,7 +43,7 @@ export default async function EmployeesPage({
           </div>
         }
       />
-      <div className="p-6 md:p-8 flex flex-col gap-4 max-w-[1240px]">
+      <div className="p-4 md:p-8 flex flex-col gap-4 max-w-[1240px]">
         <form className="flex flex-wrap gap-3">
           <input name="q" defaultValue={q} placeholder="Ad, soyad veya sicil ara" aria-label="Personel ara" className="h-11 flex-1 min-w-56 rounded-[10px] border border-[#D5DEE8] bg-white px-3.5" />
           <select name="bolum" defaultValue={bolum ?? ""} aria-label="Bölüm" className="h-11 rounded-[10px] border border-[#D5DEE8] bg-white px-3">

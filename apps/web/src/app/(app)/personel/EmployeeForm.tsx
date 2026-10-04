@@ -154,7 +154,7 @@ export function EmployeeForm({
       </fieldset>
 
       {state && <p role="status" className="text-sm rounded-lg px-3 py-2 bg-bad-bg text-bad">{state.message}</p>}
-      <div className="sticky bottom-0 bg-ground py-3">
+      <div className="sticky-save bg-ground py-3 border-t border-line md:border-0">
         <button disabled={pending} className="h-12 px-6 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-60">
           {pending ? "Kaydediliyor…" : isNew ? "Personeli kaydet" : "Değişiklikleri kaydet"}
         </button>

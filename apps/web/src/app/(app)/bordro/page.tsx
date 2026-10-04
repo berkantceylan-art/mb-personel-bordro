@@ -52,7 +52,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
           <PayrollButtons period={period} canPost={savedCount > postedCount} canUnpost={postedCount > 0} />
         </div>
 
-        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+        <section className="grid gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
           <Stat label="Resmi brüt toplam" value={formatTL(t.gross)} sub={`İşveren maliyeti ${formatTL(t.cost)}`} />
           <Stat label="Bankaya yatacak (bordro neti)" value={formatTL(t.bank)} sub={`BES ${formatTL(t.bes)} · icra ${formatTL(t.icra)}`} />
           <Stat label="Kalan: bankadan ödenecek" value={formatTL(t.payBank)} sub={`Önceden bankadan ${formatTL(t.paidBank)}`} />

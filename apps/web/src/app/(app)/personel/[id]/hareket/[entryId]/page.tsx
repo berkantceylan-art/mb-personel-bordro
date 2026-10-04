@@ -31,7 +31,7 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
         subtitle={`${emp.first_name} ${emp.last_name} · ${formatDate(e.entry_date)} · ${formatTL(Number(e.amount))}`}
         actions={<Link href={`/personel/${id}`} className="text-sm font-semibold text-brand-700">← Profile dön</Link>}
       />
-      <div className="p-6 md:p-8 flex flex-col gap-6 max-w-3xl">
+      <div className="p-4 md:p-8 flex flex-col gap-6 max-w-3xl">
         {e.voided_at ? (
           <p className="text-sm rounded-lg px-3 py-2 bg-warn-bg text-warn">Bu hareket {formatDate(e.voided_at)} tarihinde iptal edilmiş: {e.void_reason}</p>
         ) : closed ? (

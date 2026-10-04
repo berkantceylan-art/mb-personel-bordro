@@ -41,7 +41,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader title="İzin" subtitle={`${pending.length} onay bekleyen · bugün ${onLeaveToday.length} kişi izinli`} />
-      <div className="p-6 md:p-8 flex flex-col gap-5 max-w-[1240px]">
+      <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1240px]">
         <Card title="Yeni izin">
           <LeaveForm employees={(emps ?? []).map((e) => ({ id: e.id, name: `${e.first_name} ${e.last_name}` }))} types={types ?? []} defaultEmployee={sp.personel} />
         </Card>

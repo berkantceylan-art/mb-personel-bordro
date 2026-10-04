@@ -151,7 +151,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
         <section className="bg-white border border-line rounded-[14px] p-5 flex flex-col gap-3">
           <h2 className="font-display font-semibold text-brand-800">Anomaliler ({m.anomalies.length})</h2>
           {m.anomalies.length === 0 && <p className="text-sm text-muted">Eksik giriş/çıkış yok.</p>}
-          <div className="grid gap-2 grid-cols-[repeat(auto-fill,minmax(320px,1fr))]">
+          <div className="grid gap-2 grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))]">
             {m.anomalies.slice(0, 60).map((a, i) => (
               <Link key={i} href={`/puantaj/${a.employeeId}/${a.at.slice(0, 10)}`} className="flex gap-3 items-start p-3 rounded-lg bg-[#F7F9FB] hover:bg-[#EEF2F6]">
                 <span className={`text-[11px] font-bold px-2 py-1 rounded-md ${a.kind === "FREQUENT_EXITS" ? "bg-warn-bg text-warn" : "bg-bad-bg text-bad"}`}>{KIND[a.kind] ?? a.kind}</span>

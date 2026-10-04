@@ -39,8 +39,8 @@ export default async function BesPage({ searchParams }: { searchParams: Promise<
   return (
     <>
       <PageHeader title="BES (otomatik katılım)" subtitle={`${active.length} aktif üye`} />
-      <div className="p-6 md:p-8 flex flex-col gap-5 max-w-[1240px]">
-        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+      <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1240px]">
+        <section className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
           <Stat label="Aktif üye" value={String(active.length)} />
           <Stat label={`${periodLabel(period)} BES kesintisi`} value={formatTL(total)} sub={`${(lines ?? []).length} kişi · bordrodan`} />
           <Stat label="Cayma süresi devam eden" value={String(active.filter((e) => addMonths(e.enrolled_on, 2) >= today).length)} sub="ilk 2 ay içinde cayma hakkı" />

@@ -147,7 +147,7 @@ export function PlanGrid({
         </table>
       </section>
 
-      <div className="sticky bottom-0 bg-ground py-3 flex items-center gap-4">
+      <div className="sticky-save bg-ground py-3 border-t border-line md:border-0 flex items-center gap-4">
         <button type="button" onClick={save} disabled={pending || count === 0} className="h-12 px-6 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-50">
           {pending ? "Kaydediliyor…" : `Planı kaydet${count ? ` (${count})` : ""}`}
         </button>

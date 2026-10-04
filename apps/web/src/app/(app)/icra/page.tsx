@@ -35,8 +35,8 @@ export default async function GarnishmentPage({ searchParams }: { searchParams: 
   return (
     <>
       <PageHeader title="İcra ve nafaka" subtitle={`${active.length} aktif dosya`} />
-      <div className="p-6 md:p-8 flex flex-col gap-5 max-w-[1240px]">
-        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+      <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1240px]">
+        <section className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
           <Stat label="Aktif dosya" value={String(active.length)} sub={`${new Set(active.map((f) => f.employee_id)).size} personel`} />
           <Stat label="Kalan icra borcu" value={formatTL(remaining)} />
           <Stat label={`${periodLabel(period)} kesinti`} value={formatTL(monthTotal)} sub={`${(deds ?? []).length} dosya`} />

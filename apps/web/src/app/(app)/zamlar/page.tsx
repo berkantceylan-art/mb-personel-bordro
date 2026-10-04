@@ -36,7 +36,7 @@ export default async function RaisesPage({ searchParams }: { searchParams: Promi
           </div>
         }
       />
-      <div className="p-6 md:p-8 flex flex-col gap-6 max-w-[1240px]">
+      <div className="p-4 md:p-8 flex flex-col gap-6 max-w-[1240px]">
         <form className="flex flex-wrap gap-3">
           <select name="yil" defaultValue={year} aria-label="Yıl" className="h-11 rounded-[10px] border border-[#D5DEE8] bg-white px-3">
             {[year + 1, year, year - 1, year - 2].map((y) => <option key={y} value={y}>{y}</option>)}
@@ -48,14 +48,14 @@ export default async function RaisesPage({ searchParams }: { searchParams: Promi
           <button className="h-11 px-4 rounded-[10px] bg-brand-700 text-white font-semibold">Göster</button>
         </form>
 
-        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+        <section className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
           <Stat label="Zam sayısı" value={String(rows.length)} sub={`${people} personel`} />
           <Stat label="Ortalama zam oranı" value={total ? `%${total.avgPct.toLocaleString("tr-TR")}` : "—"} />
           <Stat label="Aylık maliyet artışı" value={formatTL(total?.increase ?? 0)} sub={total ? `${formatTL(total.before)} → ${formatTL(total.after)}` : undefined} />
           <Stat label="Zam yapılan ay" value={String(byMonth.length)} sub={byMonth.map((m) => periodLabel(m.key).split(" ")[0]).join(", ") || "—"} />
         </section>
 
-        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(420px,1fr))]">
+        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))]">
           <Card title="Aylara göre">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

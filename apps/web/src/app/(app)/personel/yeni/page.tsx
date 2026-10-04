@@ -15,7 +15,7 @@ export default async function NewEmployeePage() {
   return (
     <>
       <PageHeader title="Yeni personel" />
-      <div className="p-6 md:p-8 max-w-5xl">
+      <div className="p-4 md:p-8 max-w-5xl">
         <EmployeeForm values={{ nationality: "T.C.", bank_name: "Garanti BBVA" }} branches={branches ?? []} departments={departments ?? []} isNew />
       </div>
     </>

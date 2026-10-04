@@ -65,8 +65,8 @@ export default async function DashboardPage() {
           </div>
         }
       />
-      <div className="p-6 md:p-8 flex flex-col gap-6 max-w-[1240px]">
-        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
+      <div className="p-4 md:p-8 flex flex-col gap-6 max-w-[1240px]">
+        <section className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
           <Stat label={`${periodLabel(period)} toplam hakediş`} value={formatTL(total.accrued)} sub={`${rows.length} personelde hakediş kaydı`} />
           <Stat label="Şu ana kadar ödenen" value={formatTL(paid)} sub={`Banka ${formatTL(total.bank)} · Elden ${formatTL(total.cash)}`} />
           <Stat label="Kalan ödenecek" value={formatTL(total.balance)} />
@@ -102,7 +102,7 @@ export default async function DashboardPage() {
           {urgent.length === 0 && <p className="text-sm text-ok">Süresi yaklaşan eğitim veya muayene yok.</p>}
         </Card>
 
-        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(340px,1fr))]">
+        <div className="grid gap-6 grid-cols-[repeat(auto-fit,minmax(min(340px,100%),1fr))]">
           <Card title="Son ödeme hareketleri">
             <div className="overflow-x-auto">
               <table className="w-full text-[13px] min-w-[480px]">

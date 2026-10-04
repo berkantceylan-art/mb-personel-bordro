@@ -120,7 +120,8 @@ export default async function MyPage() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <Card title="Hesap hareketlerim">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto -mx-1 px-1">
+            <table className="w-full text-sm min-w-[340px]">
               <tbody>
                 {(entries ?? []).map((e) => (
                   <tr key={e.id}>
@@ -130,12 +131,14 @@ export default async function MyPage() {
                     <td className={`${td} text-right num font-semibold`}>{formatTL(Number(e.amount))}</td>
                   </tr>
                 ))}
-                {(entries ?? []).length === 0 && <tr><td className="py-4 text-center text-muted">Hareket yok.</td></tr>}
+                {(entries ?? []).length === 0 && <tr><td colSpan={4} className="py-4 text-center text-muted">Hareket yok.</td></tr>}
               </tbody>
             </table>
+            </div>
           </Card>
           <Card title="Bordrolarım">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto -mx-1 px-1">
+            <table className="w-full text-sm min-w-[420px]">
               <thead><tr className="text-left text-xs text-muted"><th className={th}>Dönem</th><th className={`${th} text-right`}>Gün</th><th className={`${th} text-right`}>Brüt</th><th className={`${th} text-right`}>Net</th><th className={`${th} text-right`}>Bankaya</th></tr></thead>
               <tbody>
                 {(payroll ?? []).map((p) => (
@@ -150,6 +153,7 @@ export default async function MyPage() {
                 {(payroll ?? []).length === 0 && <tr><td colSpan={5} className="py-4 text-center text-muted">Henüz bordro yok.</td></tr>}
               </tbody>
             </table>
+            </div>
           </Card>
         </div>
 
