@@ -10,6 +10,8 @@ const CHANNELS = ["CASH", "BANK"] as const;
 export interface SaveResult {
   ok: boolean;
   message: string;
+  /** Yazdırılabilir (avans / maaş ödemesi) kayıtların kimlikleri */
+  printIds?: string[];
 }
 
 export async function savePayment(_: SaveResult | null, formData: FormData): Promise<SaveResult> {
@@ -64,10 +66,11 @@ export async function savePayment(_: SaveResult | null, formData: FormData): Pro
     note,
     signature_path: signaturePath,
   }));
-  const { error } = await supabase.from("ledger_entries").insert(rows);
+  const { data: inserted, error } = await supabase.from("ledger_entries").insert(rows).select("id");
   if (error) return { ok: false, message: `Kaydedilemedi: ${error.message}` };
 
   revalidatePath("/");
   employeeIds.forEach((id) => revalidatePath(`/personel/${id}`));
-  return { ok: true, message: `${rows.length} kişiye hareket kaydedildi.` };
+  const printable = type === "ADVANCE" || type === "SALARY";
+  return { ok: true, message: `${rows.length} kişiye hareket kaydedildi.`, printIds: printable ? (inserted ?? []).map((r) => r.id as string) : undefined };
 }

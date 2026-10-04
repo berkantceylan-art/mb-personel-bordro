@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -33,7 +34,11 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title="Avans / Ödeme Girişi" subtitle="Elden ödemelerde imza alınır; tüm hareketler tarihli tutulur." />
+      <PageHeader
+        title="Avans / Ödeme Girişi"
+        subtitle="Elden ödemelerde imza alınır; tüm hareketler tarihli tutulur."
+        actions={<Link href="/raporlar/avans-listesi" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-brand-700 font-semibold">Kayıtlı avanslar / yazdır</Link>}
+      />
       <div className="p-4 md:p-6">
         <PaymentForm employees={employees} departments={departments} defaultSelected={personel ? [personel] : []} today={todayIso()} periods={periods} />
       </div>

@@ -160,7 +160,14 @@ export function PaymentForm({
         )}
 
         {state && (
-          <p role="status" className={`text-sm rounded-lg px-3 py-2 ${state.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{state.message}</p>
+          <p role="status" className={`text-sm rounded-lg px-3 py-2 flex flex-wrap items-center gap-3 ${state.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>
+            {state.message}
+            {state.ok && state.printIds && state.printIds.length > 0 && (
+              <a href={`/yazdir/avans?ids=${state.printIds.join(",")}`} target="_blank" rel="noopener" className="ml-auto h-9 px-3 inline-flex items-center rounded-lg bg-brand-700 text-white font-semibold">
+                Makbuz yazdır{state.printIds.length > 1 ? ` (${state.printIds.length})` : ""}
+              </a>
+            )}
+          </p>
         )}
 
         <div className="flex justify-end gap-3 mt-auto">

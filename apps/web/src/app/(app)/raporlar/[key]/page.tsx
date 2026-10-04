@@ -43,6 +43,9 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
             <div className="flex gap-2 flex-wrap items-center">
               <Link href="/raporlar" className="text-sm font-semibold text-brand-700 mr-2">← Raporlar</Link>
               <a href={`/raporlar/${key}/excel${qs ? `?${qs}` : ""}`} className="h-11 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white font-semibold">{key === "banka-maas" ? "Garanti dosyası indir" : key === "bes-liste" ? "Garanti Emeklilik dosyası indir" : "Excel indir"}</a>
+              {key === "avans-listesi" && (
+                <a href={`/yazdir/avans?bas=${p.from}&bit=${p.to}${p.department ? `&bolum=${encodeURIComponent(p.department)}` : ""}`} target="_blank" rel="noopener" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-brand-700 font-semibold">Makbuzları yazdır</a>
+              )}
               <PrintButton />
             </div>
           }

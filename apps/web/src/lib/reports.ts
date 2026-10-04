@@ -93,6 +93,37 @@ export const REPORTS: ReportDef[] = [
     },
   },
   {
+    key: "avans-listesi",
+    title: "Avans listesi",
+    description: "Kaydedilmiş avanslar tarih aralığına göre: imza sütunlu liste ve tek tek makbuz yazdırma.",
+    group: "Ödeme listeleri",
+    params: ["dateRange", "department"],
+    roles: PAY,
+    async run(sb, p) {
+      const [entries, { data: emps }] = await Promise.all([
+        fetchAll<{ id: string; employee_id: string; entry_date: string; channel: string; amount: number; note: string | null; period: string }>((from, to) =>
+          sb.from("ledger_entries").select("id, employee_id, entry_date, channel, amount, note, period").eq("type", "ADVANCE").is("voided_at", null).gte("entry_date", p.from).lte("entry_date", p.to).order("entry_date").order("created_at").range(from, to),
+        ),
+        sb.from("employees").select("id, first_name, last_name, departments(name)"),
+      ]);
+      const emp = new Map((emps ?? []).map((e) => [e.id, { name: `${e.first_name} ${e.last_name}`, dept: (e.departments as unknown as { name: string } | null)?.name ?? "" }]));
+      const all = entries.map((e) => ({ tarih: e.entry_date, ad: emp.get(e.employee_id)?.name ?? "", dept: emp.get(e.employee_id)?.dept ?? "", kanal: e.channel === "BANK" ? "Banka" : "Elden", donem: periodLabel(e.period), tutar: Number(e.amount), aciklama: e.note ?? "", imza: "" }));
+      const out = (await deptFilter(all, p.department)).map(({ dept, ...r }) => ({ ...r, bolum: dept }));
+      const cash = out.filter((r) => r.kanal === "Elden").reduce((a, r) => a + r.tutar, 0);
+      return {
+        title: "Avans listesi",
+        subtitle: `${p.from.split("-").reverse().join(".")} – ${p.to.split("-").reverse().join(".")} · elden ${formatTL(cash)} · banka ${formatTL(out.reduce((a, r) => a + r.tutar, 0) - cash)}`,
+        columns: [
+          { key: "tarih", label: "Tarih", type: "date", width: 11 }, { key: "ad", label: "Ad Soyad", width: 24 }, { key: "bolum", label: "Bölüm", width: 16 }, { key: "kanal", label: "Kanal", width: 8 },
+          { key: "donem", label: "Ait olduğu ay", width: 13 }, { key: "tutar", label: "Tutar", type: "money", width: 14 }, { key: "aciklama", label: "Açıklama", width: 22 }, { key: "imza", label: "İmza", width: 18 },
+        ],
+        rows: out,
+        totals: { ad: `${out.length} avans`, ...sumBy(out, ["tutar"]) },
+        fileName: `avans-listesi-${p.from}-${p.to}`,
+      };
+    },
+  },
+  {
     key: "elden-odeme",
     title: "Elden ödeme listesi",
     description: "Dönem sonunda elden verilecek tutarlar; imza sütunlu, çıktısı alınıp imzalatılabilir.",

@@ -247,7 +247,12 @@ export default async function EmployeeProfile({
                           <td className={`num py-2.5 px-1.5 border-b border-[#EEF2F6] text-right font-semibold ${credit ? "text-ok" : ""}`}>{credit ? "+" : "−"}{formatTL(r.amount)}</td>
                           <td className="num py-2.5 px-1.5 border-b border-[#EEF2F6] text-right">{formatTL(r.balanceAfter)}</td>
                           <td className="py-2.5 px-1.5 border-b border-[#EEF2F6] text-right">
-                            <Link href={`/personel/${id}/hareket/${r.id}`} className="text-xs font-semibold text-brand-700">Düzenle / sil</Link>
+                            <span className="inline-flex gap-3">
+                              {(r.type === "ADVANCE" || r.type === "SALARY") && (
+                                <a href={`/yazdir/avans?ids=${r.id}`} target="_blank" rel="noopener" className="text-xs font-semibold text-brand-700">Yazdır</a>
+                              )}
+                              <Link href={`/personel/${id}/hareket/${r.id}`} className="text-xs font-semibold text-brand-700">Düzenle / sil</Link>
+                            </span>
                           </td>
                         </tr>
                       );

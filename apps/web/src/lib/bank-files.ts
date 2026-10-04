@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import ExcelJS from "exceljs";
 import * as XLSX from "xlsx";
