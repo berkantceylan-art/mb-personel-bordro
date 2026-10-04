@@ -50,7 +50,9 @@ export async function importExcel(_: ImportResult | null, formData: FormData): P
 
   // Var olan personel (ad + soyad ile eşleşir)
   const { data: existing } = await supabase.from("employees").select("id, first_name, last_name").eq("company_id", s.companyId);
-  const key = (f: string, l: string) => `${f} ${l}`.toLocaleUpperCase("tr");
+  // Tek kelimelik isimlerde soyad "-" kaydedilir; eşleştirmede boş sayılır, harf/boşluk farkı yok sayılır
+  const key = (f: string, l: string) =>
+    `${f}${l === "-" ? "" : l}`.toLocaleUpperCase("tr").replace(/[^A-ZÇĞİÖŞÜ0-9]/g, "");
   const empId = new Map((existing ?? []).map((e) => [key(e.first_name, e.last_name), e.id]));
 
   let created = 0;
