@@ -9,7 +9,7 @@ import { BranchForm, BulkInviteForm, InviteForm } from "./AdminForms";
 import { deleteDepartment, deleteDevice, deleteInvite, removeMember, saveDepartment, saveDevice, updateMember } from "./actions";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
-const ROLE: Record<string, string> = { owner: "Şirket sahibi", accountant: "Muhasebe", hr: "İnsan kaynakları", branch_manager: "Şube sorumlusu", safety: "İSG uzmanı", employee: "Personel" };
+const ROLE: Record<string, string> = { owner: "Şirket sahibi", accountant: "Muhasebe", hr: "İnsan kaynakları", branch_manager: "Şube sorumlusu", safety: "İSG uzmanı", employee: "Personel", site_editor: "Web sitesi editörü" };
 const TABLE: Record<string, string> = {
   employees: "Personel", employee_private: "Kişisel bilgi", pay_contracts: "Ücret", ledger_entries: "Cari hareket", attendance_punches: "Okutma", shifts: "Vardiya",
   leave_requests: "İzin", overtime_records: "Fazla mesai", payroll_lines: "Bordro", garnishment_files: "İcra", bes_enrollments: "BES", training_records: "Eğitim",

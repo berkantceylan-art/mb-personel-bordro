@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+/*
+  MB Dental — renkler logodan:
+  lacivert #072A50 (zemin), mavi #0E4C8C (ikincil), camgöbeği #2BC4EE (logodaki gülüş çizgisi, tek vurgu)
+  porselen #F3F6F9 (açık zemin), alçı #E3E9EF (çizgiler), mürekkep #0F1E2E (metin)
+*/
+@theme {
+  --color-navy: #072a50;
+  --color-navy-2: #0b3462;
+  --color-blue: #0e4c8c;
+  --color-smile: #2bc4ee;
+  --color-smile-ink: #0b7fa3;
+  --color-porcelain: #f3f6f9;
+  --color-gypsum: #e3e9ef;
+  --color-ink: #0f1e2e;
+  --color-slate: #4f6274;
+  --color-ok: #17603c;
+  --color-ok-bg: #e6f4ec;
+  --color-warn: #8a5300;
+  --color-warn-bg: #fff4e0;
+  --color-bad: #9b1c14;
+  --color-bad-bg: #fdecea;
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  background: var(--color-porcelain);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01";
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-smile);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Diş şeması: dokunulan diş camgöbeğine döner */
+.tooth {
+  transition: fill 120ms ease, stroke 120ms ease;
+}
+.tooth-link:hover .tooth,
+.tooth-link:focus-visible .tooth {
+  fill: var(--color-smile);
+  stroke: var(--color-smile);
+}
+.tooth-link:hover .tooth-num,
+.tooth-link:focus-visible .tooth-num {
+  fill: var(--color-smile);
+  font-weight: 700;
+}
+.tooth-link:focus-visible {
+  outline: none;
+}
+
+/* Admin formları */
+.field {
+  width: 100%;
+  border: 1px solid var(--color-gypsum);
+  background: white;
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.95rem;
+}
+.field:focus {
+  outline: 2px solid var(--color-smile);
+  outline-offset: 0;
+  border-color: transparent;
+}

@@ -7,7 +7,7 @@ import { done, fail, must } from "@/lib/flash";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 type R = { ok: boolean; message: string };
-const ROLES = ["owner", "accountant", "hr", "branch_manager", "safety", "employee"];
+const ROLES = ["owner", "accountant", "hr", "branch_manager", "safety", "employee", "site_editor"];
 
 /** 12 karakterlik davet kodu (32 harfli alfabe → 60 bit); karışan harfler (0/O, 1/I) yok */
 const code = () => {

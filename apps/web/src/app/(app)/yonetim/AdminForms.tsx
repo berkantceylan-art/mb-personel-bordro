@@ -19,6 +19,7 @@ export function InviteForm({ employees, isOwner }: { employees: Array<{ id: stri
           {isOwner && <option value="hr">İnsan kaynakları</option>}
           {isOwner && <option value="accountant">Muhasebe</option>}
           <option value="safety">İSG uzmanı / işyeri hekimi</option>
+          {isOwner && <option value="site_editor">Web sitesi editörü (mbdentaire.com admin)</option>}
           {isOwner && <option value="owner">Şirket sahibi</option>}
         </select>
       </label>

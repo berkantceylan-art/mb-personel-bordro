@@ -1,0 +1,98 @@
+import type { I18nText } from "./i18n";
+import { createClient } from "./supabase/server";
+
+export type Slide = {
+  id: string;
+  placement: string;
+  title: I18nText;
+  subtitle: I18nText;
+  button_label: I18nText;
+  button_href: string | null;
+  image_path: string | null;
+  image_mobile_path: string | null;
+  video_path: string | null;
+  sort: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  deleted_at: string | null;
+  updated_at: string;
+};
+
+export type AnnouncementKind = "banner" | "popup" | "news";
+export type Audience = "public" | "portal";
+
+export type Announcement = {
+  id: string;
+  kind: AnnouncementKind;
+  audience: Audience;
+  title: I18nText;
+  body: I18nText;
+  link_href: string | null;
+  image_path: string | null;
+  priority: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  deleted_at: string | null;
+  updated_at: string;
+};
+
+export const MEDIA_BUCKET = "site-media";
+
+export function hasSupabase(): boolean {
+  return !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+}
+
+export function mediaUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) return null;
+  return `${base}/storage/v1/object/public/${MEDIA_BUCKET}/${path.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+/** Sitede yayında olan slaytlar (RLS zaten tarih/aktiflik filtreler; yine de sıralar) */
+export async function publicSlides(placement = "home"): Promise<Slide[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_slides").select("*").eq("placement", placement).is("deleted_at", null).eq("is_active", true).order("sort");
+    const now = Date.now();
+    return ((data ?? []) as Slide[]).filter(
+      (s) => (!s.starts_at || Date.parse(s.starts_at) <= now) && (!s.ends_at || Date.parse(s.ends_at) > now),
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function publicAnnouncements(kind?: AnnouncementKind): Promise<Announcement[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    let q = supabase.from("cms_announcements").select("*").eq("audience", "public").is("deleted_at", null).eq("is_active", true);
+    if (kind) q = q.eq("kind", kind);
+    const { data } = await q.order("priority", { ascending: false }).order("updated_at", { ascending: false });
+    const now = Date.now();
+    return ((data ?? []) as Announcement[]).filter(
+      (a) => (!a.starts_at || Date.parse(a.starts_at) <= now) && (!a.ends_at || Date.parse(a.ends_at) > now),
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** Bir kaydın şu anki yayın durumu (admin listelerinde rozet için) */
+export function liveState(r: { is_active: boolean; starts_at: string | null; ends_at: string | null; deleted_at: string | null }):
+  | "trash"
+  | "draft"
+  | "scheduled"
+  | "expired"
+  | "live" {
+  if (r.deleted_at) return "trash";
+  if (!r.is_active) return "draft";
+  const now = Date.now();
+  if (r.starts_at && Date.parse(r.starts_at) > now) return "scheduled";
+  if (r.ends_at && Date.parse(r.ends_at) <= now) return "expired";
+  return "live";
+}

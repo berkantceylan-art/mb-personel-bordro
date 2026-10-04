@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "./supabase/server";
 
-export type Role = "owner" | "accountant" | "hr" | "branch_manager" | "safety" | "employee";
+export type Role = "owner" | "accountant" | "hr" | "branch_manager" | "safety" | "employee" | "site_editor";
 
 export interface Session {
   userId: string;
