@@ -6,6 +6,8 @@ export const metadata = { title: "Giriş" };
 const ERRORS: Record<string, string> = {
   yetki: "Bu hesabın site yönetimine erişimi yok. Yetki için şirket sahibine başvurun.",
   hesap: "Hesabınız henüz bir role bağlı değil. Laboratuvarla iletişime geçin.",
+  onay: "E-posta adresiniz onaylandı. Şimdi giriş yapabilirsiniz.",
+  baglanti: "Onay bağlantısı geçersiz ya da süresi dolmuş. Giriş yapmayı deneyin ya da yeniden kayıt olun.",
   ayar: "Sunucu ayarları eksik: Supabase bağlantısı (NEXT_PUBLIC_SUPABASE_URL ve ANON_KEY) tanımlı değil.",
 };
 
@@ -46,13 +48,21 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <h2 className="display text-3xl font-semibold text-navy">Giriş yap</h2>
           {hata && ERRORS[hata] && <p className="mt-4 rounded-lg bg-warn-bg px-3 py-2 text-sm text-warn">{ERRORS[hata]}</p>}
           <LoginForm next={next} />
-          <p className="mt-6 text-sm text-slate">
-            Hesabınız yok mu? Hekim, klinik ve aracı kuruluş başvuruları portal açıldığında buradan alınacak. Şimdilik{" "}
-            <a href="mailto:info@mbdentaire.com" className="font-semibold text-navy underline-offset-4 hover:underline">
-              info@mbdentaire.com
-            </a>{" "}
-            adresine yazın.
-          </p>
+          <div className="mt-8 rounded-2xl border border-gypsum bg-white p-5">
+            <p className="font-semibold text-navy">Hesabınız yok mu?</p>
+            <p className="mt-1 text-sm text-slate">Hekim, klinik ve aracı kuruluşlar portal hesabı açıp vakalarını çevrim içi gönderebilir.</p>
+            <div className="mt-3 flex flex-wrap gap-3 text-sm font-semibold">
+              <Link href="/portal/kayit?dil=tr" className="rounded-full bg-navy px-4 py-2 text-white hover:bg-blue">
+                Hesap açın
+              </Link>
+              <Link href="/portal/kayit?dil=en" className="rounded-full border border-gypsum px-4 py-2 text-navy hover:border-navy">
+                Open an account
+              </Link>
+              <Link href="/portal/kayit?dil=fr" className="rounded-full border border-gypsum px-4 py-2 text-navy hover:border-navy">
+                Créer un compte
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
     </main>

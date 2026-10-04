@@ -26,7 +26,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const first = pathname.split("/")[1];
-  const isAppArea = first === "admin" || first === "giris" || first === "auth" || first === "api";
+  const isAppArea = first === "admin" || first === "giris" || first === "auth" || first === "api" || first === "portal";
 
   // Dil öneki olmayan herkese açık sayfalar → tarayıcı dili
   if (!isAppArea && !isLocale(first)) {
@@ -59,7 +59,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (first === "admin" && !user) {
+  const portalPublic = pathname === "/portal/kayit";
+  if ((first === "admin" || (first === "portal" && !portalPublic)) && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/giris";
     url.search = `?sonra=${encodeURIComponent(pathname)}`;
