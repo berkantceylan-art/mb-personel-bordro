@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/giris", "/auth", "/davet", "/api/davet"];
+const PUBLIC_PATHS = ["/giris", "/auth", "/davet", "/api/davet", "/api/push"];
 
 export async function middleware(request: NextRequest) {
   // Sunucu bileşenleri (layout) mevcut yolu bilsin
@@ -36,5 +36,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.png).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.png|icon-|apple-touch-icon|sw.js|manifest.webmanifest).*)"],
 };

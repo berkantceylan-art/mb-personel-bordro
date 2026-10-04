@@ -7,7 +7,7 @@ const MANAGERS = ["owner", "accountant", "hr", "branch_manager", "safety"];
 const PAY = ["owner", "accountant"];
 const HR = ["owner", "hr", "branch_manager"];
 
-const NAV: Array<{ group: string; items: Item[] }> = [
+export const NAV: Array<{ group: string; items: Item[] }> = [
   {
     group: "Genel",
     items: [
@@ -55,7 +55,7 @@ export function Sidebar({ companyName, role, badges = {} }: { companyName: strin
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(role)) })).filter((g) => g.items.length);
   const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   return (
-    <nav aria-label="Ana menü" className="print:hidden md:w-62 md:shrink-0 bg-brand-900 text-[#C9D6E5] flex flex-col gap-5 px-3.5 py-5">
+    <nav aria-label="Ana menü" className="print:hidden hidden md:flex md:w-62 md:shrink-0 bg-brand-900 text-[#C9D6E5] flex-col gap-5 px-3.5 py-5">
       <div className="flex items-center gap-3 px-2">
         <div className="w-11 h-11 rounded-[10px] bg-white grid place-items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -66,10 +66,10 @@ export function Sidebar({ companyName, role, badges = {} }: { companyName: strin
           <span className="text-xs text-[#8FA6BF]">Personel &amp; Bordro</span>
         </div>
       </div>
-      <div className="flex md:flex-col gap-4 overflow-x-auto md:overflow-visible">
+      <div className="flex flex-col gap-4">
         {groups.map((g) => (
-          <div key={g.group} className="flex md:flex-col gap-0.5 shrink-0">
-            <span className="hidden md:block text-[11px] uppercase tracking-[0.08em] text-[#6F8AA8] px-2.5 pb-1">{g.group}</span>
+          <div key={g.group} className="flex flex-col gap-0.5">
+            <span className="block text-[11px] uppercase tracking-[0.08em] text-[#6F8AA8] px-2.5 pb-1">{g.group}</span>
             {g.items.map((n) => (
               <Link
                 key={n.href}
@@ -87,6 +87,9 @@ export function Sidebar({ companyName, role, badges = {} }: { companyName: strin
           </div>
         ))}
       </div>
+      <form action="/auth/signout" method="post" className="mt-auto px-1">
+        <button className="w-full text-left px-3 py-2.5 rounded-lg text-[#8FA6BF] hover:bg-white/5">Çıkış yap</button>
+      </form>
     </nav>
   );
 }

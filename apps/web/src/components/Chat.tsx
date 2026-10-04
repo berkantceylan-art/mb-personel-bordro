@@ -181,7 +181,7 @@ export function MessagesShell({ me, convs, people, departments, children }: { me
     };
   }, [router]);
   return (
-    <div className="bg-white md:border border-line md:rounded-[14px] grid md:grid-cols-[320px_1fr] h-[calc(100vh-150px)] min-h-[480px] overflow-hidden">
+    <div className="bg-white md:border border-line md:rounded-[14px] grid md:grid-cols-[320px_1fr] h-[calc(100dvh-215px-env(safe-area-inset-bottom))] md:h-[calc(100vh-150px)] min-h-[360px] overflow-hidden">
       <aside className={`border-r border-line flex-col min-h-0 ${activeId ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 border-b border-line">
           <NewChat people={people} departments={departments} />

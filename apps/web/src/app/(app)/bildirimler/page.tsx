@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
+import { EnablePush } from "@/components/Pwa";
 import { markNotificationsRead } from "@/lib/comms-actions";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
@@ -7,7 +8,7 @@ import { getSession } from "@/lib/session";
 export default async function NotificationsPage() {
   const s = await getSession();
   const supabase = await createClient();
-  const { data } = await supabase.from("notifications").select("*").eq("user_id", s.userId).order("created_at", { ascending: false }).limit(200);
+  const { data } = await supabase.from("notifications").select("*").eq("user_id", s.userId).eq("silent", false).order("created_at", { ascending: false }).limit(200);
   const unread = (data ?? []).filter((n) => !n.read_at).length;
   return (
     <>
@@ -18,7 +19,8 @@ export default async function NotificationsPage() {
           <form action={markNotificationsRead}><button className="h-11 px-4 rounded-[10px] border border-[#D5DEE8] bg-white text-brand-700 font-semibold">Tümünü okundu say</button></form>
         )}
       />
-      <div className="p-4 md:p-6 max-w-[900px]">
+      <div className="p-4 md:p-6 max-w-[900px] flex flex-col gap-3">
+        <EnablePush />
         <ul className="bg-white border border-line rounded-[14px] divide-y divide-[#EEF2F6]">
           {(data ?? []).map((n) => {
             const inner = (

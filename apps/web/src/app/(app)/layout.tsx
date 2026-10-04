@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { MobileNav } from "@/components/MobileNav";
+import { InstallHint } from "@/components/Pwa";
 import { Sidebar } from "@/components/Sidebar";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
@@ -16,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const supabase = await createClient();
   const [{ count: unreadNotif }, { data: convs }] = await Promise.all([
-    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", s.userId).is("read_at", null),
+    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", s.userId).eq("silent", false).is("read_at", null),
     supabase.from("conversation_members").select("last_read_at, conversations(last_message_at)").eq("user_id", s.userId),
   ]);
   const unreadMsg = (convs ?? []).filter((c) => {
@@ -24,10 +26,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     return last && last > c.last_read_at;
   }).length;
 
+  const badges = { "/bildirimler": unreadNotif ?? 0, "/mesajlar": unreadMsg };
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
-      <Sidebar companyName={s.companyName} role={s.role} badges={{ "/bildirimler": unreadNotif ?? 0, "/mesajlar": unreadMsg }} />
-      <main className="flex-1 min-w-0 flex flex-col">{children}</main>
+      <Sidebar companyName={s.companyName} role={s.role} badges={badges} />
+      <MobileNav companyName={s.companyName} role={s.role} badges={badges} />
+      <main className="flex-1 min-w-0 flex flex-col pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">
+        <InstallHint />
+        {children}
+      </main>
     </div>
   );
 }

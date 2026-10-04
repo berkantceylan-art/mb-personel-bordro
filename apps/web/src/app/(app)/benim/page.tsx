@@ -3,6 +3,7 @@ import { formatTL } from "@mb/core";
 import { Card, ChannelChip, PageHeader, Stat, TYPE_LABEL } from "@/components/ui";
 import { AdvanceRequestForm, LeaveRequestForm } from "@/components/CommsForms";
 import { WebPunch } from "@/components/WebPunch";
+import { EnablePush } from "@/components/Pwa";
 import { cancelAdvance } from "@/lib/comms-actions";
 import { createClient } from "@/lib/supabase/server";
 import { currentPeriod, formatDate, getSession, periodLabel } from "@/lib/session";
@@ -55,6 +56,7 @@ export default async function MyPage() {
   }
   const today = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
   const todayRow = days.get(today);
+  const lastDir = (punches ?? []).filter((p) => p.punched_at.startsWith(today)).at(-1)?.direction as "IN" | "OUT" | undefined;
   const usedAnnual = (leaves ?? []).filter((l) => l.status === "approved" && (l.leave_types as unknown as { code: string } | null)?.code === "YILLIK").reduce((a, l) => a + Number(l.days), 0);
   const n = (v: number | null | undefined) => Number(v ?? 0);
   const dept = (me.departments as unknown as { name: string } | null)?.name;
@@ -66,15 +68,16 @@ export default async function MyPage() {
       <PageHeader title={`Merhaba ${me.first_name}`} subtitle={[dept, me.card_no ? `PDKS ${me.card_no}` : null, me.hire_date ? `İşe giriş ${formatDate(me.hire_date)}` : null].filter(Boolean).join(" · ")} />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[1200px]">
         <Card title="Bugün">
-          <div className="flex flex-wrap gap-6 items-center">
-            <div className="text-sm">
-              <div>Giriş: <b className="num">{todayRow?.in ?? "—"}</b></div>
-              <div>Çıkış: <b className="num">{todayRow?.out ?? "—"}</b></div>
-            </div>
-            <WebPunch />
+          <div className="flex items-center gap-3 text-sm">
+            <span className={`w-3 h-3 rounded-full ${lastDir === "IN" ? "bg-[#1FA971]" : "bg-[#9AA6B2]"}`} aria-hidden />
+            <span>{lastDir === "IN" ? "İçeridesiniz" : lastDir === "OUT" ? "Çıkış yaptınız" : "Bugün henüz okutma yok"}</span>
+            <span className="ml-auto text-muted">Giriş <b className="num text-ink">{todayRow?.in ?? "—"}</b> · Çıkış <b className="num text-ink">{todayRow?.out ?? "—"}</b></span>
           </div>
-          <p className="text-xs text-muted">İşyeri konumundayken basın. Telefonda MB Personel uygulamasıyla QR kod da okutabilirsiniz.</p>
+          <WebPunch inside={lastDir === "IN"} />
+          <p className="text-xs text-muted">Konumla okutma için işyerinde olmanız gerekir. İşyerindeki ekranda QR kod da okutabilirsiniz.</p>
         </Card>
+
+        <EnablePush />
 
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <Stat label={`${periodLabel(period)} hakediş`} value={formatTL(n(sum?.accrued))} />

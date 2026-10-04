@@ -10,7 +10,7 @@ import { C } from "@/lib/theme";
 export default function Notifications() {
   const { profile } = useAuth();
   const { data, refresh, refreshing } = useLoad(async () => {
-    const { data } = await supabase.from("notifications").select("id, title, body, link, read_at, created_at").eq("user_id", profile?.userId ?? "").order("created_at", { ascending: false }).limit(100);
+    const { data } = await supabase.from("notifications").select("id, title, body, link, read_at, created_at").eq("user_id", profile?.userId ?? "").eq("silent", false).order("created_at", { ascending: false }).limit(100);
     return data ?? [];
   }, [profile?.userId]);
 

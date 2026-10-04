@@ -31,7 +31,7 @@ export function useUnread(userId: string | undefined) {
     if (!userId) return;
     const [{ data: convs }, { count }] = await Promise.all([
       supabase.from("conversation_members").select("last_read_at, conversations(last_message_at)").eq("user_id", userId),
-      supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).is("read_at", null),
+      supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("silent", false).is("read_at", null),
     ]);
     const messages = (convs ?? []).filter((c) => {
       const last = (c.conversations as unknown as { last_message_at: string } | null)?.last_message_at;
