@@ -4,7 +4,10 @@ import { LOCALES, LOCALE_NAMES, isLocale, type Locale } from "@/lib/i18n";
 import { PORTAL_UI, portalContext, portalLocale } from "@/lib/portal";
 import { SignUpForm } from "./SignUpForm";
 
-export const metadata = { title: "Portal" };
+export const metadata = {
+  title: "Hekim portalına kayıt",
+  description: "Hekim, klinik ve aracı kuruluşlar için MB Dental portalı: çevrim içi vaka gönderme, dosya yükleme, aşama aşama takip ve fiyat listesi.",
+};
 
 export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ dil?: string }> }) {
   const { dil } = await searchParams;
