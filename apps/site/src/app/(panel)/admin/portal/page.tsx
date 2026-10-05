@@ -9,6 +9,7 @@ const TABS: [string, string][] = [
   ["", "Onay bekleyen"],
   ["aktif", "Aktif"],
   ["askida", "Askıda"],
+  ["fiyat", "Fiyat listesi talepleri"],
 ];
 const MAP: Record<string, PortalAccount["status"]> = { "": "pending", aktif: "active", askida: "suspended" };
 const FLAG: Record<string, string> = { tr: "TR", en: "EN", fr: "FR" };
@@ -18,8 +19,9 @@ export default async function PortalAccounts({ searchParams }: { searchParams: P
   const supabase = await createClient();
   const { data, error } = await supabase.from("portal_accounts").select("*").order("created_at", { ascending: false });
   const all = (data ?? []) as PortalAccount[];
-  const rows = all.filter((a) => a.status === (MAP[durum] ?? "pending"));
-  const count = (k: string) => all.filter((a) => a.status === MAP[k]).length;
+  const priceReq = (a: PortalAccount) => !!a.price_requested_at && !a.price_access;
+  const rows = durum === "fiyat" ? all.filter(priceReq) : all.filter((a) => a.status === (MAP[durum] ?? "pending"));
+  const count = (k: string) => (k === "fiyat" ? all.filter(priceReq).length : all.filter((a) => a.status === MAP[k]).length);
   const types = PORTAL_UI.tr.types;
 
   return (
@@ -53,6 +55,8 @@ export default async function PortalAccounts({ searchParams }: { searchParams: P
                   <span className="mt-0.5 block text-xs text-slate">
                     {types[a.type]} · {a.city ? `${a.city}, ` : ""}
                     {a.country} · {a.email} · Dil {FLAG[a.language]}
+                    {a.price_access && " · Fiyat listesi: erişimi var"}
+                    {priceReq(a) && " · Fiyat listesi talep etti"}
                   </span>
                 </span>
                 <span className="text-xs text-slate">{formatTr(a.created_at)}</span>

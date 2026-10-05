@@ -10,6 +10,12 @@ import { CASE_UI, DICTS, LOCALES, PRODUCT_UI, isLocale, t } from "@/lib/i18n";
 
 export const revalidate = 60;
 
+const PRICE_CTA = {
+  tr: { title: "Fiyat listesi", text: "Onaylı hekim ve kliniklere portalda açık. Talep edin." },
+  en: { title: "Price list", text: "Available in the portal to approved doctors and clinics. Request it." },
+  fr: { title: "Liste de prix", text: "Accessible sur le portail aux praticiens validés. Demandez-la." },
+} as const;
+
 type Params = Promise<{ locale: string; slug: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
@@ -138,6 +144,18 @@ export default async function ProductPage({ params }: { params: Params }) {
                 {ui.send}
               </Link>
             </div>
+            <Link href="/portal/fiyat-listesi" className="group flex items-center gap-4 rounded-3xl border border-gypsum bg-white p-6 hover:border-navy">
+              <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-porcelain text-lg text-navy">
+                ₺
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold text-navy">{PRICE_CTA[locale].title}</span>
+                <span className="block text-sm text-slate">{PRICE_CTA[locale].text}</span>
+              </span>
+              <span aria-hidden="true" className="text-slate transition-transform group-hover:translate-x-1">
+                →
+              </span>
+            </Link>
           </aside>
         </div>
 

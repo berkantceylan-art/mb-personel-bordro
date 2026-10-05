@@ -189,6 +189,27 @@ export async function setAccountStatus(form: FormData) {
   redirect(`/admin/portal/hesap/${id}?${msg}`);
 }
 
+/** Laboratuvar: genel fiyat listesine erişim ver / geri al */
+export async function setPriceAccess(form: FormData) {
+  await requireSiteEditor();
+  const id = s(form, "id", 40);
+  const on = s(form, "on", 1) === "1";
+  const supabase = await createClient();
+  const patch = on ? { price_access: true, price_granted_at: new Date().toISOString() } : { price_access: false, price_requested_at: null, price_granted_at: null };
+  const { error } = await supabase.from("portal_accounts").update(patch).eq("id", id);
+  revalidatePath("/admin", "layout");
+  const msg = error ? `hata=${encodeURIComponent(error.message)}` : `ok=${encodeURIComponent(on ? "Fiyat listesi erişimi verildi." : "Fiyat listesi erişimi kaldırıldı.")}`;
+  redirect(`/admin/portal/hesap/${id}?${msg}`);
+}
+
+/** Hekim / klinik / aracı: fiyat listesi talep et */
+export async function requestPriceList() {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("portal_request_prices");
+  revalidatePath("/portal/fiyat-listesi");
+  redirect(`/portal/fiyat-listesi${error ? "?hata=1" : "?talep=1"}`);
+}
+
 export async function saveAccountNote(form: FormData) {
   await requireSiteEditor();
   const id = s(form, "id", 40);

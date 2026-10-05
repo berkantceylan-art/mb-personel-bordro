@@ -20,6 +20,9 @@ export type PortalAccount = {
   note: string | null;
   approved_at: string | null;
   created_at: string;
+  price_access?: boolean;
+  price_requested_at?: string | null;
+  price_granted_at?: string | null;
 };
 
 export type PortalCase = {

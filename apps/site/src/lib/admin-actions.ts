@@ -852,3 +852,80 @@ export async function saveTeamMember(_prev: FormState, form: FormData): Promise<
   refresh("cms_team");
   back("cms_team", id ? "Çalışan güncellendi." : "Çalışan eklendi.");
 }
+
+// ---------------------------------------------------------------------
+// Genel fiyat listesi (toplu kayıt)
+// ---------------------------------------------------------------------
+type PriceInput = {
+  id?: string;
+  section: I18nText;
+  name: I18nText;
+  unit: I18nText;
+  note: I18nText;
+  price_try: string | number | null;
+  price_eur: string | number | null;
+  is_active: boolean;
+};
+
+const cleanI18n = (v: unknown, max = 300): I18nText => {
+  const out: I18nText = {};
+  if (v && typeof v === "object") for (const l of LOCALES) {
+    const x = (v as Record<string, unknown>)[l];
+    if (typeof x === "string" && x.trim()) out[l] = x.trim().slice(0, max);
+  }
+  return out;
+};
+const money = (v: unknown): number | null => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(String(v).replace(/\s/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."));
+  if (!Number.isFinite(n) || n < 0 || n > 9_999_999_999) throw new Error(`Geçersiz fiyat: “${v}”`);
+  return Math.round(n * 100) / 100;
+};
+
+/** Fiyat listesinin tamamını kaydeder: sıra, ekleme, güncelleme, silme */
+export async function savePriceList(rows: PriceInput[]): Promise<{ ok?: string; error?: string }> {
+  await requireSiteEditor();
+  if (!Array.isArray(rows) || rows.length > 1000) return { error: "Geçersiz liste." };
+  let clean: Record<string, unknown>[];
+  try {
+    clean = rows.map((r, i) => {
+      const name = cleanI18n(r.name);
+      if (!name.tr) throw new Error(`${i + 1}. satırda Türkçe ürün adı boş.`);
+      return {
+        ...(r.id && /^[0-9a-f-]{36}$/.test(r.id) ? { id: r.id } : {}),
+        section: cleanI18n(r.section, 120),
+        name,
+        unit: cleanI18n(r.unit, 60),
+        note: cleanI18n(r.note, 500),
+        price_try: money(r.price_try),
+        price_eur: money(r.price_eur),
+        is_active: r.is_active !== false,
+        sort: (i + 1) * 10,
+      };
+    });
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  const supabase = await createClient();
+  const { data: existing, error: e1 } = await supabase.from("cms_price_items").select("id");
+  if (e1) return { error: `Fiyat tablosu okunamadı: ${e1.message}` };
+  const keep = new Set(clean.map((r) => r.id).filter(Boolean) as string[]);
+  const gone = ((existing ?? []) as { id: string }[]).map((r) => r.id).filter((id) => !keep.has(id));
+  if (gone.length) {
+    const { error } = await supabase.from("cms_price_items").delete().in("id", gone);
+    if (error) return { error: `Silinemedi: ${error.message}` };
+  }
+  const updates = clean.filter((r) => r.id);
+  const inserts = clean.filter((r) => !r.id);
+  if (updates.length) {
+    const { error } = await supabase.from("cms_price_items").upsert(updates);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  }
+  if (inserts.length) {
+    const { error } = await supabase.from("cms_price_items").insert(inserts);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  }
+  revalidatePath("/admin/fiyat-listesi");
+  revalidatePath("/portal/fiyat-listesi");
+  return { ok: `Fiyat listesi kaydedildi (${clean.length} satır).` };
+}

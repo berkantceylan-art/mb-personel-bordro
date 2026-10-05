@@ -16,6 +16,7 @@ const NAV: { href: string; label: string; soon?: boolean }[] = [
   { href: "/admin/hikayeler", label: "Hikâyeler" },
   { href: "/admin/duyurular", label: "Duyurular" },
   { href: "/admin/urunler", label: "Ürünler" },
+  { href: "/admin/fiyat-listesi", label: "Fiyat listesi" },
   { href: "/admin/vakalar", label: "Vaka galerisi" },
   { href: "/admin/sayfalar", label: "Sayfalar" },
   { href: "/admin/sss", label: "Sıkça sorulanlar" },
@@ -30,13 +31,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const user = await requireSiteEditor();
   const path = (await headers()).get("x-pathname") ?? "";
   const supabase = await createClient();
-  const [{ data: unread }, { data: pendingAcc }, { data: chats }] = await Promise.all([
+  const [{ data: unread }, { data: pendingAcc }, { data: chats }, { data: priceReq }] = await Promise.all([
     supabase.rpc("cms_unread_messages"),
     supabase.rpc("portal_pending_count"),
     supabase.rpc("cms_unread_chats"),
+    supabase.rpc("portal_price_requests_count"),
   ]);
   const unreadCount = typeof unread === "number" ? unread : 0;
-  const pendingCount = typeof pendingAcc === "number" ? pendingAcc : 0;
+  const pendingCount = (typeof pendingAcc === "number" ? pendingAcc : 0) + (typeof priceReq === "number" ? priceReq : 0);
   const badge: Record<string, number> = {
     "/admin/gelen-kutusu": unreadCount,
     "/admin/portal": pendingCount,

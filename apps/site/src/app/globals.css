@@ -151,3 +151,20 @@ body {
     animation: none;
   }
 }
+
+/* Yazdırma: fiyat listesi ve benzeri sayfalar */
+@media print {
+  header,
+  footer,
+  nav,
+  .no-print,
+  .support-hub {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+  }
+  .price-list table {
+    min-width: 0 !important;
+  }
+}

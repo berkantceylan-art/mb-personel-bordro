@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Flash, PageHead, formatTr } from "@/components/admin/ui";
-import { saveAccountNote, setAccountStatus } from "@/lib/portal-actions";
+import { saveAccountNote, setAccountStatus, setPriceAccess } from "@/lib/portal-actions";
 import { PORTAL_UI, STATUS_CLS, type PortalAccount, type PortalCase } from "@/lib/portal";
 import { createClient } from "@/lib/supabase/server";
 
@@ -71,6 +71,24 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
                 E-posta yaz
               </a>
             )}
+          </div>
+          <div className={`rounded-2xl border p-5 ${a.price_requested_at && !a.price_access ? "border-smile bg-smile/10" : "border-gypsum bg-white"}`}>
+            <h2 className="font-semibold text-navy">Genel fiyat listesi</h2>
+            <p className="mt-1 text-sm text-slate">
+              {a.price_access
+                ? `Erişimi var${a.price_granted_at ? ` (${formatTr(a.price_granted_at)} tarihinden beri)` : ""}. Portalda fiyat listesini görür.`
+                : a.price_requested_at
+                  ? `${formatTr(a.price_requested_at)} tarihinde fiyat listesi talep etti.`
+                  : "Erişimi yok. Hekim portaldan talep edebilir ya da siz doğrudan erişim verebilirsiniz."}
+              {a.status !== "active" && " Hesap aktif olmadan liste görünmez."}
+            </p>
+            <form action={setPriceAccess} className="mt-3">
+              <input type="hidden" name="id" value={a.id} />
+              <input type="hidden" name="on" value={a.price_access ? "0" : "1"} />
+              <button type="submit" className={`${btn} ${a.price_access ? "border border-bad text-bad hover:bg-bad-bg" : "bg-navy text-white hover:bg-blue"}`}>
+                {a.price_access ? "Erişimi kaldır" : a.price_requested_at ? "Talebi onayla" : "Erişim ver"}
+              </button>
+            </form>
           </div>
           <form action={saveAccountNote} className="grid gap-3 rounded-2xl border border-gypsum bg-white p-5">
             <input type="hidden" name="id" value={a.id} />
