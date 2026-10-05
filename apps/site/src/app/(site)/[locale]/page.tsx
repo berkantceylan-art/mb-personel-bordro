@@ -7,6 +7,7 @@ import { Popup } from "@/components/Popup";
 import { Stories, type StoryView } from "@/components/Stories";
 import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicCases, publicPages, publicProducts, publicSlides, publicStories } from "@/lib/cms";
 import { mediaKind } from "@/lib/media";
+import { businessJsonLd } from "@/lib/seo";
 import { getSettings, telHref } from "@/lib/settings";
 import { CASE_UI, DICTS, PAGE_UI, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
 
@@ -46,18 +47,7 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
   const st = await getSettings();
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
   // Arama motorları için kurum bilgisi
-  const orgLd = {
-    "@context": "https://schema.org",
-    "@type": "MedicalBusiness",
-    name: "MB Dental",
-    description: d.meta.description,
-    url: `${site}/${locale}`,
-    logo: `${site}/logo.svg`,
-    telephone: telHref(st.phone).replace("tel:", ""),
-    email: st.email,
-    address: { "@type": "PostalAddress", streetAddress: st.address1, addressLocality: st.address2, addressCountry: "TR" },
-    sameAs: Object.values(st.social).filter(Boolean),
-  };
+  const orgLd = businessJsonLd(st, locale);
   const stories: StoryView[] = storyRows.map((s) => {
     const first = s.frames[0]?.path ?? null;
     const coverPath = s.cover_path ?? first;

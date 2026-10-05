@@ -11,8 +11,8 @@ import { mediaUsage } from "./media-server";
 import { LOCALES, type I18nText } from "./i18n";
 import { createClient } from "./supabase/server";
 
-type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages" | "cms_cases" | "cms_faqs";
-const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler", cms_pages: "/admin/sayfalar", cms_cases: "/admin/vakalar", cms_faqs: "/admin/sss" };
+type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages" | "cms_cases" | "cms_faqs" | "cms_team" | "cms_departments";
+const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler", cms_pages: "/admin/sayfalar", cms_cases: "/admin/vakalar", cms_faqs: "/admin/sss", cms_team: "/admin/ekip", cms_departments: "/admin/departmanlar" };
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -336,7 +336,7 @@ export async function moveStory(form: FormData) {
 // Kurumsal sayfalar
 // ---------------------------------------------------------------------
 const PAGE_GROUP_KEYS = ["kurumsal", "teknoloji", "kalite", "diger"];
-const RESERVED = ["urunler", "iletisim", "vaka-gonder", "vakalar", "admin", "giris", "auth", "api", "sayfa"];
+const RESERVED = ["urunler", "iletisim", "vaka-gonder", "vakalar", "sss", "ekibimiz", "portal", "admin", "giris", "auth", "api", "sayfa"];
 
 export async function savePage(_prev: FormState, form: FormData): Promise<FormState> {
   await requireSiteEditor();
@@ -756,7 +756,7 @@ export async function saveFaq(_prev: FormState, form: FormData): Promise<FormSta
 export async function moveInGroup(form: FormData) {
   await requireSiteEditor();
   const table = tableOf(form);
-  const GROUP_COL: Partial<Record<Table, string>> = { cms_faqs: "category" };
+  const GROUP_COL: Partial<Record<Table, string>> = { cms_faqs: "category", cms_team: "department_id" };
   const col = GROUP_COL[table];
   const supabase = await createClient();
   const id = str(form, "id");
@@ -774,4 +774,81 @@ export async function moveInGroup(form: FormData) {
   for (let k = 0; k < same.length; k++) if (same[k].sort !== slots[k]) await supabase.from(table).update({ sort: slots[k] }).eq("id", same[k].id as string);
   refresh(table);
   back(table, "Sıra güncellendi.");
+}
+
+// ---------------------------------------------------------------------
+// Departmanlar ve çalışanlar
+// ---------------------------------------------------------------------
+async function nextSort(table: Table): Promise<number> {
+  const supabase = await createClient();
+  const { data: last } = await supabase.from(table).select("sort").order("sort", { ascending: false }).limit(1);
+  return ((last?.[0]?.sort as number | undefined) ?? 0) + 10;
+}
+
+export async function saveDepartment(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  let image: string | undefined, added: string[];
+  try {
+    image = uploadedPath(form, "image");
+    added = uploadedPaths(form, "gallery");
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  const name = i18n(form, "name");
+  if (!name.tr) return { error: "Türkçe departman adı zorunlu." };
+  const row: Record<string, unknown> = { name, description: i18n(form, "description"), is_active: form.get("is_active") === "on" };
+  if (form.get("remove_image") === "on") row.image_path = null;
+  if (image !== undefined) row.image_path = image;
+  const keep = form.getAll("gallery_keep").map(String);
+  const removed = new Set(form.getAll("remove_gallery").map(String));
+  row.gallery = [...keep.filter((p) => !removed.has(p)), ...added].slice(0, 24);
+  const supabase = await createClient();
+  if (id) {
+    const { error } = await supabase.from("cms_departments").update(row).eq("id", id);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  } else {
+    row.sort = await nextSort("cms_departments");
+    const { error } = await supabase.from("cms_departments").insert(row);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  }
+  refresh("cms_departments");
+  back("cms_departments", id ? "Departman güncellendi." : "Departman eklendi.");
+}
+
+export async function saveTeamMember(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  let photo: string | undefined;
+  try {
+    photo = uploadedPath(form, "photo");
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  const name = str(form, "name").slice(0, 120);
+  if (!name) return { error: "Ad soyad zorunlu." };
+  const linkedin = str(form, "linkedin");
+  if (linkedin && !/^https:\/\/\S+$/.test(linkedin)) return { error: "LinkedIn adresi https:// ile başlamalı." };
+  const dep = str(form, "department_id");
+  const row: Record<string, unknown> = {
+    name,
+    role: i18n(form, "role"),
+    bio: i18n(form, "bio"),
+    department_id: /^[0-9a-f-]{36}$/.test(dep) ? dep : null,
+    linkedin: linkedin || null,
+    is_active: form.get("is_active") === "on",
+  };
+  if (form.get("remove_photo") === "on") row.photo_path = null;
+  if (photo !== undefined) row.photo_path = photo;
+  const supabase = await createClient();
+  if (id) {
+    const { error } = await supabase.from("cms_team").update(row).eq("id", id);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  } else {
+    row.sort = await nextSort("cms_team");
+    const { error } = await supabase.from("cms_team").insert(row);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  }
+  refresh("cms_team");
+  back("cms_team", id ? "Çalışan güncellendi." : "Çalışan eklendi.");
 }

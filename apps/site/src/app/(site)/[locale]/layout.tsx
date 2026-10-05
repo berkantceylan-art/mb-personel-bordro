@@ -24,7 +24,11 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       canonical: `/${locale}`,
       languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}`])),
     },
-    openGraph: { title, description, siteName: "MB Dental", locale },
+    openGraph: { title, description, siteName: "MB Dental", locale, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+    verification: st.google_verification ? { google: st.google_verification } : undefined,
+    robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+    formatDetection: { telephone: false },
     icons: { icon: "/favicon.ico", apple: "/apple-touch-icon.png" },
   };
 }

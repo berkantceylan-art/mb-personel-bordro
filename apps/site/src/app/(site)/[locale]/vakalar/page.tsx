@@ -25,7 +25,7 @@ export default async function CasesPage({ params }: { params: Promise<{ locale: 
   const names = Object.fromEntries(products.map((p) => [p.slug, t(p.name, locale)]));
   return (
     <>
-      <SiteHeader locale={locale} altPath="/vakalar" />
+      <SiteHeader locale={locale} altPath="/vakalar" current="cases" />
       <main>
         <section className="bg-navy text-white">
           <div className="mx-auto max-w-6xl px-4 pb-14 pt-8 sm:px-6">

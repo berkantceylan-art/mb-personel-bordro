@@ -3,6 +3,7 @@ import { CASE_UI, DICTS, LOCALES, LOCALE_NAMES, t, type Locale } from "@/lib/i18
 import { getSettings, telHref } from "@/lib/settings";
 import { hasSupabase, publicPages, type Announcement } from "@/lib/cms";
 import { groupedSchedule, hasSchedule } from "@/lib/hours";
+import { MobileMenu } from "./MobileMenu";
 import { SupportHub } from "./SupportHub";
 
 export function AnnouncementBar({ items, locale }: { items: Announcement[]; locale: Locale }) {
@@ -35,33 +36,41 @@ export function AnnouncementBar({ items, locale }: { items: Announcement[]; loca
 const FAQ_LABEL: Record<Locale, string> = { tr: "Sıkça sorulanlar", en: "FAQ", fr: "FAQ" };
 const ABOUT: Record<Locale, string> = { tr: "Hakkımızda", en: "About", fr: "À propos" };
 
+const NAV_EXTRA: Record<Locale, { team: string; faq: string; cases: string; menu: string; close: string; portal: string }> = {
+  tr: { team: "Ekibimiz", faq: "SSS", cases: "Vakalar", menu: "Menü", close: "Menüyü kapat", portal: "Hekim portalı" },
+  en: { team: "Team", faq: "FAQ", cases: "Cases", menu: "Menu", close: "Close menu", portal: "Doctor portal" },
+  fr: { team: "Équipe", faq: "FAQ", cases: "Cas", menu: "Menu", close: "Fermer le menu", portal: "Portail praticien" },
+};
+
 /** altPath: dil değiştirince aynı sayfada kalmak için dil önekinden sonraki yol (ör. "/urunler/zirkonyum") */
-export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; altPath?: string; current?: "products" | "contact" | "about" }) {
+export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; altPath?: string; current?: "products" | "contact" | "about" | "team" | "faq" | "cases" }) {
   const d = DICTS[locale];
+  const x = NAV_EXTRA[locale];
   const links: [string, string, boolean][] = [
     [`/${locale}/urunler`, d.nav.products, current === "products"],
+    [`/${locale}/vakalar`, x.cases, current === "cases"],
     [`/${locale}#teknoloji`, d.nav.technology, false],
-    [`/${locale}#teslimat`, d.nav.delivery, false],
-    [`/${locale}#kalite`, d.nav.quality, false],
     [`/${locale}/hakkimizda`, ABOUT[locale], current === "about"],
+    [`/${locale}/ekibimiz`, x.team, current === "team"],
+    [`/${locale}/sss`, x.faq, current === "faq"],
     [`/${locale}/iletisim`, d.nav.contact, current === "contact"],
   ];
   return (
-    <header className="bg-navy text-white">
-      <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-4 sm:px-6">
-        <Link href={`/${locale}`} className="flex items-center gap-3" aria-label="MB Dental">
+    <header className="site-header sticky top-0 z-40 bg-navy/95 text-white backdrop-blur supports-[backdrop-filter]:bg-navy/85">
+      <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3.5 sm:px-6">
+        <Link href={`/${locale}`} className="flex shrink-0 items-center gap-3" aria-label="MB Dental">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.svg" alt="" width={40} height={40} className="h-10 w-10" />
           <span className="display text-xl font-semibold tracking-tight">MB Dental</span>
         </Link>
-        <nav aria-label="Ana menü" className="ml-4 hidden gap-5 text-sm text-white/80 lg:flex">
+        <nav aria-label="Ana menü" className="ml-2 hidden gap-5 text-sm text-white/80 xl:flex">
           {links.map(([href, label, on]) => (
-            <Link key={href} href={href} aria-current={on ? "page" : undefined} className="hover:text-white aria-[current=page]:font-semibold aria-[current=page]:text-white">
+            <Link key={href} href={href} aria-current={on ? "page" : undefined} className="nav-link hover:text-white aria-[current=page]:font-semibold aria-[current=page]:text-white">
               {label}
             </Link>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <nav aria-label="Dil" className="flex gap-1 text-xs">
             {LOCALES.map((l) => (
               <Link
@@ -80,6 +89,15 @@ export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; 
           <Link href="/giris" className="hidden rounded-full border border-white/30 px-4 py-2 text-sm hover:border-white sm:inline-block">
             {d.nav.login}
           </Link>
+          <MobileMenu
+            links={links.map(([href, label, on]) => ({ href, label, on }))}
+            extra={[
+              { href: `/${locale}/vaka-gonder`, label: d.nav.sendCase },
+              { href: "/portal", label: x.portal },
+              { href: "/giris", label: d.nav.login },
+            ]}
+            labels={{ menu: x.menu, close: x.close }}
+          />
         </div>
       </div>
     </header>
@@ -155,6 +173,11 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
                 <li>
                   <Link href={`/${locale}/vakalar`} className="hover:text-smile">
                     {CASE_UI[locale].title}
+                  </Link>
+                </li>
+                <li>
+                  <Link href={`/${locale}/ekibimiz`} className="hover:text-smile">
+                    {NAV_EXTRA[locale].team}
                   </Link>
                 </li>
                 <li>

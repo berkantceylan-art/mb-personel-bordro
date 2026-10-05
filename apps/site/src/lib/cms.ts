@@ -208,7 +208,7 @@ export const TOPIC_LABELS: Record<MessageTopic, string> = { general: "Genel", ca
 // ---------------------------------------------------------------------
 export const PAGE_GROUPS = ["kurumsal", "teknoloji", "kalite", "diger"] as const;
 export type PageGroup = (typeof PAGE_GROUPS)[number];
-export const RESERVED_SLUGS = ["urunler", "iletisim", "vaka-gonder", "vakalar", "sss", "portal", "admin", "giris", "auth", "api", "sayfa"];
+export const RESERVED_SLUGS = ["urunler", "iletisim", "vaka-gonder", "vakalar", "sss", "ekibimiz", "portal", "admin", "giris", "auth", "api", "sayfa"];
 
 export type SitePage = {
   id: string;
@@ -314,6 +314,57 @@ export async function publicFaqs(): Promise<Faq[]> {
     const supabase = await createClient();
     const { data } = await supabase.from("cms_faqs").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
     return ((data ?? []) as Faq[]).sort((a, b) => FAQ_CATEGORIES.indexOf(a.category) - FAQ_CATEGORIES.indexOf(b.category) || a.sort - b.sort);
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------
+// Departmanlar ve çalışanlar
+// ---------------------------------------------------------------------
+export type Department = {
+  id: string;
+  name: I18nText;
+  description: I18nText;
+  image_path: string | null;
+  gallery: string[];
+  sort: number;
+  is_active: boolean;
+  deleted_at: string | null;
+  updated_at: string;
+};
+
+export type TeamMember = {
+  id: string;
+  name: string;
+  role: I18nText;
+  bio: I18nText;
+  department_id: string | null;
+  photo_path: string | null;
+  linkedin: string | null;
+  sort: number;
+  is_active: boolean;
+  deleted_at: string | null;
+  updated_at: string;
+};
+
+export async function publicDepartments(): Promise<Department[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_departments").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
+    return (data ?? []) as Department[];
+  } catch {
+    return [];
+  }
+}
+
+export async function publicTeam(): Promise<TeamMember[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_team").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
+    return (data ?? []) as TeamMember[];
   } catch {
     return [];
   }
