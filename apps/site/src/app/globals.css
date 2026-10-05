@@ -97,3 +97,32 @@ body {
   border-color: transparent;
 }
 
+
+/* SSS akordeonu */
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Destek penceresi */
+.hub-panel {
+  transform-origin: bottom right;
+  animation: hub-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes hub-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+.map-placeholder {
+  background:
+    radial-gradient(circle at 50% 45%, rgb(43 196 238 / 0.18), transparent 55%),
+    repeating-linear-gradient(0deg, transparent 0 38px, rgb(7 42 80 / 0.06) 38px 39px),
+    repeating-linear-gradient(90deg, transparent 0 38px, rgb(7 42 80 / 0.06) 38px 39px),
+    var(--color-porcelain);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-panel {
+    animation: none;
+  }
+}

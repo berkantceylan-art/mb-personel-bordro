@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { DAY_NAMES, normalizeRange } from "./hours";
 import { requireSiteEditor } from "./auth";
 import type { FormState } from "@/components/admin/UploadForm";
 import { MEDIA_BUCKET } from "./cms";
@@ -10,8 +11,8 @@ import { mediaUsage } from "./media-server";
 import { LOCALES, type I18nText } from "./i18n";
 import { createClient } from "./supabase/server";
 
-type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages" | "cms_cases";
-const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler", cms_pages: "/admin/sayfalar", cms_cases: "/admin/vakalar" };
+type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages" | "cms_cases" | "cms_faqs";
+const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler", cms_pages: "/admin/sayfalar", cms_cases: "/admin/vakalar", cms_faqs: "/admin/sss" };
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -45,7 +46,7 @@ function refresh(table: Table) {
   revalidatePath(LIST_PATH[table]);
   revalidatePath("/admin");
   for (const l of LOCALES) revalidatePath(`/${l}`);
-  if (table === "cms_products" || table === "cms_pages" || table === "cms_cases") revalidatePath("/", "layout"); // ürün/kurumsal sayfalar, anasayfa, alt bilgi, sitemap
+  if (table !== "cms_slides" && table !== "cms_announcements" && table !== "cms_stories") revalidatePath("/", "layout"); // ürün/kurumsal sayfalar, anasayfa, alt bilgi, sitemap
 }
 
 /** Tarayıcının depolamaya yüklediği dosyanın yolu (form alanı: `<ad>__path`) */
@@ -656,9 +657,23 @@ export async function saveSettings(_prev: FormState, form: FormData): Promise<Fo
         facebook: httpsOrEmpty("facebook"),
         linkedin: httpsOrEmpty("linkedin"),
         youtube: httpsOrEmpty("youtube"),
+        tiktok: httpsOrEmpty("tiktok"),
+        x: httpsOrEmpty("x"),
       },
       seo_title: i18n(form, "seo_title"),
       seo_description: i18n(form, "seo_description"),
+      schedule: Array.from({ length: 7 }, (_, i) => {
+        const raw = str(form, `schedule_${i}`);
+        const v = normalizeRange(raw);
+        if (raw && !v) throw new Error(`Çalışma saatlerinde ${DAY_NAMES.tr[i]} günü “09:00-18:00” biçiminde olmalı (kapalıysa boş bırakın).`);
+        return v;
+      }),
+      map_query: str(form, "map_query").slice(0, 200),
+      chat_enabled: form.get("chat_enabled") === "on",
+      google_verification: str(form, "google_verification").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 100),
+      stats: Array.from({ length: 4 }, (_, i) => ({ value: str(form, `stat_${i}_value`).slice(0, 16), label: i18n(form, `stat_${i}_label`) })).filter(
+        (x) => x.value && Object.keys(x.label).length,
+      ),
     };
   } catch (e) {
     return { error: (e as Error).message };
@@ -703,4 +718,60 @@ export async function deleteMessage(form: FormData) {
   await supabase.from("cms_messages").delete().eq("id", id);
   revalidatePath("/admin", "layout");
   redirect(`/admin/gelen-kutusu?ok=${encodeURIComponent("Mesaj silindi.")}`);
+}
+
+// ---------------------------------------------------------------------
+// Sıkça sorulan sorular
+// ---------------------------------------------------------------------
+const FAQ_CATEGORY_KEYS = ["genel", "vaka", "dosya", "teslimat", "portal"];
+
+export async function saveFaq(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const question = i18n(form, "question");
+  const answer = i18n(form, "answer");
+  if (!question.tr || !answer.tr) return { error: "Türkçe soru ve cevap zorunlu." };
+  const category = str(form, "category");
+  const row: Record<string, unknown> = {
+    question,
+    answer,
+    category: FAQ_CATEGORY_KEYS.includes(category) ? category : "genel",
+    is_active: form.get("is_active") === "on",
+  };
+  const supabase = await createClient();
+  if (id) {
+    const { error } = await supabase.from("cms_faqs").update(row).eq("id", id);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  } else {
+    const { data: last } = await supabase.from("cms_faqs").select("sort").order("sort", { ascending: false }).limit(1);
+    row.sort = ((last?.[0]?.sort as number | undefined) ?? 0) + 10;
+    const { error } = await supabase.from("cms_faqs").insert(row);
+    if (error) return { error: `Kaydedilemedi: ${error.message}` };
+  }
+  refresh("cms_faqs");
+  back("cms_faqs", id ? "Soru güncellendi." : "Soru eklendi.");
+}
+
+/** Aynı grup içinde bir satırı yukarı/aşağı taşır (SSS, ekip, departmanlar) */
+export async function moveInGroup(form: FormData) {
+  await requireSiteEditor();
+  const table = tableOf(form);
+  const GROUP_COL: Partial<Record<Table, string>> = { cms_faqs: "category" };
+  const col = GROUP_COL[table];
+  const supabase = await createClient();
+  const id = str(form, "id");
+  const dir = str(form, "dir") === "up" ? "up" : "down";
+  const { data } = await supabase.from(table).select(col ? `id, sort, ${col}` : "id, sort").is("deleted_at", null).order("sort");
+  const list = (data ?? []) as unknown as Record<string, unknown>[];
+  const me = list.find((r) => r.id === id);
+  if (!me) back(table, "Kayıt bulunamadı.", "hata");
+  const same = col ? list.filter((r) => r[col] === me![col]) : list;
+  const i = same.findIndex((r) => r.id === id);
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (j < 0 || j >= same.length) back(table, "Sıra değişmedi.");
+  const slots = same.map((r) => r.sort as number).sort((a, b) => a - b);
+  [same[i], same[j]] = [same[j], same[i]];
+  for (let k = 0; k < same.length; k++) if (same[k].sort !== slots[k]) await supabase.from(table).update({ sort: slots[k] }).eq("id", same[k].id as string);
+  refresh(table);
+  back(table, "Sıra güncellendi.");
 }

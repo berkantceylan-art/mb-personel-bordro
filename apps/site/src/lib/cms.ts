@@ -184,7 +184,7 @@ export async function publicStories(): Promise<Story[]> {
 // ---------------------------------------------------------------------
 // Gelen kutusu
 // ---------------------------------------------------------------------
-export type MessageTopic = "general" | "case" | "price" | "partner";
+export type MessageTopic = "general" | "case" | "price" | "partner" | "pickup";
 export type Message = {
   id: string;
   topic: MessageTopic;
@@ -201,14 +201,14 @@ export type Message = {
   note: string | null;
   created_at: string;
 };
-export const TOPIC_LABELS: Record<MessageTopic, string> = { general: "Genel", case: "Vaka", price: "Fiyat", partner: "İş birliği" };
+export const TOPIC_LABELS: Record<MessageTopic, string> = { general: "Genel", case: "Vaka", price: "Fiyat", partner: "İş birliği", pickup: "Kurye / ölçü alım" };
 
 // ---------------------------------------------------------------------
 // Kurumsal sayfalar
 // ---------------------------------------------------------------------
 export const PAGE_GROUPS = ["kurumsal", "teknoloji", "kalite", "diger"] as const;
 export type PageGroup = (typeof PAGE_GROUPS)[number];
-export const RESERVED_SLUGS = ["urunler", "iletisim", "vaka-gonder", "vakalar", "admin", "giris", "auth", "api", "sayfa"];
+export const RESERVED_SLUGS = ["urunler", "iletisim", "vaka-gonder", "vakalar", "sss", "portal", "admin", "giris", "auth", "api", "sayfa"];
 
 export type SitePage = {
   id: string;
@@ -278,6 +278,42 @@ export async function publicCases(opts: { product?: string; featured?: boolean }
     if (opts.featured) q = q.eq("featured", true);
     const { data } = await q.order("sort");
     return (data ?? []) as CaseItem[];
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------
+// Sıkça sorulan sorular
+// ---------------------------------------------------------------------
+export const FAQ_CATEGORIES = ["genel", "vaka", "dosya", "teslimat", "portal"] as const;
+export type FaqCategory = (typeof FAQ_CATEGORIES)[number];
+export const FAQ_CATEGORY_LABELS: Record<FaqCategory, Record<"tr" | "en" | "fr", string>> = {
+  genel: { tr: "Genel", en: "General", fr: "Général" },
+  vaka: { tr: "Vaka gönderme", en: "Sending cases", fr: "Envoi de cas" },
+  dosya: { tr: "Dijital dosyalar", en: "Digital files", fr: "Fichiers numériques" },
+  teslimat: { tr: "Kargo ve teslimat", en: "Shipping and delivery", fr: "Expédition et livraison" },
+  portal: { tr: "Hekim portalı", en: "Doctor portal", fr: "Portail praticien" },
+};
+
+export type Faq = {
+  id: string;
+  question: I18nText;
+  answer: I18nText;
+  category: FaqCategory;
+  sort: number;
+  is_active: boolean;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function publicFaqs(): Promise<Faq[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_faqs").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
+    return ((data ?? []) as Faq[]).sort((a, b) => FAQ_CATEGORIES.indexOf(a.category) - FAQ_CATEGORIES.indexOf(b.category) || a.sort - b.sort);
   } catch {
     return [];
   }

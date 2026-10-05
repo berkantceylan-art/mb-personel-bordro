@@ -8,7 +8,7 @@ const COPY: Record<
   Locale,
   {
     topic: string;
-    topics: Record<"general" | "case" | "price" | "partner", string>;
+    topics: Record<"general" | "case" | "price" | "partner" | "pickup", string>;
     name: string;
     email: string;
     phone: string;
@@ -26,7 +26,7 @@ const COPY: Record<
 > = {
   tr: {
     topic: "Konu",
-    topics: { general: "Genel soru", case: "Vaka / iş gönderme", price: "Fiyat bilgisi", partner: "İş birliği / aracı kuruluş" },
+    topics: { general: "Genel soru", case: "Vaka / iş gönderme", price: "Fiyat bilgisi", partner: "İş birliği / aracı kuruluş", pickup: "Kurye / ölçü alım talebi" },
     name: "Ad soyad",
     email: "E-posta",
     phone: "Telefon",
@@ -49,7 +49,7 @@ const COPY: Record<
   },
   en: {
     topic: "Topic",
-    topics: { general: "General question", case: "Sending a case", price: "Pricing", partner: "Partnership / agency" },
+    topics: { general: "General question", case: "Sending a case", price: "Pricing", partner: "Partnership / agency", pickup: "Courier / pickup request" },
     name: "Full name",
     email: "Email",
     phone: "Phone",
@@ -72,7 +72,7 @@ const COPY: Record<
   },
   fr: {
     topic: "Sujet",
-    topics: { general: "Question générale", case: "Envoyer un cas", price: "Tarifs", partner: "Partenariat / intermédiaire" },
+    topics: { general: "Question générale", case: "Envoyer un cas", price: "Tarifs", partner: "Partenariat / intermédiaire", pickup: "Demande d’enlèvement / coursier" },
     name: "Nom et prénom",
     email: "E-mail",
     phone: "Téléphone",
@@ -103,7 +103,7 @@ export function ContactForm({
   compact = false,
 }: {
   locale: Locale;
-  topic?: "general" | "case" | "price" | "partner";
+  topic?: "general" | "case" | "price" | "partner" | "pickup";
   page: string;
   hidden?: Record<string, string>;
   compact?: boolean;

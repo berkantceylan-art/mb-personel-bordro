@@ -13,6 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/vaka-gonder", priority: 0.6 },
     { path: "/iletisim", priority: 0.6 },
     { path: "/vakalar", priority: 0.6 },
+    { path: "/sss", priority: 0.5 },
     ...sitePages.map((p) => ({ path: `/${p.slug}`, priority: 0.6 })),
     ...products.map((p) => ({ path: `/urunler/${p.slug}`, priority: 0.7 })),
   ];

@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 const NAV: { href: string; label: string; soon?: boolean }[] = [
   { href: "/admin", label: "Pano" },
+  { href: "/admin/canli-destek", label: "Canlı destek" },
   { href: "/admin/gelen-kutusu", label: "Gelen kutusu" },
   { href: "/admin/portal/vakalar", label: "Portal vakaları" },
   { href: "/admin/portal", label: "Portal hesapları" },
@@ -17,6 +18,7 @@ const NAV: { href: string; label: string; soon?: boolean }[] = [
   { href: "/admin/urunler", label: "Ürünler" },
   { href: "/admin/vakalar", label: "Vaka galerisi" },
   { href: "/admin/sayfalar", label: "Sayfalar" },
+  { href: "/admin/sss", label: "Sıkça sorulanlar" },
   { href: "/admin/medya", label: "Medya kütüphanesi" },
   { href: "/admin/ayarlar", label: "Site ayarları" },
   { href: "/admin/gecmis", label: "Değişiklik geçmişi" },
@@ -26,10 +28,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const user = await requireSiteEditor();
   const path = (await headers()).get("x-pathname") ?? "";
   const supabase = await createClient();
-  const [{ data: unread }, { data: pendingAcc }] = await Promise.all([supabase.rpc("cms_unread_messages"), supabase.rpc("portal_pending_count")]);
+  const [{ data: unread }, { data: pendingAcc }, { data: chats }] = await Promise.all([
+    supabase.rpc("cms_unread_messages"),
+    supabase.rpc("portal_pending_count"),
+    supabase.rpc("cms_unread_chats"),
+  ]);
   const unreadCount = typeof unread === "number" ? unread : 0;
   const pendingCount = typeof pendingAcc === "number" ? pendingAcc : 0;
-  const badge: Record<string, number> = { "/admin/gelen-kutusu": unreadCount, "/admin/portal": pendingCount };
+  const badge: Record<string, number> = {
+    "/admin/gelen-kutusu": unreadCount,
+    "/admin/portal": pendingCount,
+    "/admin/canli-destek": typeof chats === "number" ? chats : 0,
+  };
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[15rem_1fr]">
       <aside className="bg-navy text-white lg:sticky lg:top-0 lg:h-dvh">

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { hasSupabase } from "./cms";
+import { normalizeSchedule, type Schedule } from "./hours";
 import { CONTACT, type I18nText } from "./i18n";
 import { createClient } from "./supabase/server";
 
@@ -13,9 +14,19 @@ export type SiteSettings = {
   map_url: string;
   hours: I18nText;
   footer_text: I18nText;
-  social: { instagram: string; facebook: string; linkedin: string; youtube: string };
+  social: { instagram: string; facebook: string; linkedin: string; youtube: string; tiktok: string; x: string };
   seo_title: I18nText;
   seo_description: I18nText;
+  /** Pazartesi→Pazar, "" kapalı ya da "09:00-18:00" */
+  schedule: Schedule;
+  /** Haritada aranacak adres (boşsa adres satırları kullanılır) */
+  map_query: string;
+  /** Sitede canlı destek sekmesi gösterilsin mi */
+  chat_enabled: boolean;
+  /** Anasayfa "Rakamlarla" şeridi (en fazla 4) */
+  stats: { value: string; label: I18nText }[];
+  /** Google Search Console doğrulama kodu (meta etiketi içeriği) */
+  google_verification: string;
 };
 
 export const DEFAULT_SETTINGS: SiteSettings = {
@@ -27,9 +38,14 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   map_url: "",
   hours: {},
   footer_text: {},
-  social: { instagram: "", facebook: "", linkedin: "", youtube: "" },
+  social: { instagram: "", facebook: "", linkedin: "", youtube: "", tiktok: "", x: "" },
   seo_title: {},
   seo_description: {},
+  schedule: ["", "", "", "", "", "", ""],
+  map_query: "",
+  chat_enabled: true,
+  stats: [],
+  google_verification: "",
 };
 
 const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -58,10 +74,42 @@ export function normalizeSettings(raw: unknown): SiteSettings {
     map_url: url(o.map_url),
     hours: i18n(o.hours),
     footer_text: i18n(o.footer_text),
-    social: { instagram: url(social.instagram), facebook: url(social.facebook), linkedin: url(social.linkedin), youtube: url(social.youtube) },
+    social: {
+      instagram: url(social.instagram),
+      facebook: url(social.facebook),
+      linkedin: url(social.linkedin),
+      youtube: url(social.youtube),
+      tiktok: url(social.tiktok),
+      x: url(social.x),
+    },
     seo_title: i18n(o.seo_title),
     seo_description: i18n(o.seo_description),
+    schedule: normalizeSchedule(o.schedule),
+    map_query: str(o.map_query, 200),
+    chat_enabled: o.chat_enabled !== false,
+    google_verification: str(o.google_verification, 100).replace(/[^A-Za-z0-9_-]/g, ""),
+    stats: (Array.isArray(o.stats) ? o.stats : [])
+      .map((x) => {
+        const r = (x && typeof x === "object" ? x : {}) as Record<string, unknown>;
+        return { value: str(r.value, 16), label: i18n(r.label) };
+      })
+      .filter((x) => x.value && Object.keys(x.label).length)
+      .slice(0, 4),
   };
+}
+
+/** Google Haritalar gömme adresi (API anahtarı gerektirmez) */
+export function mapEmbedUrl(st: SiteSettings, locale = "tr"): string | null {
+  const q = st.map_query || [st.address1, st.address2].filter(Boolean).join(", ");
+  if (!q) return null;
+  return `https://www.google.com/maps?q=${encodeURIComponent(q)}&hl=${locale}&z=16&output=embed`;
+}
+
+/** Yol tarifi bağlantısı */
+export function directionsUrl(st: SiteSettings): string | null {
+  const q = st.map_query || [st.address1, st.address2].filter(Boolean).join(", ");
+  if (!q) return st.map_url || null;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(q)}`;
 }
 
 /** Telefon numarasından tel: bağlantısı (Türkiye varsayılan) */

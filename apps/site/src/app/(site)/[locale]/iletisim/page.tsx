@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { ContactForm } from "@/components/ContactForm";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { LOCALES, isLocale, t, type Locale } from "@/lib/i18n";
-import { getSettings, telHref } from "@/lib/settings";
+import { MapEmbed } from "@/components/MapEmbed";
+import { HOURS_UI, groupedSchedule, hasSchedule, openState } from "@/lib/hours";
+import { directionsUrl, getSettings, mapEmbedUrl, telHref } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +62,10 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
   const c = COPY[locale];
   const st = await getSettings();
   const hours = t(st.hours, locale);
-  const topic = konu === "fiyat" ? "price" : konu === "is-birligi" ? "partner" : konu === "vaka" ? "case" : "general";
+  const embed = mapEmbedUrl(st, locale);
+  const directions = directionsUrl(st);
+  const now = openState(st.schedule, locale);
+  const topic = konu === "fiyat" ? "price" : konu === "is-birligi" ? "partner" : konu === "vaka" ? "case" : konu === "kurye" ? "pickup" : "general";
 
   return (
     <>
@@ -106,10 +111,25 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
                     </dd>
                   </div>
                 )}
-                {hours && (
+                {(hasSchedule(st.schedule) || hours) && (
                   <div>
                     <dt className="text-sm text-white/55">{c.hours}</dt>
-                    <dd className="whitespace-pre-line">{hours}</dd>
+                    {now && (
+                      <dd className="my-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-2xl bg-white/10 px-3 py-1.5 text-xs">
+                        <span aria-hidden="true" className={`h-2 w-2 rounded-full ${now.open ? "bg-[#3ddc84]" : "bg-white/40"}`} />
+                        <span className="font-semibold">{now.open ? HOURS_UI[locale].open : HOURS_UI[locale].closed}</span>
+                        {now.label && <span className="text-white/65">· {now.label}</span>}
+                      </dd>
+                    )}
+                    {hasSchedule(st.schedule) &&
+                      groupedSchedule(st.schedule, locale).map((g) => (
+                        <dd key={g.days} className="flex justify-between gap-4 text-sm">
+                          <span>{g.days}</span>
+                          <span className="tabular-nums">{g.hours}</span>
+                        </dd>
+                      ))}
+                    {hours && <dd className="mt-1 whitespace-pre-line text-sm text-white/70">{hours}</dd>}
+                    {hasSchedule(st.schedule) && <dd className="mt-1 text-xs text-white/45">({HOURS_UI[locale].tz})</dd>}
                   </div>
                 )}
               </dl>
@@ -123,17 +143,19 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
                   </span>
                 ))}
               </address>
-              <a
-                href={st.map_url || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`MB Dental ${st.address1} ${st.address2}`)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-block text-sm font-semibold text-smile-ink hover:underline"
-              >
-                {c.map} ↗
-              </a>
+              {st.map_url && (
+                <a href={st.map_url} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-semibold text-smile-ink hover:underline">
+                  {c.map} ↗
+                </a>
+              )}
             </div>
           </aside>
         </div>
+        {embed && (
+          <section aria-label={c.address} className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+            <MapEmbed src={embed} directions={directions} locale={locale} />
+          </section>
+        )}
       </main>
       <SiteFooter locale={locale} />
     </>
