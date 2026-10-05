@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: supabaseHost ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }] : [],
   },
+  // Paylaşım görseli (opengraph-image) fontları sunucu paketine dahil olsun
+  outputFileTracingIncludes: { "/**": ["./assets/fonts/**"] },
   experimental: {
     serverActions: { bodySizeLimit: "60mb" },
   },

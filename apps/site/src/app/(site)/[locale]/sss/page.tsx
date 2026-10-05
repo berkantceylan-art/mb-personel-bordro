@@ -81,7 +81,7 @@ export default async function FaqPage({ params }: { params: Promise<{ locale: st
 
   return (
     <>
-      <SiteHeader locale={locale} altPath="/sss" />
+      <SiteHeader locale={locale} altPath="/sss" current="faq" />
       <main>
         <section className="bg-navy text-white">
           <div className="mx-auto max-w-6xl px-4 pb-14 pt-8 sm:px-6">

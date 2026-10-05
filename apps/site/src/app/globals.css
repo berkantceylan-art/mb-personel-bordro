@@ -28,6 +28,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -123,6 +124,30 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .hub-panel {
+    animation: none;
+  }
+}
+
+/* Fotoğrafsız departman kartı */
+.dept-pattern {
+  background:
+    radial-gradient(circle at 80% 20%, rgb(43 196 238 / 0.45), transparent 45%),
+    radial-gradient(circle at 10% 90%, rgb(14 76 140 / 0.9), transparent 55%),
+    repeating-linear-gradient(135deg, transparent 0 22px, rgb(255 255 255 / 0.05) 22px 23px),
+    var(--color-navy);
+}
+
+/* Mobil menü */
+.mobile-menu[open] {
+  animation: menu-in 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes menu-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu[open] {
     animation: none;
   }
 }

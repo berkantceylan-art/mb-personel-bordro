@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { CaseCard } from "@/components/CaseCard";
 import { RichText } from "@/components/RichText";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import { breadcrumbJsonLd, ldScript } from "@/lib/seo";
 import { mediaUrl, publicCases, publicProduct, publicProducts } from "@/lib/cms";
 import { CASE_UI, DICTS, LOCALES, PRODUCT_UI, isLocale, t } from "@/lib/i18n";
 
@@ -49,6 +50,11 @@ export default async function ProductPage({ params }: { params: Params }) {
   const caseHref = `/${locale}/vaka-gonder?urun=${p.slug}`;
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
 
+  const crumbs = breadcrumbJsonLd([
+    { name: "MB Dental", path: `/${locale}` },
+    { name: ui.all, path: `/${locale}/urunler` },
+    { name, path: `/${locale}/urunler/${p.slug}` },
+  ]);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -178,7 +184,7 @@ export default async function ProductPage({ params }: { params: Params }) {
         )}
       </main>
       <SiteFooter locale={locale} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldScript([jsonLd, crumbs]) }} />
     </>
   );
 }

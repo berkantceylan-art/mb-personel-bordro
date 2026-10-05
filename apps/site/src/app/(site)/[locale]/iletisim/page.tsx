@@ -4,12 +4,14 @@ import { ContactForm } from "@/components/ContactForm";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { LOCALES, isLocale, t, type Locale } from "@/lib/i18n";
 import { MapEmbed } from "@/components/MapEmbed";
+import { SOCIAL_ICONS } from "@/components/SiteChrome";
+import { breadcrumbJsonLd, businessJsonLd, ldScript } from "@/lib/seo";
 import { HOURS_UI, groupedSchedule, hasSchedule, openState } from "@/lib/hours";
 import { directionsUrl, getSettings, mapEmbedUrl, telHref } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
-const COPY: Record<Locale, { title: string; lead: string; direct: string; phone: string; email: string; whatsapp: string; address: string; hours: string; map: string }> = {
+const COPY: Record<Locale, { title: string; lead: string; direct: string; phone: string; email: string; whatsapp: string; address: string; hours: string; map: string; follow: string }> = {
   tr: {
     title: "İletişim",
     lead: "Sorunuzu, fiyat talebinizi ya da iş birliği önerinizi yazın; en geç bir iş günü içinde dönüş yapıyoruz. Türkçe, İngilizce ve Fransızca konuşuyoruz.",
@@ -20,6 +22,7 @@ const COPY: Record<Locale, { title: string; lead: string; direct: string; phone:
     address: "Laboratuvar",
     hours: "Çalışma saatleri",
     map: "Haritada aç",
+    follow: "Bizi takip edin",
   },
   en: {
     title: "Contact",
@@ -31,6 +34,7 @@ const COPY: Record<Locale, { title: string; lead: string; direct: string; phone:
     address: "Laboratory",
     hours: "Opening hours",
     map: "Open in maps",
+    follow: "Follow us",
   },
   fr: {
     title: "Contact",
@@ -42,6 +46,7 @@ const COPY: Record<Locale, { title: string; lead: string; direct: string; phone:
     address: "Laboratoire",
     hours: "Horaires",
     map: "Ouvrir le plan",
+    follow: "Suivez-nous",
   },
 };
 
@@ -63,6 +68,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
   const st = await getSettings();
   const hours = t(st.hours, locale);
   const embed = mapEmbedUrl(st, locale);
+  const socials = (Object.keys(SOCIAL_ICONS) as (keyof typeof SOCIAL_ICONS)[]).filter((k) => st.social[k]);
   const directions = directionsUrl(st);
   const now = openState(st.schedule, locale);
   const topic = konu === "fiyat" ? "price" : konu === "is-birligi" ? "partner" : konu === "vaka" ? "case" : konu === "kurye" ? "pickup" : "general";
@@ -143,6 +149,19 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
                   </span>
                 ))}
               </address>
+              {socials.length > 0 && (
+                <ul aria-label={c.follow} className="mt-5 flex flex-wrap gap-2">
+                  {socials.map((k) => (
+                    <li key={k}>
+                      <a href={st.social[k]} target="_blank" rel="noreferrer" aria-label={SOCIAL_ICONS[k].label} className="grid h-10 w-10 place-items-center rounded-full bg-porcelain text-navy hover:bg-navy hover:text-white">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <path d={SOCIAL_ICONS[k].path} />
+                        </svg>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {st.map_url && (
                 <a href={st.map_url} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-semibold text-smile-ink hover:underline">
                   {c.map} ↗
@@ -158,6 +177,7 @@ export default async function ContactPage({ params, searchParams }: { params: Pr
         )}
       </main>
       <SiteFooter locale={locale} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldScript([businessJsonLd(st, locale), breadcrumbJsonLd([{ name: "MB Dental", path: `/${locale}` }, { name: c.title, path: `/${locale}/iletisim` }])]) }} />
     </>
   );
 }
