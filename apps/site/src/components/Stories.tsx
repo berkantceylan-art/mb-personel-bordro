@@ -129,7 +129,7 @@ export function StoryBubble({ stories, labels }: { stories: StoryView[]; labels:
           <button type="button" onClick={() => setOpen(idx)} aria-label={`${labels.open}: ${story.title}`} className="group relative block">
             <span className={`block rounded-[1.4rem] p-[3px] shadow-xl shadow-navy/30 ${fresh ? "story-ring bg-gradient-to-tr from-blue via-smile to-[#8be9ff]" : "bg-white"}`}>
               <span className="block overflow-hidden rounded-[1.2rem] bg-navy">
-                <span className="relative block h-[6.5rem] w-[4.6rem] sm:h-32 sm:w-[5.6rem]">
+                <span className="relative block h-[5.2rem] w-[3.7rem] sm:h-32 sm:w-[5.6rem]">
                   {story.cover &&
                     (story.coverIsVideo ? (
                       <video src={`${story.cover}#t=0.5`} muted playsInline preload="metadata" className="h-full w-full object-cover" />

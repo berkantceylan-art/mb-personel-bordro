@@ -1,19 +1,32 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { publicProduct } from "@/lib/cms";
 import { ContactForm } from "@/components/ContactForm";
-import { isLocale, t, type Locale } from "@/lib/i18n";
+import { LOCALES, isLocale, t, type Locale } from "@/lib/i18n";
 import { getSettings, telHref } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
+
+const PORTAL_LABEL: Record<Locale, string> = { tr: "Hekim portalı", en: "Doctor portal", fr: "Portail praticien" };
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) return {};
+  return {
+    title: `${COPY[locale].title} — MB Dental`,
+    description: COPY[locale].lead,
+    alternates: { canonical: `/${locale}/vaka-gonder`, languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}/vaka-gonder`])) },
+  };
+}
 
 const COPY: Record<Locale, { title: string; tooth: string; lead: string; mail: string; call: string; back: string; subject: string; files: string }> = {
   tr: {
     title: "Vaka gönder",
     tooth: "Seçilen diş",
-    lead: "Vakanızı kısaca yazın; aynı gün dönüp teslim tarihini bildirelim. Dosya yükleme hekim portalıyla birlikte açılacak.",
-    files: "Tarama dosyalarınızı (STL, ZIP) şimdilik e-postayla gönderebilirsiniz:",
+    lead: "Vakanızı kısaca yazın; size dönüp teslim tarihini bildirelim. Düzenli çalışıyorsanız hekim portalından vakalarınızı dosyalarıyla gönderip aşama aşama takip edebilirsiniz.",
+    files: "Tarama dosyalarınızı (STL, PLY, ZIP) portaldaki vakanıza yükleyebilir ya da e-postayla gönderebilirsiniz:",
     mail: "E-postayla gönder",
     call: "Ara",
     back: "Anasayfa",
@@ -22,8 +35,8 @@ const COPY: Record<Locale, { title: string; tooth: string; lead: string; mail: s
   en: {
     title: "Send a case",
     tooth: "Selected tooth",
-    lead: "Describe your case briefly; we get back to you the same day with a delivery date. File upload will open with the dentist portal.",
-    files: "For now you can email your scan files (STL, ZIP):",
+    lead: "Describe your case briefly; we will get back to you with a delivery date. If you work with us regularly, send cases with their files through the doctor portal and follow every stage.",
+    files: "Upload your scan files (STL, PLY, ZIP) to your case in the portal, or send them by email:",
     mail: "Send by email",
     call: "Call",
     back: "Home",
@@ -32,8 +45,8 @@ const COPY: Record<Locale, { title: string; tooth: string; lead: string; mail: s
   fr: {
     title: "Envoyer un cas",
     tooth: "Dent sélectionnée",
-    lead: "Décrivez brièvement votre cas ; nous revenons vers vous le jour même avec une date de livraison. L'envoi de fichiers ouvrira avec l'espace praticien.",
-    files: "En attendant, envoyez vos fichiers (STL, ZIP) par e-mail :",
+    lead: "Décrivez brièvement votre cas ; nous revenons vers vous avec une date de livraison. Si vous travaillez régulièrement avec nous, envoyez vos cas et leurs fichiers via le portail praticien et suivez chaque étape.",
+    files: "Déposez vos fichiers (STL, PLY, ZIP) dans votre cas sur le portail, ou envoyez-les par e-mail :",
     mail: "Envoyer par e-mail",
     call: "Appeler",
     back: "Accueil",
@@ -84,6 +97,9 @@ export default async function SendCase({
         </div>
         <p className="mt-8 text-sm text-slate">{c.files}</p>
         <div className="mt-3 flex flex-wrap gap-3">
+          <Link href="/portal" className="rounded-full bg-smile px-6 py-3 font-semibold text-navy hover:bg-navy hover:text-white">
+            {PORTAL_LABEL[locale]}
+          </Link>
           <a href={`mailto:${st.email}?subject=${subject}`} className="rounded-full bg-navy px-6 py-3 font-semibold text-white hover:bg-blue">
             {c.mail}
           </a>
