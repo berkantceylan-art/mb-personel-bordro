@@ -5,7 +5,9 @@ import { aiEnabled } from "@/lib/ai";
 import { hasSupabase, publicPages, type Announcement } from "@/lib/cms";
 import { groupedSchedule, hasSchedule } from "@/lib/hours";
 import { MobileMenu } from "./MobileMenu";
+import { StoryBubble } from "./Stories";
 import { SupportHub } from "./SupportHub";
+import { STORY_LABELS, storyViews } from "@/lib/stories";
 
 export function AnnouncementBar({ items, locale }: { items: Announcement[]; locale: Locale }) {
   const a = items[0];
@@ -57,7 +59,7 @@ export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; 
     [`/${locale}/iletisim`, d.nav.contact, current === "contact"],
   ];
   return (
-    <header className="site-header sticky top-0 z-40 bg-navy/95 text-white backdrop-blur supports-[backdrop-filter]:bg-navy/85">
+    <header className="site-header sticky top-0 z-40 border-b border-white/5 bg-navy text-white">
       <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3.5 sm:px-6">
         <Link href={`/${locale}`} className="flex shrink-0 items-center gap-3" aria-label="MB Dental">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -131,6 +133,7 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
   const blurb = t(st.footer_text, locale) || d.meta.description;
   const socials = (Object.keys(SOCIAL_ICONS) as (keyof typeof SOCIAL_ICONS)[]).filter((k) => st.social[k]);
   const pages = (await publicPages()).filter((p) => p.show_in_footer);
+  const stories = await storyViews(locale, st.social.instagram);
   return (
     <>
       <footer id="iletisim" className="bg-navy text-white">
@@ -261,6 +264,7 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
           </p>
         </div>
       </footer>
+      <StoryBubble stories={stories} labels={STORY_LABELS[locale]} />
       <SupportHub
         locale={locale}
         phone={st.phone}

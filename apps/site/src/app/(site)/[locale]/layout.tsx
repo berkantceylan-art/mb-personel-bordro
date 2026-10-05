@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { notFound } from "next/navigation";
 import "../../globals.css";
 import { DICTS, LOCALES, isLocale, t } from "@/lib/i18n";
@@ -47,7 +49,11 @@ export default async function LocaleLayout({ children, params }: { children: Rea
         />
         <meta name="theme-color" content="#072A50" />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
