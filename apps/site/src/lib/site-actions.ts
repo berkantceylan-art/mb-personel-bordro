@@ -9,7 +9,7 @@ import { createClient } from "./supabase/server";
 export type ContactValues = Partial<Record<"topic" | "name" | "email" | "phone" | "company" | "country" | "message", string>>;
 export type ContactState = { ok?: boolean; error?: "required" | "email" | "rate" | "spam" | "server"; at?: number; values?: ContactValues };
 
-const TOPICS = ["general", "case", "price", "partner"];
+const TOPICS = ["general", "case", "price", "partner", "pickup"];
 const s = (f: FormData, k: string, max: number) => String(f.get(k) ?? "").trim().slice(0, max);
 
 /** Sitedeki iletişim / vaka formu → gelen kutusu */
