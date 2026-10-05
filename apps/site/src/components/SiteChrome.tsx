@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CASE_UI, DICTS, LOCALES, LOCALE_NAMES, t, type Locale } from "@/lib/i18n";
 import { getSettings, telHref } from "@/lib/settings";
+import { aiEnabled } from "@/lib/ai";
 import { hasSupabase, publicPages, type Announcement } from "@/lib/cms";
 import { groupedSchedule, hasSchedule } from "@/lib/hours";
 import { MobileMenu } from "./MobileMenu";
@@ -268,6 +269,7 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
         whatsapp={st.whatsapp}
         schedule={st.schedule}
         chatEnabled={st.chat_enabled && hasSupabase()}
+        aiActive={aiEnabled() && st.ai_assistant !== "off"}
       />
     </>
   );

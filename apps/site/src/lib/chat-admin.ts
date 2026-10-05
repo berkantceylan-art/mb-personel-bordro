@@ -38,7 +38,7 @@ export async function adminChatThread(id: string, after = 0): Promise<ThreadSnap
   }
   return {
     chat: c,
-    messages: ((msgs ?? []) as { id: number; sender: "visitor" | "staff"; body: string; created_at: string }[]).map((m) => ({ id: m.id, sender: m.sender, body: m.body, at: m.created_at })),
+    messages: ((msgs ?? []) as { id: number; sender: "visitor" | "staff" | "bot"; body: string; created_at: string }[]).map((m) => ({ id: m.id, sender: m.sender, body: m.body, at: m.created_at })),
   };
 }
 

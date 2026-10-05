@@ -4,6 +4,7 @@ import { PRODUCT_CATEGORIES, mediaUrl, type Product } from "@/lib/cms";
 import { PRODUCT_UI } from "@/lib/i18n";
 import { MediaField } from "./MediaField";
 import { UploadForm } from "./UploadForm";
+import { AiSeoButton } from "./AiButtons";
 import { I18nField } from "./ui";
 
 export function ProductForm({ product }: { product?: Product }) {
@@ -107,6 +108,7 @@ export function ProductForm({ product }: { product?: Product }) {
       <details className="rounded-xl border border-gypsum bg-white p-4">
         <summary className="cursor-pointer text-sm font-semibold text-navy">Arama motoru ayarları (isteğe bağlı)</summary>
         <div className="mt-4 grid gap-4">
+          {!!process.env.ANTHROPIC_API_KEY && <AiSeoButton source={{ title: "name", summary: "summary", body: "body" }} />}
           <I18nField name="seo_title" label="Sayfa başlığı" value={product?.seo_title} hint="Boşsa ürün adı kullanılır." />
           <I18nField name="seo_description" label="Açıklama" value={product?.seo_description} multiline rows={2} hint="Boşsa kısa açıklama kullanılır. 150–160 karakter idealdir." />
         </div>

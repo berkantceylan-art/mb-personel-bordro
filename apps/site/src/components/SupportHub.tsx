@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { chatForget, chatSend, chatStart, chatState } from "@/lib/chat-actions";
+import { chatBot, chatForget, chatSend, chatStart, chatState } from "@/lib/chat-actions";
 import { HUB_UI, type ChatMessage, type ChatSnapshot } from "@/lib/chat-ui";
 import { openState, type OpenState, type Schedule } from "@/lib/hours";
 import type { Locale } from "@/lib/i18n";
@@ -15,6 +15,7 @@ type Props = {
   whatsapp: string;
   schedule: Schedule;
   chatEnabled: boolean;
+  aiActive?: boolean;
 };
 
 type Tab = "chat" | "whatsapp" | "contact";
@@ -23,7 +24,7 @@ const WA_PATH =
   "M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3z";
 
 /** Sağ alttaki "Destek" düğmesi: canlı destek, konulu WhatsApp, telefon/e-posta */
-export function SupportHub({ locale, phone, tel, email, whatsapp, schedule, chatEnabled }: Props) {
+export function SupportHub({ locale, phone, tel, email, whatsapp, schedule, chatEnabled, aiActive = false }: Props) {
   const ui = HUB_UI[locale];
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>(chatEnabled ? "chat" : whatsapp ? "whatsapp" : "contact");
@@ -34,6 +35,7 @@ export function SupportHub({ locale, phone, tel, email, whatsapp, schedule, chat
   const [unread, setUnread] = useState(0);
   const [showTop, setShowTop] = useState(false);
   const [pending, start] = useTransition();
+  const [botTyping, setBotTyping] = useState(false);
   const lastId = useRef(0);
   const seenId = useRef(0);
   const startedAt = useRef(0);
@@ -154,7 +156,16 @@ export function SupportHub({ locale, phone, tel, email, whatsapp, schedule, chat
         t: startedAt.current,
       });
       apply(snap, true);
+      if (snap.chat) askBot();
     });
+  }
+
+  function askBot() {
+    if (!aiActive) return;
+    setBotTyping(true);
+    chatBot(lastId.current, locale)
+      .then((s) => apply(s, true))
+      .finally(() => setBotTyping(false));
   }
 
   function onSend(form: FormData, el: HTMLFormElement) {
@@ -162,7 +173,11 @@ export function SupportHub({ locale, phone, tel, email, whatsapp, schedule, chat
     if (!body) return;
     setError(undefined);
     el.reset();
-    start(async () => apply(await chatSend(body, lastId.current), true));
+    start(async () => {
+      const snap = await chatSend(body, lastId.current);
+      apply(snap, true);
+      if (snap.chat && !snap.error) askBot();
+    });
   }
 
   function onNewChat() {
@@ -278,18 +293,37 @@ export function SupportHub({ locale, phone, tel, email, whatsapp, schedule, chat
                       <li key={m.id} className={`flex max-w-[85%] flex-col ${m.sender === "visitor" ? "self-end items-end" : "self-start items-start"}`}>
                         <span
                           className={`whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[15px] leading-snug ${
-                            m.sender === "visitor" ? "rounded-br-md bg-navy text-white" : "rounded-bl-md bg-white text-ink ring-1 ring-gypsum"
+                            m.sender === "visitor"
+                              ? "rounded-br-md bg-navy text-white"
+                              : m.sender === "bot"
+                                ? "rounded-bl-md bg-gradient-to-br from-smile/15 to-white text-ink ring-1 ring-smile/40"
+                                : "rounded-bl-md bg-white text-ink ring-1 ring-gypsum"
                           }`}
                         >
-                          {m.body}
+                          {m.sender === "visitor" ? m.body : <Linkify text={m.body} />}
                         </span>
-                        <span className="mt-0.5 px-1 text-[11px] text-slate">
-                          {m.sender === "visitor" ? ui.you : ui.lab} · {fmt.format(new Date(m.at))}
+                        <span className="mt-0.5 flex items-center gap-1 px-1 text-[11px] text-slate">
+                          {m.sender === "bot" && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="text-smile-ink">
+                              <path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9z" />
+                            </svg>
+                          )}
+                          {m.sender === "visitor" ? ui.you : m.sender === "bot" ? ui.bot : ui.lab} · {fmt.format(new Date(m.at))}
                         </span>
                       </li>
                     ))}
                     {chat.status === "closed" && <li className="self-center rounded-full bg-gypsum px-3 py-1 text-xs text-slate">{ui.closedNote}</li>}
-                    {messages.length > 0 && messages.every((m) => m.sender === "visitor") && state && !state.open && (
+                    {botTyping && (
+                      <li className="self-start rounded-2xl rounded-bl-md bg-white px-3.5 py-2 text-sm text-slate ring-1 ring-smile/40">
+                        <span className="typing-dots" aria-hidden="true">
+                          <i />
+                          <i />
+                          <i />
+                        </span>
+                        <span className="sr-only">{ui.typing}</span>
+                      </li>
+                    )}
+                    {!aiActive && messages.length > 0 && messages.every((m) => m.sender === "visitor") && state && !state.open && (
                       <li className="self-start max-w-[85%] rounded-2xl rounded-bl-md bg-white px-3.5 py-2 text-sm text-slate ring-1 ring-gypsum">{ui.offline}</li>
                     )}
                   </ol>
@@ -461,3 +495,21 @@ const HUB_STATE: Record<Locale, { open: string; closed: string }> = {
 };
 
 const NEW: Record<Locale, string> = { tr: "yeni mesaj", en: "new messages", fr: "nouveaux messages" };
+
+/** Mesajdaki site içi yolları (/portal, /tr/...) ve https bağlantılarını tıklanabilir yapar */
+function Linkify({ text }: { text: string }) {
+  const parts = text.split(/(https:\/\/[^\s)]+|(?<![\w.])\/(?:tr|en|fr|portal)(?:\/[\w\-/]*)?)/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        i % 2 === 1 ? (
+          <a key={i} href={p.replace(/[.,;:!?]+$/, "")} className="font-semibold underline underline-offset-2" target={p.startsWith("http") ? "_blank" : undefined} rel="noreferrer">
+            {p}
+          </a>
+        ) : (
+          p
+        ),
+      )}
+    </>
+  );
+}

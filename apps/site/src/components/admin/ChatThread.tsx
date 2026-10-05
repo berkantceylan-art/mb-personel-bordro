@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { aiChatSuggest } from "@/lib/ai-admin";
 import { adminChatReply, adminChatThread, type ThreadSnapshot } from "@/lib/chat-admin";
 import type { ChatMessage } from "@/lib/chat-ui";
 
@@ -29,11 +30,12 @@ const QUICK: Record<string, string[]> = {
 };
 
 /** Admin: canlı konuşma ekranı (4 sn'de bir yeni mesajları çeker) */
-export function ChatThread({ id, initial, visitorName, locale }: { id: string; initial: ChatMessage[]; visitorName: string; locale: string }) {
+export function ChatThread({ id, initial, visitorName, locale, aiOn = false }: { id: string; initial: ChatMessage[]; visitorName: string; locale: string; aiOn?: boolean }) {
   const [messages, setMessages] = useState(initial);
   const [error, setError] = useState<string>();
   const [text, setText] = useState("");
   const [pending, start] = useTransition();
+  const [suggesting, startSuggest] = useTransition();
   const lastId = useRef(initial.reduce((m, x) => Math.max(m, x.id), 0));
   const listRef = useRef<HTMLOListElement>(null);
   const fmt = new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
@@ -78,19 +80,38 @@ export function ChatThread({ id, initial, visitorName, locale }: { id: string; i
     <section aria-label="Konuşma" className="flex min-h-[32rem] flex-col overflow-hidden rounded-2xl border border-gypsum bg-white">
       <ol ref={listRef} aria-live="polite" className="flex max-h-[60dvh] min-h-[22rem] flex-1 flex-col gap-2 overflow-y-auto bg-porcelain p-5">
         {messages.map((m) => (
-          <li key={m.id} className={`flex max-w-[80%] flex-col ${m.sender === "staff" ? "self-end items-end" : "self-start items-start"}`}>
+          <li key={m.id} className={`flex max-w-[80%] flex-col ${m.sender !== "visitor" ? "self-end items-end" : "self-start items-start"}`}>
             <span
-              className={`whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 leading-snug ${m.sender === "staff" ? "rounded-br-md bg-navy text-white" : "rounded-bl-md bg-white text-ink ring-1 ring-gypsum"}`}
+              className={`whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 leading-snug ${
+                m.sender === "staff" ? "rounded-br-md bg-navy text-white" : m.sender === "bot" ? "rounded-br-md bg-smile/15 text-ink ring-1 ring-smile/40" : "rounded-bl-md bg-white text-ink ring-1 ring-gypsum"
+              }`}
             >
               {m.body}
             </span>
             <span className="mt-0.5 px-1 text-[11px] text-slate">
-              {m.sender === "staff" ? "MB Dental" : visitorName} · {fmt.format(new Date(m.at))}
+              {m.sender === "staff" ? "MB Dental" : m.sender === "bot" ? "Yapay zekâ asistanı (otomatik)" : visitorName} · {fmt.format(new Date(m.at))}
             </span>
           </li>
         ))}
       </ol>
       <div className="flex gap-2 overflow-x-auto border-t border-gypsum px-4 pt-3">
+        {aiOn && (
+          <button
+            type="button"
+            disabled={suggesting}
+            onClick={() =>
+              startSuggest(async () => {
+                const res = await aiChatSuggest(id);
+                if (res.data) setText(res.data);
+                else setError(res.error);
+              })
+            }
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-navy px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue disabled:opacity-60"
+            title="Konuşmaya ve site bilgilerine göre yapay zekâ cevap taslağı hazırlar"
+          >
+            ✦ {suggesting ? "Hazırlanıyor…" : "YZ ile cevap öner"}
+          </button>
+        )}
         {(QUICK[locale] ?? QUICK.tr).map((q) => (
           <button key={q} type="button" onClick={() => setText(q)} className="shrink-0 rounded-full bg-porcelain px-3 py-1.5 text-xs text-navy hover:bg-gypsum" title="Metni kutuya ekle">
             {q.length > 38 ? `${q.slice(0, 36)}…` : q}

@@ -3,6 +3,7 @@ import { savePage } from "@/lib/admin-actions";
 import { mediaUrl, type SitePage } from "@/lib/cms";
 import { MediaField } from "./MediaField";
 import { UploadForm } from "./UploadForm";
+import { AiSeoButton } from "./AiButtons";
 import { I18nField } from "./ui";
 
 export const PAGE_GROUP_LABELS: Record<SitePage["group"], string> = { kurumsal: "Kurumsal", teknoloji: "Teknoloji", kalite: "Kalite", diger: "Diğer" };
@@ -105,6 +106,7 @@ export function PageForm({ page }: { page?: SitePage }) {
       <details className="rounded-xl border border-gypsum bg-white p-4">
         <summary className="cursor-pointer text-sm font-semibold text-navy">Arama motoru ayarları (isteğe bağlı)</summary>
         <div className="mt-4 grid gap-4">
+          {!!process.env.ANTHROPIC_API_KEY && <AiSeoButton source={{ title: "title", summary: "summary", body: "body" }} />}
           <I18nField name="seo_title" label="Sayfa başlığı" value={page?.seo_title} hint="Boşsa sayfa başlığı kullanılır." />
           <I18nField name="seo_description" label="Açıklama" value={page?.seo_description} multiline rows={2} hint="Boşsa kısa açıklama kullanılır." />
         </div>
