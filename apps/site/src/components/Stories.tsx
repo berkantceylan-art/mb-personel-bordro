@@ -88,6 +88,89 @@ export function Stories({ stories, labels }: { stories: StoryView[]; labels: Lab
   );
 }
 
+/** Sitenin köşesinde küçük hikâye penceresi: tıklayınca hikâyeler tam ekran açılır */
+export function StoryBubble({ stories, labels }: { stories: StoryView[]; labels: Labels & { open: string; dismiss: string; badge: string } }) {
+  const [show, setShow] = useState(false);
+  const [open, setOpen] = useState<number | null>(null);
+  const [seen, setSeen] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setSeen(readSeen());
+    let hidden = false;
+    try {
+      hidden = sessionStorage.getItem("mbd-hikaye-gizli") === "1";
+    } catch {
+      /* depolama kapalı */
+    }
+    if (hidden) return;
+    const id = setTimeout(() => setShow(true), 1500);
+    return () => clearTimeout(id);
+  }, []);
+
+  const markSeen = useCallback((st: StoryView) => {
+    setSeen((prev) => {
+      if (prev[st.id] === st.version) return prev;
+      const next = { ...prev, [st.id]: st.version };
+      writeSeen(next);
+      return next;
+    });
+  }, []);
+
+  if (!stories.length) return null;
+  const firstUnseen = stories.findIndex((x) => seen[x.id] !== x.version);
+  const idx = firstUnseen < 0 ? 0 : firstUnseen;
+  const story = stories[idx];
+  const fresh = firstUnseen >= 0;
+
+  return (
+    <>
+      {show && open === null && (
+        <div className="story-bubble fixed bottom-4 left-4 z-40 sm:bottom-5 sm:left-5">
+          <button type="button" onClick={() => setOpen(idx)} aria-label={`${labels.open}: ${story.title}`} className="group relative block">
+            <span className={`block rounded-[1.4rem] p-[3px] shadow-xl shadow-navy/30 ${fresh ? "story-ring bg-gradient-to-tr from-blue via-smile to-[#8be9ff]" : "bg-white"}`}>
+              <span className="block overflow-hidden rounded-[1.2rem] bg-navy">
+                <span className="relative block h-[6.5rem] w-[4.6rem] sm:h-32 sm:w-[5.6rem]">
+                  {story.cover &&
+                    (story.coverIsVideo ? (
+                      <video src={`${story.cover}#t=0.5`} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={story.cover} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                    ))}
+                  <span className="absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/10 to-transparent" />
+                  <span className="absolute inset-x-1.5 bottom-1.5 line-clamp-2 text-left text-[11px] font-semibold leading-tight text-white">{story.title}</span>
+                  <span aria-hidden="true" className="absolute left-1/2 top-1/2 grid h-8 w-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-navy opacity-90 transition group-hover:scale-110">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 4v16l13-8z" />
+                    </svg>
+                  </span>
+                </span>
+              </span>
+            </span>
+            {fresh && <span className="absolute -right-1.5 -top-1.5 rounded-full bg-smile px-1.5 py-0.5 text-[10px] font-bold text-navy ring-2 ring-white">{labels.badge}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShow(false);
+              try {
+                sessionStorage.setItem("mbd-hikaye-gizli", "1");
+              } catch {
+                /* depolama kapalı */
+              }
+            }}
+            aria-label={labels.dismiss}
+            className="absolute -left-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-white text-sm leading-none text-slate shadow ring-1 ring-navy/10 hover:text-navy"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {open !== null && <Viewer stories={stories} start={open} labels={labels} onSeen={markSeen} onClose={() => setOpen(null)} />}
+    </>
+  );
+}
+
 function Viewer({
   stories,
   start,
@@ -192,7 +275,7 @@ function Viewer({
       aria-modal="true"
       aria-label={story.title}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/95 outline-none"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/95 outline-none"
     >
       <button type="button" onClick={prev} aria-label={labels.prev} disabled={si === 0 && fi === 0} className="mr-4 hidden h-12 w-12 place-items-center rounded-full bg-white/10 text-2xl text-white hover:bg-white/20 disabled:opacity-20 md:grid">
         ‹

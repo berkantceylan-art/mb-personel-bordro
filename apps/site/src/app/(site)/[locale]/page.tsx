@@ -4,10 +4,12 @@ import { AnnouncementBar, SiteFooter, SiteHeader } from "@/components/SiteChrome
 import { ToothChart } from "@/components/ToothChart";
 import { CaseCard } from "@/components/CaseCard";
 import { Popup } from "@/components/Popup";
-import { Stories, type StoryView } from "@/components/Stories";
-import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicCases, publicPages, publicProducts, publicSlides, publicStories } from "@/lib/cms";
+import { CountUp } from "@/components/CountUp";
+import { Stories } from "@/components/Stories";
+import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicCases, publicPages, publicProducts, publicSlides, publicDepartments } from "@/lib/cms";
 import { mediaKind } from "@/lib/media";
 import { businessJsonLd } from "@/lib/seo";
+import { STORY_LABELS, instagramPosts, storyViews } from "@/lib/stories";
 import { getSettings, telHref } from "@/lib/settings";
 import { CASE_UI, DICTS, PAGE_UI, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
 
@@ -19,26 +21,29 @@ const POPUP_LABELS: Record<Locale, { more: string; close: string }> = {
   en: { more: "Learn more", close: "Close" },
   fr: { more: "En savoir plus", close: "Fermer" },
 };
-const NEWS_TITLE: Record<Locale, string> = { tr: "Duyurular", en: "News", fr: "Actualités" };
-const STORY_LABELS: Record<Locale, { title: string; close: string; prev: string; next: string; mute: string; unmute: string; pause: string; play: string }> = {
-  tr: { title: "Hikâyeler", close: "Kapat", prev: "Önceki", next: "Sonraki", mute: "Sesi kapat", unmute: "Sesi aç", pause: "Duraklat", play: "Oynat" },
-  en: { title: "Stories", close: "Close", prev: "Previous", next: "Next", mute: "Mute", unmute: "Unmute", pause: "Pause", play: "Play" },
-  fr: { title: "Stories", close: "Fermer", prev: "Précédent", next: "Suivant", mute: "Couper le son", unmute: "Activer le son", pause: "Pause", play: "Lecture" },
+const STATS_TITLE: Record<Locale, string> = { tr: "Rakamlarla MB Dental", en: "MB Dental in numbers", fr: "MB Dental en chiffres" };
+const TEAM_TEASER: Record<Locale, { title: string; lead: string; more: string }> = {
+  tr: { title: "Departmanlarımız", lead: "Tasarımdan kalite kontrole, her aşamada uzman bir ekip.", more: "Ekibimizi tanıyın" },
+  en: { title: "Our departments", lead: "From design to quality control, an expert team at every stage.", more: "Meet the team" },
+  fr: { title: "Nos départements", lead: "De la conception au contrôle qualité, une équipe experte à chaque étape.", more: "Découvrir l’équipe" },
 };
-
+const IG_TITLE: Record<Locale, string> = { tr: "Instagram'da MB Dental", en: "MB Dental on Instagram", fr: "MB Dental sur Instagram" };
+const IG_FOLLOW: Record<Locale, string> = { tr: "Takip edin", en: "Follow", fr: "Suivre" };
+const NEWS_TITLE: Record<Locale, string> = { tr: "Duyurular", en: "News", fr: "Actualités" };
 export default async function Home({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const d = DICTS[locale];
-  const [banners, news, slides, products, storyRows, pages, featuredCases, popups] = await Promise.all([
+  const [banners, news, slides, products, pages, featuredCases, popups, departments, igPosts] = await Promise.all([
     publicAnnouncements("banner"),
     publicAnnouncements("news"),
     publicSlides("home"),
     publicProducts(),
-    publicStories(),
     publicPages(),
     publicCases({ featured: true }),
     publicAnnouncements("popup"),
+    publicDepartments(),
+    instagramPosts(8),
   ]);
   const productNames = Object.fromEntries(products.map((p) => [p.slug, t(p.name, locale)]));
   const popup = popups[0];
@@ -48,24 +53,7 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
   // Arama motorları için kurum bilgisi
   const orgLd = businessJsonLd(st, locale);
-  const stories: StoryView[] = storyRows.map((s) => {
-    const first = s.frames[0]?.path ?? null;
-    const coverPath = s.cover_path ?? first;
-    const label = t(s.link_label, locale);
-    return {
-      id: s.id,
-      version: s.updated_at,
-      title: t(s.title, locale),
-      cover: mediaUrl(coverPath),
-      coverIsVideo: !s.cover_path && !!first && mediaKind(null, first) === "video",
-      frames: s.frames.map((f) => ({
-        url: mediaUrl(f.path) ?? "",
-        kind: mediaKind(null, f.path) === "video" ? ("video" as const) : ("image" as const),
-        caption: t(f.caption, locale),
-      })),
-      link: s.link_href && label ? { href: s.link_href, label } : null,
-    };
-  });
+  const stories = await storyViews(locale, st.social.instagram);
   // Ürünler admin panelinden gelir; veritabanı boşsa sözlükteki sabit liste gösterilir
   const productGroups =
     products.length > 0
@@ -106,6 +94,39 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
             <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
               <Stories stories={stories} labels={STORY_LABELS[locale]} />
             </div>
+          </section>
+        )}
+
+        {/* Malzeme ve ürün şeridi */}
+        <div className="marquee border-b border-gypsum bg-white py-4" aria-hidden="true">
+          <div className="marquee-track">
+            {[0, 1].map((k) => (
+              <ul key={k} className="flex shrink-0 items-center gap-10 pr-10">
+                {[...d.tech.materialList, ...products.slice(0, 8).map((p) => t(p.name, locale))].map((m, x) => (
+                  <li key={`${k}-${x}`} className="display flex items-center gap-10 whitespace-nowrap text-2xl font-semibold text-navy/80 sm:text-3xl">
+                    {m}
+                    <span className="h-2 w-2 rounded-full bg-smile" />
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
+        </div>
+
+        {/* Rakamlarla MB Dental (Site ayarları) */}
+        {st.stats.length > 0 && (
+          <section aria-label={STATS_TITLE[locale]} className="relative overflow-hidden bg-navy text-white">
+            <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(60%_120%_at_90%_0%,rgba(43,196,238,.28),transparent_60%),radial-gradient(50%_100%_at_0%_100%,rgba(14,76,140,.9),transparent_60%)]" />
+            <dl className={`relative mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:px-6 ${st.stats.length >= 4 ? "grid-cols-2 lg:grid-cols-4" : st.stats.length === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2"}`}>
+              {st.stats.map((x, i) => (
+                <div key={i} className="reveal flex flex-col">
+                  <dt className="mt-1 text-sm text-white/70 sm:text-base">{t(x.label, locale)}</dt>
+                  <dd className="display order-first text-5xl font-semibold tracking-tight text-smile sm:text-6xl">
+                    <CountUp value={x.value} />
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </section>
         )}
 
@@ -215,7 +236,7 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
             <p className="mt-3 max-w-2xl text-lg text-slate">{d.tech.lead}</p>
             <ol className="mt-12 grid gap-8 md:grid-cols-4">
               {d.tech.steps.map((s, i) => (
-                <li key={s.name} className="relative">
+                <li key={s.name} className="step reveal relative">
                   <span className="display num text-5xl font-semibold text-smile" aria-hidden="true">
                     {i + 1}
                   </span>
@@ -329,6 +350,73 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+        {/* Ekibimiz: departmanlar */}
+        {departments.length > 0 && (
+          <section aria-labelledby="ekip-baslik" className="border-t border-gypsum bg-white">
+            <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <h2 id="ekip-baslik" className="display text-4xl font-semibold text-navy">
+                    {TEAM_TEASER[locale].title}
+                  </h2>
+                  <p className="mt-3 max-w-2xl text-lg text-slate">{TEAM_TEASER[locale].lead}</p>
+                </div>
+                <Link href={`/${locale}/ekibimiz`} className="rounded-full border border-gypsum px-5 py-2.5 font-semibold text-navy hover:border-navy">
+                  {TEAM_TEASER[locale].more} →
+                </Link>
+              </div>
+              <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {departments.slice(0, 4).map((dep, i) => {
+                  const img = mediaUrl(dep.image_path);
+                  return (
+                    <li key={dep.id} className="reveal">
+                      <Link href={`/${locale}/ekibimiz#departmanlar`} className="group relative block aspect-[3/4] overflow-hidden rounded-3xl bg-navy">
+                        {img ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={img} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                        ) : (
+                          <span aria-hidden="true" className="dept-pattern block h-full w-full" />
+                        )}
+                        <span className="absolute inset-0 bg-gradient-to-t from-navy via-navy/30 to-transparent" />
+                        <span className="absolute left-5 top-5 text-sm font-bold tabular-nums text-white/70">{String(i + 1).padStart(2, "0")}</span>
+                        <span className="display absolute inset-x-5 bottom-5 text-xl font-semibold leading-tight text-white">{t(dep.name, locale)}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </section>
+        )}
+
+        {/* Instagram (anahtar tanımlıysa) */}
+        {igPosts.length > 0 && (
+          <section aria-labelledby="ig-baslik" className="border-t border-gypsum">
+            <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <h2 id="ig-baslik" className="display text-4xl font-semibold text-navy">
+                  {IG_TITLE[locale]}
+                </h2>
+                {st.social.instagram && (
+                  <a href={st.social.instagram} target="_blank" rel="noreferrer" className="rounded-full bg-navy px-5 py-2.5 font-semibold text-white hover:bg-blue">
+                    {IG_FOLLOW[locale]} ↗
+                  </a>
+                )}
+              </div>
+              <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {igPosts.map((p) => (
+                  <li key={p.id}>
+                    <a href={p.href} target="_blank" rel="noreferrer" className="group relative block aspect-square overflow-hidden rounded-2xl bg-gypsum" aria-label={p.caption || "Instagram"}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      {p.video && <span aria-hidden="true" className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/85 text-[10px] text-navy">▶</span>}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
         )}
       </main>
