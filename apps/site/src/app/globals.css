@@ -168,3 +168,39 @@ body {
     min-width: 0 !important;
   }
 }
+
+/* "Yazıyor…" noktaları */
+.typing-dots {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px 0;
+}
+.typing-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-slate);
+  animation: typing 1.2s infinite ease-in-out;
+}
+.typing-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+.ai-filled {
+  box-shadow: 0 0 0 3px rgb(43 196 238 / 0.45);
+  transition: box-shadow 0.3s;
+}

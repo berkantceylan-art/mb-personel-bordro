@@ -27,6 +27,8 @@ export type SiteSettings = {
   stats: { value: string; label: I18nText }[];
   /** Google Search Console doğrulama kodu (meta etiketi içeriği) */
   google_verification: string;
+  /** Yapay zekâ asistanı: kapalı / yalnız mesai dışı / ekip cevap verene kadar her zaman */
+  ai_assistant: "off" | "offline" | "always";
 };
 
 export const DEFAULT_SETTINGS: SiteSettings = {
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   chat_enabled: true,
   stats: [],
   google_verification: "",
+  ai_assistant: "offline",
 };
 
 const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -87,6 +90,7 @@ export function normalizeSettings(raw: unknown): SiteSettings {
     schedule: normalizeSchedule(o.schedule),
     map_query: str(o.map_query, 200),
     chat_enabled: o.chat_enabled !== false,
+    ai_assistant: o.ai_assistant === "off" || o.ai_assistant === "always" ? o.ai_assistant : "offline",
     google_verification: str(o.google_verification, 100).replace(/[^A-Za-z0-9_-]/g, ""),
     stats: (Array.isArray(o.stats) ? o.stats : [])
       .map((x) => {

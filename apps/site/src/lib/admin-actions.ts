@@ -670,6 +670,7 @@ export async function saveSettings(_prev: FormState, form: FormData): Promise<Fo
       }),
       map_query: str(form, "map_query").slice(0, 200),
       chat_enabled: form.get("chat_enabled") === "on",
+      ai_assistant: ["off", "offline", "always"].includes(str(form, "ai_assistant")) ? str(form, "ai_assistant") : "offline",
       google_verification: str(form, "google_verification").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 100),
       stats: Array.from({ length: 4 }, (_, i) => ({ value: str(form, `stat_${i}_value`).slice(0, 16), label: i18n(form, `stat_${i}_label`) })).filter(
         (x) => x.value && Object.keys(x.label).length,

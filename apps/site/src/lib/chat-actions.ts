@@ -4,7 +4,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { hasSupabase } from "./cms";
 import type { ChatMessage, ChatSnapshot } from "./chat-ui";
+import { aiEnabled, assistantSystem, claude, type AiMessage } from "./ai";
+import { openState } from "./hours";
 import { isLocale } from "./i18n";
+import { getSettings } from "./settings";
 import { createClient } from "./supabase/server";
 
 /**
@@ -102,4 +105,41 @@ export async function chatSend(body: string, after = 0): Promise<ChatSnapshot> {
 /** Ziyaretçi yeni bir konuşma başlatmak isterse eski çerezi siler */
 export async function chatForget(): Promise<void> {
   (await cookies()).delete(COOKIE);
+}
+
+/**
+ * Yapay zekâ asistanı cevabı: ayar ve saatlere göre, ekip henüz yazmadıysa
+ * son ziyaretçi mesajına cevap üretir ve sohbete "bot" mesajı olarak ekler.
+ */
+export async function chatBot(after = 0, locale = "tr"): Promise<ChatSnapshot> {
+  const c = await readCookie();
+  if (!c || !aiEnabled()) return chatState(after);
+  const st = await getSettings();
+  if (!st.chat_enabled || st.ai_assistant === "off") return chatState(after);
+  if (st.ai_assistant === "offline") {
+    const now = openState(st.schedule, "tr");
+    if (now?.open) return chatState(after);
+  }
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.rpc("chat_poll", { p_chat: c.id, p_token: c.token, p_after: 0 });
+    const d = data as Poll;
+    if (!d?.messages?.length) return chatState(after);
+    const msgs = d.messages;
+    if (msgs.some((m) => m.sender === "staff") || msgs[msgs.length - 1].sender !== "visitor") return chatState(after);
+    // Sohbeti Claude mesaj biçimine çevir (ardışık aynı rol birleştirilir)
+    const history: AiMessage[] = [];
+    for (const m of msgs.slice(-20)) {
+      const role = m.sender === "visitor" ? "user" : "assistant";
+      const last = history[history.length - 1];
+      if (last && last.role === role) last.content += `\n${m.body}`;
+      else history.push({ role, content: m.body });
+    }
+    if (history[0]?.role !== "user") history.shift();
+    const text = await claude({ system: await assistantSystem(isLocale(locale) ? locale : "tr"), messages: history, maxTokens: 450 });
+    if (text) await supabase.rpc("chat_bot_reply", { p_chat: c.id, p_token: c.token, p_body: text.slice(0, 2000) });
+  } catch {
+    // Asistan çalışmazsa sessizce geç: ziyaretçi ekibin cevabını bekler
+  }
+  return chatState(after);
 }

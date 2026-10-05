@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChatThread } from "@/components/admin/ChatThread";
+import { aiEnabled } from "@/lib/ai";
 import { ConfirmButton } from "@/components/admin/ConfirmButton";
 import { Flash, formatTr } from "@/components/admin/ui";
 import { adminChatThread, chatToInbox, deleteChat, saveChatNote, setChatStatus } from "@/lib/chat-admin";
@@ -31,7 +32,7 @@ export default async function ChatPage({ params, searchParams }: { params: Promi
       </div>
       <Flash ok={ok} hata={hata} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <ChatThread id={c.id} initial={snap.messages} visitorName={c.name} locale={c.locale ?? "tr"} />
+        <ChatThread id={c.id} initial={snap.messages} visitorName={c.name} locale={c.locale ?? "tr"} aiOn={aiEnabled()} />
         <aside className="grid content-start gap-4">
           <dl className="grid gap-3 rounded-2xl border border-gypsum bg-white p-5 text-sm">
             <div>

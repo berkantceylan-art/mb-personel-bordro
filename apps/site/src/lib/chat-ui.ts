@@ -1,7 +1,7 @@
 // Canlı destek: istemci ve sunucuda kullanılabilen tipler ve metinler
 import type { Locale } from "./i18n";
 
-export type ChatMessage = { id: number; sender: "visitor" | "staff"; body: string; at: string };
+export type ChatMessage = { id: number; sender: "visitor" | "staff" | "bot"; body: string; at: string };
 export type ChatSnapshot = {
   chat: { status: "open" | "closed"; name: string; messages: ChatMessage[] } | null;
   error?: "required" | "email" | "rate" | "spam" | "server" | "gone";
@@ -35,6 +35,8 @@ type HubText = {
   chatOff: string;
   back: string;
   top: string;
+  bot: string;
+  typing: string;
 };
 
 export const HUB_UI: Record<Locale, HubText> = {
@@ -79,6 +81,8 @@ export const HUB_UI: Record<Locale, HubText> = {
     chatOff: "Canlı destek şu an kapalı. WhatsApp ya da telefonla ulaşabilirsiniz.",
     back: "Geri",
     top: "Sayfanın başına dön",
+    bot: "Yapay zekâ asistanı",
+    typing: "Asistan yazıyor…",
   },
   en: {
     button: "Support",
@@ -121,6 +125,8 @@ export const HUB_UI: Record<Locale, HubText> = {
     chatOff: "Live chat is currently off. Reach us on WhatsApp or by phone.",
     back: "Back",
     top: "Back to top",
+    bot: "AI assistant",
+    typing: "Assistant is typing…",
   },
   fr: {
     button: "Aide",
@@ -163,5 +169,7 @@ export const HUB_UI: Record<Locale, HubText> = {
     chatOff: "Le chat en direct est désactivé. Contactez-nous par WhatsApp ou par téléphone.",
     back: "Retour",
     top: "Retour en haut",
+    bot: "Assistant IA",
+    typing: "L’assistant écrit…",
   },
 };

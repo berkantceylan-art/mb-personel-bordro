@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { liveState } from "@/lib/cms";
+import { AiTranslateButton } from "./AiButtons";
+
+// Yapay zekâ anahtarı varsa çeviri düğmesi görünür (istemci paketinde bu değer hep boştur)
+const AI_ON = typeof process !== "undefined" && !!process.env.ANTHROPIC_API_KEY;
 import { LOCALES, LOCALE_NAMES, type I18nText } from "@/lib/i18n";
 
 const STATE: Record<ReturnType<typeof liveState>, { label: string; cls: string }> = {
@@ -70,6 +74,7 @@ export function I18nField({
       <legend className="px-1 text-sm font-semibold text-navy">
         {label}
         {required && <span className="text-bad"> *</span>}
+        {AI_ON && <AiTranslateButton name={name} />}
       </legend>
       {hint && <p className="mb-3 text-xs text-slate">{hint}</p>}
       <div className="grid gap-3">

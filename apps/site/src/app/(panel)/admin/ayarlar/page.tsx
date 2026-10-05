@@ -2,6 +2,7 @@ import { UploadForm } from "@/components/admin/UploadForm";
 import { Flash, I18nField, PageHead } from "@/components/admin/ui";
 import { saveSettings } from "@/lib/admin-actions";
 import { DAY_NAMES } from "@/lib/hours";
+import { aiEnabled } from "@/lib/ai";
 import { normalizeSettings } from "@/lib/settings";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,6 +23,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const supabase = await createClient();
   const { data, error } = await supabase.from("site_settings").select("data").eq("id", 1).maybeSingle();
   const st = normalizeSettings((data as { data?: unknown } | null)?.data);
+  const aiOn = aiEnabled();
 
   return (
     <>
@@ -61,6 +63,19 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <label className="flex items-center gap-3 text-sm font-semibold text-navy">
             <input type="checkbox" name="chat_enabled" defaultChecked={st.chat_enabled} className="h-5 w-5 accent-navy" />
             Sitede canlı destek açık
+          </label>
+          <label className="grid gap-1 text-sm font-semibold text-navy sm:max-w-md">
+            Yapay zekâ asistanı (canlı destekte)
+            <select name="ai_assistant" defaultValue={st.ai_assistant} className="field font-normal">
+              <option value="offline">Yalnız mesai dışında cevap versin</option>
+              <option value="always">Ekip cevap verene kadar her zaman cevap versin</option>
+              <option value="off">Kapalı</option>
+            </select>
+            <span className="text-xs font-normal text-slate">
+              {aiOn
+                ? "Asistan; ürünler, SSS ve iletişim bilgilerine dayanarak cevap verir, fiyat ve teslim süresi uydurmaz. Ekipten biri yazınca susar."
+                : "Yapay zekâ anahtarı (ANTHROPIC_API_KEY) henüz eklenmedi; eklenene kadar asistan çalışmaz."}
+            </span>
           </label>
         </fieldset>
 
