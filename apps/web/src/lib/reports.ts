@@ -263,6 +263,67 @@ export const REPORTS: ReportDef[] = [
     },
   },
   {
+    key: "personel-borc",
+    title: "Personele borç durumu",
+    description: "Her personele ay ay ne kadar borçlu olduğunuz: hakediş, avanslar, maaş ödemeleri, BES, icra ve kesintiler düşüldükten sonra kalan. Ayrılan personel dahil.",
+    group: "Maaş ve maliyet",
+    params: ["year", "department"],
+    roles: PAY,
+    async run(sb, p) {
+      const [entries, { data: emps }] = await Promise.all([
+        fetchAll<{ employee_id: string; period: string; type: string; channel: string; amount: number }>((a, b) =>
+          sb.from("ledger_entries").select("employee_id, period, type, channel, amount").gte("period", `${p.year}-01`).lte("period", `${p.year}-12`).is("voided_at", null).order("id").range(a, b),
+        ),
+        sb.from("employees").select("id, first_name, last_name, status, termination_date, departments(name)"),
+      ]);
+      const info = new Map((emps ?? []).map((e) => [e.id, {
+        ad: `${e.first_name} ${e.last_name === "-" ? "" : e.last_name}`.trim(),
+        bolum: (e.departments as unknown as { name: string } | null)?.name ?? "Bölümsüz",
+        durum: e.status === "terminated" ? `Ayrıldı${e.termination_date ? ` (${String(e.termination_date).split("-").reverse().join(".")})` : ""}` : "Aktif",
+      }]));
+      const periods = [...new Set(entries.map((e) => e.period))].sort();
+      const m = new Map<string, Record<string, number | string>>();
+      for (const e of entries) {
+        const i = info.get(e.employee_id);
+        if (!i || (p.department && i.bolum !== p.department)) continue;
+        const g = m.get(e.employee_id) ?? { bolum: i.bolum, ad: i.ad, durum: i.durum, hakedis: 0, avans: 0, maas: 0, bes: 0, icra: 0, kesinti: 0, kalan: 0, ...Object.fromEntries(periods.map((x) => [`k_${x}`, 0])) };
+        const amt = Number(e.amount);
+        const credit = ["ACCRUAL", "BONUS", "OVERTIME", "ADJUSTMENT"].includes(e.type);
+        if (e.type === "ADJUSTMENT") { /* devir: toplamda birbirini götürür, aya göre kalanı taşır */ }
+        else if (credit) g.hakedis = Number(g.hakedis) + amt;
+        else if (e.type === "ADVANCE") g.avans = Number(g.avans) + amt;
+        else if (e.type === "SALARY") g.maas = Number(g.maas) + amt;
+        else if (e.type === "BES") g.bes = Number(g.bes) + amt;
+        else if (e.type === "GARNISHMENT") g.icra = Number(g.icra) + amt;
+        else g.kesinti = Number(g.kesinti) + amt;
+        g[`k_${e.period}`] = Number(g[`k_${e.period}`]) + (credit ? amt : -amt);
+        g.kalan = Number(g.kalan) + (credit ? amt : -amt);
+        m.set(e.employee_id, g);
+      }
+      const out = [...m.values()]
+        .filter((g) => Number(g.hakedis) || Number(g.kalan))
+        .sort((a, b) => String(a.bolum).localeCompare(String(b.bolum), "tr") || String(a.ad).localeCompare(String(b.ad), "tr"));
+      const owed = out.reduce((a, r) => a + Math.max(0, Number(r.kalan)), 0);
+      const over = out.reduce((a, r) => a + Math.min(0, Number(r.kalan)), 0);
+      const money = ["hakedis", "avans", "maas", "bes", "icra", "kesinti", ...periods.map((x) => `k_${x}`), "kalan"];
+      return {
+        title: "Personele borç durumu",
+        subtitle: `${p.year}${p.department ? ` · ${p.department}` : ""} · personele borç ${formatTL(owed)}${over ? ` · fazla ödenen ${formatTL(-over)}` : ""}`,
+        columns: [
+          { key: "bolum", label: "Bölüm", width: 16 }, { key: "ad", label: "Personel", width: 22 }, { key: "durum", label: "Durum", width: 16 },
+          { key: "hakedis", label: "Hakediş", type: "money" }, { key: "avans", label: "Avans", type: "money" }, { key: "maas", label: "Maaş ödemesi", type: "money" },
+          { key: "bes", label: "BES", type: "money" }, { key: "icra", label: "İcra", type: "money" }, { key: "kesinti", label: "Eksik gün + kesinti", type: "money" },
+          ...periods.map((x) => ({ key: `k_${x}`, label: `${periodLabel(x)} kalan`, type: "money" as const })),
+          { key: "kalan", label: "Toplam borç", type: "money" },
+        ],
+        rows: out,
+        totals: { ad: `${out.length} kişi`, ...sumBy(out, money) },
+        warnings: over ? ["Eksi kalan, personele fazla ödeme yapıldığını gösterir (sonraki aydan düşülmesi gerekir)."] : undefined,
+        fileName: `personel-borc-${p.year}${p.department ? "-" + slug(p.department) : ""}`,
+      };
+    },
+  },
+  {
     key: "yillik-trend",
     title: "Yıllık hakediş ve ödeme trendi",
     description: "Yılın her ayı için toplam hakediş, bankadan ve elden ödenen, kesinti ve kalan; bölüm filtreli.",
