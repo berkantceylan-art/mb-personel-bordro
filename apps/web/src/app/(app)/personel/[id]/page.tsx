@@ -53,7 +53,9 @@ export default async function EmployeeProfile({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const period = sp.donem && /^\d{4}-\d{2}$/.test(sp.donem) ? sp.donem : currentPeriod();
+  // Varsayılan: tüm dönemlerin hareketleri; listeden tek ay seçilebilir
+  const all = !sp.donem || sp.donem === "tumu";
+  const period = !all && /^\d{4}-\d{2}$/.test(sp.donem!) ? sp.donem! : currentPeriod();
   const showVoided = sp.iptal === "1";
   const s = await getSession();
   const pay = canManagePay(s.role);
@@ -70,7 +72,9 @@ export default async function EmployeeProfile({
   const [{ data: priv }, { data: contracts }, { data: entries }, { data: docTypes }, { data: docs }, { data: periods }, { data: payLines }, { data: garnFiles }, { data: besRows }] = await Promise.all([
     supabase.from("employee_private").select("*").eq("employee_id", id).maybeSingle(),
     supabase.from("pay_contracts").select("*").eq("employee_id", id).order("valid_from", { ascending: false }),
-    supabase.from("ledger_entries").select("*").eq("employee_id", id).eq("period", period),
+    all
+      ? supabase.from("ledger_entries").select("*").eq("employee_id", id).order("entry_date").order("created_at").limit(5000)
+      : supabase.from("ledger_entries").select("*").eq("employee_id", id).eq("period", period),
     supabase.from("document_types").select("id, name, required, category, has_expiry").order("sort_order"),
     supabase.from("employee_documents").select("id, document_type_id, file_path, file_name, expires_on, uploaded_at").eq("employee_id", id),
     supabase.from("ledger_entries").select("period").eq("employee_id", id).is("voided_at", null),
@@ -119,6 +123,18 @@ export default async function EmployeeProfile({
   const missing = required.filter((d) => !docsByType.has(d.id)).length;
 
   const allPeriods = [...new Set([period, currentPeriod(), ...(periods ?? []).map((p) => p.period as string)])].sort().reverse();
+  // Dönem dönem özet (tüm dönemler görünümünde)
+  const byPeriod = new Map<string, { acc: number; bank: number; cash: number; ded: number; bal: number }>();
+  if (all) for (const r of ledger) {
+    const g = byPeriod.get(r.period) ?? { acc: 0, bank: 0, cash: 0, ded: 0, bal: 0 };
+    const credit = ["ACCRUAL", "BONUS", "OVERTIME", "ADJUSTMENT"].includes(r.type);
+    if (["ACCRUAL", "BONUS", "OVERTIME"].includes(r.type)) g.acc += r.amount;
+    else if (["BES", "GARNISHMENT", "DEDUCTION"].includes(r.type)) g.ded += r.amount;
+    else if (r.channel === "BANK") g.bank += r.amount;
+    else if (r.channel === "CASH") g.cash += r.amount;
+    g.bal += credit ? r.amount : -r.amount;
+    byPeriod.set(r.period, g);
+  }
   const dept = (e.departments as unknown as { name: string } | null)?.name;
   const branch = (e.branches as unknown as { name: string } | null)?.name;
   const p = (priv ?? {}) as Priv;
@@ -168,11 +184,12 @@ export default async function EmployeeProfile({
         <div className="flex-[999_1_560px] min-w-0 flex flex-col gap-5">
           {pay && (
             <Card
-              title={`${periodLabel(period)} hakedişi`}
+              title={all ? "Tüm dönemler" : `${periodLabel(period)} hakedişi`}
               action={
                 <form className="flex items-center gap-2 text-[13px] text-muted">
                   <label htmlFor="donem">Dönem</label>
-                  <select id="donem" name="donem" defaultValue={period} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white text-ink">
+                  <select id="donem" name="donem" defaultValue={all ? "tumu" : period} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white text-ink">
+                    <option value="tumu">Tüm dönemler</option>
                     {allPeriods.map((x) => <option key={x} value={x}>{periodLabel(x)}</option>)}
                   </select>
                   <button className="h-10 px-3 rounded-lg border border-[#D5DEE8] bg-white text-brand-700 font-semibold">Göster</button>
@@ -193,6 +210,32 @@ export default async function EmployeeProfile({
                   </div>
                 ))}
               </div>
+              {all && byPeriod.size > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[13px] min-w-[560px]">
+                    <thead><tr className="text-left text-xs text-muted">
+                      <th className="py-2 px-1.5 font-semibold border-b border-line">Dönem</th>
+                      <th className="py-2 px-1.5 font-semibold border-b border-line text-right">Hakediş</th>
+                      <th className="py-2 px-1.5 font-semibold border-b border-line text-right">Bankadan</th>
+                      <th className="py-2 px-1.5 font-semibold border-b border-line text-right">Elden</th>
+                      <th className="py-2 px-1.5 font-semibold border-b border-line text-right">Kesinti</th>
+                      <th className="py-2 px-1.5 font-semibold border-b border-line text-right">Kalan</th>
+                    </tr></thead>
+                    <tbody>
+                      {[...byPeriod.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([per, g]) => (
+                        <tr key={per}>
+                          <td className="py-2 px-1.5 border-b border-[#EEF2F6]"><Link href={`/personel/${id}?donem=${per}`} className="font-semibold text-brand-700">{periodLabel(per)}</Link></td>
+                          <td className="num py-2 px-1.5 border-b border-[#EEF2F6] text-right">{formatTL(g.acc)}</td>
+                          <td className="num py-2 px-1.5 border-b border-[#EEF2F6] text-right">{formatTL(g.bank)}</td>
+                          <td className="num py-2 px-1.5 border-b border-[#EEF2F6] text-right">{formatTL(g.cash)}</td>
+                          <td className="num py-2 px-1.5 border-b border-[#EEF2F6] text-right">{formatTL(g.ded)}</td>
+                          <td className={`num py-2 px-1.5 border-b border-[#EEF2F6] text-right font-semibold ${g.bal > 0 ? "text-warn" : g.bal < 0 ? "text-bad" : ""}`}>{formatTL(g.bal)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               {contract && split && (
                 <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(240px,1fr))] text-[13px]">
                   <div className="border border-dashed border-[#C5D0DC] rounded-[10px] p-3.5 flex flex-col gap-1.5">
@@ -217,16 +260,17 @@ export default async function EmployeeProfile({
             <Card
               title="Cari hareketler"
               action={
-                <Link href={`/personel/${id}?donem=${period}${showVoided ? "" : "&iptal=1"}`} className="text-[13px] font-semibold text-brand-700">
+                <Link href={`/personel/${id}?donem=${all ? "tumu" : period}${showVoided ? "" : "&iptal=1"}`} className="text-[13px] font-semibold text-brand-700">
                   {showVoided ? "İptal edilenleri gizle" : `İptal / silinenleri göster (${voided.length})`}
                 </Link>
               }
             >
               <div className="overflow-x-auto">
-                <table className="w-full text-[13px] min-w-[640px]">
+                <table className="w-full text-[13px] min-w-[720px]">
                   <thead>
                     <tr className="text-left text-xs text-muted">
                       <th className="py-2 px-1.5 font-semibold border-b border-line">Tarih</th>
+                      {all && <th className="py-2 px-1.5 font-semibold border-b border-line">Dönem</th>}
                       <th className="py-2 px-1.5 font-semibold border-b border-line">Hareket</th>
                       <th className="py-2 px-1.5 font-semibold border-b border-line">Kanal</th>
                       <th className="py-2 px-1.5 font-semibold border-b border-line text-right">Tutar</th>
@@ -240,6 +284,7 @@ export default async function EmployeeProfile({
                       return (
                         <tr key={r.id}>
                           <td className="num py-2.5 px-1.5 border-b border-[#EEF2F6] text-muted">{formatDate(r.date)}</td>
+                          {all && <td className="py-2.5 px-1.5 border-b border-[#EEF2F6] text-muted whitespace-nowrap">{periodLabel(r.period)}</td>}
                           <td className="py-2.5 px-1.5 border-b border-[#EEF2F6]">
                             {TYPE_LABEL[r.type]}
                             {noteById.get(r.id) && <><br /><span className="text-xs text-muted">{noteById.get(r.id)}</span></>}
@@ -258,10 +303,11 @@ export default async function EmployeeProfile({
                         </tr>
                       );
                     })}
-                    {rows.length === 0 && <tr><td colSpan={6} className="py-6 text-center text-muted">Bu dönemde hareket yok.</td></tr>}
+                    {rows.length === 0 && <tr><td colSpan={all ? 7 : 6} className="py-6 text-center text-muted">{all ? "Henüz hareket yok." : "Bu dönemde hareket yok."}</td></tr>}
                     {showVoided && voided.map((r) => (
                       <tr key={r.id} className="text-muted line-through decoration-[#B42318]/50">
                         <td className="num py-2 px-1.5 border-b border-[#EEF2F6]">{formatDate(r.entry_date)}</td>
+                        {all && <td className="py-2 px-1.5 border-b border-[#EEF2F6]">{periodLabel(r.period)}</td>}
                         <td className="py-2 px-1.5 border-b border-[#EEF2F6] no-underline">{TYPE_LABEL[r.type]}<br /><span className="text-xs">{r.void_reason}</span></td>
                         <td className="py-2 px-1.5 border-b border-[#EEF2F6]">{r.channel === "BANK" ? "Banka" : r.channel === "CASH" ? "Elden" : "—"}</td>
                         <td className="num py-2 px-1.5 border-b border-[#EEF2F6] text-right">{formatTL(Number(r.amount))}</td>
