@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { NextResponse, type NextRequest } from "next/server";
 import { garantiEmeklilikXls, garantiMaasXlsx } from "@/lib/bank-files";
+import { loadLuca, lucaXls, lucaXlsx } from "@/lib/luca";
 import { findReport, parseParams, visibleColumns } from "@/lib/reports";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
@@ -18,6 +19,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
 
   // Banka formatındaki dosyalar (?bicim=tablo ile düz Excel de alınabilir)
   if (req.nextUrl.searchParams.get("bicim") !== "tablo") {
+    if (key === "luca-puantaj") {
+      const d = await loadLuca(supabase, p.period, p.department);
+      const name = `LUCA-PUANTAJ-${p.period}${p.department ? "-" + p.department : ""}`;
+      if (req.nextUrl.searchParams.get("bicim") === "xls") {
+        return new NextResponse(new Uint8Array(lucaXls(d, p.department)), {
+          headers: { "Content-Type": "application/vnd.ms-excel", "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}.xls` },
+        });
+      }
+      const buf = await lucaXlsx(d, p.department);
+      return new NextResponse(buf, {
+        headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}.xlsx` },
+      });
+    }
     if (key === "banka-maas") {
       const buf = await garantiMaasXlsx(
         res.rows.map((r) => ({ tckn: String(r.tckn ?? ""), ad: String(r.ad ?? ""), iban: String(r.iban ?? ""), tutar: Number(r.tutar ?? 0) })),

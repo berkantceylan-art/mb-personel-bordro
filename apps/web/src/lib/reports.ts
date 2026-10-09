@@ -5,6 +5,7 @@ import { computePayroll } from "@/lib/payroll";
 import type { createClient } from "@/lib/supabase/server";
 import { currentPeriod, periodLabel, todayIso } from "@/lib/session";
 import { fetchAll, loadMonth } from "@/lib/timekeeping";
+import { loadLuca } from "@/lib/luca";
 
 type SB = Awaited<ReturnType<typeof createClient>>;
 
@@ -581,6 +582,33 @@ export const REPORTS: ReportDef[] = [
         title: "İŞKUR aylık işgücü çizelgesi", subtitle: periodLabel(p.period),
         columns: [{ key: "kalem", label: "Kalem", width: 40 }, { key: "kadin", label: "Kadın", type: "number" }, { key: "erkek", label: "Erkek", type: "number" }, { key: "belirsiz", label: "Belirsiz", type: "number" }, { key: "toplam", label: "Toplam", type: "number" }, { key: "isimler", label: "İsimler", width: 60 }],
         rows, warnings, fileName: `iskur-isgucu-${p.period}`,
+      };
+    },
+  },
+  {
+    key: "luca-puantaj",
+    title: "Luca puantaj aktarımı",
+    description: "Mali müşavirin Luca şablonuyla aynı yerleşimde aylık puantaj listesi (gün kodları N/T/H/İ/R/E/S/K, SGK günü, eksik gün nedeni). Bordro kesinleştikten sonra indirip Luca'ya aktarın.",
+    group: "Uyum",
+    params: ["period", "department"],
+    roles: HR,
+    async run(sb, p) {
+      const d = await loadLuca(sb, p.period, p.department);
+      const dayCols = d.weekdays.map((w, i) => ({ key: `g${i + 1}`, label: w ? `${i + 1} ${w}` : `${i + 1}`, width: 5 }));
+      const rows = d.rows.map((r) => ({
+        sira: r.sira, ad: r.ad, tc: r.tc, giris: r.giris, cikis: r.cikis, bolum: r.dept,
+        ...Object.fromEntries(r.days.map((c, i) => [`g${i + 1}`, c])),
+        cal: r.cal, ssk: r.ssk, izin: r.izin, top: r.top, eks: r.eks, neden: r.neden,
+      }));
+      const warnings = [
+        "Kodlar: N normal · H hafta tatili · T resmi tatil · K yarım gün tatil · S yıllık izin · İ diğer izin · R rapor · E eksik gün (devamsızlık) · \"-\" çalışmıyor. Eksik gün nedeni SGK kodlarıyla verildi; mali müşavirle teyit edin.",
+        ...d.warnings,
+      ];
+      return {
+        title: "Luca puantaj aktarımı", subtitle: periodLabel(p.period) + (p.department ? ` · ${p.department}` : ""),
+        columns: [{ key: "sira", label: "Sıra", type: "number" }, { key: "ad", label: "Adı soyadı", width: 24 }, { key: "tc", label: "TC kimlik", width: 14 }, { key: "giris", label: "Giriş" }, { key: "cikis", label: "Çıkış" }, { key: "bolum", label: "Bölüm" },
+          ...dayCols, { key: "cal", label: "Çal", type: "number" }, { key: "ssk", label: "SGK", type: "number" }, { key: "izin", label: "İzin", type: "number" }, { key: "top", label: "Top", type: "number" }, { key: "eks", label: "Eks", type: "number" }, { key: "neden", label: "Eksik gün nedeni", width: 20 }],
+        rows, warnings, totals: { ad: `${rows.length} kişi`, ...sumBy(rows, ["cal", "ssk", "izin", "eks"]) }, fileName: `luca-puantaj-${p.period}`,
       };
     },
   },
