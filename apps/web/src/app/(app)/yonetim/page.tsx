@@ -6,7 +6,8 @@ import { Tabs } from "@/components/Compliance";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { BranchForm, BulkInviteForm, InviteForm } from "./AdminForms";
-import { deleteDepartment, deleteDevice, deleteInvite, removeMember, saveDepartment, saveDevice, updateMember } from "./actions";
+import { deleteDepartment, deleteDevice, deleteInvite, removeMember, saveCompanyInfo, saveDepartment, saveDevice, updateMember } from "./actions";
+import { PendingSubmit } from "@/components/ConfirmSubmit";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 const ROLE: Record<string, string> = { owner: "Şirket sahibi", accountant: "Muhasebe", hr: "İnsan kaynakları", branch_manager: "Şube sorumlusu", safety: "İSG uzmanı", employee: "Personel", site_editor: "Web sitesi editörü" };
@@ -20,7 +21,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const s = await getSession();
   if (!["owner", "hr"].includes(s.role)) redirect("/");
   const sp = await searchParams;
-  const tab = ["kullanicilar", "davetler", "subeler", "bolumler", "cihazlar", "denetim"].includes(sp.sekme ?? "") ? sp.sekme! : "kullanicilar";
+  const tab = ["kullanicilar", "davetler", "subeler", "bolumler", "cihazlar", "sirket", "denetim"].includes(sp.sekme ?? "") ? sp.sekme! : "kullanicilar";
   const supabase = await createClient();
   const isOwner = s.role === "owner";
 
@@ -30,11 +31,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     supabase.from("departments").select("id, name").order("name"),
     supabase.from("employees").select("id, first_name, last_name, user_id, department_id").eq("status", "active").order("first_name"),
   ]);
-  const [members, mb, invites, devices, audit] = await Promise.all([
+  const [members, mb, invites, devices, company, audit] = await Promise.all([
     tab === "kullanicilar" ? supabase.from("memberships").select("user_id, role, all_branches, display_name, created_at").order("created_at") : Promise.resolve({ data: [] }),
     tab === "kullanicilar" ? supabase.from("membership_branches").select("user_id, branch_id") : Promise.resolve({ data: [] }),
     tab === "davetler" ? supabase.from("invites").select("*").order("created_at", { ascending: false }).limit(300) : Promise.resolve({ data: [] }),
     tab === "cihazlar" ? supabase.from("devices").select("*").order("code") : Promise.resolve({ data: [] }),
+    tab === "sirket" ? supabase.from("companies").select("*").eq("id", s.companyId).maybeSingle() : Promise.resolve({ data: null }),
     tab === "denetim" && isOwner
       ? (() => { let q = supabase.from("audit_log").select("id, table_name, row_id, action, old_data, new_data, actor, at").order("at", { ascending: false }).limit(200); if (sp.tablo) q = q.eq("table_name", sp.tablo); return q; })()
       : Promise.resolve({ data: [] }),
@@ -51,7 +53,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     <>
       <PageHeader title="Yönetim paneli" subtitle={`${(dir ?? []).length} kullanıcı · ${withAccount}/${(emps ?? []).length} personelin mobil hesabı var`} />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[1320px]">
-        <Tabs base="/yonetim" active={tab} tabs={[["kullanicilar", "Kullanıcılar ve roller"], ["davetler", "Davet kodları"], ["subeler", "Şubeler ve konum"], ["bolumler", "Bölümler"], ["cihazlar", "PDKS cihazları"], ...(isOwner ? [["denetim", "Denetim kaydı"] as [string, string]] : [])]} />
+        <Tabs base="/yonetim" active={tab} tabs={[["kullanicilar", "Kullanıcılar ve roller"], ["davetler", "Davet kodları"], ["subeler", "Şubeler ve konum"], ["bolumler", "Bölümler"], ["cihazlar", "PDKS cihazları"], ["sirket", "Şirket bilgileri"], ...(isOwner ? [["denetim", "Denetim kaydı"] as [string, string]] : [])]} />
 
         {tab === "kullanicilar" && (
           <section className="bg-white border border-line rounded-[14px] overflow-x-auto">
@@ -122,6 +124,33 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             </section>
           </>
         )}
+
+        {tab === "sirket" && (() => {
+          const c = (company.data ?? {}) as Record<string, string | null>;
+          const inp = "h-11 rounded-[10px] border border-[#D5DEE8] bg-white px-3.5 w-full";
+          const fields: Array<[string, string, string?]> = [
+            ["name", "Şirket unvanı"], ["sgk_registration_no", "SGK işyeri sicil no", "Muayene formu ve bankaya verilen dosyalarda kullanılır"], ["tax_office", "Vergi dairesi"], ["tax_no", "Vergi numarası"],
+            ["phone", "Telefon"], ["email", "KVKK başvuru e-postası", "Aydınlatma metninde personelin başvuracağı adres"],
+          ];
+          return (
+            <Card title="Şirket bilgileri" action={<span className="text-xs text-muted">İş sözleşmesi, gizlilik sözleşmesi, KVKK ve muayene formuna yazılır</span>}>
+              <form action={saveCompanyInfo} className="grid gap-4 md:grid-cols-2">
+                {fields.map(([k, label, hint]) => (
+                  <label key={k} className="flex flex-col gap-1.5 text-sm text-muted">
+                    {label}
+                    <input name={k} defaultValue={c[k] ?? ""} disabled={!isOwner} className={inp} />
+                    {hint && <span className="text-xs">{hint}</span>}
+                  </label>
+                ))}
+                <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">
+                  Adres
+                  <textarea name="address" rows={2} defaultValue={c.address ?? ""} disabled={!isOwner} className={`${inp} h-auto py-2`} />
+                </label>
+                {isOwner && <div className="md:col-span-2"><PendingSubmit className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold">Kaydet</PendingSubmit></div>}
+              </form>
+            </Card>
+          );
+        })()}
 
         {tab === "subeler" && (
           <>

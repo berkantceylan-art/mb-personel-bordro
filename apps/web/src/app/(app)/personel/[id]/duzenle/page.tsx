@@ -8,8 +8,9 @@ import { reactivateEmployee, terminateEmployee } from "../../employee-actions";
 import { DeleteEmployeeForm } from "./DeleteEmployeeForm";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
-export default async function EditEmployeePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditEmployeePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sonra?: string }> }) {
   const { id } = await params;
+  const { sonra } = await searchParams;
   const s = await getSession();
   if (!["owner", "accountant", "hr"].includes(s.role)) redirect(`/personel/${id}`);
   const supabase = await createClient();
@@ -28,7 +29,7 @@ export default async function EditEmployeePage({ params }: { params: Promise<{ i
         actions={<Link href={`/personel/${id}`} className="text-sm font-semibold text-brand-700">← Profile dön</Link>}
       />
       <div className="p-4 md:p-8 max-w-5xl flex flex-col gap-6">
-        <EmployeeForm values={{ ...(p ?? {}), ...e }} branches={branches ?? []} departments={departments ?? []} isNew={false} />
+        <EmployeeForm values={{ ...(p ?? {}), ...e }} branches={branches ?? []} departments={departments ?? []} isNew={false} next={sonra === "kayit" ? `/personel/${id}/kayit?adim=1` : undefined} />
 
         <section className="bg-white border border-line rounded-2xl p-5 flex flex-col gap-3">
           <h2 className="font-display font-semibold text-brand-800">İşten çıkış</h2>

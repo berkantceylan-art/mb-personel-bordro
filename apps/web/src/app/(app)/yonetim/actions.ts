@@ -185,3 +185,24 @@ export async function deleteDevice(f: FormData) {
   await supabase.from("devices").delete().eq("id", str(f, "id"));
   revalidatePath("/yonetim");
 }
+
+/** Şirket bilgileri (sözleşme ve formlara yazılır) */
+export async function saveCompanyInfo(f: FormData) {
+  const s = await getSession();
+  if (s.role !== "owner") await fail("Şirket bilgilerini sadece şirket sahibi düzenleyebilir.");
+  const supabase = await createClient();
+  const row = {
+    name: str(f, "name"),
+    address: str(f, "address") || null,
+    phone: str(f, "phone") || null,
+    email: str(f, "email") || null,
+    tax_office: str(f, "tax_office") || null,
+    tax_no: str(f, "tax_no") || null,
+    sgk_registration_no: str(f, "sgk_registration_no") || null,
+  };
+  if (!row.name) await fail("Şirket unvanı zorunlu.");
+  const { error } = await supabase.from("companies").update(row).eq("id", s.companyId);
+  if (error) await fail(error.message.includes("column") ? "Şirket bilgi alanları henüz eklenmemiş: Supabase'de 20261029000000_onboarding_docs.sql dosyasını çalıştırın." : error.message);
+  revalidatePath("/yonetim");
+  await done("Şirket bilgileri kaydedildi.");
+}

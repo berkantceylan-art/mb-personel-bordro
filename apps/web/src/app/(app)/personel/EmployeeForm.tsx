@@ -93,16 +93,19 @@ export function EmployeeForm({
   branches,
   departments,
   isNew,
+  next,
 }: {
   values: EmployeeFormValues;
   branches: Array<{ id: string; name: string }>;
   departments: Array<{ id: string; name: string }>;
   isNew: boolean;
+  next?: string;
 }) {
   const { state, pending, formProps: actionProps } = useActionForm(saveEmployee);
   return (
     <form {...actionProps} className="flex flex-col gap-5">
       {values.id && <input type="hidden" name="id" value={String(values.id)} />}
+      {next && <input type="hidden" name="next" value={next} />}
       <fieldset className="bg-white border border-line rounded-2xl p-5 grid gap-4 md:grid-cols-3">
         <legend className="font-display font-semibold text-brand-800 px-1">Görev bilgileri</legend>
         <label className="flex flex-col gap-1.5 text-sm text-muted">Ad *<input name="first_name" required defaultValue={String(values.first_name ?? "")} className={input} /></label>

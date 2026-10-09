@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { fail, must } from "@/lib/flash";
@@ -27,6 +28,9 @@ export async function uploadDocument(f: FormData) {
     expires_on: expires,
   });
   revalidatePath(`/personel/${employeeId}`);
+  revalidatePath("/personel/[id]/kayit", "page");
+  const next = String(f.get("next") ?? "");
+  if (next.startsWith("/personel/")) redirect(next);
 }
 
 export async function deleteDocument(f: FormData) {
@@ -39,4 +43,5 @@ export async function deleteDocument(f: FormData) {
   if (data?.file_path) await supabase.storage.from("documents").remove([data.file_path]);
   await must(supabase.from("employee_documents").delete().eq("id", id));
   revalidatePath(`/personel/${employeeId}`);
+  revalidatePath("/personel/[id]/kayit", "page");
 }

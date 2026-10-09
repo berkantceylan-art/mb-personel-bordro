@@ -69,8 +69,9 @@ export default async function EmployeeProfile({
     .maybeSingle();
   if (!e) notFound();
   // Emekli işareti ayrı okunur: sütun henüz eklenmemişse sayfa yine açılır
-  const { data: rflag } = await supabase.from("employees").select("is_retired").eq("id", id).maybeSingle();
+  const { data: rflag } = await supabase.from("employees").select("is_retired, onboarding_done_at").eq("id", id).maybeSingle();
   const retired = (rflag as { is_retired?: boolean } | null)?.is_retired === true;
+  const onboardingDone = !!(rflag as { onboarding_done_at?: string | null } | null)?.onboarding_done_at;
 
   const [{ data: priv }, { data: contracts }, { data: entries }, { data: docTypes }, { data: docs }, { data: periods }, { data: payLines }, { data: garnFiles }, { data: besRows }] = await Promise.all([
     supabase.from("employee_private").select("*").eq("employee_id", id).maybeSingle(),
@@ -434,6 +435,12 @@ export default async function EmployeeProfile({
           })}
 
           <Card title="Özlük dosyası" action={<span className="num text-xs text-muted">Zorunlu: {required.length - missing} / {required.length}</span>}>
+            {hr && (
+              <Link href={`/personel/${id}/kayit?adim=${onboardingDone ? 3 : 2}`} className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold ${onboardingDone ? "bg-[#F2F6FB] text-brand-700" : "bg-[#FFF4E0] text-[#8A5A00]"}`}>
+                <span>{onboardingDone ? "Belge sihirbazı: dolu sözleşme ve formları indir, imzalıları yükle" : "Personel kaydı tamamlanmadı · sihirbazla devam et"}</span>
+                <span aria-hidden>→</span>
+              </Link>
+            )}
             {types.map((d) => {
               const files = docsByType.get(d.id) ?? [];
               return (

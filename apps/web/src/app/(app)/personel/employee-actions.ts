@@ -136,7 +136,9 @@ export async function saveEmployee(_: EmployeeSaveResult | null, f: FormData): P
 
   revalidatePath("/personel");
   revalidatePath(`/personel/${employeeId}`);
-  redirect(`/personel/${employeeId}`);
+  const next = str(f, "next");
+  if (!id) redirect(`/personel/${employeeId}/kayit?adim=2`);
+  redirect(next && next.startsWith("/personel/") ? next : `/personel/${employeeId}`);
 }
 
 export async function terminateEmployee(f: FormData) {
