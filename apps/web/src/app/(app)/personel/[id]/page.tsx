@@ -68,6 +68,9 @@ export default async function EmployeeProfile({
     .eq("id", id)
     .maybeSingle();
   if (!e) notFound();
+  // Emekli işareti ayrı okunur: sütun henüz eklenmemişse sayfa yine açılır
+  const { data: rflag } = await supabase.from("employees").select("is_retired").eq("id", id).maybeSingle();
+  const retired = (rflag as { is_retired?: boolean } | null)?.is_retired === true;
 
   const [{ data: priv }, { data: contracts }, { data: entries }, { data: docTypes }, { data: docs }, { data: periods }, { data: payLines }, { data: garnFiles }, { data: besRows }] = await Promise.all([
     supabase.from("employee_private").select("*").eq("employee_id", id).maybeSingle(),
@@ -165,6 +168,7 @@ export default async function EmployeeProfile({
             ) : (
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-ok-bg text-ok">Aktif</span>
             )}
+            {retired && <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#F1ECFA] text-[#5B3FA0]">Emekli (SGDP)</span>}
           </div>
           <span className="text-muted">{[dept, e.position_title, branch].filter(Boolean).join(" · ")}</span>
           <div className="flex flex-wrap gap-4 text-[13px] text-[#33414F]">

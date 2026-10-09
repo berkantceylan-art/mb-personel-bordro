@@ -2,7 +2,7 @@
 import { useActionForm } from "@/lib/use-action-form";
 import { saveEmployee } from "./employee-actions";
 
-export type EmployeeFormValues = Record<string, string | number | null | undefined>;
+export type EmployeeFormValues = Record<string, string | number | boolean | null | undefined>;
 
 type Field = {
   name: string;
@@ -122,6 +122,10 @@ export function EmployeeForm({
         <label className="flex flex-col gap-1.5 text-sm text-muted">veya yeni bölüm<input name="new_department" placeholder="Yeni bölüm adı" className={input} /></label>
         <label className="flex flex-col gap-1.5 text-sm text-muted">Görevi / ünvanı<input name="position_title" defaultValue={String(values.position_title ?? "")} className={input} /></label>
         <label className="flex flex-col gap-1.5 text-sm text-muted">İşe giriş tarihi *<input type="date" name="hire_date" required defaultValue={String(values.hire_date ?? "")} className={input} /></label>
+        <label className="flex gap-2.5 items-center text-sm md:col-span-2 min-h-11">
+          <input type="checkbox" name="is_retired" defaultChecked={values.is_retired === true} className="w-5 h-5 accent-[#0A3D73]" />
+          Emekli (SGDP ile çalışıyor)
+        </label>
       </fieldset>
 
       {isNew && (

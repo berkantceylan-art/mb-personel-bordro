@@ -111,7 +111,7 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
             </thead>
             <tbody>
               {res.rows.map((r, i) => (
-                <tr key={i}>
+                <tr key={i} className={r._sub ? "font-semibold bg-[#F5F8FB]" : undefined}>
                   {cols.map((c) => <td key={c.key} className={`py-2 px-2 border-b border-[#EEF2F6] ${c.type === "money" || c.type === "number" || c.type === "date" ? "num whitespace-nowrap" : ""} ${c.type === "money" || c.type === "number" ? "text-right" : ""}`}>{fmt(r[c.key], c)}</td>)}
                 </tr>
               ))}

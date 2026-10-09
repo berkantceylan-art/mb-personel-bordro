@@ -1,4 +1,4 @@
-import { annualLeaveEntitlement, formatTL } from "@mb/core";
+import { annualLeaveEntitlement, formatTL, paramsFor, splitContract } from "@mb/core";
 import { loadCompliance } from "@/lib/compliance";
 import { contractsAt } from "@/lib/contracts";
 import { computePayroll } from "@/lib/payroll";
@@ -320,6 +320,81 @@ export const REPORTS: ReportDef[] = [
         totals: { ad: `${out.length} kişi`, ...sumBy(out, money) },
         warnings: over ? ["Eksi kalan, personele fazla ödeme yapıldığını gösterir (sonraki aydan düşülmesi gerekir)."] : undefined,
         fileName: `personel-borc-${p.year}${p.department ? "-" + slug(p.department) : ""}`,
+      };
+    },
+  },
+  {
+    key: "maas-gruplari",
+    title: "Maaş grupları",
+    description: "Personeli sigorta durumuna göre gruplar: asgari ücretliler, emekliler ve farklı net üzerinden sigortalılar. Her kişinin maaşı, sigortalı (bankadan) neti, elden kısmı ve dönem hakedişi; grup toplamlarıyla.",
+    group: "Maaş ve maliyet",
+    params: ["period", "department"],
+    roles: PAY,
+    async run(sb, p) {
+      const [y, mo] = p.period.split("-").map(Number);
+      const start = `${p.period}-01`;
+      const end = `${p.period}-${String(new Date(y, mo, 0).getDate()).padStart(2, "0")}`;
+      const { data: emps } = await sb.from("employees").select("id, first_name, last_name, hire_date, termination_date, status, departments(name)");
+      // Emekli işareti ayrı okunur: sütun eklenmemişse rapor yine çalışır
+      const { data: flags, error: flagErr } = await sb.from("employees").select("id, is_retired");
+      const retired = new Set(((flags ?? []) as Array<{ id: string; is_retired: boolean }>).filter((f) => f.is_retired).map((f) => f.id));
+      const list = (emps ?? []).filter((e) => (!e.hire_date || e.hire_date <= end) && (!e.termination_date || e.termination_date >= start));
+      const [contracts, entries] = await Promise.all([
+        contractsAt(sb, list.map((e) => e.id), end),
+        fetchAll<{ employee_id: string; type: string; channel: string; amount: number }>((a, b) =>
+          sb.from("ledger_entries").select("employee_id, type, channel, amount").eq("period", p.period).is("voided_at", null).order("id").range(a, b),
+        ),
+      ]);
+      const led = new Map<string, { hak: number; banka: number; elden: number; kalan: number }>();
+      for (const e of entries) {
+        const g = led.get(e.employee_id) ?? { hak: 0, banka: 0, elden: 0, kalan: 0 };
+        const amt = Number(e.amount);
+        const credit = ["ACCRUAL", "BONUS", "OVERTIME", "ADJUSTMENT"].includes(e.type);
+        if (credit && e.type !== "ADJUSTMENT") g.hak += amt;
+        if (e.type === "ADVANCE" || e.type === "SALARY") { if (e.channel === "BANK") g.banka += amt; else g.elden += amt; }
+        g.kalan += credit ? amt : -amt;
+        led.set(e.employee_id, g);
+      }
+      const params = paramsFor(y);
+      const GROUPS = ["Asgari ücretliler", "Emekliler", "Farklı olanlar"] as const;
+      const rows: Array<Record<string, string | number | null>> = [];
+      const warnings: string[] = [];
+      for (const e of list) {
+        const c = contracts.get(e.id);
+        const bolum = (e.departments as unknown as { name: string } | null)?.name ?? "Bölümsüz";
+        if (p.department && bolum !== p.department) continue;
+        if (!c) continue;
+        const grup = retired.has(e.id) ? GROUPS[1] : c.insuranceType === "FIXED_NET" ? GROUPS[2] : GROUPS[0];
+        const sigortali = splitContract({ ...c, besRate: 0 }, mo, 0, params).official.net;
+        const l = led.get(e.id) ?? { hak: 0, banka: 0, elden: 0, kalan: 0 };
+        rows.push({
+          grup, bolum, ad: `${e.first_name} ${e.last_name === "-" ? "" : e.last_name}`.trim(),
+          durum: e.status === "terminated" ? "Ayrıldı" : "Aktif",
+          maas: c.totalNet, sigortali, elden_kisim: Math.max(0, c.totalNet - sigortali),
+          hakedis: l.hak, banka: l.banka, elden: l.elden, kalan: l.kalan,
+        });
+      }
+      const money = ["maas", "sigortali", "elden_kisim", "hakedis", "banka", "elden", "kalan"];
+      const out: typeof rows = [];
+      for (const g of GROUPS) {
+        const part = rows.filter((r) => r.grup === g).sort((a, b) => String(a.bolum).localeCompare(String(b.bolum), "tr") || String(a.ad).localeCompare(String(b.ad), "tr"));
+        if (!part.length) continue;
+        out.push(...part, { grup: g, bolum: "", ad: `${g} toplamı · ${part.length} kişi`, durum: "", _sub: 1, ...sumBy(part, money) });
+      }
+      if (flagErr) warnings.push("Emekli işareti okunamadı: Supabase'de emekli sütunu henüz eklenmemiş (20261028000000_retired_flag.sql). Emekliler şimdilik 'Farklı olanlar' grubunda görünür.");
+      const count = (g: string) => rows.filter((r) => r.grup === g).length;
+      return {
+        title: "Maaş grupları",
+        subtitle: `${periodLabel(p.period)}${p.department ? ` · ${p.department}` : ""} · asgari ücretli ${count(GROUPS[0])} · emekli ${count(GROUPS[1])} · farklı ${count(GROUPS[2])} kişi`,
+        columns: [
+          { key: "grup", label: "Grup", width: 18 }, { key: "bolum", label: "Bölüm", width: 16 }, { key: "ad", label: "Personel", width: 26 }, { key: "durum", label: "Durum", width: 9 },
+          { key: "maas", label: "Maaş (toplam net)", type: "money" }, { key: "sigortali", label: "Sigortalı net (banka)", type: "money" }, { key: "elden_kisim", label: "Elden kısım", type: "money" },
+          { key: "hakedis", label: "Dönem hakedişi", type: "money" }, { key: "banka", label: "Bankadan ödenen", type: "money" }, { key: "elden", label: "Elden ödenen", type: "money" }, { key: "kalan", label: "Kalan", type: "money" },
+        ],
+        rows: out,
+        totals: { ad: `${rows.length} kişi`, ...sumBy(rows, money) },
+        warnings: warnings.length ? warnings : undefined,
+        fileName: `maas-gruplari-${p.period}${p.department ? "-" + slug(p.department) : ""}`,
       };
     },
   },

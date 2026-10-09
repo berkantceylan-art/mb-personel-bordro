@@ -79,16 +79,26 @@ export async function saveEmployee(_: EmployeeSaveResult | null, f: FormData): P
     last_name: lastName,
     position_title: str(f, "position_title"),
     hire_date: hireDate,
+    is_retired: f.get("is_retired") === "on",
     notes: str(f, "notes"),
     updated_at: new Date().toISOString(),
   };
 
   let employeeId = id;
   if (id) {
-    const { error } = await supabase.from("employees").update(employee).eq("id", id);
+    let { error } = await supabase.from("employees").update(employee).eq("id", id);
+    // Emekli sütunu henüz eklenmemişse (SQL çalıştırılmadıysa) onsuz kaydet
+    if (error?.message.includes("is_retired")) {
+      const { is_retired: _r, ...rest } = employee;
+      ({ error } = await supabase.from("employees").update(rest).eq("id", id));
+    }
     if (error) return { message: error.message.includes("card_no") ? "Bu PDKS numarası başka personelde kayıtlı." : error.message };
   } else {
-    const { data, error } = await supabase.from("employees").insert(employee).select("id").single();
+    let { data, error } = await supabase.from("employees").insert(employee).select("id").single();
+    if (error?.message.includes("is_retired")) {
+      const { is_retired: _r, ...rest } = employee;
+      ({ data, error } = await supabase.from("employees").insert(rest).select("id").single());
+    }
     if (error || !data) return { message: error?.message.includes("card_no") ? "Bu PDKS numarası başka personelde kayıtlı." : (error?.message ?? "Kaydedilemedi") };
     employeeId = data.id;
     // Bundan sonraki adım hata verirse personel zaten oluştu: tekrar "kaydet" ikinci kopya açmasın diye düzenleme sayfasına git
