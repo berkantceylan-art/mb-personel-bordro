@@ -519,6 +519,72 @@ export const REPORTS: ReportDef[] = [
     },
   },
   {
+    key: "iskur-isgucu",
+    title: "İŞKUR aylık işgücü çizelgesi",
+    description: "İŞKUR e-Şube'ye girilen aylık işgücü çizelgesi için tüm rakamlar: ay başı/sonu mevcut (kadın/erkek), ay içinde işe giren ve ayrılanlar (nedenleriyle), isim listeleri.",
+    group: "Uyum",
+    params: ["period"],
+    roles: HR,
+    async run(sb, p) {
+      const [y, mo] = p.period.split("-").map(Number);
+      const start = `${p.period}-01`;
+      const end = `${p.period}-${String(new Date(y, mo, 0).getDate()).padStart(2, "0")}`;
+      const prevEnd = new Date(y, mo - 1, 0).toISOString().slice(0, 10);
+      const [{ data: emps }, { data: privs }] = await Promise.all([
+        sb.from("employees").select("id, first_name, last_name, hire_date, termination_date, termination_reason, status, departments(name)"),
+        sb.from("employee_private").select("employee_id, gender, nationality"),
+      ]);
+      const { data: codes } = await sb.from("employees").select("id, termination_code");
+      const code = new Map(((codes ?? []) as Array<{ id: string; termination_code: string | null }>).map((c) => [c.id, c.termination_code]));
+      const pv = new Map((privs ?? []).map((x) => [x.employee_id, x]));
+      const all = emps ?? [];
+      const nm = (e: { first_name: string; last_name: string }) => `${e.first_name} ${e.last_name === "-" ? "" : e.last_name}`.trim();
+      const g = (id: string) => { const v = String(pv.get(id)?.gender ?? "").toLocaleLowerCase("tr"); return v.startsWith("k") ? "K" : v.startsWith("e") ? "E" : "?"; };
+      const foreign = (id: string) => { const n = String(pv.get(id)?.nationality ?? "").toLocaleLowerCase("tr"); return n && !/t\.?c|türk|turk/.test(n); };
+      const employedOn = (e: { hire_date: string | null; termination_date: string | null }, d: string) => !!e.hire_date && e.hire_date <= d && (!e.termination_date || e.termination_date > d);
+      const reason = (id: string, text: string | null) => {
+        const c = code.get(id) ?? "";
+        if (c === "03" || /istifa/i.test(text ?? "")) return "İstifa";
+        if (["08", "09", "14"].includes(c) || /emekli/i.test(text ?? "")) return "Emeklilik";
+        if (c === "12" || /asker/i.test(text ?? "")) return "Askerlik";
+        if (["10", "11"].includes(c) || /ölüm|vefat/i.test(text ?? "")) return "Ölüm";
+        if (["05", "18"].includes(c)) return "Sözleşme süresinin bitmesi";
+        if (["01", "04", "15", "17", "26", "27", "28", "29"].includes(c) || Number(c) >= 42) return "İşveren feshi";
+        if (c === "16" || c === "34") return "Nakil / devir";
+        return "Diğer";
+      };
+      const row = (kalem: string, list: typeof all, extra = "") => {
+        const k = list.filter((e) => g(e.id) === "K").length; const er = list.filter((e) => g(e.id) === "E").length;
+        return { kalem, kadin: k, erkek: er, belirsiz: list.length - k - er, toplam: list.length, isimler: list.map((e) => nm(e) + (extra ? "" : "")).join(", ") };
+      };
+      const startList = all.filter((e) => employedOn(e, prevEnd));
+      const endList = all.filter((e) => employedOn(e, end));
+      const hired = all.filter((e) => e.hire_date && e.hire_date >= start && e.hire_date <= end);
+      const left = all.filter((e) => e.termination_date && e.termination_date >= start && e.termination_date <= end);
+      const byReason = new Map<string, typeof all>();
+      for (const e of left) { const r = reason(e.id, e.termination_reason); byReason.set(r, [...(byReason.get(r) ?? []), e]); }
+      const rows = [
+        row("Ay başı çalışan sayısı (" + prevEnd.split("-").reverse().join(".") + ")", startList),
+        row("Ay içinde işe alınan", hired),
+        row("Ay içinde işten ayrılan (toplam)", left),
+        ...[...byReason.entries()].map(([r, l]) => row("   ↳ " + r, l)),
+        row("Ay sonu çalışan sayısı (" + end.split("-").reverse().join(".") + ")", endList),
+        row("Yabancı uyruklu (ay sonu)", endList.filter((e) => foreign(e.id))),
+      ];
+      const unknown = endList.filter((e) => g(e.id) === "?").length;
+      const warnings = [
+        "Çizelge e-Şube'de ekrana elle girilir; bu rapor tüm rakamları verir. Engelli, eski hükümlü ve terör mağduru sayıları ile açık iş pozisyonları sistemde tutulmadığı için 0 kabul edin ya da elle ekleyin.",
+        ...(unknown ? [`${unknown} personelin cinsiyeti girilmemiş; Kadın/Erkek dağılımı eksik olabilir (Personel → Düzenle → Cinsiyet).`] : []),
+        ...(startList.length - left.length + hired.length !== endList.length ? ["Ay başı − ayrılan + giren ≠ ay sonu: aynı ay içinde girip çıkan personel olabilir; isim listelerini kontrol edin."] : []),
+      ];
+      return {
+        title: "İŞKUR aylık işgücü çizelgesi", subtitle: periodLabel(p.period),
+        columns: [{ key: "kalem", label: "Kalem", width: 40 }, { key: "kadin", label: "Kadın", type: "number" }, { key: "erkek", label: "Erkek", type: "number" }, { key: "belirsiz", label: "Belirsiz", type: "number" }, { key: "toplam", label: "Toplam", type: "number" }, { key: "isimler", label: "İsimler", width: 60 }],
+        rows, warnings, fileName: `iskur-isgucu-${p.period}`,
+      };
+    },
+  },
+  {
     key: "izin",
     title: "İzin bakiyeleri ve kullanımlar",
     description: "Personel başına kıdem, hak edilen, devreden, kullanılan ve kalan yıllık izin; seçilen yıldaki diğer izin günleri.",
