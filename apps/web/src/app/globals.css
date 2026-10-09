@@ -70,3 +70,16 @@ html {
 .big-text .text-\[11px\] { font-size: 0.8rem; }
 .big-text button, .big-text a[class*="h-11"], .big-text input[class*="h-11"], .big-text select[class*="h-11"] { min-height: 3.25rem; }
 .big-text .h-10 { height: 3rem; }
+
+/* Organizasyon şeması (yatay ağaç) */
+.orgtree ul { display: flex; justify-content: center; padding-top: 20px; position: relative; margin: 0; padding-left: 0; list-style: none; }
+.orgtree li { display: flex; flex-direction: column; align-items: center; position: relative; padding: 20px 6px 0; }
+.orgtree li::before, .orgtree li::after { content: ""; position: absolute; top: 0; right: 50%; width: 50%; height: 20px; border-top: 2px solid #C9D4E0; }
+.orgtree li::after { right: auto; left: 50%; border-left: 2px solid #C9D4E0; }
+.orgtree li:only-child::before, .orgtree li:only-child::after { display: none; }
+.orgtree li:only-child { padding-top: 0; }
+.orgtree li:first-child::before, .orgtree li:last-child::after { border: 0 none; }
+.orgtree li:last-child::before { border-right: 2px solid #C9D4E0; border-radius: 0 6px 0 0; }
+.orgtree li:first-child::after { border-radius: 6px 0 0 0; }
+.orgtree ul ul::before { content: ""; position: absolute; top: 0; left: 50%; border-left: 2px solid #C9D4E0; height: 20px; }
+.orgtree > ul { padding-top: 0; }

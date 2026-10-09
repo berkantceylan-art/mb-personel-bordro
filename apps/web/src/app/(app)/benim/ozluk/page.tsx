@@ -48,10 +48,21 @@ export default async function MyProfilePage() {
     ["Öğrenim ve ehliyet", [["Öğrenim", [v.education_level, v.school, v.school_department].filter(Boolean).join(" · ") || "—"], ["Ehliyet", d(v.license_class)]]],
     ["Banka", [["Banka", d(v.bank_name)], ["IBAN", mask(v.iban as string, 6)], ["BES", c?.bes_rate ? `%${Number(c.bes_rate) * 100}` : "yok"]]],
   ];
+  const { data: orgRows } = await supabase.rpc("my_org");
+  const org = (orgRows as Array<{ unit_name: string | null; unit_path: string | null; title: string | null; manager_name: string | null; manager_phone: string | null }> | null)?.[0];
   return (
     <>
       <MyHeader title="Özlük bilgilerim" subtitle="Değişiklikler İK onayıyla uygulanır" />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[760px]">
+        {org && (org.unit_name || org.manager_name) && (
+          <Card title="Organizasyondaki yerim">
+            <dl className="grid grid-cols-[120px_1fr] gap-y-1.5 text-sm">
+              {org.unit_path && <><dt className="text-muted">Birim</dt><dd>{org.unit_path}</dd></>}
+              {org.title && <><dt className="text-muted">Unvan</dt><dd>{org.title}</dd></>}
+              {org.manager_name && <><dt className="text-muted">Amirim</dt><dd>{org.manager_name}{org.manager_phone ? <> · <a href={`tel:${org.manager_phone}`} className="font-semibold text-brand-700">ara</a></> : null}</dd></>}
+            </dl>
+          </Card>
+        )}
         {rights && (
           <Card title="Haklarım" action={<span className="text-xs text-muted">tahmini</span>}>
             <div className="grid grid-cols-2 gap-3">
