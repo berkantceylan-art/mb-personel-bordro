@@ -44,6 +44,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "Vardiyalar", href: "/vardiyalar", roles: MANAGERS },
       { label: "İzin", href: "/izin", roles: MANAGERS },
       { label: "Fazla Mesai", href: "/fazla-mesai", roles: MANAGERS },
+      { label: "Mesai yemeği", href: "/yemek", roles: ["owner", "accountant", "hr", "branch_manager"] },
     ],
   },
   {

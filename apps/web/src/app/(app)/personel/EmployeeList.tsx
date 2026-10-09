@@ -106,6 +106,7 @@ export function EmployeeList({
         <table className="w-full text-sm min-w-[720px]">
           <thead>
             <tr className="text-left text-xs text-muted">
+              <th className="py-3 px-3 font-semibold border-b border-line w-10 text-right">#</th>
               <th className="py-3 px-4 font-semibold border-b border-line">Ad soyad</th>
               <th className="py-3 px-4 font-semibold border-b border-line">PDKS no</th>
               <th className="py-3 px-4 font-semibold border-b border-line">Bölüm</th>
@@ -115,8 +116,9 @@ export function EmployeeList({
             </tr>
           </thead>
           <tbody>
-            {list.map((e) => (
+            {list.map((e, i) => (
               <tr key={e.id} className="hover:bg-[#F7F9FB]">
+                <td className="num py-3 px-3 border-b border-[#EEF2F6] text-right text-muted">{i + 1}</td>
                 <td className="py-3 px-4 border-b border-[#EEF2F6]">
                   <Link href={`/personel/${e.id}`} className="font-semibold text-brand-700">{e.name}</Link>
                   {e.status !== "active" && <span className="ml-2 text-xs text-muted">({e.status === "terminated" ? "ayrıldı" : "izinde"})</span>}
@@ -129,7 +131,7 @@ export function EmployeeList({
               </tr>
             ))}
             {list.length === 0 && (
-              <tr><td colSpan={showBalance ? 6 : 5} className="py-10 text-center text-muted">Personel bulunamadı.</td></tr>
+              <tr><td colSpan={showBalance ? 7 : 6} className="py-10 text-center text-muted">Personel bulunamadı.</td></tr>
             )}
           </tbody>
         </table>

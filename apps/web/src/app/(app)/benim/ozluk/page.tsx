@@ -1,4 +1,6 @@
-import { Card } from "@/components/ui";
+import { Card, Stat } from "@/components/ui";
+import { annualLeaveEntitlement, formatTL, netToGross, paramsFor } from "@mb/core";
+import { todayIso } from "@/lib/session";
 import { formatDate } from "@/lib/session";
 import { me, MyHeader, NotLinked } from "../_shared";
 import { ProfileChangeForm } from "./ProfileChangeForm";
@@ -14,6 +16,25 @@ export default async function MyProfilePage() {
     supabase.from("pay_contracts").select("bes_rate").eq("employee_id", e.id).order("valid_from", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("profile_change_requests").select("id, status, changes, decision_note, created_at, decided_at").eq("employee_id", e.id).order("created_at", { ascending: false }).limit(5),
   ]);
+  // Haklarım: kıdem, ihbar, yıllık izin (tahmini; resmi brüt üzerinden)
+  const today = todayIso();
+  const [{ data: contract }, { data: usedRows }, { data: adjRows }] = await Promise.all([
+    supabase.from("pay_contracts").select("total_net, insurance_type, fixed_official_net").eq("employee_id", e.id).lte("valid_from", today).order("valid_from", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("leave_requests").select("days, leave_types!inner(code)").eq("employee_id", e.id).eq("status", "approved").eq("leave_types.code", "YILLIK"),
+    supabase.from("leave_adjustments").select("days").eq("employee_id", e.id),
+  ]);
+  const rights = (() => {
+    if (!e.hire_date) return null;
+    const days = Math.round((Date.parse(today) - Date.parse(e.hire_date)) / 86_400_000) + 1;
+    const years = days / 365;
+    const ent = annualLeaveEntitlement(e.hire_date, today, (p as { birth_date?: string | null } | null)?.birth_date ?? null);
+    const used = (usedRows ?? []).reduce((a, l) => a + Number(l.days), 0);
+    const adj = (adjRows ?? []).reduce((a, l) => a + Number(l.days), 0);
+    const prm = paramsFor(Number(today.slice(0, 4)));
+    const gross = contract ? (contract.insurance_type === "MIN_WAGE" ? prm.minWageGross : netToGross({ targetNet: Number(contract.fixed_official_net ?? 0), month: Number(today.slice(5, 7)), cumulativeTaxBaseBefore: 0, besRate: 0, params: prm }).gross) : prm.minWageGross;
+    const weeks = years < 0.5 ? 2 : years < 1.5 ? 4 : years < 3 ? 6 : 8;
+    return { years, days, earned: ent.earned + adj, used, left: Math.max(0, ent.earned + adj - used), nextDays: ent.nextYearDays, next: ent.nextAnniversary, gross, kidem: years >= 1 ? Math.round(gross * years) : 0, ihbar: weeks * 7 * Math.round(gross / 30), weeks };
+  })();
   const editable: Record<string, string> = {};
   for (const k of EDITABLE) { const x = (p as Record<string, unknown> | null)?.[k]; editable[k] = x === null || x === undefined ? "" : String(x); }
   const LABEL = FIELD_LABEL;
@@ -31,6 +52,17 @@ export default async function MyProfilePage() {
     <>
       <MyHeader title="Özlük bilgilerim" subtitle="Değişiklikler İK onayıyla uygulanır" />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[760px]">
+        {rights && (
+          <Card title="Haklarım" action={<span className="text-xs text-muted">tahmini</span>}>
+            <div className="grid grid-cols-2 gap-3">
+              <Stat label="Kıdem" value={`${Math.floor(rights.years)} yıl ${Math.floor((rights.years % 1) * 12)} ay`} sub={`işe giriş ${formatDate(e.hire_date!)}`} />
+              <Stat label="Yıllık izin" value={`${rights.left} gün`} sub={`hak ${rights.earned} · kullanılan ${rights.used} · ${formatDate(rights.next)}'de +${rights.nextDays}`} />
+              <Stat label="Kıdem tazminatı" value={rights.kidem ? formatTL(rights.kidem) : "—"} sub={rights.kidem ? "1 yılı dolduranlara; istifada ödenmez" : "1 yıl dolunca hak edilir"} />
+              <Stat label="İhbar tazminatı" value={formatTL(rights.ihbar)} sub={`${rights.weeks} hafta ihbar süresi`} />
+            </div>
+            <p className="text-xs text-muted">Tutarlar resmi brüt ücret ({formatTL(rights.gross)}) ve bugünkü kıdem üzerinden hesaplanmıştır; kıdem tavanı ve kesintiler uygulanmamıştır. Kesin tutar işten ayrılışta mali müşavir tarafından hesaplanır.</p>
+          </Card>
+        )}
         {groups.map(([title, rows]) => (
           <Card key={title} title={title}>
             <dl className="text-sm">

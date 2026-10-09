@@ -15,7 +15,7 @@ export function InviteForm({ employees, isOwner }: { employees: Array<{ id: stri
       <label className="flex flex-col gap-1.5 text-sm text-muted">Rol
         <select name="role" value={role} onChange={(e) => setRole(e.target.value)} className={input}>
           <option value="employee">Personel (mobil uygulama)</option>
-          <option value="branch_manager">Şube / bölüm sorumlusu</option>
+          <option value="branch_manager">Şube / bölüm şefi</option>
           {isOwner && <option value="hr">İnsan kaynakları</option>}
           {isOwner && <option value="accountant">Muhasebe</option>}
           <option value="safety">İSG uzmanı / işyeri hekimi</option>

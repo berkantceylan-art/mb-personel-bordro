@@ -10,7 +10,7 @@ import { deleteDepartment, deleteDevice, deleteInvite, removeMember, saveCompany
 import { PendingSubmit } from "@/components/ConfirmSubmit";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
-const ROLE: Record<string, string> = { owner: "Şirket sahibi", accountant: "Muhasebe", hr: "İnsan kaynakları", branch_manager: "Şube sorumlusu", safety: "İSG uzmanı", employee: "Personel", site_editor: "Web sitesi editörü" };
+const ROLE: Record<string, string> = { owner: "Şirket sahibi", accountant: "Muhasebe", hr: "İnsan kaynakları", branch_manager: "Şube / bölüm şefi", safety: "İSG uzmanı", employee: "Personel", site_editor: "Web sitesi editörü" };
 const TABLE: Record<string, string> = {
   employees: "Personel", employee_private: "Kişisel bilgi", pay_contracts: "Ücret", ledger_entries: "Cari hareket", attendance_punches: "Okutma", shifts: "Vardiya",
   leave_requests: "İzin", overtime_records: "Fazla mesai", payroll_lines: "Bordro", garnishment_files: "İcra", bes_enrollments: "BES", training_records: "Eğitim",
@@ -31,9 +31,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     supabase.from("departments").select("id, name").order("name"),
     supabase.from("employees").select("id, first_name, last_name, user_id, department_id").eq("status", "active").order("first_name"),
   ]);
-  const [members, mb, invites, devices, company, audit] = await Promise.all([
+  const [members, mb, md, invites, devices, company, audit] = await Promise.all([
     tab === "kullanicilar" ? supabase.from("memberships").select("user_id, role, all_branches, display_name, created_at").order("created_at") : Promise.resolve({ data: [] }),
     tab === "kullanicilar" ? supabase.from("membership_branches").select("user_id, branch_id") : Promise.resolve({ data: [] }),
+    tab === "kullanicilar" ? supabase.from("membership_departments").select("user_id, department_id") : Promise.resolve({ data: [] }),
     tab === "davetler" ? supabase.from("invites").select("*").order("created_at", { ascending: false }).limit(300) : Promise.resolve({ data: [] }),
     tab === "cihazlar" ? supabase.from("devices").select("*").order("code") : Promise.resolve({ data: [] }),
     tab === "sirket" ? supabase.from("companies").select("*").eq("id", s.companyId).maybeSingle() : Promise.resolve({ data: null }),
@@ -63,6 +64,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 {(members.data ?? []).map((m) => {
                   const d = dirByUser.get(m.user_id);
                   const myBranches = new Set((mb.data ?? []).filter((x) => x.user_id === m.user_id).map((x) => x.branch_id));
+                  const myDepts = new Set(((md.data ?? []) as Array<{ user_id: string; department_id: string }>).filter((x) => x.user_id === m.user_id).map((x) => x.department_id));
                   return (
                     <tr key={m.user_id}>
                       <td className={td}><b>{d?.display_name ?? m.display_name ?? "—"}</b><span className="block text-xs text-muted">{m.user_id === s.userId ? "siz · " : ""}{formatDate(m.created_at)}</span></td>
@@ -77,10 +79,21 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                             {(branches ?? []).length > 1 && (branches ?? []).map((b) => (
                               <label key={b.id} className="flex gap-1 items-center text-xs"><input type="checkbox" name="branch_id" value={b.id} defaultChecked={myBranches.has(b.id)} />{b.name}</label>
                             ))}
+                            {m.role === "branch_manager" && (
+                              <details className="w-full" open={myDepts.size > 0}>
+                                <summary className="text-xs font-semibold text-brand-700 cursor-pointer">Sorumlu olduğu bölümler {myDepts.size ? `(${myDepts.size})` : "(hepsi)"}</summary>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                  {(departments ?? []).map((dp) => (
+                                    <label key={dp.id} className="flex gap-1 items-center text-xs"><input type="checkbox" name="department_id" value={dp.id} defaultChecked={myDepts.has(dp.id)} />{dp.name}</label>
+                                  ))}
+                                </div>
+                                <span className="text-[11px] text-muted">Hiçbiri seçili değilse şubesindeki tüm bölümleri görür. Seçiliyse yalnız o bölümlerin personelini görür, izin/mesai/talep onaylar.</span>
+                              </details>
+                            )}
                             <button className="h-9 px-3 rounded-md border border-[#D5DEE8] text-xs font-semibold text-brand-700">Kaydet</button>
                           </form>
                         ) : (
-                          <span>{ROLE[m.role]}{m.all_branches ? " · tüm şubeler" : ""}</span>
+                          <span>{ROLE[m.role]}{m.all_branches ? " · tüm şubeler" : ""}{myDepts.size ? ` · ${[...myDepts].map((x) => (departments ?? []).find((dp) => dp.id === x)?.name).filter(Boolean).join(", ")}` : ""}</span>
                         )}
                       </td>
                       <td className={`${td} text-right`}>
@@ -93,7 +106,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 })}
               </tbody>
             </table>
-            <p className="text-xs text-muted p-3">Roller: <b>Şirket sahibi</b> her şey · <b>Muhasebe</b> ücret, ödeme, bordro · <b>İK</b> personel, puantaj, izin · <b>Şube sorumlusu</b> kendi şubesinin puantaj/vardiya/izinleri · <b>İSG uzmanı</b> eğitim ve sağlık · <b>Personel</b> sadece kendi bilgileri (mobil).</p>
+            <p className="text-xs text-muted p-3">Roller: <b>Şirket sahibi</b> her şey · <b>Muhasebe</b> ücret, ödeme, bordro · <b>İK</b> personel, puantaj, izin · <b>Şube / bölüm şefi</b> kendi şubesinin ya da bölümlerinin personeli: puantaj, vardiya, izin, talep onayı, belgeler, mesai yemeği (ücret bilgisi hariç) · <b>İSG uzmanı</b> eğitim ve sağlık · <b>Personel</b> sadece kendi bilgileri (mobil).</p>
           </section>
         )}
 

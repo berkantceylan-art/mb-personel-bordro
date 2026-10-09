@@ -100,8 +100,12 @@ export async function updateMember(f: FormData) {
   await must(supabase.from("memberships").update({ role, all_branches: all, display_name: str(f, "display_name") || null }).eq("user_id", userId).eq("company_id", s.companyId));
   await must(supabase.from("membership_branches").delete().eq("user_id", userId).eq("company_id", s.companyId));
   if (!all) await must(supabase.from("membership_branches").insert(branches.map((b) => ({ user_id: userId, company_id: s.companyId, branch_id: b }))));
+  // Şef: sorumlu olduğu bölümler (tablo yoksa atlanır)
+  const depts = role === "branch_manager" ? f.getAll("department_id").map(String) : [];
+  const { error: dErr } = await supabase.from("membership_departments").delete().eq("user_id", userId).eq("company_id", s.companyId);
+  if (!dErr && depts.length) await must(supabase.from("membership_departments").insert(depts.map((d) => ({ user_id: userId, company_id: s.companyId, department_id: d }))));
   revalidatePath("/yonetim");
-  await done("Kullanıcı güncellendi.");
+  await done(dErr && role === "branch_manager" && depts.length ? "Kullanıcı güncellendi; bölüm sınırı için Supabase'de 20261102000000_chief_meal.sql çalıştırılmalı." : "Kullanıcı güncellendi.");
 }
 
 export async function removeMember(f: FormData) {
