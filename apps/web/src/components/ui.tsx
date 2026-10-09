@@ -34,13 +34,19 @@ export function Card({ title, action, children, className = "" }: { title?: stri
   );
 }
 
-export function Stat({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
-  return (
-    <div className="bg-white border border-line rounded-[14px] px-3.5 py-3 md:px-5 md:py-4 flex flex-col gap-1 md:gap-1.5 min-w-0">
+export function Stat({ label, value, sub, href }: { label: string; value: string; sub?: React.ReactNode; href?: string }) {
+  const body = (
+    <>
       <span className="text-xs md:text-[13px] text-muted leading-tight">{label}</span>
       <span className="num font-display text-lg md:text-[26px] font-bold text-brand-800 leading-tight break-words">{value}</span>
       {sub && <span className="text-[11px] md:text-xs text-muted leading-snug">{sub}</span>}
-    </div>
+    </>
+  );
+  const cls = "bg-white border border-line rounded-[14px] px-3.5 py-3 md:px-5 md:py-4 flex flex-col gap-1 md:gap-1.5 min-w-0";
+  return href ? (
+    <Link href={href} className={`${cls} hover:border-brand-700 hover:shadow-sm transition-colors`}>{body}</Link>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }
 

@@ -76,7 +76,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <section className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
           <Stat label={`${periodLabel(period)} toplam hakediş`} value={formatTL(total.accrued)} sub={`${rows.length} personelde hakediş kaydı`} />
           <Stat label="Şu ana kadar ödenen" value={formatTL(paid)} sub={`Banka ${formatTL(total.bank)} · Elden ${formatTL(total.cash)}`} />
-          <Stat label="Kalan ödenecek" value={formatTL(total.balance)} sub={<Link href={`/ay-sonu?donem=${period}`} className="font-semibold text-brand-700">Ay sonu adımları →</Link>} />
+          <Stat label="Kalan ödenecek" value={formatTL(total.balance)} href={`/kalan?donem=${period}`} sub={<span className="font-semibold text-brand-700">{rows.filter((r) => n(r.balance) > 0).length} personele ödeme kaldı · liste →</span>} />
           <Stat label="Aktif personel" value={String(employeeCount ?? 0)} sub={`${deptCount.size} bölüm`} />
         </section>
 
