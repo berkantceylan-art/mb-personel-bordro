@@ -14,6 +14,12 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
     items: [
       { label: "Gösterge Paneli", href: "/", roles: MANAGERS },
       { label: "Benim sayfam", href: "/benim", roles: ["employee"] },
+      { label: "Avans iste", href: "/benim/avans", roles: ["employee"] },
+      { label: "İzin iste", href: "/benim/izin", roles: ["employee"] },
+      { label: "Bordrolarım", href: "/benim/bordro", roles: ["employee"] },
+      { label: "Hesap hareketlerim", href: "/benim/hareketler", roles: ["employee"] },
+      { label: "Puantajım", href: "/benim/puantaj", roles: ["employee"] },
+      { label: "Özlük bilgilerim", href: "/benim/ozluk", roles: ["employee"] },
       { label: "Belgelerim", href: "/benim/belgeler", roles: ["employee"] },
       { label: "Personel", href: "/personel", roles: MANAGERS },
     ],
@@ -56,7 +62,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
 export function Sidebar({ companyName, role, badges = {} }: { companyName: string; role: string; badges?: Record<string, number> }) {
   const path = usePathname();
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(role)) })).filter((g) => g.items.length);
-  const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+  const isActive = (href: string) => (href === "/" || href === "/benim" ? path === href : path.startsWith(href));
   return (
     <nav aria-label="Ana menü" className="print:hidden hidden md:flex md:w-62 md:shrink-0 bg-brand-900 text-[#C9D6E5] flex-col gap-5 px-3.5 py-5">
       <div className="flex items-center gap-3 px-2">

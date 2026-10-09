@@ -14,7 +14,19 @@ const ICONS: Record<string, React.ReactNode> = {
   inbox: <path d="M4 4h16v16H4zM4 14h5l1 2h4l1-2h5" />,
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   users: <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-6" />,
+  money: <path d="M3 7h18v10H3zM12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M6 10h.01M18 14h.01" />,
+  calendar: <path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M9 14h2M13 14h2" />,
+  doc: <path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6" />,
+  list: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
+  clock: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2" />,
+  id: <path d="M3 5h18v14H3zM7 14a3 3 0 0 1 6 0M10 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4M15 9h4M15 13h4" />,
+  folder: <path d="M3 6h6l2 2h10v12H3zM3 10h18" />,
 };
+export const MenuIcon = ({ name }: { name: string }) => (
+  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    {ICONS[name]}
+  </svg>
+);
 const Icon = ({ name }: { name: string }) => (
   <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     {ICONS[name]}
@@ -30,7 +42,8 @@ export function MobileNav({ role, companyName, badges }: { role: string; company
   const tabs: Tab[] = employee
     ? [
         { label: "Ana sayfa", href: "/benim", icon: "home" },
-        { label: "Duyurular", href: "/duyurular", icon: "megaphone" },
+        { label: "Avans", href: "/benim/avans", icon: "money" },
+        { label: "İzin", href: "/benim/izin", icon: "calendar" },
         { label: "Mesajlar", href: "/mesajlar", icon: "chat" },
         { label: "Bildirimler", href: "/bildirimler", icon: "bell" },
       ]
@@ -40,7 +53,7 @@ export function MobileNav({ role, companyName, badges }: { role: string; company
         { label: "Mesajlar", href: "/mesajlar", icon: "chat" },
         { label: "Bildirimler", href: "/bildirimler", icon: "bell" },
       ];
-  const active = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+  const active = (href: string) => (href === "/" ? path === "/" : href === "/benim" ? path === "/benim" : path.startsWith(href));
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(role)) })).filter((g) => g.items.length);
   const badge = (href: string) => badges[href] ?? 0;
 
