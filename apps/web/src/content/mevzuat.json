@@ -1,0 +1,83 @@
+{
+  "last_checked": "2026-10-10",
+  "params": [
+    { "key": "minWageGross", "label": "Brüt asgari ücret (aylık)", "value": 33030, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret", "system": true },
+    { "key": "minWageNet", "label": "Net asgari ücret (aylık)", "value": 28075.5, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret", "system": false },
+    { "key": "sgkFloor", "label": "SGK prime esas kazanç alt sınırı (aylık)", "value": 33030, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret", "system": true },
+    { "key": "sgkCeiling", "label": "SGK prime esas kazanç üst sınırı (aylık)", "value": 297270, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret", "system": true },
+    { "key": "severanceCap", "label": "Kıdem tazminatı tavanı", "value": 73729.87, "unit": "TL", "valid_from": "2026-07-01", "valid_to": "2026-12-31", "source": "https://www.alomaliye.com/2026/07/06/2026-kidem-tazminati-tavani-2-donem-guncel-tutar-ve-merak-edilenler/amp/", "system": true },
+    { "key": "severanceCapPrev", "label": "Kıdem tazminatı tavanı (önceki dönem)", "value": 64948.77, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-06-30", "source": "https://www.alomaliye.com/2026/07/06/2026-kidem-tazminati-tavani-2-donem-guncel-tutar-ve-merak-edilenler/amp/", "system": true },
+    { "key": "taxBracket1", "label": "Gelir vergisi 1. dilim üst sınırı (%15)", "value": 190000, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": true },
+    { "key": "taxBracket2", "label": "Gelir vergisi 2. dilim üst sınırı (%20)", "value": 400000, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": true },
+    { "key": "taxBracket3", "label": "Gelir vergisi 3. dilim üst sınırı, ücretliler (%27)", "value": 1500000, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": true },
+    { "key": "taxBracket4", "label": "Gelir vergisi 4. dilim üst sınırı (%35)", "value": 5300000, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": true },
+    { "key": "mealExemption", "label": "Yemek bedeli istisnası (günlük)", "value": 300, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": false },
+    { "key": "transportExemption", "label": "Yol bedeli istisnası (günlük)", "value": 158, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": false },
+    { "key": "maternityWeeks", "label": "Analık (doğum) izni", "value": 24, "unit": "hafta", "valid_from": "2026-05-01", "valid_to": null, "source": "https://www.pwc.com.tr/tr/hizmetlerimiz/insan-yonetimi-ve-organizasyon-danismanligi/sosyal-guvenlik-hizmetleri/bultenler/2026/7578-sayili-kanunla-dogum-ve-babalik-izni-konusunda-yapilan-degisiklikler.html", "system": true },
+    { "key": "paternityDays", "label": "Babalık izni (ücretli)", "value": 10, "unit": "gün", "valid_from": "2026-05-01", "valid_to": null, "source": "https://www.pwc.com.tr/tr/hizmetlerimiz/insan-yonetimi-ve-organizasyon-danismanligi/sosyal-guvenlik-hizmetleri/bultenler/2026/7578-sayili-kanunla-dogum-ve-babalik-izni-konusunda-yapilan-degisiklikler.html", "system": true },
+    { "key": "yearlyOvertimeHours", "label": "Yıllık fazla çalışma üst sınırı", "value": 270, "unit": "saat", "valid_from": "2003-06-10", "valid_to": null, "source": "4857 sayılı İş Kanunu md. 41", "system": true },
+    { "key": "probationMonths", "label": "Deneme süresi üst sınırı", "value": 2, "unit": "ay", "valid_from": "2003-06-10", "valid_to": null, "source": "4857 sayılı İş Kanunu md. 15 (toplu sözleşmeyle 4 ay)", "system": true }
+  ],
+  "bulletin": [
+    {
+      "id": "2026-07-kidem-tavani",
+      "date": "2026-07-01",
+      "title": "Kıdem tazminatı tavanı 73.729,87 TL oldu",
+      "summary": "1 Temmuz – 31 Aralık 2026 döneminde ödenecek kıdem tazminatlarında tavan 73.729,87 TL (önceki dönem 64.948,77 TL).",
+      "impact": "Patron ekranındaki kıdem yükü ve personelin 'Haklarım' kartı tavanla sınırlandırıldı.",
+      "category": "Ücret ve tazminat",
+      "status": "uygulandi",
+      "source": "https://www.alomaliye.com/2026/07/06/2026-kidem-tazminati-tavani-2-donem-guncel-tutar-ve-merak-edilenler/amp/"
+    },
+    {
+      "id": "2026-05-7578-dogum-babalik",
+      "date": "2026-05-01",
+      "title": "7578 sayılı Kanun: doğum izni 24 haftaya, babalık izni 10 güne çıktı",
+      "summary": "Doğum sonrası analık izni 8 haftadan 16 haftaya (toplam 24 hafta, çoğul gebelikte 26 hafta) çıktı; doğum öncesi doktor onayıyla çalışılabilecek süre 2 haftaya indi. Eşi doğum yapan işçiye ücretli izin 5 günden 10 güne çıktı. Koruyucu aile olan işçiye talep hâlinde 10 gün ücretsiz izin hakkı tanındı. Yürürlük 01.05.2026 (RG 33240).",
+      "impact": "İzin türlerindeki 'Babalık izni (5 gün)' adı 10 gün olarak düzeltildi; 'Koruyucu aile izni (10 gün, ücretsiz)' türü eklendi.",
+      "category": "İzinler",
+      "status": "uygulandi",
+      "source": "https://www.pwc.com.tr/tr/hizmetlerimiz/insan-yonetimi-ve-organizasyon-danismanligi/sosyal-guvenlik-hizmetleri/bultenler/2026/7578-sayili-kanunla-dogum-ve-babalik-izni-konusunda-yapilan-degisiklikler.html"
+    },
+    {
+      "id": "2026-05-sgk-genelge-2026-13",
+      "date": "2026-05-11",
+      "title": "SGK Genelgesi 2026/13: analık sigortası uygulaması",
+      "summary": "7578 sayılı Kanuna uyum için analık geçici iş göremezlik ödeneği doğum sonrası 16 haftaya çıkarıldı; 01.05.2026'da doğum sonrası istirahati süren sigortalıların raporları başvuru gerekmeden 8 hafta uzatılıyor.",
+      "impact": "İşverene doğrudan yükümlülük yok; doğum izni süren personelin dönüş tarihlerini kontrol edin.",
+      "category": "Sosyal güvenlik",
+      "status": "bilgi",
+      "source": "https://www.muhasebetr.com/guncelmevzuat/mevzuat_oku.php?mevzuat_id=7204"
+    },
+    {
+      "id": "2026-01-asgari-ucret",
+      "date": "2026-01-01",
+      "title": "2026 asgari ücreti: brüt 33.030 TL, net 28.075,50 TL",
+      "summary": "SGK prime esas kazanç alt sınırı 33.030 TL, üst sınırı 297.270 TL. Asgari ücrete isabet eden gelir ve damga vergisi istisna.",
+      "impact": "Bordro hesabında kullanılıyor.",
+      "category": "Ücret ve tazminat",
+      "status": "uygulandi",
+      "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret"
+    },
+    {
+      "id": "2026-01-gv-tarifesi",
+      "date": "2026-01-01",
+      "title": "2026 gelir vergisi tarifesi ve istisnalar",
+      "summary": "Ücretlerde dilimler: 190.000 TL'ye kadar %15, 400.000 TL'ye kadar %20, 1.500.000 TL'ye kadar %27, 5.300.000 TL'ye kadar %35, üzeri %40. Günlük yemek istisnası 300 TL, yol istisnası 158 TL.",
+      "impact": "Vergi dilimleri bordro hesabında kullanılıyor; yemek ve yol istisnası şu an bordroda ayrı kalem olarak hesaplanmıyor.",
+      "category": "Vergi",
+      "status": "uygulandi",
+      "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi"
+    }
+  ],
+  "calendar": [
+    { "when": "Her ayın 26'sı", "what": "Muhtasar ve prim hizmet beyannamesi verilmesi ve ödenmesi (önceki ayın ücretleri)" },
+    { "when": "Her ayın 26'sı", "what": "SGK primlerinin ödenmesi (önceki ay)" },
+    { "when": "İşe girişten önce", "what": "SGK işe giriş bildirgesi" },
+    { "when": "Çıkıştan itibaren 10 gün", "what": "SGK işten ayrılış bildirgesi" },
+    { "when": "Her ayın 15'i", "what": "İŞKUR aylık işgücü çizelgesi (e-Şube)" },
+    { "when": "Ocak ve Temmuz", "what": "Kıdem tazminatı tavanı güncellenir" },
+    { "when": "Ocak (ve varsa Temmuz)", "what": "Asgari ücret, SGK taban/tavanı, vergi dilimleri ve istisnalar güncellenir" },
+    { "when": "En geç 6 ayda bir", "what": "KVKK periyodik imha" }
+  ]
+}

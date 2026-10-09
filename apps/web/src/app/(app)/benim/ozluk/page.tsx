@@ -3,6 +3,7 @@ import { annualLeaveEntitlement, formatTL, netToGross, paramsFor } from "@mb/cor
 import { todayIso } from "@/lib/session";
 import { formatDate } from "@/lib/session";
 import { me, MyHeader, NotLinked } from "../_shared";
+import { severanceCapAt } from "@/lib/mevzuat";
 import { ProfileChangeForm } from "./ProfileChangeForm";
 import { EDITABLE, FIELD_LABEL } from "./fields";
 
@@ -33,7 +34,7 @@ export default async function MyProfilePage() {
     const prm = paramsFor(Number(today.slice(0, 4)));
     const gross = contract ? (contract.insurance_type === "MIN_WAGE" ? prm.minWageGross : netToGross({ targetNet: Number(contract.fixed_official_net ?? 0), month: Number(today.slice(5, 7)), cumulativeTaxBaseBefore: 0, besRate: 0, params: prm }).gross) : prm.minWageGross;
     const weeks = years < 0.5 ? 2 : years < 1.5 ? 4 : years < 3 ? 6 : 8;
-    return { years, days, earned: ent.earned + adj, used, left: Math.max(0, ent.earned + adj - used), nextDays: ent.nextYearDays, next: ent.nextAnniversary, gross, kidem: years >= 1 ? Math.round(gross * years) : 0, ihbar: weeks * 7 * Math.round(gross / 30), weeks };
+    return { years, days, earned: ent.earned + adj, used, left: Math.max(0, ent.earned + adj - used), nextDays: ent.nextYearDays, next: ent.nextAnniversary, gross, kidem: years >= 1 ? Math.round(Math.min(gross, severanceCapAt(today) ?? gross) * years) : 0, ihbar: weeks * 7 * Math.round(gross / 30), weeks };
   })();
   const editable: Record<string, string> = {};
   for (const k of EDITABLE) { const x = (p as Record<string, unknown> | null)?.[k]; editable[k] = x === null || x === undefined ? "" : String(x); }
@@ -71,7 +72,7 @@ export default async function MyProfilePage() {
               <Stat label="Kıdem tazminatı" value={rights.kidem ? formatTL(rights.kidem) : "—"} sub={rights.kidem ? "1 yılı dolduranlara; istifada ödenmez" : "1 yıl dolunca hak edilir"} />
               <Stat label="İhbar tazminatı" value={formatTL(rights.ihbar)} sub={`${rights.weeks} hafta ihbar süresi`} />
             </div>
-            <p className="text-xs text-muted">Tutarlar resmi brüt ücret ({formatTL(rights.gross)}) ve bugünkü kıdem üzerinden hesaplanmıştır; kıdem tavanı ve kesintiler uygulanmamıştır. Kesin tutar işten ayrılışta mali müşavir tarafından hesaplanır.</p>
+            <p className="text-xs text-muted">Tutarlar resmi brüt ücret ({formatTL(rights.gross)}) ve bugünkü kıdem üzerinden hesaplanmıştır; kıdem tazminatı tavanı uygulanmış, kesintiler düşülmemiştir. Kesin tutar işten ayrılışta mali müşavir tarafından hesaplanır.</p>
           </Card>
         )}
         {groups.map(([title, rows]) => (

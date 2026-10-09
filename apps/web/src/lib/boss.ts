@@ -4,6 +4,7 @@
  */
 import { annualLeaveEntitlement, isoWeekday, netToGross, nextPeriod, paramsFor, periodBounds, previousPeriod } from "@mb/core";
 import { loadCompliance } from "@/lib/compliance";
+import { severanceCapAt } from "@/lib/mevzuat";
 import { contractsAt } from "@/lib/contracts";
 import { computePayroll, type PayrollRow } from "@/lib/payroll";
 import type { createClient } from "@/lib/supabase/server";
@@ -193,7 +194,10 @@ const IHBAR = new Set(["04", "05", "15", "17"]);
 export function severance(hire: string, end: string, c: ContractLite, code?: string | null, basis: "official" | "real" = "official") {
   const years = (daysBetween(hire, end) + 1) / 365;
   const g = grossOf(c, end)[basis];
-  const kidem = years >= 1 && !(code && NO_KIDEM.has(code)) ? Math.round(g * years) : 0;
+  // Kıdem tazminatı tavanı (mevzuat bülteninden; Ocak ve Temmuz'da güncellenir)
+  const cap = severanceCapAt(end);
+  const kg = cap ? Math.min(g, cap) : g;
+  const kidem = years >= 1 && !(code && NO_KIDEM.has(code)) ? Math.round(kg * years) : 0;
   const weeks = years < 0.5 ? 2 : years < 1.5 ? 4 : years < 3 ? 6 : 8;
   const ihbarDue = code ? IHBAR.has(code) : true;
   return { years, kidem, ihbar: ihbarDue ? Math.round((g / 30) * weeks * 7) : 0, weeks };

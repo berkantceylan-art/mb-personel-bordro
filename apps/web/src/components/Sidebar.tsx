@@ -83,7 +83,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
   },
   { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg", roles: MANAGERS }, { label: "Sağlık", href: "/saglik", roles: ["owner", "hr", "safety"] }, { label: "KVKK", href: "/kvkk", roles: ["owner", "hr"] }] },
   { group: "Analiz", items: [{ label: "Raporlar", href: "/raporlar", roles: MANAGERS }, { label: "Excel'den Aktar", href: "/ice-aktar", roles: PAY }] },
-  { group: "Sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", roles: ["owner", "hr", "branch_manager"] }, { label: "Yönetim", href: "/yonetim", roles: ["owner", "hr"] }, { label: "Mevzuat ayarları", href: "/mevzuat", roles: PAY }] },
+  { group: "Sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", roles: ["owner", "hr", "branch_manager"] }, { label: "Yönetim", href: "/yonetim", roles: ["owner", "hr"] }, { label: "Mevzuat", href: "/mevzuat", roles: ["owner", "accountant", "hr"] }] },
 ];
 
 export function Sidebar({ companyName, role, badges = {} }: { companyName: string; role: string; badges?: Record<string, number> }) {

@@ -1,128 +1,98 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { formatTL, PARAMS_2026, tl } from "@mb/core";
 import { Card, PageHeader } from "@/components/ui";
-import { PendingSubmit } from "@/components/ConfirmSubmit";
-import { getCompanySettings } from "@/lib/settings";
-import { createClient } from "@/lib/supabase/server";
-import { canManagePay, formatDate, getSession } from "@/lib/session";
-import { saveSettings } from "./actions";
+import { MEVZUAT, systemValue } from "@/lib/mevzuat";
+import { formatDate, getSession, todayIso } from "@/lib/session";
 
-function Choice({ name, value, checked, title, children }: { name: string; value: string; checked: boolean; title: string; children?: React.ReactNode }) {
-  return (
-    <label className="flex gap-3 items-start rounded-xl border border-[#D5DEE8] p-3.5 cursor-pointer has-[:checked]:border-brand-700 has-[:checked]:bg-[#F2F6FB]">
-      <input type="radio" name={name} value={value} defaultChecked={checked} className="mt-1 w-5 h-5 accent-[#0A3D73] shrink-0" />
-      <span className="flex flex-col gap-0.5">
-        <span className="font-semibold text-ink">{title}</span>
-        {children && <span className="text-[13px] text-muted">{children}</span>}
-      </span>
-    </label>
-  );
-}
+const TABS = [["bulten", "Mevzuat bülteni"], ["degerler", "Güncel değerler"], ["takvim", "Yasal takvim"]] as const;
+const STATUS: Record<string, [string, string]> = { uygulandi: ["Sisteme uygulandı", "bg-[#E6F4EC] text-[#1A7F52]"], bilgi: ["Bilgi", "bg-[#EEF3F9] text-brand-700"], "onay-bekliyor": ["Onayınızı bekliyor", "bg-[#FFF4E0] text-[#7A4F00]"] };
+const fmt = (v: number, unit: string) => (unit === "TL" ? `${v.toLocaleString("tr-TR", { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 })} TL` : `${v.toLocaleString("tr-TR")} ${unit}`);
+const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 
-function Section({ title, law, children }: { title: string; law: string; children: React.ReactNode }) {
-  return (
-    <Card title={title} action={<span className="text-xs text-muted">{law}</span>}>
-      <div className="grid gap-2.5 md:grid-cols-2">{children}</div>
-    </Card>
-  );
-}
-
-export default async function SettingsPage() {
+/** Mevzuat: haftalık kontrol edilen bülten, sistemde kullanılan yasal değerler ve yasal takvim */
+export default async function MevzuatPage({ searchParams }: { searchParams: Promise<{ sekme?: string; kategori?: string }> }) {
   const s = await getSession();
-  if (!canManagePay(s.role)) redirect("/");
-  const supabase = await createClient();
-  const [st, { data: row }, { count: insured }] = await Promise.all([
-    getCompanySettings(supabase),
-    supabase.from("company_settings").select("updated_at, updated_by").maybeSingle(),
-    supabase.from("employees").select("id", { count: "exact", head: true }).eq("status", "active"),
-  ]);
-
-  // Örnek hesaplar: asgari ücret üzerinden
-  const hourly = PARAMS_2026.minWageGross / 225;
-  const holiday1 = Math.round(hourly * 7.5);
-  const sicil = (process.env.SGK_ISYERI_SICIL ?? "").replace(/\D/g, "");
-  const isKolu = sicil.length >= 5 ? sicil.slice(1, 5) : null;
-  const manufacturing = isKolu ? Number(isKolu.slice(0, 2)) >= 10 && Number(isKolu.slice(0, 2)) <= 33 : null;
-  const perPoint = Math.round(PARAMS_2026.minWageGross * 0.01);
-
+  if (!["owner", "accountant", "hr"].includes(s.role)) redirect("/");
+  const sp = await searchParams;
+  const tab = (TABS.find(([k]) => k === sp.sekme)?.[0] ?? "bulten") as (typeof TABS)[number][0];
+  const today = todayIso();
+  const pending = MEVZUAT.bulletin.filter((b) => b.status === "onay-bekliyor");
+  const cats = [...new Set(MEVZUAT.bulletin.map((b) => b.category))];
+  const list = MEVZUAT.bulletin.filter((b) => !sp.kategori || b.category === sp.kategori).sort((a, b) => b.date.localeCompare(a.date));
+  const current = MEVZUAT.params.filter((p) => p.valid_from <= today && (!p.valid_to || p.valid_to >= today));
+  const mismatch = current.filter((p) => { const v = systemValue(p.key, today); return v !== null && Math.abs(v - p.value) > 0.005; });
+  const nextYear = Number(today.slice(0, 4)) + 1;
+  const missingNext = today.slice(5) >= "12-01" && !MEVZUAT.params.some((p) => p.key === "minWageGross" && p.valid_from.startsWith(String(nextYear)));
   return (
     <>
-      <PageHeader title="Mevzuat ayarları" subtitle={`Mali müşavirinizin görüşüne göre seçin${row?.updated_by ? ` · son değişiklik ${formatDate(row.updated_at)}` : " · şu an varsayılanlar geçerli"}`} />
-      <form action={saveSettings} className="p-4 md:p-8 flex flex-col gap-4 max-w-[980px]">
-        <p className="text-sm text-muted">
-          Bu ayarlar kesintisi henüz yazılmamış bordroları ve yeni fazla mesai önerilerini etkiler. Daha önce onaylanmış fazla mesai ve kesintisi yazılmış bordrolar değişmez; gerekirse geri alıp yeniden onaylayın.
-        </p>
-
-        <Section title="Resmi tatilde çalışma" law="İş Kanunu md. 47">
-          <Choice name="holiday_extra_rate" value="1" checked={st.holidayExtraRate === 1} title="Maaşa ek 1 günlük ücret (×1)">
-            Tatil günü ücreti zaten aylık maaşın içinde; çalışılan her saat için ayrıca 1 saat ücreti. Örnek: asgari ücretli 7,5 saat → {formatTL(holiday1)} ek. Yaygın uygulama.
-          </Choice>
-          <Choice name="holiday_extra_rate" value="2" checked={st.holidayExtraRate === 2} title="Maaşa ek çift ücret (×2)">
-            Çalışılan her saat için 2 saat ücreti ek ödenir. Örnek: {formatTL(holiday1 * 2)}. Toplu sözleşme veya iş sözleşmesinde bu yazıyorsa seçin.
-          </Choice>
-        </Section>
-
-        <Section title="Fazla mesai esası" law="İş Kanunu md. 41, 63">
-          <Choice name="overtime_basis" value="WEEKLY" checked={st.overtimeBasis === "WEEKLY"} title="Haftalık 45 saati aşan süre">
-            Pazartesi–pazar toplam çalışma 45 saati geçerse fark fazla mesai (×1,5). Bir gün geç kalıp başka gün fazla kalan için denkleştirme kendiliğinden olur. Kanuna uygun olan budur.
-          </Choice>
-          <Choice name="overtime_basis" value="DAILY" checked={st.overtimeBasis === "DAILY"} title="Günlük vardiya süresini aşan süre">
-            Her gün vardiya süresini eşik kadar aşan çalışma ve hafta tatili çalışması ayrı ayrı fazla mesai sayılır. Personel lehine, işverene daha maliyetli.
-          </Choice>
-        </Section>
-
-        <Section title="Fazla mesai yuvarlama" law="Fazla Çalışma Yönetmeliği md. 6">
-          <Choice name="overtime_rounding" value="HALF_HOUR" checked={st.overtimeRounding === "HALF_HOUR"} title="Yarım saate / saate yuvarla">
-            Artan 1–30 dk yarım saat, 31–59 dk bir saat sayılır. Örnek: 2 sa 10 dk → 2,5 saat; 2 sa 40 dk → 3 saat.
-          </Choice>
-          <Choice name="overtime_rounding" value="EXACT" checked={st.overtimeRounding === "EXACT"} title="Dakikası dakikasına">
-            Okutmalardan hesaplanan süre yuvarlanmadan ödenir.
-          </Choice>
-        </Section>
-
-        <Section title="SGK işveren payı teşviki" law="5510 s. K. md. 81/ı">
-          <div className="md:col-span-2 text-[13px] rounded-xl bg-[#F2F6FB] border border-[#D5DEE8] p-3">
-            {isKolu ? (
-              <>İşyeri sicil numaranızdaki işkolu kodu <b>{isKolu}</b>{isKolu === "3250" ? " (tıbbi ve dişçilik araç-gereç imalatı)" : ""}: {manufacturing ? <b>imalat sektörü — 5 puan teşvik uygulanır görünüyor.</b> : "imalat dışı görünüyor."} Mali müşavirinizle teyit edin.</>
-            ) : (
-              "İşyeri sicil numarası tanımlı değil; sektörünüzü mali müşavirinizle teyit edin."
-            )}{" "}
-            Her puan, asgari ücretli bir personel için ayda {formatTL(perPoint)} işveren maliyeti demek{insured ? ` (aktif ${insured} personelde yaklaşık ${formatTL(perPoint * insured)})` : ""}.
+      <PageHeader title="Mevzuat" subtitle={`Son kontrol ${formatDate(MEVZUAT.last_checked)} · her hafta resmî kaynaklardan otomatik kontrol edilir`} actions={["owner", "accountant"].includes(s.role) ? <Link href="/mevzuat/ayarlar" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">Bordro yorum ayarları</Link> : undefined} />
+      <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[1100px]">
+        {(pending.length > 0 || mismatch.length > 0 || missingNext) && (
+          <div className="rounded-[14px] border border-[#F2C94C] bg-[#FFF4E0] p-4 text-sm flex flex-col gap-1.5">
+            {pending.map((b) => <div key={b.id}><b>Onay bekleyen değişiklik:</b> {b.title}{b.pr ? <> · <a href={b.pr} target="_blank" rel="noopener" className="font-semibold text-brand-700">değişikliği incele ↗</a></> : null}</div>)}
+            {mismatch.map((p) => <div key={p.key}><b>{p.label}</b> güncel değeri {fmt(p.value, p.unit)}, bordro motorunda {fmt(systemValue(p.key, today)!, p.unit)} kullanılıyor — güncelleme onayınızı bekliyor.</div>)}
+            {missingNext && <div><b>{nextYear} asgari ücreti</b> henüz açıklanmadı / sisteme girilmedi. Açıklanınca haftalık kontrol değerleri ekleyip onayınıza sunar.</div>}
           </div>
-          <Choice name="sgk_incentive_points" value="5" checked={st.sgkIncentivePoints === 5} title="5 puan — imalat sektörü">İşveren payı %21,75 → %16,75</Choice>
-          <Choice name="sgk_incentive_points" value="2" checked={st.sgkIncentivePoints === 2} title="2 puan — diğer sektörler">İşveren payı %21,75 → %19,75</Choice>
-          <Choice name="sgk_incentive_points" value="0" checked={st.sgkIncentivePoints === 0} title="Teşvik yok">Borç veya bildirge sorunu nedeniyle teşvikten yararlanılamıyorsa. Personel kartında teşvik kapalı olanlara zaten uygulanmaz.</Choice>
-        </Section>
+        )}
+        <nav className="flex flex-wrap gap-1.5" aria-label="Mevzuat bölümleri">
+          {TABS.map(([k, l]) => <Link key={k} href={`/mevzuat?sekme=${k}`} aria-current={tab === k ? "page" : undefined} className={`h-10 px-4 rounded-full text-sm font-semibold grid place-items-center ${tab === k ? "bg-brand-800 text-white" : "bg-white border border-[#D5DEE8] text-brand-700"}`}>{l}</Link>)}
+        </nav>
 
-        <Section title="İcra kesintisi hesabı" law="İcra İflas Kanunu md. 83">
-          <Choice name="garnishment_after_alimony" value="1" checked={st.garnishmentAfterAlimony} title="Nafaka düşüldükten sonra kalanın 1/4'ü">
-            Örnek: {formatTL(tl(28075.5))} net, {formatTL(tl(10000))} nafaka → icra {formatTL(tl(4518.88))}. Yaygın uygulama.
-          </Choice>
-          <Choice name="garnishment_after_alimony" value="0" checked={!st.garnishmentAfterAlimony} title="Net ücretin 1/4'ü (nafakadan bağımsız)">
-            Aynı örnekte icra {formatTL(tl(7018.88))}. İcra dairesi yazısında böyle belirtildiyse seçin.
-          </Choice>
-          <Choice name="garnishment_after_bes" value="0" checked={!st.garnishmentAfterBes} title="İcra BES kesintisinden önceki netten">
-            BES katkı payı icra matrahından düşülmez.
-          </Choice>
-          <Choice name="garnishment_after_bes" value="1" checked={st.garnishmentAfterBes} title="İcra BES kesintisinden sonraki netten">
-            Önce BES kesilir, icra kalan net üzerinden hesaplanır.
-          </Choice>
-          <p className="md:col-span-2 text-[13px] text-muted">Her iki durumda da nafaka + icra + BES toplamı net ücreti aşamaz; aşan kısım kesilmez.</p>
-        </Section>
+        {tab === "bulten" && (
+          <>
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              <Link href="/mevzuat" className={`rounded-full px-3 py-1 border ${!sp.kategori ? "bg-[#EEF3F9] border-brand-600 font-semibold" : "border-line bg-white"}`}>Tümü</Link>
+              {cats.map((c) => <Link key={c} href={`/mevzuat?kategori=${encodeURIComponent(c)}`} className={`rounded-full px-3 py-1 border ${sp.kategori === c ? "bg-[#EEF3F9] border-brand-600 font-semibold" : "border-line bg-white"}`}>{c}</Link>)}
+            </div>
+            <ol className="flex flex-col gap-3">
+              {list.map((b) => {
+                const [l, cls] = STATUS[b.status] ?? STATUS.bilgi!;
+                return (
+                  <li key={b.id} className="bg-white border border-line rounded-[14px] p-4 flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs"><span className="font-semibold text-brand-700">{formatDate(b.date)}</span><span className="rounded-full bg-[#F2F4F7] px-2 py-0.5">{b.category}</span><span className={`rounded-full px-2 py-0.5 font-semibold ${cls}`}>{l}</span></div>
+                    <h2 className="font-display font-semibold text-brand-800">{b.title}</h2>
+                    <p className="text-sm leading-relaxed">{b.summary}</p>
+                    <p className="text-sm rounded-lg bg-[#F5F7FA] p-2"><b>Sisteme etkisi:</b> {b.impact}</p>
+                    <a href={b.source} target="_blank" rel="noopener" className="text-xs font-semibold text-brand-700 self-start">Kaynak: {host(b.source)} ↗</a>
+                  </li>
+                );
+              })}
+            </ol>
+          </>
+        )}
 
-        <Card title="Değiştirilemeyen yasal sınırlar (uyarı olarak gösterilir)">
-          <ul className="text-sm text-ink list-disc pl-5 flex flex-col gap-1">
-            <li>Günlük çalışma en fazla 11 saat (İş K. 63)</li>
-            <li>Yıllık fazla mesai en fazla 270 saat (İş K. 41)</li>
-            <li>Gece çalışması en fazla 7,5 saat (İş K. 69) — vardiya tanımları kontrol edilir</li>
-            <li>Arife günleri 13:00&apos;te biter; sonrası resmi tatil çalışması sayılır</li>
-          </ul>
-        </Card>
+        {tab === "degerler" && (
+          <Card title={`${today.slice(0, 4)} yılında geçerli yasal değerler`}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[720px]">
+                <thead><tr className="text-left text-xs text-muted"><th className="py-2 px-2">Değer</th><th className="py-2 px-2 text-right">Tutar</th><th className="py-2 px-2">Geçerlilik</th><th className="py-2 px-2">Sistemde</th><th className="py-2 px-2">Kaynak</th></tr></thead>
+                <tbody>{MEVZUAT.params.sort((a, b) => a.label.localeCompare(b.label, "tr")).map((p) => {
+                  const sv = systemValue(p.key, today);
+                  const active = p.valid_from <= today && (!p.valid_to || p.valid_to >= today);
+                  const bad = active && sv !== null && Math.abs(sv - p.value) > 0.005;
+                  return (
+                    <tr key={p.key} className={`border-t border-[#EEF2F6] ${active ? "" : "text-muted"}`}>
+                      <td className="py-2 px-2 font-medium">{p.label}</td>
+                      <td className="py-2 px-2 text-right num">{fmt(p.value, p.unit)}</td>
+                      <td className="py-2 px-2 whitespace-nowrap">{formatDate(p.valid_from)} – {p.valid_to ? formatDate(p.valid_to) : "…"}</td>
+                      <td className="py-2 px-2">{bad ? <span className="text-bad font-semibold">güncellenmedi ({fmt(sv!, p.unit)})</span> : p.system ? <span className="text-ok">✓ kullanılıyor</span> : <span className="text-muted">bilgi</span>}</td>
+                      <td className="py-2 px-2 text-xs">{p.source.startsWith("http") ? <a href={p.source} target="_blank" rel="noopener" className="text-brand-700">{host(p.source)} ↗</a> : p.source}</td>
+                    </tr>
+                  );
+                })}</tbody>
+              </table>
+            </div>
+            <p className="text-xs text-muted">Haftalık kontrol yeni bir değer bulduğunda buraya ekler. Bordro hesabını etkileyen değerler (asgari ücret, SGK sınırları, vergi dilimleri) sizin onayınızla devreye girer; o zamana kadar bu tabloda &quot;güncellenmedi&quot; olarak görünür.</p>
+          </Card>
+        )}
 
-        <div className="sticky-save bg-ground py-3 border-t border-line md:border-0">
-          <PendingSubmit className="h-12 px-6 rounded-[10px] bg-brand-700 text-white font-semibold">Ayarları kaydet</PendingSubmit>
-        </div>
-      </form>
+        {tab === "takvim" && (
+          <Card title="Yasal takvim">
+            <ul className="divide-y divide-[#EEF2F6] text-sm">{MEVZUAT.calendar.map((c, i) => <li key={i} className="py-2 grid grid-cols-[170px_1fr] gap-3"><b className="text-brand-800">{c.when}</b><span>{c.what}</span></li>)}</ul>
+          </Card>
+        )}
+        <p className="text-xs text-muted">Bülten bilgilendirme amaçlıdır; uygulamadan önce mali müşavirinizle teyit edin.</p>
+      </div>
     </>
   );
 }

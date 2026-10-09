@@ -28,6 +28,6 @@ export async function saveSettings(f: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.from("company_settings").upsert(row, { onConflict: "company_id" });
   if (error) await fail(`Kaydedilemedi: ${error.message}`);
-  for (const p of ["/mevzuat", "/fazla-mesai", "/bordro", "/puantaj", "/"]) revalidatePath(p);
+  for (const p of ["/mevzuat/ayarlar", "/fazla-mesai", "/bordro", "/puantaj", "/"]) revalidatePath(p);
   await done("Mevzuat ayarları kaydedildi. Kesintisi yazılmamış bordrolar ve yeni fazla mesai önerileri bu ayarlarla hesaplanır.");
 }

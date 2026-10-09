@@ -273,7 +273,7 @@ async function Risks({ sb, today, cur, emps }: { sb: SB; today: string; cur: str
           <div><div className="text-xs text-white/70">Resmi ücrete göre</div><div className="num text-xl font-bold">{formatTL(r.kidemOfficial + r.ihbarOfficial)}</div><div className="text-[11px] text-white/70">kıdem {formatTL(r.kidemOfficial)} · ihbar {formatTL(r.ihbarOfficial)}</div></div>
           <div><div className="text-xs text-white/70">Gerçek ücrete göre (elden dâhil)</div><div className="num text-xl font-bold text-[#FFD27A]">{formatTL(r.kidemReal + r.ihbarReal)}</div><div className="text-[11px] text-white/70">kıdem {formatTL(r.kidemReal)} · ihbar {formatTL(r.ihbarReal)}</div></div>
         </div>
-        <p className="text-[11px] text-white/70">Dava hâlinde mahkeme elden ödenen dâhil gerçek ücreti esas alır; aradaki fark açık risktir. Tahmindir: kıdem tavanı, yemek/yol gibi ek ödemeler ve fesih nedeni dikkate alınmadı.</p>
+        <p className="text-[11px] text-white/70">Dava hâlinde mahkeme elden ödenen dâhil gerçek ücreti esas alır; aradaki fark açık risktir. Tahmindir: kıdem tavanı (Mevzuat bülteninden) uygulandı; yemek/yol gibi ek ödemeler ve fesih nedeni dikkate alınmadı.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
