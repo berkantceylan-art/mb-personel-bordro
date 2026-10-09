@@ -19,12 +19,12 @@ const STEPS: Array<{ n: number; title: string; short: string; hint: string }> = 
 
 /** e-Devlet'te belgenin alındığı hizmet sayfası (personel kendi hesabıyla girip PDF indirir) */
 const EDEVLET: Record<string, string> = {
-  "Nüfus kayıt örneği": "https://www.turkiye.gov.tr/nvi-nufus-kayit-ornegi-belge-sorgulama",
+  "Nüfus kayıt örneği": "https://www.turkiye.gov.tr/nvi-nufus-kayit-ornegi-belgesi-sorgulama",
   "İkametgah belgesi": "https://www.turkiye.gov.tr/nvi-yerlesim-yeri-ve-diger-adres-belgesi-sorgulama",
   "Adli sicil kaydı": "https://www.turkiye.gov.tr/adli-sicil-kaydi",
-  "Askerlik durum belgesi": "https://www.turkiye.gov.tr/msb-askerlik-durum-belgesi",
+  "Askerlik durum belgesi": "https://www.turkiye.gov.tr/mill-savunma-askerligim",
   "SGK hizmet dökümü": "https://www.turkiye.gov.tr/sgk-tescil-ve-hizmet-dokumu",
-  "Diploma": "https://www.turkiye.gov.tr/yok-mezun-belgesi-sorgulama",
+  "Diploma": "https://www.turkiye.gov.tr/yuksekogretim-mezun-belgesi-sorgulama",
 };
 
 type DocType = { id: string; name: string; required: boolean; has_expiry: boolean; onboarding_step: number | null; template_key: string | null; description: string | null; sort_order: number };

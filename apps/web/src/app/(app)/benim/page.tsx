@@ -35,7 +35,7 @@ export default async function MyPage() {
   const period = currentPeriod();
   const monthStart = `${period}-01T00:00:00`;
   const year = period.slice(0, 4);
-  const [{ data: sum }, { data: entries }, { data: payroll }, { data: punches }, { data: leaves }, { data: types }, { data: adv }, { data: anns }] = await Promise.all([
+  const [{ data: sum }, { data: entries }, { data: payroll }, { data: punches }, { data: leaves }, { data: types }, { data: adv }, { data: anns }, { data: reqDocs }, { data: myDocs }] = await Promise.all([
     supabase.from("ledger_period_summary").select("accrued, paid_bank, paid_cash, deductions, balance").eq("employee_id", me.id).eq("period", period).maybeSingle(),
     supabase.from("ledger_entries").select("id, entry_date, type, channel, amount, note").eq("employee_id", me.id).is("voided_at", null).order("entry_date", { ascending: false }).limit(12),
     supabase.from("payroll_lines").select("period, days, official_gross, official_net, net_to_bank, bes, garnishment").eq("employee_id", me.id).order("period", { ascending: false }).limit(6),
@@ -44,7 +44,11 @@ export default async function MyPage() {
     supabase.from("leave_types").select("id, name").order("sort_order"),
     supabase.from("advance_requests").select("id, amount, reason, status, created_at, decision_note").eq("employee_id", me.id).order("created_at", { ascending: false }).limit(10),
     supabase.from("announcements").select("id, title, published_at, pinned").order("pinned", { ascending: false }).order("published_at", { ascending: false }).limit(4),
+    supabase.from("document_types").select("id").eq("onboarding_step", 2).eq("required", true),
+    supabase.from("employee_documents").select("document_type_id").eq("employee_id", me.id),
   ]);
+  const haveDoc = new Set((myDocs ?? []).map((d) => d.document_type_id));
+  const missingDocs = (reqDocs ?? []).filter((t) => !haveDoc.has(t.id)).length;
 
   const days = new Map<string, { in?: string; out?: string }>();
   for (const p of punches ?? []) {
@@ -79,6 +83,13 @@ export default async function MyPage() {
         </Card>
 
         <EnablePush />
+
+        {missingDocs > 0 && (
+          <Link href="/benim/belgeler" className="flex items-center justify-between gap-3 rounded-[14px] border border-[#F2C94C] bg-[#FFF4E0] p-4 text-sm">
+            <span><b>{missingDocs} belge eksik.</b> e-Devlet&apos;ten indirip telefondan yükleyebilirsiniz.</span>
+            <span className="font-semibold text-brand-700 whitespace-nowrap">Belgelerim →</span>
+          </Link>
+        )}
 
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <Stat label={`${periodLabel(period)} hakediş`} value={formatTL(n(sum?.accrued))} />
