@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PendingSubmit } from "@/components/ConfirmSubmit";
 import { Card, PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, getSession } from "@/lib/session";
+import { formatDate, getSession, periodLabel } from "@/lib/session";
 import { uploadMyDocument } from "./actions";
 
 /** e-Devlet'te belgenin alındığı hizmet */
@@ -25,8 +25,17 @@ export default async function MyDocumentsPage() {
   if (!me) return <><PageHeader title="Belgelerim" /><div className="p-6 text-muted">Hesabınız bir personel kaydına bağlı değil.</div></>;
   const [{ data: types }, { data: docs }] = await Promise.all([
     supabase.from("document_types").select("id, name, required, description, sort_order, onboarding_step").eq("onboarding_step", 2).order("sort_order"),
-    supabase.from("employee_documents").select("id, document_type_id, file_name, uploaded_at").eq("employee_id", me.id).order("uploaded_at"),
+    supabase.from("employee_documents").select("id, document_type_id, file_name, file_path, uploaded_at, expires_on, period, document_types(name, category)").eq("employee_id", me.id).order("uploaded_at", { ascending: false }),
   ]);
+  const CAT: Record<string, string> = { ozluk: "Özlük", isg: "İş güvenliği", saglik: "Sağlık", bordro: "Bordro", cikis: "Çıkış" };
+  const link = new Map<string, string>();
+  if (docs?.length) {
+    const { data: urls } = await supabase.storage.from("documents").createSignedUrls(docs.map((d) => d.file_path), 600);
+    (urls ?? []).forEach((u, i) => u.signedUrl && link.set(docs[i]!.file_path, u.signedUrl));
+  }
+  const groups = new Map<string, NonNullable<typeof docs>>();
+  for (const d of docs ?? []) { const c = (d.document_types as unknown as { category: string } | null)?.category ?? "ozluk"; groups.set(c, [...(groups.get(c) ?? []), d]); }
+  const tname = (x: unknown) => (x as { name: string } | null)?.name ?? "—";
   const byType = new Map<string, NonNullable<typeof docs>>();
   for (const d of docs ?? []) byType.set(d.document_type_id, [...(byType.get(d.document_type_id) ?? []), d]);
   const list = types ?? [];
@@ -34,7 +43,7 @@ export default async function MyDocumentsPage() {
 
   return (
     <>
-      <PageHeader title="Belgelerim" subtitle={missing ? `${missing} zorunlu belge eksik` : "Zorunlu belgeler tamam"} actions={<Link href="/benim" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">← Ana sayfa</Link>} />
+      <PageHeader title="Belgelerim" subtitle={missing ? `${missing} zorunlu belge eksik · e-Devlet belgeleri ve özlük dosyam` : "Zorunlu belgeler tamam · özlük dosyam"} actions={<Link href="/benim" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">← Ana sayfa</Link>} />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[760px]">
         <Card title="Nasıl yapılır?">
           <ol className="text-sm list-decimal pl-5 flex flex-col gap-1">
@@ -71,6 +80,19 @@ export default async function MyDocumentsPage() {
           })}
           {list.length === 0 && <li className="text-muted text-sm">Belge türleri tanımlı değil (İK: 20261029000000_onboarding_docs.sql).</li>}
         </ul>
+        <Card title="Özlük dosyamdaki tüm belgeler" action={<span className="text-xs text-muted">{(docs ?? []).length} belge</span>}>
+          {(docs ?? []).length === 0 ? <p className="text-sm text-muted">Yüklü belge yok.</p> : [...groups.entries()].map(([c, lst]) => (
+            <div key={c} className="flex flex-col gap-1">
+              <div className="text-xs uppercase tracking-wide text-muted">{CAT[c] ?? c}</div>
+              {lst.map((d) => (
+                <div key={d.id} className="text-sm flex justify-between gap-2 border-b border-[#EEF2F6] last:border-0 py-1">
+                  <span>{tname(d.document_types)}{d.period ? ` · ${periodLabel(d.period)}` : ""}<span className="block text-xs text-muted">{formatDate(d.uploaded_at.slice(0, 10))}{d.expires_on ? ` · bitiş ${formatDate(d.expires_on)}` : ""}</span></span>
+                  {link.has(d.file_path) && <a href={link.get(d.file_path)} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand-700 whitespace-nowrap">Aç →</a>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </Card>
       </div>
     </>
   );
