@@ -10,6 +10,8 @@ export interface Session {
   companyId: string;
   companyName: string;
   role: Role;
+  /** Patron ekranı yetkisi (memberships.is_boss) */
+  boss: boolean;
 }
 
 /** Oturumdaki kullanıcı ve şirketi. Şirketi yoksa kurulum sayfasına gönderir. */
@@ -20,13 +22,18 @@ export const getSession = cache(async (): Promise<Session> => {
   } = await supabase.auth.getUser();
   if (!user) redirect("/giris");
 
-  const { data: m } = await supabase
+  let { data: m } = await supabase
     .from("memberships")
-    .select("company_id, role, companies(name)")
+    .select("company_id, role, is_boss, companies!memberships_company_id_fkey(name)")
     .eq("user_id", user.id)
     .order("created_at")
     .limit(1)
     .maybeSingle();
+  if (!m) {
+    // is_boss sütunu henüz yoksa (20261104000000_boss.sql çalıştırılmamış) eski sorgu
+    const r = await supabase.from("memberships").select("company_id, role, companies!memberships_company_id_fkey(name)").eq("user_id", user.id).order("created_at").limit(1).maybeSingle();
+    m = r.data ? { ...r.data, is_boss: false } : null;
+  }
 
   if (!m) redirect("/kurulum");
   const company = m.companies as unknown as { name: string } | null;
@@ -36,6 +43,7 @@ export const getSession = cache(async (): Promise<Session> => {
     companyId: m.company_id as string,
     companyName: company?.name ?? "",
     role: m.role as Role,
+    boss: m.is_boss === true,
   };
 });
 

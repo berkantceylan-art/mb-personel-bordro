@@ -97,7 +97,10 @@ export async function updateMember(f: FormData) {
   const branches = f.getAll("branch_id").map(String);
   const all = f.get("all_branches") === "on";
   if (!all && !branches.length) await fail("Tüm şubeler seçili değilse en az bir şube seçin.");
-  await must(supabase.from("memberships").update({ role, all_branches: all, display_name: str(f, "display_name") || null }).eq("user_id", userId).eq("company_id", s.companyId));
+  const boss = f.get("is_boss") === "on" && ["owner", "accountant"].includes(role);
+  let { error: mErr } = await supabase.from("memberships").update({ role, all_branches: all, display_name: str(f, "display_name") || null, is_boss: boss }).eq("user_id", userId).eq("company_id", s.companyId);
+  if (mErr?.message.includes("is_boss")) ({ error: mErr } = await supabase.from("memberships").update({ role, all_branches: all, display_name: str(f, "display_name") || null }).eq("user_id", userId).eq("company_id", s.companyId));
+  if (mErr) await fail(mErr.message);
   await must(supabase.from("membership_branches").delete().eq("user_id", userId).eq("company_id", s.companyId));
   if (!all) await must(supabase.from("membership_branches").insert(branches.map((b) => ({ user_id: userId, company_id: s.companyId, branch_id: b }))));
   // Şef: sorumlu olduğu bölümler (tablo yoksa atlanır)

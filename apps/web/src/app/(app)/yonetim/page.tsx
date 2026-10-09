@@ -32,7 +32,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     supabase.from("employees").select("id, first_name, last_name, user_id, department_id").eq("status", "active").order("first_name"),
   ]);
   const [members, mb, md, invites, devices, company, audit] = await Promise.all([
-    tab === "kullanicilar" ? supabase.from("memberships").select("user_id, role, all_branches, display_name, created_at").order("created_at") : Promise.resolve({ data: [] }),
+    tab === "kullanicilar" ? supabase.from("memberships").select("*").order("created_at") : Promise.resolve({ data: [] }),
     tab === "kullanicilar" ? supabase.from("membership_branches").select("user_id, branch_id") : Promise.resolve({ data: [] }),
     tab === "kullanicilar" ? supabase.from("membership_departments").select("user_id, department_id") : Promise.resolve({ data: [] }),
     tab === "davetler" ? supabase.from("invites").select("*").order("created_at", { ascending: false }).limit(300) : Promise.resolve({ data: [] }),
@@ -76,6 +76,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                             <input name="display_name" defaultValue={m.display_name ?? ""} placeholder="Görünen ad" aria-label="Görünen ad" className="h-9 w-36 rounded-md border border-[#D5DEE8] px-2 text-xs" />
                             <select name="role" defaultValue={m.role} aria-label="Rol" className="h-9 rounded-md border border-[#D5DEE8] px-2 text-xs">{Object.entries(ROLE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
                             <label className="flex gap-1 items-center text-xs"><input type="checkbox" name="all_branches" defaultChecked={m.all_branches} />Tüm şubeler</label>
+                            {(m.role === "owner" || m.role === "accountant") && <label className="flex gap-1 items-center text-xs" title="Mobilde patron ekranı: maaş yükü, SGK, devamsızlık, giren-çıkan"><input type="checkbox" name="is_boss" defaultChecked={(m as { is_boss?: boolean }).is_boss === true} />Patron ekranı</label>}
                             {(branches ?? []).length > 1 && (branches ?? []).map((b) => (
                               <label key={b.id} className="flex gap-1 items-center text-xs"><input type="checkbox" name="branch_id" value={b.id} defaultChecked={myBranches.has(b.id)} />{b.name}</label>
                             ))}

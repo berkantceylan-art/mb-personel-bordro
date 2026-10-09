@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       <Sidebar companyName={s.companyName} role={s.role} badges={badges} />
-      <MobileNav companyName={s.companyName} role={s.role} badges={badges} />
+      <MobileNav companyName={s.companyName} role={s.role} badges={badges} boss={s.boss || s.role === "owner"} />
       <main className="flex-1 min-w-0 flex flex-col pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">
         <FlashMessage />
         <LiveUpdates userId={s.userId} />

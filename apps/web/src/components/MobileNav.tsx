@@ -22,6 +22,7 @@ const ICONS: Record<string, React.ReactNode> = {
   id: <path d="M3 5h18v14H3zM7 14a3 3 0 0 1 6 0M10 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4M15 9h4M15 13h4" />,
   folder: <path d="M3 6h6l2 2h10v12H3zM3 10h18" />,
   shield: <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4" />,
+  crown: <path d="M3 18h18M4 16l1-9 5 4 2-6 2 6 5-4 1 9z" />,
   box: <path d="M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8" />,
   piggy: <path d="M5 11a7 6 0 0 1 14 0v3h2v-4M5 14v4M9 17v3M15 17v3M14 9h.01M19 14a2 2 0 0 0 0-4" />,
   gavel: <path d="M14 4l6 6-3 3-6-6zM11 7l-7 7 3 3 7-7M3 21h10" />,
@@ -38,7 +39,7 @@ const Icon = ({ name }: { name: string }) => (
   </svg>
 );
 
-export function MobileNav({ role, companyName, badges }: { role: string; companyName: string; badges: Record<string, number> }) {
+export function MobileNav({ role, companyName, badges, boss = false }: { role: string; companyName: string; badges: Record<string, number>; boss?: boolean }) {
   const path = usePathname();
   const [menu, setMenu] = useState(false);
   useEffect(() => setMenu(false), [path]);
@@ -53,7 +54,7 @@ export function MobileNav({ role, companyName, badges }: { role: string; company
         { label: "Bildirimler", href: "/bildirimler", icon: "bell" },
       ]
     : [
-        { label: "Panel", href: "/", icon: "home" },
+        ...(boss ? [{ label: "Patron", href: "/patron", icon: "crown" }] : [{ label: "Panel", href: "/", icon: "home" }]),
         canRequests ? { label: "Talepler", href: "/talepler", icon: "inbox" } : { label: "Personel", href: "/personel", icon: "users" },
         { label: "Mesajlar", href: "/mesajlar", icon: "chat" },
         { label: "Bildirimler", href: "/bildirimler", icon: "bell" },

@@ -13,6 +13,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
     group: "Genel",
     items: [
       { label: "Gösterge Paneli", href: "/", roles: MANAGERS },
+      { label: "Patron ekranı", href: "/patron", roles: ["owner", "accountant"] },
       { label: "Benim sayfam", href: "/benim", roles: ["employee"] },
       { label: "Avans iste", href: "/benim/avans", roles: ["employee"] },
       { label: "İzin iste", href: "/benim/izin", roles: ["employee"] },
