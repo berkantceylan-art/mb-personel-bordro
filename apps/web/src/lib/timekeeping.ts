@@ -76,6 +76,10 @@ export interface DayCell extends DayEvaluation {
   holidayName: string | null;
   punchCount: number;
   employed: boolean;
+  /** İlk giriş / son çıkış (YYYY-MM-DDTHH:MM, yerel) ve dışarıda geçen süre — çalışma süresi denetimi için */
+  firstIn: string | null;
+  lastOut: string | null;
+  outsideMin: number;
 }
 
 export interface MonthData {
@@ -219,6 +223,9 @@ export async function loadMonth(supabase: SB, period: string, opts: { employeeId
         holidayName: holiday?.name ?? null,
         punchCount: punchCount.get(k) ?? 0,
         employed,
+        firstIn: totals.get(k)?.firstIn ?? null,
+        lastOut: totals.get(k)?.lastOut ?? null,
+        outsideMin: totals.get(k)?.outsideMinutes ?? 0,
       });
     }
     cells.set(e.id, row);

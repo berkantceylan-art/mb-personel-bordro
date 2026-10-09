@@ -28,6 +28,7 @@ const ICONS: Record<string, React.ReactNode> = {
   box: <path d="M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8" />,
   piggy: <path d="M5 11a7 6 0 0 1 14 0v3h2v-4M5 14v4M9 17v3M15 17v3M14 9h.01M19 14a2 2 0 0 0 0-4" />,
   gavel: <path d="M14 4l6 6-3 3-6-6zM11 7l-7 7 3 3 7-7M3 21h10" />,
+  mail: <path d="M3 6h18v12H3zM3 7l9 6 9-6" />,
   lock: <path d="M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4M12 15v2" />,
   flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
   star: <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" />,

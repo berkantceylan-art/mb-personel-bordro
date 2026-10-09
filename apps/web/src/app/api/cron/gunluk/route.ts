@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { isoWeekday, periodBounds } from "@mb/core";
 import { missed, tracked } from "@/lib/boss";
 import { loadCompliance } from "@/lib/compliance";
+import { workdaysBetween } from "@/lib/labor";
 import { openPeriod } from "@/lib/periods";
 import { formatDate, periodLabel, todayIso } from "@/lib/session";
 import { loadMonth } from "@/lib/timekeeping";
@@ -195,6 +196,36 @@ const JOBS: Record<string, (ctx: JobContext) => Promise<unknown>> = {
       out.push("imha");
     }
     return out.length ? out : "yok";
+  },
+
+  /** İş Kanunu süreleri: savunma, esaslı değişiklik yanıtı, md. 26 fesih süresi, telafi, sözleşme bitişi, süt izni, yıllık fazla mesai onayı */
+  async isHukuku(ctx) {
+    const cid = ctx.companyId;
+    const hr = await ctx.users(["owner", "hr"]);
+    const lines: string[] = [];
+    const nm = (e: unknown) => { const x = e as { first_name?: string; last_name?: string } | null; return x ? `${x.first_name} ${x.last_name}` : "?"; };
+    const [{ data: cases }, { data: changes }, { data: telafi }, { data: contracts }, { data: mats }] = await Promise.all([
+      ctx.sb.from("disciplinary_cases").select("learned_at, defense_due, defense_received_at, decided_at, employees(first_name, last_name)").eq("company_id", cid).is("decided_at", null),
+      ctx.sb.from("condition_changes").select("response_due, employees(first_name, last_name)").eq("company_id", cid).is("responded_at", null),
+      ctx.sb.from("compensatory_work").select("reason, deadline").eq("company_id", cid).gte("deadline", ctx.today),
+      ctx.sb.from("employees").select("first_name, last_name, contract_end, contract_type").eq("company_id", cid).neq("status", "terminated").not("contract_end", "is", null),
+      ctx.sb.from("maternity_records").select("milk_until, leave_end, employees(first_name, last_name)").eq("company_id", cid),
+    ]);
+    for (const c of cases ?? []) {
+      if (c.defense_due && !c.defense_received_at && daysUntil(ctx.today, c.defense_due as string) === -1) lines.push(`${nm(c.employees)}: savunma süresi doldu, karar verilebilir`);
+      if (workdaysBetween(c.learned_at as string, ctx.today) === 5) lines.push(`${nm(c.employees)}: haklı fesih için md. 26 süresi (6 iş günü) dolmak üzere`);
+    }
+    for (const c of changes ?? []) if (daysUntil(ctx.today, c.response_due as string) === -1) lines.push(`${nm(c.employees)}: esaslı değişikliğe 6 iş günü içinde yanıt vermedi (kabul edilmemiş sayılır)`);
+    for (const t of telafi ?? []) if ([14, 3].includes(daysUntil(ctx.today, t.deadline as string))) lines.push(`Telafi çalışması "${t.reason}": son gün ${formatDate(t.deadline as string)}`);
+    for (const e of contracts ?? []) if ([30, 7].includes(daysUntil(ctx.today, e.contract_end as string))) lines.push(`${e.first_name} ${e.last_name}: belirli süreli sözleşme ${formatDate(e.contract_end as string)} bitiyor`);
+    for (const m of mats ?? []) {
+      if (m.leave_end && daysUntil(ctx.today, m.leave_end as string) === 7) lines.push(`${nm(m.employees)}: doğum izni ${formatDate(m.leave_end as string)} bitiyor, süt izni planlayın`);
+      if (m.milk_until && daysUntil(ctx.today, m.milk_until as string) === 0) lines.push(`${nm(m.employees)}: süt izni bugün bitiyor`);
+    }
+    if (ctx.today.slice(5) === "01-02") lines.push("Yeni yıl: fazla çalışma için personelden yazılı onay alın (İş Kanunu uyumu → Fazla mesai onayı)");
+    if (!lines.length) return "yok";
+    await ctx.notify(hr, "İş Kanunu süreleri", lines.join(" · "), "/is-hukuku");
+    return lines.length;
   },
 
   /** KVKK: saklama süresi dolan aday başvurularını ve dosyalarını siler */

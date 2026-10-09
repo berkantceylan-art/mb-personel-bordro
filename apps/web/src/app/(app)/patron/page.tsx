@@ -11,6 +11,7 @@ import { decideAdvance, decideProfileChange, decidePunchRequest } from "@/lib/co
 import { approveOvertime, decideLeave } from "@/lib/leave-ot-actions";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, currentPeriod, formatDate, getSession, periodLabel, todayIso } from "@/lib/session";
+import { disabilityQuota, workTimeIssues } from "@/lib/labor";
 import { fetchAll, loadMonth } from "@/lib/timekeeping";
 import { decideMeal } from "../yemek/actions";
 import { savePayDay, saveSgkPayment } from "./actions";
@@ -262,9 +263,33 @@ async function People({ sb, today, cur, period, emps }: { sb: SB; today: string;
 }
 
 /* ================================================================ Risk */
+/** İş Kanunu uyum riskleri: engelli kotası, bu ayın çalışma süresi ihlalleri, açık disiplin, biten sözleşmeler */
+async function laborRisk(sb: SB, today: string, cur: string, emps: EmpLite[]) {
+  const active = emps.filter((e) => e.status !== "terminated" && e.hire_date && e.hire_date <= today);
+  const in30 = new Date(Date.parse(today) + 30 * 86_400_000).toISOString().slice(0, 10);
+  const [{ data: pv, error }, month, { count: open }, { data: ending }] = await Promise.all([
+    sb.from("employee_private").select("employee_id, disabled").eq("disabled", true),
+    loadMonth(sb, cur),
+    sb.from("disciplinary_cases").select("id", { count: "exact", head: true }).is("decided_at", null),
+    sb.from("employees").select("id").neq("status", "terminated").gte("contract_end", today).lte("contract_end", in30),
+  ]);
+  const items: Array<[string, string, string]> = [];
+  if (error) return { items };
+  const ids = new Set(active.map((e) => e.id));
+  const disabled = (pv ?? []).filter((p) => ids.has(p.employee_id as string)).length;
+  const quota = disabilityQuota(active.length);
+  if (quota > disabled) items.push([`Engelli çalışan kotası eksik (${disabled} / ${quota})`, `${quota - disabled} kişi`, "/is-hukuku?sekme=engelli"]);
+  const issues = workTimeIssues(month);
+  if (issues.length) items.push([`Bu ay çalışma süresi ihlali (${new Set(issues.map((i) => i.employeeId)).size} kişi)`, `${issues.length} kayıt`, "/is-hukuku?sekme=calisma"]);
+  if (open) items.push(["Karar bekleyen disiplin dosyası", `${open}`, "/is-hukuku?sekme=disiplin"]);
+  if (ending?.length) items.push(["30 gün içinde biten belirli süreli sözleşme", `${ending.length}`, "/is-hukuku?sekme=sozlesme"]);
+  return { items };
+}
+
 async function Risks({ sb, today, cur, emps }: { sb: SB; today: string; cur: string; emps: EmpLite[] }) {
   const m = await loadMoney(sb, cur);
   const r = await loadRisks(sb, today, emps, m.garnishment);
+  const law = await laborRisk(sb, today, cur, emps);
   return (
     <>
       <div className="rounded-[14px] bg-brand-900 text-white p-4 flex flex-col gap-3">
@@ -275,6 +300,13 @@ async function Risks({ sb, today, cur, emps }: { sb: SB; today: string; cur: str
         </div>
         <p className="text-[11px] text-white/70">Dava hâlinde mahkeme elden ödenen dâhil gerçek ücreti esas alır; aradaki fark açık risktir. Tahmindir: kıdem tavanı (Mevzuat bülteninden) uygulandı; yemek/yol gibi ek ödemeler ve fesih nedeni dikkate alınmadı.</p>
       </div>
+
+      {law.items.length > 0 && (
+        <Card title="İş Kanunu uyumu" action={<Link href="/is-hukuku" className="text-sm font-semibold text-brand-700">Ayrıntı</Link>}>
+          <ul>{law.items.map(([l, v, href]) => <Row key={l} l={l} r={v} href={href} />)}</ul>
+          <p className="text-xs text-muted">Engelli kotası eksikliği ve çalışma süresi ihlalleri idari para cezası doğurur (İş K. md. 101, 104).</p>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card title="En yüksek kıdem yükü">
