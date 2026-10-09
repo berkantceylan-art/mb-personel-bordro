@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { logAccess, maskIban, maskTc } from "@/lib/kvkk";
 import { notFound } from "next/navigation";
 import { formatTL, splitContract, summarize, withRunningBalance, type LedgerEntry } from "@mb/core";
 import { Card, ChannelChip, TYPE_LABEL } from "@/components/ui";
@@ -50,7 +51,7 @@ export default async function EmployeeProfile({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ donem?: string; iptal?: string }>;
+  searchParams: Promise<{ donem?: string; iptal?: string; goster?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -152,7 +153,13 @@ export default async function EmployeeProfile({
   const dept = (e.departments as unknown as { name: string } | null)?.name;
   const branch = (e.branches as unknown as { name: string } | null)?.name;
   const p = (priv ?? {}) as Priv;
+  // KVKK: TC, IBAN, SGK no maskeli; "göster" yalnız sahip / İK / muhasebe ve erişim kaydına yazılır
+  const canReveal = ["owner", "hr", "accountant"].includes(s.role);
+  const reveal = canReveal && sp.goster === "1";
+  await logAccess(supabase, s.companyId, s.userId, reveal ? "reveal" : "view", "employee", e.id, reveal ? "TC / IBAN / SGK no açıldı" : undefined);
+  const MASKED: Record<string, (v: string) => string> = { national_id: maskTc, iban: maskIban, sgk_no: maskTc };
   const val = (key: string, fmt?: "date" | "iban"): string => {
+    if (!reveal && MASKED[key] && p[key]) return MASKED[key](String(p[key]));
     if (key === "city_district") return [p.city, p.district].filter(Boolean).join(" / ");
     if (key === "emergency") return [p.emergency_contact_name, p.emergency_contact_relation ? `(${p.emergency_contact_relation})` : ""].filter(Boolean).join(" ");
     const v = p[key];
@@ -399,7 +406,7 @@ export default async function EmployeeProfile({
             <Card title="Kişisel bilgiler" action={<Link href={`/personel/${id}/duzenle`} className="text-[13px] font-semibold text-brand-700">Düzenle</Link>}>
               {INFO.map((sec) => (
                 <div key={sec.title} className="flex flex-col gap-1.5">
-                  <h3 className="text-xs uppercase tracking-wider text-muted font-semibold mt-1">{sec.title}</h3>
+                  <h3 className="text-xs uppercase tracking-wider text-muted font-semibold mt-1 flex justify-between">{sec.title}{(sec.title === "Kimlik" || sec.title === "Banka") && canReveal && <Link href={`/personel/${e.id}?${new URLSearchParams({ ...(sp.donem ? { donem: sp.donem } : {}), ...(reveal ? {} : { goster: "1" }) }).toString()}`} className="normal-case tracking-normal text-brand-700">{reveal ? "Gizle" : "Göster (kayda geçer)"}</Link>}</h3>
                   <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-3 gap-y-1 text-[13px]">
                     {sec.items.map(([label, key, fmt]) => (
                       <div key={key} className="contents">

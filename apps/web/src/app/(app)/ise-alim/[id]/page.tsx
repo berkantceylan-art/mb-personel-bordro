@@ -6,6 +6,7 @@ import { Card, PageHeader } from "@/components/ui";
 import { CRITERIA, SOURCE_LABEL, STAGES, STAGE_LABEL, formatPhone, nextStage, publicBaseUrl, whatsappLink } from "@/lib/recruiting";
 import { formatDate, getSession, todayIso } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
+import { logAccess } from "@/lib/kvkk";
 import { addNote, eraseCandidate, hireCandidate, moveStage, saveScores, scheduleInterview } from "../actions";
 
 const input = "h-11 rounded-[10px] border border-[#D5DEE8] bg-white px-3 text-sm";
@@ -19,6 +20,7 @@ export default async function CandidatePage({ params }: { params: Promise<{ id: 
   const supabase = await createClient();
   const { data: c } = await supabase.from("candidates").select("*, job_postings(title, department_id), referrer:employees!candidates_referrer_employee_id_fkey(first_name, last_name)").eq("id", id).maybeSingle();
   if (!c) notFound();
+  await logAccess(supabase, s.companyId, s.userId, "view", "candidate", id);
   const [{ data: events }, { data: scores }, { data: branches }, { data: depts }] = await Promise.all([
     supabase.from("candidate_events").select("kind, from_stage, to_stage, body, created_at").eq("candidate_id", id).order("created_at", { ascending: false }),
     supabase.from("candidate_scores").select("criterion, score, note, scored_by").eq("candidate_id", id),

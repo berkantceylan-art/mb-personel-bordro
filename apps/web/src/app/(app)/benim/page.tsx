@@ -24,6 +24,9 @@ export default async function MyPage() {
     supabase.from("document_types").select("id").eq("onboarding_step", 2).eq("required", true),
     supabase.from("employee_documents").select("document_type_id").eq("employee_id", e.id),
   ]);
+  const { data: kv } = await supabase.from("kvkk_notices").select("id").eq("active", true).eq("audience", "employee").eq("kind", "aydinlatma").maybeSingle();
+  const { data: kvOk } = kv ? await supabase.from("kvkk_consents").select("id").eq("employee_id", e.id).eq("notice_id", kv.id).is("revoked_at", null).limit(1) : { data: [1] };
+  const kvkkPending = !!kv && !(kvOk ?? []).length;
   const { data: calls } = await supabase.from("office_calls").select("id, on_date, at_time, reason, acknowledged_at").eq("employee_id", e.id).is("cancelled_at", null).gte("on_date", today).order("on_date");
   const n = (v: number | null | undefined) => Number(v ?? 0);
   const haveDoc = new Set((myDocs ?? []).map((d) => d.document_type_id));
@@ -60,6 +63,14 @@ export default async function MyPage() {
         </Card>
 
         <EnablePush />
+
+        {kvkkPending && (
+          <Link href="/benim/kvkk" className="rounded-[14px] border border-[#9FC1E6] bg-[#EAF2FB] p-4 flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-white grid place-items-center text-brand-700 shrink-0"><MenuIcon name="lock" /></span>
+            <span className="flex-1"><b className="block text-brand-800">Kişisel verileriniz hakkında bilgilendirme</b><span className="text-sm text-[#33475B]">KVKK aydınlatma metnini okuyup onaylayın.</span></span>
+            <span className="text-brand-700 font-semibold">›</span>
+          </Link>
+        )}
 
         {(calls ?? []).map((c) => (
           <div key={c.id} className="rounded-[14px] border border-[#F2C94C] bg-[#FFF4E0] p-4 flex flex-col gap-2">

@@ -66,7 +66,7 @@ export default async function StatusPage({ params }: { params: Promise<{ token: 
             ))}
           </ol>
         )}
-        <p className="text-xs text-muted">Bu bağlantı size özeldir; başkalarıyla paylaşmayın.</p>
+        <p className="text-xs text-muted">Bu bağlantı size özeldir; başkalarıyla paylaşmayın. Verilerinizin silinmesi veya diğer KVKK haklarınız için <a href="/kvkk-basvuru" className="font-semibold text-brand-700">başvuru yapın</a>.</p>
       </main>
     </div>
   );

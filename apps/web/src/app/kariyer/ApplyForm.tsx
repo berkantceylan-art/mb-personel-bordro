@@ -86,7 +86,7 @@ export function ApplyForm({ postings, selected }: { postings: Array<{ id: string
           <label className={lbl}>Bizi nereden duydunuz?<select name="heard_from" className={inp}>{HEARD_OPTIONS.map((o) => <option key={o}>{o}</option>)}</select></label>
           <label className={lbl}>Sizi öneren çalışanımız (varsa)<input name="referrer_name" className={inp} /></label>
           <div className="sm:col-span-2 rounded-xl bg-[#F5F7FA] p-4 flex flex-col gap-3 text-sm leading-relaxed text-[#33475B]">
-            <label className="flex gap-3 items-start"><input type="checkbox" name="kvkk" required className="w-5 h-5 mt-0.5 shrink-0" /><span><b>KVKK aydınlatma:</b> Başvurumda verdiğim bilgilerin yalnız işe alım değerlendirmesi için işlenmesini ve değerlendirme bitince en geç 6 ay sonra silinmesini kabul ediyorum. (Zorunlu)</span></label>
+            <label className="flex gap-3 items-start"><input type="checkbox" name="kvkk" required className="w-5 h-5 mt-0.5 shrink-0" /><span><a href="/kvkk-aydinlatma" target="_blank" rel="noopener" className="font-bold text-brand-700 underline">KVKK aydınlatma metnini</a> okudum. Başvurumda verdiğim bilgilerin yalnız işe alım değerlendirmesi için işlenmesini ve değerlendirme bitince en geç 6 ay sonra silinmesini kabul ediyorum. (Zorunlu)</span></label>
             <label className="flex gap-3 items-start"><input type="checkbox" name="keep_in_pool" className="w-5 h-5 mt-0.5 shrink-0" /><span>Başvurum 1 yıl aday havuzunda tutulsun; uygun başka pozisyonlar için de aranabilirim.</span></label>
           </div>
         </fieldset>

@@ -34,6 +34,7 @@ export const MY_MENU: Array<{ href: string; label: string; icon: string; desc: s
   { href: "/benim/performans", label: "Performansım", icon: "star", desc: "Öz değerlendirme ve sonuçlarım" },
   { href: "/benim/hedefler", label: "Hedef ve becerilerim", icon: "target", desc: "Hedeflerim, beceri seviyelerim" },
   { href: "/benim/ilanlar", label: "İş ilanları", icon: "briefcase", desc: "Açık pozisyonlar, arkadaşını öner" },
+  { href: "/benim/kvkk", label: "Kişisel verilerim", icon: "lock", desc: "KVKK metni, izinlerim, başvurularım" },
   { href: "/benim/ayarlar", label: "Ayarlar", icon: "gear", desc: "Bildirim ve görünüm" },
 ];
 

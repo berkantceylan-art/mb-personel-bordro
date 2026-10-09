@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { garantiEmeklilikXls, garantiMaasXlsx } from "@/lib/bank-files";
 import { loadLuca, lucaXls, lucaXlsx } from "@/lib/luca";
 import { findReport, parseParams, visibleColumns } from "@/lib/reports";
+import { logAccess } from "@/lib/kvkk";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
   const p = parseParams(Object.fromEntries(req.nextUrl.searchParams.entries()));
   const supabase = await createClient();
   const res = await def.run(supabase, p);
+  await logAccess(supabase, s.companyId, s.userId, "export", "report", key, `${p.period}${p.department ? " · " + p.department : ""}`);
   const cols = visibleColumns(def, res, s.role);
 
   // Banka formatındaki dosyalar (?bicim=tablo ile düz Excel de alınabilir)

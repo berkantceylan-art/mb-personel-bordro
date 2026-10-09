@@ -181,6 +181,22 @@ const JOBS: Record<string, (ctx: JobContext) => Promise<unknown>> = {
     return { sent };
   },
 
+  /** KVKK: başvuruların 30 günlük süresi (7, 3, 0 gün kala ve gecikince) ve 6 aylık periyodik imha hatırlatması */
+  async kvkk(ctx) {
+    const out: string[] = [];
+    const { data: reqs } = await ctx.sb.from("kvkk_requests").select("requester_name, due_on").eq("company_id", ctx.companyId).in("status", ["open", "in_progress"]);
+    const due = (reqs ?? []).filter((r) => [7, 3, 0, -1, -7].includes(daysUntil(ctx.today, r.due_on as string)));
+    if (due.length) {
+      await ctx.notify(await ctx.users(["owner", "hr"]), "KVKK başvurusu süresi", due.map((r) => `${r.requester_name}: ${daysUntil(ctx.today, r.due_on as string) < 0 ? "süresi geçti" : `son gün ${formatDate(r.due_on as string)}`}`).join(" · "), "/kvkk?sekme=basvuru");
+      out.push("basvuru");
+    }
+    if (["01-02", "07-02"].includes(ctx.today.slice(5))) {
+      await ctx.notify(await ctx.users(["owner"]), "KVKK periyodik imha zamanı", "Saklama süresi dolan kayıtlar için 6 aylık periyodik imhayı çalıştırın; işlem tutanağa yazılır.", "/kvkk?sekme=imha");
+      out.push("imha");
+    }
+    return out.length ? out : "yok";
+  },
+
   /** KVKK: saklama süresi dolan aday başvurularını ve dosyalarını siler */
   async adayImha(ctx) {
     const { data } = await ctx.sb.from("candidates").select("id, cv_path, file_paths").eq("company_id", ctx.companyId).lt("purge_after", ctx.today).is("employee_id", null).limit(500);

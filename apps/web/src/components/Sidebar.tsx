@@ -33,6 +33,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "Performansım", href: "/benim/performans", roles: ["employee"] },
       { label: "Hedef ve becerilerim", href: "/benim/hedefler", roles: ["employee"] },
       { label: "İş ilanları", href: "/benim/ilanlar", roles: ["employee"] },
+      { label: "Kişisel verilerim (KVKK)", href: "/benim/kvkk", roles: ["employee"] },
       { label: "Ayarlar", href: "/benim/ayarlar", roles: ["employee"] },
       { label: "Personel", href: "/personel", roles: MANAGERS },
       { label: "Zimmet", href: "/zimmet", roles: ["owner", "accountant", "hr", "branch_manager"] },
@@ -80,7 +81,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "İcra & Nafaka", href: "/icra", roles: PAY },
     ],
   },
-  { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg", roles: MANAGERS }, { label: "Sağlık", href: "/saglik", roles: ["owner", "hr", "safety"] }] },
+  { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg", roles: MANAGERS }, { label: "Sağlık", href: "/saglik", roles: ["owner", "hr", "safety"] }, { label: "KVKK", href: "/kvkk", roles: ["owner", "hr"] }] },
   { group: "Analiz", items: [{ label: "Raporlar", href: "/raporlar", roles: MANAGERS }, { label: "Excel'den Aktar", href: "/ice-aktar", roles: PAY }] },
   { group: "Sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", roles: ["owner", "hr", "branch_manager"] }, { label: "Yönetim", href: "/yonetim", roles: ["owner", "hr"] }, { label: "Mevzuat ayarları", href: "/mevzuat", roles: PAY }] },
 ];

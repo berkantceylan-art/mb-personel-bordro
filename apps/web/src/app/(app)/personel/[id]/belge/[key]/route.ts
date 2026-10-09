@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { annualLeaveEntitlement } from "@mb/core";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
+import { logAccess } from "@/lib/kvkk";
 import { assetItems, docData, renderTemplate, renderZip, TEMPLATES } from "@/lib/ozluk-docs";
 
 const MIME = {
@@ -18,6 +19,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string; key
   const supabase = await createClient();
   const d = await docData(supabase, id, s.companyId);
   if (!d) return new NextResponse("Personel bulunamadı", { status: 404 });
+  await logAccess(supabase, s.companyId, s.userId, "download", "document", id, key);
 
   if (key === "hepsi") {
     const step = Number(new URL(req.url).searchParams.get("adim") || 0);
