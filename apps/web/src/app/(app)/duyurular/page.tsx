@@ -1,69 +1,50 @@
+import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui";
 import { AnnouncementForm, MarkRead } from "@/components/CommsForms";
-import { deleteAnnouncement } from "@/lib/comms-actions";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, getSession } from "@/lib/session";
-import { ConfirmSubmit } from "@/components/ConfirmSubmit";
+import { getSession } from "@/lib/session";
+import { AnnCard, KIND_LABEL, type Ann } from "./AnnCard";
+import { loadContext } from "./load";
 
-export default async function AnnouncementsPage() {
+/** İç iletişim: bilgilendirme, etkinlik, anket, soru-cevap */
+export default async function AnnouncementsPage({ searchParams }: { searchParams: Promise<{ tur?: string }> }) {
   const s = await getSession();
+  const sp = await searchParams;
   const canPublish = ["owner", "hr", "branch_manager"].includes(s.role);
   const supabase = await createClient();
   const now = new Date().toISOString();
-  const [{ data: list }, { data: myReads }, { data: departments }, { data: branches }, { data: dir }] = await Promise.all([
-    supabase.from("announcements").select("*").or(`expires_at.is.null,expires_at.gt.${now}`).order("pinned", { ascending: false }).order("published_at", { ascending: false }).limit(100),
-    supabase.from("announcement_reads").select("announcement_id").eq("user_id", s.userId),
+  let q = supabase.from("announcements").select("*").or(`expires_at.is.null,expires_at.gt.${now}`).order("pinned", { ascending: false }).order("published_at", { ascending: false }).limit(100);
+  if (sp.tur && KIND_LABEL[sp.tur]) q = q.eq("kind", sp.tur);
+  const [{ data: list }, { data: departments }, { data: branches }, { data: dir }] = await Promise.all([
+    q,
     canPublish ? supabase.from("departments").select("id, name").order("name") : Promise.resolve({ data: [] }),
     canPublish ? supabase.from("branches").select("id, name").order("name") : Promise.resolve({ data: [] }),
     supabase.rpc("company_directory"),
   ]);
-  const ids = (list ?? []).map((a) => a.id as string);
-  const { data: reads } = canPublish && ids.length ? await supabase.from("announcement_reads").select("announcement_id").in("announcement_id", ids) : { data: [] };
-  const readCount = new Map<string, number>();
-  for (const r of reads ?? []) readCount.set(r.announcement_id, (readCount.get(r.announcement_id) ?? 0) + 1);
-  const mine = new Set((myReads ?? []).map((r) => r.announcement_id as string));
+  const anns = ((list ?? []) as Ann[]).map((a) => ({ ...a, kind: a.kind ?? "info" }));
+  const ctx = await loadContext(supabase, anns, s.userId, canPublish);
   const names = new Map(((dir ?? []) as Array<{ user_id: string; display_name: string }>).map((d) => [d.user_id, d.display_name]));
   const deptName = new Map((departments ?? []).map((d) => [d.id, d.name]));
   const branchName = new Map((branches ?? []).map((b) => [b.id, b.name]));
-  const total = (dir ?? []).length;
-
-  const audienceLabel = (a: { audience: string; department_ids: string[]; branch_ids: string[] }) =>
-    a.audience === "ALL" ? "Tüm personel" : a.audience === "DEPARTMENT" ? a.department_ids.map((d) => deptName.get(d) ?? "Bölüm").join(", ") : a.branch_ids.map((b) => branchName.get(b) ?? "Şube").join(", ");
-
+  const audienceLabel = (a: Ann) => a.audience === "ALL" ? "Tüm personel" : a.audience === "DEPARTMENT" ? a.department_ids.map((d) => deptName.get(d) ?? "Bölüm").join(", ") : a.branch_ids.map((b) => branchName.get(b) ?? "Şube").join(", ");
+  const pendingAck = anns.filter((a) => a.require_ack && !ctx.get(a.id)?.acked).length;
+  const tabs: Array<[string, string]> = [["", "Tümü"], ...Object.entries(KIND_LABEL)];
   return (
     <>
-      <PageHeader title="Duyurular" subtitle={`${(list ?? []).length} yayında duyuru`} />
-      <MarkRead ids={ids.filter((i) => !mine.has(i))} />
+      <PageHeader title="Duyurular ve etkinlikler" subtitle={`${anns.length} yayında${pendingAck && !canPublish ? ` · ${pendingAck} onay bekliyor` : ""}`} />
+      <MarkRead ids={anns.filter((a) => !ctx.get(a.id)?.read).map((a) => a.id)} />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[1000px]">
+        <nav className="flex flex-wrap gap-1.5" aria-label="Tür">
+          {tabs.map(([k, l]) => <Link key={k} href={k ? `/duyurular?tur=${k}` : "/duyurular"} aria-current={(sp.tur ?? "") === k ? "page" : undefined} className={`h-10 px-4 rounded-full text-sm font-semibold grid place-items-center ${(sp.tur ?? "") === k ? "bg-brand-800 text-white" : "bg-white border border-[#D5DEE8] text-brand-700"}`}>{l}</Link>)}
+        </nav>
         {canPublish && (
-          <Card title="Yeni duyuru">
-            <AnnouncementForm departments={departments ?? []} branches={branches ?? []} />
-          </Card>
+          <details className="bg-white border border-line rounded-[14px] p-4 group" open={anns.length === 0}>
+            <summary className="cursor-pointer list-none font-display font-semibold text-brand-800 flex justify-between">Yeni duyuru, etkinlik, anket veya soru-cevap <span className="text-brand-700 group-open:rotate-45 transition-transform text-xl leading-none">+</span></summary>
+            <div className="mt-4"><AnnouncementForm departments={departments ?? []} branches={branches ?? []} /></div>
+          </details>
         )}
-        {(list ?? []).map((a) => (
-          <article key={a.id} className={`bg-white border rounded-[14px] p-5 flex flex-col gap-2 ${a.pinned ? "border-accent" : "border-line"}`}>
-            <div className="flex flex-wrap items-center gap-2">
-              {a.pinned && <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-[#E0F5FB] text-accent-ink">Sabit</span>}
-              {!mine.has(a.id) && <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-warn-bg text-warn">Yeni</span>}
-              <h2 className="font-display text-lg font-semibold text-brand-800 flex-1">{a.title}</h2>
-              <span className="text-xs text-muted">{formatDate(a.published_at)}</span>
-            </div>
-            <p className="whitespace-pre-wrap text-[15px] text-ink">{a.body}</p>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
-              <span>{names.get(a.created_by) ?? ""}</span>
-              {canPublish && <span>Hedef: {audienceLabel(a)}</span>}
-              {canPublish && <span>Okuyan: {readCount.get(a.id) ?? 0}{a.audience === "ALL" ? ` / ${total}` : ""}</span>}
-              {a.expires_at && <span>{formatDate(a.expires_at)} tarihinde kalkar</span>}
-              {canPublish && (
-                <form action={deleteAnnouncement} className="ml-auto">
-                  <input type="hidden" name="id" value={a.id} />
-                  <ConfirmSubmit label="Kaldır" question="Duyuru kaldırılsın mı?" className="text-bad font-semibold" />
-                </form>
-              )}
-            </div>
-          </article>
-        ))}
-        {(list ?? []).length === 0 && <p className="text-center text-muted py-10">Henüz duyuru yok.</p>}
+        {anns.map((a) => <AnnCard key={a.id} a={a} c={{ ...ctx.get(a.id)!, author: names.get(a.created_by), audienceText: audienceLabel(a) }} />)}
+        {anns.length === 0 && <Card><p className="text-center text-muted py-6">Henüz içerik yok.</p></Card>}
       </div>
     </>
   );

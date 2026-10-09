@@ -168,6 +168,19 @@ const JOBS: Record<string, (ctx: JobContext) => Promise<unknown>> = {
     return { sent };
   },
 
+  /** Yarınki etkinlikler: katılacak / belki diyenlere hatırlatma */
+  async etkinlik(ctx) {
+    const from = `${addDays(ctx.today, 1)}T00:00:00+03:00`, to = `${addDays(ctx.today, 1)}T23:59:59+03:00`;
+    const { data } = await ctx.sb.from("announcements").select("id, title, event_at, location").eq("company_id", ctx.companyId).eq("kind", "event").gte("event_at", from).lte("event_at", to);
+    let sent = 0;
+    for (const a of data ?? []) {
+      const { data: r } = await ctx.sb.from("event_rsvps").select("user_id").eq("announcement_id", a.id).in("status", ["yes", "maybe"]);
+      const saat = new Date(a.event_at as string).toLocaleTimeString("tr-TR", { timeZone: "Europe/Istanbul", hour: "2-digit", minute: "2-digit" });
+      sent += await ctx.notify((r ?? []).map((x) => x.user_id as string), `Yarın: ${a.title}`, `Saat ${saat}${a.location ? ` · ${a.location}` : ""}`, `/duyurular/${a.id}`);
+    }
+    return { sent };
+  },
+
   /** KVKK: saklama süresi dolan aday başvurularını ve dosyalarını siler */
   async adayImha(ctx) {
     const { data } = await ctx.sb.from("candidates").select("id, cv_path, file_paths").eq("company_id", ctx.companyId).lt("purge_after", ctx.today).is("employee_id", null).limit(500);

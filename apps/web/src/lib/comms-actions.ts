@@ -20,11 +20,22 @@ export async function publishAnnouncement(_: R | null, f: FormData): Promise<R> 
   if (!title || !body) return { ok: false, message: "Başlık ve metin zorunlu." };
   if (audience === "DEPARTMENT" && !departmentIds.length) return { ok: false, message: "En az bir bölüm seçin." };
   if (audience === "BRANCH" && !branchIds.length) return { ok: false, message: "En az bir şube seçin." };
+  const kind = ["info", "event", "poll", "qa"].includes(str(f, "kind")) ? str(f, "kind") : "info";
+  const options = str(f, "options").split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 12);
+  if (kind === "poll" && options.length < 2) return { ok: false, message: "Ankete en az iki seçenek yazın (her satıra bir seçenek)." };
+  if (kind === "event" && !str(f, "event_at")) return { ok: false, message: "Etkinlik tarih ve saatini girin." };
+  const tz = (v: string) => (v ? `${v}:00+03:00` : null);
   const supabase = await createClient();
-  const { error } = await supabase
+  const extra = kind === "info" && f.get("require_ack") !== "on" ? {} : {
+    kind, require_ack: f.get("require_ack") === "on", event_at: tz(str(f, "event_at")), event_end: tz(str(f, "event_end")), location: str(f, "location") || null,
+    capacity: Number(str(f, "capacity")) || null, poll_multi: f.get("poll_multi") === "on", anonymous: f.get("anonymous") === "on", closes_at: tz(str(f, "closes_at")),
+  };
+  const { data: ann, error } = await supabase
     .from("announcements")
-    .insert({ company_id: s.companyId, title, body, audience, department_ids: departmentIds, branch_ids: branchIds, pinned: f.get("pinned") === "on", push: f.get("push") === "on", expires_at: str(f, "expires_at") || null })
-  if (error) return { ok: false, message: error.message };
+    .insert({ company_id: s.companyId, title, body, audience, department_ids: departmentIds, branch_ids: branchIds, pinned: f.get("pinned") === "on", push: f.get("push") === "on", expires_at: str(f, "expires_at") || null, ...extra })
+    .select("id").single();
+  if (error) return { ok: false, message: error.message.includes("kind") || error.message.includes("require_ack") ? "Supabase'de 20261114000000_engagement.sql çalıştırılmalı." : error.message };
+  if (kind === "poll" && ann) await supabase.from("poll_options").insert(options.map((label, i) => ({ announcement_id: ann.id, label, sort: i })));
   revalidatePath("/duyurular");
   return { ok: true, message: f.get("push") === "on" ? "Duyuru yayınlandı, telefonlara bildirim gönderildi." : "Duyuru yayınlandı." };
 }

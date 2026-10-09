@@ -11,12 +11,41 @@ const Status = ({ s }: { s: { ok: boolean; message: string } | null }) =>
 export function AnnouncementForm({ departments, branches }: { departments: Array<{ id: string; name: string }>; branches: Array<{ id: string; name: string }> }) {
   const { state, pending, formProps: actionProps } = useActionForm(publishAnnouncement);
   const [audience, setAudience] = useState("ALL");
+  const [kind, setKind] = useState("info");
+  const KINDS: Array<[string, string]> = [["info", "Bilgilendirme"], ["event", "Etkinlik"], ["poll", "Anket"], ["qa", "Soru-cevap"]];
   return (
     <form {...actionProps} className="grid gap-4 md:grid-cols-2" key={state?.ok ? state.message : "f"}>
-      <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Başlık *<input name="title" required maxLength={140} className={input} /></label>
+      <fieldset className="md:col-span-2 flex flex-wrap gap-2">
+        <legend className="sr-only">Tür</legend>
+        {KINDS.map(([v, l]) => (
+          <label key={v} className={`h-10 px-4 rounded-full border text-sm font-semibold grid place-items-center cursor-pointer ${kind === v ? "bg-brand-800 text-white border-brand-800" : "bg-white border-[#D5DEE8] text-brand-700"}`}>
+            <input type="radio" name="kind" value={v} checked={kind === v} onChange={() => setKind(v)} className="sr-only" />{l}
+          </label>
+        ))}
+      </fieldset>
+      <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Başlık *<input name="title" required maxLength={140} placeholder={kind === "event" ? "Örn. Yılbaşı yemeği" : kind === "poll" ? "Örn. Servis saati hangisi olsun?" : kind === "qa" ? "Örn. Yeni vardiya düzeni hakkında sorularınız" : ""} className={input} /></label>
       <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Metin *
-        <textarea name="body" required rows={5} className="rounded-[10px] border border-[#D5DEE8] p-3 bg-white w-full" />
+        <textarea name="body" required rows={4} className="rounded-[10px] border border-[#D5DEE8] p-3 bg-white w-full" />
       </label>
+      {kind === "event" && (
+        <div className="md:col-span-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="flex flex-col gap-1.5 text-sm text-muted">Başlangıç *<input type="datetime-local" name="event_at" required className={input} /></label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted">Bitiş<input type="datetime-local" name="event_end" className={input} /></label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted">Yer<input name="location" className={input} /></label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted">Kontenjan<input name="capacity" type="number" min={1} className={input} /></label>
+        </div>
+      )}
+      {kind === "poll" && (
+        <div className="md:col-span-2 grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1.5 text-sm text-muted">Seçenekler * (her satıra bir tane)<textarea name="options" rows={4} required className="rounded-[10px] border border-[#D5DEE8] p-3 bg-white" /></label>
+          <div className="flex flex-col gap-2 text-sm">
+            <label className="flex gap-2 items-center"><input type="checkbox" name="poll_multi" className="w-5 h-5" />Birden fazla seçilebilir</label>
+            <label className="flex gap-2 items-center"><input type="checkbox" name="anonymous" defaultChecked className="w-5 h-5" />İsimsiz (kimin ne seçtiği görünmez)</label>
+            <label className="flex flex-col gap-1.5 text-muted">Kapanış<input type="datetime-local" name="closes_at" className={input} /></label>
+          </div>
+        </div>
+      )}
+      {kind === "qa" && <p className="md:col-span-2 text-sm text-muted">Personel soru sorar (isterse isimsiz), diğerleri soruları oylar; en çok oy alan sorular üstte görünür, yanıtlarınızı duyuru sayfasından yazarsınız.</p>}
       <fieldset className="flex flex-col gap-2 text-sm">
         <legend className="text-muted mb-1.5">Kime</legend>
         {[["ALL", "Tüm personel"], ["DEPARTMENT", "Seçili bölümler"], ["BRANCH", "Seçili şubeler"]].map(([v, l]) => (
@@ -38,6 +67,7 @@ export function AnnouncementForm({ departments, branches }: { departments: Array
       </div>
       <div className="md:col-span-2 flex flex-wrap gap-4 items-center text-sm">
         <label className="flex gap-2 items-center"><input type="checkbox" name="pinned" className="w-5 h-5" />Üste sabitle</label>
+        {kind === "info" && <label className="flex gap-2 items-center"><input type="checkbox" name="require_ack" className="w-5 h-5" />&quot;Okudum, anladım&quot; onayı iste</label>}
         <label className="flex gap-2 items-center"><input type="checkbox" name="push" defaultChecked className="w-5 h-5" />Telefonlara bildirim gönder</label>
         <button disabled={pending} className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-60">{pending ? "Yayınlanıyor…" : "Yayınla"}</button>
         <Status s={state} />
