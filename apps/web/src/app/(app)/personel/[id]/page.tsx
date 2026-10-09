@@ -76,6 +76,10 @@ export default async function EmployeeProfile({
   // Ofis çağrıları (tablo yoksa boş)
   const { data: calls } = await supabase.from("office_calls").select("id, on_date, at_time, reason, acknowledged_at, cancelled_at, created_at").eq("employee_id", id).order("on_date", { ascending: false }).limit(5);
   const openCalls = (calls ?? []).filter((c) => !c.cancelled_at && c.on_date >= new Date().toISOString().slice(0, 10));
+  // Zimmet
+  const { data: assetRows } = await supabase.from("asset_assignments").select("id, assigned_on, returned_on, condition_out, acknowledged_at, assets(code, name, brand_model)").eq("employee_id", id).order("assigned_on", { ascending: false });
+  const openAssets = (assetRows ?? []).filter((a) => !a.returned_on);
+  const returnedAssets = (assetRows ?? []).filter((a) => a.returned_on).length;
 
   const [{ data: priv }, { data: contracts }, { data: entries }, { data: docTypes }, { data: docs }, { data: periods }, { data: payLines }, { data: garnFiles }, { data: besRows }] = await Promise.all([
     supabase.from("employee_private").select("*").eq("employee_id", id).maybeSingle(),
@@ -450,6 +454,25 @@ export default async function EmployeeProfile({
               </Card>
             );
           })}
+
+          <Card title="Zimmet" action={hr ? <Link href={`/zimmet?personel=${id}`} className="text-sm font-semibold text-brand-700">+ Zimmet ver</Link> : undefined}>
+            {openAssets.length === 0 ? <p className="text-sm text-muted">Üzerinde demirbaş yok{returnedAssets ? ` · ${returnedAssets} iade edilmiş` : ""}.</p> : (
+              <ul className="text-sm divide-y divide-[#EEF2F6]">
+                {openAssets.map((a) => { const x = a.assets as unknown as { code: string | null; name: string; brand_model: string | null } | null; return (
+                  <li key={a.id} className="py-1.5 flex justify-between gap-2">
+                    <span>{x?.code ? <span className="num text-muted">{x.code} · </span> : null}{x?.name}{x?.brand_model ? <span className="text-muted"> · {x.brand_model}</span> : null}<span className="block text-xs text-muted">{formatDate(a.assigned_on)} · {a.condition_out ?? "Sağlam"}</span></span>
+                    <span className={`text-xs font-semibold self-center ${a.acknowledged_at ? "text-ok" : "text-warn"}`}>{a.acknowledged_at ? "onayladı" : "onay bekliyor"}</span>
+                  </li>
+                ); })}
+              </ul>
+            )}
+            {hr && openAssets.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                <a href={`/personel/${id}/belge/zimmet-tutanagi`} className="text-xs font-semibold text-brand-700">Zimmet tutanağı indir (Word)</a>
+                <Link href={`/zimmet?q=${encodeURIComponent(`${e.first_name} ${e.last_name}`)}`} className="text-xs font-semibold text-brand-700">İade al / düzenle →</Link>
+              </div>
+            )}
+          </Card>
 
           <Card title="Özlük dosyası" action={<span className="num text-xs text-muted">Zorunlu: {required.length - missing} / {required.length}</span>}>
             {hr && (

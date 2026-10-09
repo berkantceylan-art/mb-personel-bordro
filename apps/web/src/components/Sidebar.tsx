@@ -21,11 +21,13 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "Puantajım", href: "/benim/puantaj", roles: ["employee"] },
       { label: "Özlük bilgilerim", href: "/benim/ozluk", roles: ["employee"] },
       { label: "Belgelerim", href: "/benim/belgeler", roles: ["employee"] },
+      { label: "Zimmetim", href: "/benim/zimmet", roles: ["employee"] },
       { label: "BES", href: "/benim/bes", roles: ["employee"] },
       { label: "İcra ve nafaka", href: "/benim/icra", roles: ["employee"] },
       { label: "İş güvenliği", href: "/benim/isg", roles: ["employee"] },
       { label: "Sağlık", href: "/benim/saglik", roles: ["employee"] },
       { label: "Personel", href: "/personel", roles: MANAGERS },
+      { label: "Zimmet", href: "/zimmet", roles: ["owner", "accountant", "hr", "branch_manager"] },
     ],
   },
   {
@@ -45,6 +47,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "İzin", href: "/izin", roles: MANAGERS },
       { label: "Fazla Mesai", href: "/fazla-mesai", roles: MANAGERS },
       { label: "Mesai yemeği", href: "/yemek", roles: ["owner", "accountant", "hr", "branch_manager"] },
+
     ],
   },
   {

@@ -23,6 +23,7 @@ export const MY_MENU: Array<{ href: string; label: string; icon: string; desc: s
   { href: "/benim/puantaj", label: "Puantajım", icon: "clock", desc: "Giriş-çıkış saatlerim" },
   { href: "/benim/ozluk", label: "Özlük bilgilerim", icon: "id", desc: "Kimlik, iletişim, banka" },
   { href: "/benim/belgeler", label: "Belgelerim", icon: "folder", desc: "e-Devlet belgeleri ve özlük dosyam" },
+  { href: "/benim/zimmet", label: "Zimmetim", icon: "box", desc: "Üzerimdeki demirbaşlar" },
   { href: "/benim/bes", label: "BES", icon: "piggy", desc: "Emeklilik kesintilerim" },
   { href: "/benim/icra", label: "İcra ve nafaka", icon: "gavel", desc: "Yasal kesintilerim" },
   { href: "/benim/isg", label: "İş güvenliği", icon: "shield", desc: "Eğitim ve sertifikalarım" },

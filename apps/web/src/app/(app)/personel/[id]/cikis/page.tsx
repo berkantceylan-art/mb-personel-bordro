@@ -37,6 +37,7 @@ export default async function ExitWizard({ params, searchParams }: { params: Pro
   ]);
   if (!e || !d) notFound();
   const { data: extra } = await supabase.from("employees").select("termination_code, exit_done_at, former_card_no").eq("id", id).maybeSingle();
+  const { data: openAssets } = await supabase.from("asset_assignments").select("id, assets(code, name)").eq("employee_id", id).is("returned_on", null);
   const ex = (extra ?? {}) as { termination_code?: string | null; exit_done_at?: string | null; former_card_no?: string | null };
   const name = `${e.first_name} ${e.last_name === "-" ? "" : e.last_name}`.trim();
   const terminated = e.status === "terminated" && !!e.termination_date;
@@ -164,6 +165,11 @@ export default async function ExitWizard({ params, searchParams }: { params: Pro
             </div>
           )}
 
+          {step === 3 && (openAssets ?? []).length > 0 && (
+            <p className="text-sm rounded-lg bg-[#FFF4E0] text-[#8A5A00] p-3">
+              Üzerinde {openAssets!.length} açık zimmet var: {openAssets!.map((a) => (a.assets as unknown as { name: string } | null)?.name).filter(Boolean).join(", ")}. Önce <Link href={`/zimmet?q=${encodeURIComponent(name)}`} className="font-semibold underline">Zimmet sayfasından iade alın</Link>, sonra iade tutanağını indirin.
+            </p>
+          )}
           {step === 3 && (
             <ul className="flex flex-col divide-y divide-[#EEF2F6]">
               {types.map((t) => {
@@ -202,7 +208,7 @@ export default async function ExitWizard({ params, searchParams }: { params: Pro
           {step === 4 && (
             <div className="flex flex-col gap-4">
               <dl className="grid gap-x-6 gap-y-2 md:grid-cols-2 text-sm">
-                {[["Durum", terminated ? `Ayrıldı · ${formatDate(e.termination_date!)}` : "Hâlâ aktif (1. adımı tamamlayın)"], ["SGK çıkış kodu", ex.termination_code ?? "—"], ["Mobil hesap", e.user_id ? "Açık" : "Kapalı"], ["PDKS kartı", e.card_no ?? (ex.former_card_no ? `kaldırıldı (eski ${ex.former_card_no})` : "—")],
+                {[["Durum", terminated ? `Ayrıldı · ${formatDate(e.termination_date!)}` : "Hâlâ aktif (1. adımı tamamlayın)"], ["Açık zimmet", (openAssets ?? []).length ? `${openAssets!.length} demirbaş iade alınmadı!` : "yok"], ["SGK çıkış kodu", ex.termination_code ?? "—"], ["Mobil hesap", e.user_id ? "Açık" : "Kapalı"], ["PDKS kartı", e.card_no ?? (ex.former_card_no ? `kaldırıldı (eski ${ex.former_card_no})` : "—")],
                   ["Çıkış belgeleri", `${types.filter((t) => byType.has(t.id)).length}/${types.length} yüklendi`]].map(([k, v]) => (
                   <div key={k} className="flex gap-3 border-b border-[#EEF2F6] py-1.5"><dt className="text-muted w-40 shrink-0">{k}</dt><dd>{v}</dd></div>
                 ))}

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { annualLeaveEntitlement } from "@mb/core";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
-import { docData, renderTemplate, renderZip, TEMPLATES } from "@/lib/ozluk-docs";
+import { assetItems, docData, renderTemplate, renderZip, TEMPLATES } from "@/lib/ozluk-docs";
 
 const MIME = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -58,7 +58,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string; key
       Object.assign(d.data, { kidem: f(kidem), ihbar: f(ihbar), izin_gun: String(unused), izin_ucreti: f(izin), son_ucret: f(Math.max(0, rows)), diger: "0,00", toplam: f(kidem + ihbar + izin + Math.max(0, rows)) });
     }
   }
-  const r = await renderTemplate(key, d.data);
+  const data: Record<string, unknown> = { ...d.data };
+  if (key === "zimmet-tutanagi" || key === "zimmet-iade-tutanagi") {
+    data.items = await assetItems(supabase, id, key === "zimmet-iade-tutanagi");
+    data.tutanak_no = `${new Date().getFullYear()}-${id.slice(0, 6).toUpperCase()}`;
+  }
+  const r = await renderTemplate(key, data);
   if (!r) return new NextResponse("Şablon bulunamadı", { status: 404 });
   return new NextResponse(new Uint8Array(r.buf), {
     headers: { "Content-Type": MIME[r.ext], "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(`${d.fileBase}-${key}.${r.ext}`)}` },

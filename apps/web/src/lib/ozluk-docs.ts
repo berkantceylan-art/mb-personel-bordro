@@ -29,7 +29,29 @@ export const TEMPLATES: Record<string, { file: string; title: string; pdf?: bool
   "calisma-belgesi": { file: "calisma-belgesi.docx", title: "Çalışma Belgesi" },
   "ibraname": { file: "ibraname.docx", title: "İbraname" },
   "fesih-bildirimi": { file: "fesih-bildirimi.docx", title: "İş Sözleşmesi Fesih Bildirimi" },
+  "zimmet-tutanagi": { file: "zimmet-tutanagi.docx", title: "Zimmet Tutanağı" },
+  "zimmet-iade-tutanagi": { file: "zimmet-iade-tutanagi.docx", title: "Zimmet İade Tutanağı" },
 };
+
+export const ASSET_CATEGORY: Record<string, string> = {
+  BILGISAYAR: "Bilgisayar / tablet", TELEFON: "Telefon", EL_ALETI: "El aleti", MAKINE: "Makine / cihaz", ANAHTAR_KART: "Anahtar / kart",
+  ARAC: "Araç", KIYAFET_KKD: "Kıyafet / KKD", MOBILYA: "Mobilya", DIGER: "Diğer",
+};
+export const ASSET_STATUS: Record<string, [string, string]> = {
+  AVAILABLE: ["Boşta", "bg-ok-bg text-ok"], ASSIGNED: ["Zimmetli", "bg-[#E7F1FB] text-brand-700"], MAINTENANCE: ["Arızalı / bakımda", "bg-warn-bg text-warn"], LOST: ["Kayıp", "bg-bad-bg text-bad"], RETIRED: ["Hurda", "bg-[#EEF2F6] text-[#33414F]"],
+};
+
+/** Zimmet tutanağı satırları (açık veya iade edilmiş zimmetler) */
+export async function assetItems(supabase: SB, employeeId: string, returned: boolean): Promise<Array<Record<string, string>>> {
+  let q = supabase.from("asset_assignments").select("assigned_on, returned_on, condition_out, condition_in, assets(code, name, brand_model, serial_no)").eq("employee_id", employeeId).order("assigned_on");
+  q = returned ? q.not("returned_on", "is", null) : q.is("returned_on", null);
+  const { data } = await q;
+  return (data ?? []).map((r, i) => {
+    const a = r.assets as unknown as { code: string | null; name: string; brand_model: string | null; serial_no: string | null } | null;
+    return { sira: String(i + 1), kod: a?.code ?? "—", ad: [a?.name, a?.brand_model].filter(Boolean).join(" · "), seri: a?.serial_no ?? "—",
+      teslim: formatDate(r.assigned_on), iade: r.returned_on ? formatDate(r.returned_on) : "—", durum: (returned ? r.condition_in : r.condition_out) ?? "Sağlam" };
+  });
+}
 
 /** SGK işten ayrılış kodları (sık kullanılanlar) */
 export const EXIT_CODES: Array<[string, string]> = [
@@ -111,20 +133,20 @@ export async function docData(supabase: SB, employeeId: string, companyId: strin
 }
 
 /** Şablonu personel bilgileriyle doldurur; döndürülen dosya docx (veya pdf şablonu olduğu gibi) */
-export async function renderTemplate(key: string, data: Record<string, string>): Promise<{ buf: Buffer; ext: "docx" | "pdf"; title: string } | null> {
+export async function renderTemplate(key: string, data: Record<string, unknown>): Promise<{ buf: Buffer; ext: "docx" | "pdf"; title: string } | null> {
   const t = TEMPLATES[key];
   if (!t) return null;
   const raw = await fs.readFile(path.join(DIR, t.file));
   if (t.pdf) return { buf: raw, ext: "pdf", title: t.title };
   const zip = new PizZip(raw);
-  const doc = new Docxtemplater(zip, { paragraphLoop: false, linebreaks: true, nullGetter: () => "…………………" });
+  const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true, nullGetter: (part: { value?: string }) => (part.value === "items" ? [] : "…………………") });
   doc.render(data);
   const buf = doc.getZip().generate({ type: "nodebuffer", compression: "DEFLATE" }) as Buffer;
   return { buf, ext: "docx", title: t.title };
 }
 
 /** Birden çok şablonu tek zip olarak */
-export async function renderZip(keys: string[], data: Record<string, string>, fileBase: string): Promise<Buffer> {
+export async function renderZip(keys: string[], data: Record<string, unknown>, fileBase: string): Promise<Buffer> {
   const zip = new PizZip();
   for (const k of keys) {
     const r = await renderTemplate(k, data);
