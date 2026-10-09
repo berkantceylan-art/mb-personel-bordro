@@ -153,6 +153,32 @@ const JOBS: Record<string, (ctx: JobContext) => Promise<unknown>> = {
     return result;
   },
 
+  /** Deneme süresi bitmeden 14, 7, 2 gün kala ve son gün karar hatırlatması */
+  async deneme(ctx) {
+    const { data } = await ctx.sb.from("employee_onboarding").select("employee_id, probation_end, employees!employee_onboarding_employee_id_fkey(first_name, last_name, status)").eq("company_id", ctx.companyId).is("probation_decision", null).gte("probation_end", ctx.today).lte("probation_end", addDays(ctx.today, 14));
+    let sent = 0;
+    for (const o of data ?? []) {
+      const left = daysUntil(ctx.today, o.probation_end as string);
+      const e = o.employees as unknown as { first_name: string; last_name: string; status: string } | null;
+      if (![14, 7, 2, 0].includes(left) || !e || e.status === "terminated") continue;
+      const { data: mgr } = await ctx.sb.rpc("managers_for_employee", { p_employee: o.employee_id });
+      const users = [...new Set([...((mgr as string[] | null) ?? []), ...(await ctx.users(["owner", "hr"]))])];
+      sent += await ctx.notify(users, left === 0 ? "Deneme süresi bugün bitiyor" : `Deneme süresi ${left} gün sonra bitiyor`, `${e.first_name} ${e.last_name} için değerlendirme ve karar (devam / sonlandır) bekleniyor.`, `/uyum/${o.employee_id}`);
+    }
+    return { sent };
+  },
+
+  /** KVKK: saklama süresi dolan aday başvurularını ve dosyalarını siler */
+  async adayImha(ctx) {
+    const { data } = await ctx.sb.from("candidates").select("id, cv_path, file_paths").eq("company_id", ctx.companyId).lt("purge_after", ctx.today).is("employee_id", null).limit(500);
+    if (!data?.length) return "silinecek yok";
+    const files = data.flatMap((c) => [c.cv_path, ...((c.file_paths as string[] | null) ?? [])]).filter(Boolean) as string[];
+    if (files.length) await ctx.sb.storage.from("documents").remove(files);
+    const { error } = await ctx.sb.from("candidates").delete().in("id", data.map((c) => c.id));
+    if (error) throw new Error(error.message);
+    return { silinen: data.length, dosya: files.length };
+  },
+
   /** Patron: pazartesi haftalık özet, ayın 1'i ay özeti, SGK / muhtasar / maaş günü yaklaşınca uyarı */
   async patron(ctx) {
     const { data: ms } = await ctx.sb.from("memberships").select("user_id, role, is_boss").eq("company_id", ctx.companyId);

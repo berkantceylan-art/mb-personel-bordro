@@ -30,6 +30,10 @@ export const MY_MENU: Array<{ href: string; label: string; icon: string; desc: s
   { href: "/benim/icra", label: "İcra ve nafaka", icon: "gavel", desc: "Yasal kesintilerim" },
   { href: "/benim/isg", label: "İş güvenliği", icon: "shield", desc: "Eğitim ve sertifikalarım" },
   { href: "/benim/saglik", label: "Sağlık", icon: "heart", desc: "Muayene ve raporlarım" },
+  { href: "/benim/ilk-gunlerim", label: "İlk günlerim", icon: "flag", desc: "Uyum adımları ve ustam" },
+  { href: "/benim/performans", label: "Performansım", icon: "star", desc: "Öz değerlendirme ve sonuçlarım" },
+  { href: "/benim/hedefler", label: "Hedef ve becerilerim", icon: "target", desc: "Hedeflerim, beceri seviyelerim" },
+  { href: "/benim/ilanlar", label: "İş ilanları", icon: "briefcase", desc: "Açık pozisyonlar, arkadaşını öner" },
   { href: "/benim/ayarlar", label: "Ayarlar", icon: "gear", desc: "Bildirim ve görünüm" },
 ];
 

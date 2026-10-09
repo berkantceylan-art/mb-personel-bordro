@@ -28,6 +28,11 @@ const ICONS: Record<string, React.ReactNode> = {
   box: <path d="M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8" />,
   piggy: <path d="M5 11a7 6 0 0 1 14 0v3h2v-4M5 14v4M9 17v3M15 17v3M14 9h.01M19 14a2 2 0 0 0 0-4" />,
   gavel: <path d="M14 4l6 6-3 3-6-6zM11 7l-7 7 3 3 7-7M3 21h10" />,
+  flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
+  star: <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" />,
+  target: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01" />,
+  briefcase: <path d="M3 8h18v12H3zM9 8V5h6v3M3 13h18" />,
+  sitemap: <path d="M10 3h4v4h-4zM4 17h4v4H4zM16 17h4v4h-4zM12 7v5M6 17v-5h12v5" />,
   heart: <path d="M12 21s-8-5.5-8-11a4 4 0 0 1 8-1 4 4 0 0 1 8 1c0 5.5-8 11-8 11z" />,
 };
 export const MenuIcon = ({ name }: { name: string }) => (

@@ -30,7 +30,19 @@ export function ConfirmSubmit({ label, question = "Emin misiniz?", className = "
 export function PendingSubmit({ children, className, name, value }: { children: React.ReactNode; className?: string; name?: string; value?: string }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" name={name} value={value} disabled={pending} className={`${className ?? ""} disabled:opacity-60`}>
+    <button
+      type="submit"
+      disabled={pending}
+      className={`${className ?? ""} disabled:opacity-60`}
+      onClick={(e) => {
+        // Gönderen düğmenin adı/değeri sunucu eylemine her tarayıcıda ulaşsın diye gizli alana yazılır
+        const form = e.currentTarget.form;
+        if (!name || !form) return;
+        let h = form.querySelector<HTMLInputElement>(`input[type="hidden"][data-submitter="${name}"]`);
+        if (!h) { h = document.createElement("input"); h.type = "hidden"; h.name = name; h.dataset.submitter = name; form.appendChild(h); }
+        h.value = value ?? "";
+      }}
+    >
       {pending ? "İşleniyor…" : children}
     </button>
   );

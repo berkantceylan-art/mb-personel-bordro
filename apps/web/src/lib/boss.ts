@@ -277,8 +277,9 @@ export interface RiskData {
   topLeave: Array<{ id: string; name: string; dept: string; days: number; cost: number }>;
   overtime: Array<{ id: string; name: string; dept: string; hours: number }>;
   docs: { expired: number; soon: number; missing: number; list: Array<{ id: string; name: string; what: string; when: string; level: string }> };
-  probation: Array<{ id: string; name: string; dept: string; ends: string; inDays: number }>;
+  probation: Array<{ id: string; name: string; dept: string; ends: string; inDays: number; decision?: string | null }>;
   garnish: { people: number; files: number; enforcement: number; alimony: number; monthly: number };
+  skillRisk: Array<{ skill: string; holder: string | null }>;
 }
 
 export async function loadRisks(sb: SB, today: string, emps: EmpLite[], monthlyGarnish: number): Promise<RiskData> {
@@ -295,12 +296,15 @@ export async function loadRisks(sb: SB, today: string, emps: EmpLite[], monthlyG
     loadCompliance(sb, "HEALTH"),
     sb.from("garnishment_files").select("employee_id, kind").eq("status", "active"),
   ]);
+  const { data: obRows } = await sb.from("employee_onboarding").select("employee_id, probation_end, probation_decision");
+  const probEnd = new Map(((obRows ?? []) as Array<{ employee_id: string; probation_end: string | null }>).filter((x) => x.probation_end).map((x) => [x.employee_id, x.probation_end!]));
+  const probDecided = new Set(((obRows ?? []) as Array<{ employee_id: string; probation_decision: string | null }>).filter((x) => x.probation_decision).map((x) => x.employee_id));
   const birth = new Map((privs ?? []).map((p) => [p.employee_id, p.birth_date as string | null]));
   const usedBy = new Map<string, number>(); for (const u of used) usedBy.set(u.employee_id, (usedBy.get(u.employee_id) ?? 0) + Number(u.days));
   const adjBy = new Map<string, number>(); for (const u of adj) adjBy.set(u.employee_id, (adjBy.get(u.employee_id) ?? 0) + Number(u.days));
   const otBy = new Map<string, number>(); for (const o of ot) otBy.set(o.employee_id, (otBy.get(o.employee_id) ?? 0) + Number(o.minutes));
 
-  const r: RiskData = { kidemOfficial: 0, kidemReal: 0, ihbarOfficial: 0, ihbarReal: 0, topKidem: [], leaveDays: 0, leaveCost: 0, leaveUnknown: 0, topLeave: [], overtime: [], docs: { expired: 0, soon: 0, missing: 0, list: [] }, probation: [], garnish: { people: 0, files: 0, enforcement: 0, alimony: 0, monthly: monthlyGarnish } };
+  const r: RiskData = { kidemOfficial: 0, kidemReal: 0, ihbarOfficial: 0, ihbarReal: 0, topKidem: [], leaveDays: 0, leaveCost: 0, leaveUnknown: 0, topLeave: [], overtime: [], docs: { expired: 0, soon: 0, missing: 0, list: [] }, probation: [], garnish: { people: 0, files: 0, enforcement: 0, alimony: 0, monthly: monthlyGarnish }, skillRisk: [] };
   for (const e of active) {
     const c = contracts.get(e.id);
     const base = { id: e.id, name: nameOf(e), dept: deptOf(e) };
@@ -320,8 +324,8 @@ export async function loadRisks(sb: SB, today: string, emps: EmpLite[], monthlyG
     }
     const h = (otBy.get(e.id) ?? 0) / 60;
     if (h >= 200) r.overtime.push({ ...base, hours: Math.round(h * 10) / 10 });
-    if (e.hire_date! > addMonths(today, -3)) {
-      const ends = addMonths(e.hire_date!, 2);
+    if (e.hire_date! > addMonths(today, -3) && !probDecided.has(e.id)) {
+      const ends = probEnd.get(e.id) ?? addMonths(e.hire_date!, 2);
       const inDays = daysBetween(today, ends);
       if (inDays >= -3 && inDays <= 21) r.probation.push({ ...base, ends, inDays });
     }
@@ -338,6 +342,17 @@ export async function loadRisks(sb: SB, today: string, emps: EmpLite[], monthlyG
   const g = (garn ?? []) as Array<{ employee_id: string; kind: string }>;
   r.garnish.files = g.length; r.garnish.people = new Set(g.map((x) => x.employee_id)).size;
   r.garnish.enforcement = g.filter((x) => x.kind === "ENFORCEMENT").length; r.garnish.alimony = g.filter((x) => x.kind === "ALIMONY").length;
+  // Tek kişiye bağlı beceriler (yetkinlik matrisi girildiyse)
+  const { data: es } = await sb.from("employee_skills").select("employee_id, level, skills(name)");
+  if (es?.length) {
+    const names = new Map(active.map((e) => [e.id, nameOf(e)]));
+    const by = new Map<string, { any: boolean; able: string[] }>();
+    for (const x of es as Array<{ employee_id: string; level: number; skills: unknown }>) {
+      const k = (x.skills as { name: string } | null)?.name; if (!k || !names.has(x.employee_id)) continue;
+      const g = by.get(k) ?? { any: false, able: [] }; g.any = true; if (x.level >= 3) g.able.push(names.get(x.employee_id)!); by.set(k, g);
+    }
+    r.skillRisk = [...by.entries()].filter(([, g]) => g.able.length <= 1).map(([skill, g]) => ({ skill, holder: g.able[0] ?? null }));
+  }
   return r;
 }
 

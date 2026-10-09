@@ -301,9 +301,14 @@ async function Risks({ sb, today, cur, emps }: { sb: SB; today: string; cur: str
           <ul>{r.docs.list.map((x, i) => <Row key={`${x.id}${i}`} l={`${x.name} · ${x.what}`} r={x.when} href={`/personel/${x.id}`} />)}</ul>
         </Card>
         <Card title="Deneme süresi bitiyor">
-          <ul>{r.probation.map((x) => <Row key={x.id} l={`${x.name} · ${x.dept}`} r={x.inDays < 0 ? `${-x.inDays} gün önce bitti` : x.inDays === 0 ? "bugün" : `${formatDate(x.ends)} · ${x.inDays} gün`} href={`/personel/${x.id}`} />)}</ul>
+          <ul>{r.probation.map((x) => <Row key={x.id} l={`${x.name} · ${x.dept} · karar bekliyor`} r={x.inDays < 0 ? `${-x.inDays} gün önce bitti` : x.inDays === 0 ? "bugün" : `${formatDate(x.ends)} · ${x.inDays} gün`} href={`/uyum/${x.id}`} />)}</ul>
           {r.probation.length === 0 && <p className="text-sm text-muted">Önümüzdeki 3 hafta içinde deneme süresi biten yok.</p>}
           <p className="text-xs text-muted">2 aylık yasal deneme süresi; bu süre içinde bildirimsiz ve tazminatsız fesih mümkündür. Karar vermek için son fırsat.</p>
+        </Card>
+        <Card title="Tek kişiye bağlı işler" action={<Link href="/yetkinlik" className="text-sm font-semibold text-brand-700">Matris →</Link>}>
+          <ul>{r.skillRisk.map((x) => <Row key={x.skill} l={x.skill} r={x.holder ? `yalnız ${x.holder}` : "kimse yok ⛔"} />)}</ul>
+          {r.skillRisk.length === 0 && <p className="text-sm text-muted">Beceri matrisi girildikçe, yalnız bir kişinin bağımsız yapabildiği işler burada listelenir.</p>}
+          <p className="text-xs text-muted">Bu kişi ayrılır ya da raporlu olursa iş durur; yedek yetiştirin.</p>
         </Card>
         <Card title="İcra ve nafaka" action={<Link href="/icra" className="text-sm font-semibold text-brand-700">Dosyalar →</Link>}>
           <div className="grid grid-cols-3 gap-2">

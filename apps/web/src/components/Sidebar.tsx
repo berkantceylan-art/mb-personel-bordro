@@ -29,9 +29,23 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "İcra ve nafaka", href: "/benim/icra", roles: ["employee"] },
       { label: "İş güvenliği", href: "/benim/isg", roles: ["employee"] },
       { label: "Sağlık", href: "/benim/saglik", roles: ["employee"] },
+      { label: "İlk günlerim", href: "/benim/ilk-gunlerim", roles: ["employee"] },
+      { label: "Performansım", href: "/benim/performans", roles: ["employee"] },
+      { label: "Hedef ve becerilerim", href: "/benim/hedefler", roles: ["employee"] },
+      { label: "İş ilanları", href: "/benim/ilanlar", roles: ["employee"] },
       { label: "Ayarlar", href: "/benim/ayarlar", roles: ["employee"] },
       { label: "Personel", href: "/personel", roles: MANAGERS },
       { label: "Zimmet", href: "/zimmet", roles: ["owner", "accountant", "hr", "branch_manager"] },
+    ],
+  },
+  {
+    group: "İnsan kaynakları",
+    items: [
+      { label: "İşe alım", href: "/ise-alim", roles: ["owner", "accountant", "hr", "branch_manager"] },
+      { label: "Uyum süreci", href: "/uyum", roles: ["owner", "accountant", "hr", "branch_manager"] },
+      { label: "Performans", href: "/performans", roles: ["owner", "accountant", "hr", "branch_manager"] },
+      { label: "Yetkinlik ve hedefler", href: "/yetkinlik", roles: ["owner", "accountant", "hr", "branch_manager"] },
+      { label: "Organizasyon", href: "/organizasyon", roles: MANAGERS },
     ],
   },
   {
