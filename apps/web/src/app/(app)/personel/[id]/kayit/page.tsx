@@ -10,12 +10,22 @@ import { finishOnboarding } from "./actions";
 
 const STEPS: Array<{ n: number; title: string; short: string; hint: string }> = [
   { n: 1, title: "Personel bilgileri", short: "Bilgiler", hint: "Kimlik, iletişim, adres ve ücret bilgileri. Sözleşmelere bu bilgiler yazılır." },
-  { n: 2, title: "e-Devlet belgeleri", short: "e-Devlet", hint: "Personel e-Devlet&apos;ten alıp getirir: nüfus kayıt örneği, ikametgah, adli sicil, askerlik, SGK dökümü, diploma. Kimlik fotokopisi ve fotoğraf da burada." },
+  { n: 2, title: "e-Devlet belgeleri", short: "e-Devlet", hint: "Her belgenin yanındaki bağlantı e-Devlet'te ilgili hizmeti açar; personel kendi hesabıyla girip PDF'i indirir, siz buraya yüklersiniz. Kimlik fotokopisi ve fotoğraf da burada." },
   { n: 3, title: "Sözleşmeler", short: "Sözleşmeler", hint: "Belgeler personel bilgileriyle doldurulmuş olarak indirilir. Çıktı alıp imzalatın, sonra taranmış halini yükleyin." },
   { n: 4, title: "İş güvenliği evrakları", short: "İSG", hint: "İSG talimatı, koruyucu malzeme belgesi, eğitim katılım formları ve sınav. Eğitim tarihi ve sonucu eğitmen tarafından elle yazılır." },
   { n: 5, title: "Sağlık bilgileri", short: "Sağlık", hint: "Muayene formu işyeri hekimine verilir; sağlık raporu ve aşı kartı yüklenir." },
   { n: 6, title: "İşe giriş formları", short: "Formlar", hint: "İş başvuru ve bilgi formu ile zimmet tutanağı. Sonra kaydı tamamlayın." },
 ];
+
+/** e-Devlet'te belgenin alındığı hizmet sayfası (personel kendi hesabıyla girip PDF indirir) */
+const EDEVLET: Record<string, string> = {
+  "Nüfus kayıt örneği": "https://www.turkiye.gov.tr/nvi-nufus-kayit-ornegi-belge-sorgulama",
+  "İkametgah belgesi": "https://www.turkiye.gov.tr/nvi-yerlesim-yeri-ve-diger-adres-belgesi-sorgulama",
+  "Adli sicil kaydı": "https://www.turkiye.gov.tr/adli-sicil-kaydi",
+  "Askerlik durum belgesi": "https://www.turkiye.gov.tr/msb-askerlik-durum-belgesi",
+  "SGK hizmet dökümü": "https://www.turkiye.gov.tr/sgk-tescil-ve-hizmet-dokumu",
+  "Diploma": "https://www.turkiye.gov.tr/yok-mezun-belgesi-sorgulama",
+};
 
 type DocType = { id: string; name: string; required: boolean; has_expiry: boolean; onboarding_step: number | null; template_key: string | null; description: string | null; sort_order: number };
 
@@ -145,6 +155,9 @@ export default async function OnboardingPage({ params, searchParams }: { params:
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold">{t.name}{!t.required && <span className="text-muted font-normal"> · isteğe bağlı</span>}</div>
                         {t.description && <div className="text-xs text-muted">{t.description}</div>}
+                        {EDEVLET[t.name] && (
+                          <a href={EDEVLET[t.name]} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand-700">e-Devlet&apos;te aç → belgeyi PDF indirip buraya yükleyin</a>
+                        )}
                         {files.map((f) => (
                           <div key={f.id} className="flex gap-2 items-center text-xs mt-1">
                             <a href={signed.get(f.id) ?? "#"} target="_blank" rel="noreferrer" className="text-brand-700 font-semibold truncate">{f.file_name ?? "Dosya"}</a>
