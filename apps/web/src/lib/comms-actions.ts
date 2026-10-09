@@ -149,14 +149,33 @@ export async function cancelAdvance(f: FormData) {
 
 /* ---------------- İzin talebi (personel) ---------------- */
 export async function requestLeaveSelf(_: R | null, f: FormData): Promise<R> {
-  await getSession();
+  const s = await getSession();
   const supabase = await createClient();
   const start = str(f, "start");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return { ok: false, message: "Başlangıç tarihini seçin." };
-  const { data, error } = await supabase.rpc("request_leave_self", { p_type: str(f, "typeId"), p_start: start, p_end: str(f, "end") || null, p_note: str(f, "note") || null });
-  if (error) return { ok: false, message: error.message };
+  const startTime = str(f, "start_time") || null;
+  const endTime = str(f, "end_time") || null;
+
+  // Rapor belgesi (fotoğraf/PDF) personelin kendi klasörüne yüklenir
+  let document: string | null = null;
+  const file = f.get("file");
+  if (file instanceof File && file.size > 0) {
+    if (file.size > 10 * 1024 * 1024) return { ok: false, message: "Dosya 10 MB'tan büyük olamaz." };
+    const { data: me } = await supabase.from("employees").select("id").eq("user_id", s.userId).maybeSingle();
+    if (!me) return { ok: false, message: "Hesabınız bir personel kaydına bağlı değil." };
+    const ext = (file.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+    document = `${s.companyId}/employees/${me.id}/rapor-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("documents").upload(document, file, { contentType: file.type || undefined });
+    if (error) return { ok: false, message: error.message.includes("policy") ? "Belge yükleme izni yok (20261030000000_self_documents.sql çalıştırılmalı)." : error.message };
+  }
+  const args: Record<string, unknown> = { p_type: str(f, "typeId"), p_start: start, p_end: str(f, "end") || null, p_note: str(f, "note") || null };
+  if (startTime || endTime || document) Object.assign(args, { p_start_time: startTime, p_end_time: endTime, p_document: document });
+  const { data, error } = await supabase.rpc("request_leave_self", args);
+  if (error) return { ok: false, message: /p_start_time|p_document/.test(error.message) ? "Saatlik izin ve rapor için sunucu güncellemesi gerekli (20261031000000_mobile_self_service.sql)." : error.message };
   revalidatePath("/benim");
-  return { ok: true, message: `${(data as { days: number }).days} günlük izin talebiniz iletildi.` };
+  revalidatePath("/benim/izin");
+  const d = data as { days: number; hours?: number | null };
+  return { ok: true, message: d.hours ? `${d.hours} saatlik izin talebiniz iletildi.` : document ? `${d.days} günlük raporunuz iletildi; İK onaylayınca izne işlenir.` : `${d.days} günlük izin talebiniz iletildi.` };
 }
 
 /* ---------------- Bildirimler ---------------- */

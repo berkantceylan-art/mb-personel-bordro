@@ -1,12 +1,15 @@
 "use client";
+import { useState } from "react";
 import { useActionForm } from "@/lib/use-action-form";
 import { addManualOvertime, createLeave } from "@/lib/leave-ot-actions";
 import { PaySideSelect } from "./PaySideSelect";
 
 const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white w-full";
 
-export function LeaveForm({ employees, types, defaultEmployee }: { employees: Array<{ id: string; name: string }>; types: Array<{ id: string; name: string }>; defaultEmployee?: string }) {
+export function LeaveForm({ employees, types, defaultEmployee }: { employees: Array<{ id: string; name: string }>; types: Array<{ id: string; name: string; code?: string }>; defaultEmployee?: string }) {
   const { state, pending, formProps: actionProps } = useActionForm(createLeave);
+  const [typeId, setTypeId] = useState(types[0]?.id ?? "");
+  const hourly = types.find((t) => t.id === typeId)?.code === "SAATLIK";
   return (
     <form {...actionProps} className="grid gap-4 md:grid-cols-3">
       <label className="flex flex-col gap-1.5 text-sm text-muted">Personel *
@@ -16,11 +19,18 @@ export function LeaveForm({ employees, types, defaultEmployee }: { employees: Ar
         </select>
       </label>
       <label className="flex flex-col gap-1.5 text-sm text-muted">İzin türü *
-        <select name="typeId" required className={input}>{types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+        <select name="typeId" required value={typeId} onChange={(e) => setTypeId(e.target.value)} className={input}>{types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
       </label>
       <label className="flex flex-col gap-1.5 text-sm text-muted">Açıklama<input name="note" className={input} /></label>
-      <label className="flex flex-col gap-1.5 text-sm text-muted">Başlangıç *<input type="date" name="start" required className={input} /></label>
-      <label className="flex flex-col gap-1.5 text-sm text-muted">Bitiş<input type="date" name="end" className={input} /></label>
+      <label className="flex flex-col gap-1.5 text-sm text-muted">{hourly ? "Gün *" : "Başlangıç *"}<input type="date" name="start" required className={input} /></label>
+      {hourly ? (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-1.5 text-sm text-muted">Saat başı *<input type="time" name="start_time" required className={input} /></label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted">Saat sonu *<input type="time" name="end_time" required className={input} /></label>
+        </div>
+      ) : (
+        <label className="flex flex-col gap-1.5 text-sm text-muted">Bitiş<input type="date" name="end" className={input} /></label>
+      )}
       <div className="flex flex-col gap-2 justify-end text-sm">
         <label className="flex gap-2 items-center"><input type="checkbox" name="half_day" className="w-5 h-5" />Yarım gün</label>
         <label className="flex gap-2 items-center"><input type="checkbox" name="approve" defaultChecked className="w-5 h-5" />Hemen onayla</label>

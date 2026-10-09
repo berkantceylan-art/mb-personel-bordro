@@ -28,10 +28,17 @@ export default async function RequestsPage() {
       ? supabase.from("advance_requests").select("*, employees(first_name, last_name, card_no, departments(name))").order("created_at", { ascending: false }).limit(100)
       : Promise.resolve({ data: [] }),
     hr
-      ? supabase.from("leave_requests").select("id, start_date, end_date, days, note, status, created_at, leave_types(name), employees(first_name, last_name, departments(name))").eq("status", "pending").order("start_date")
+      ? supabase.from("leave_requests").select("id, start_date, end_date, days, note, status, created_at, start_time, end_time, hours, document_path, leave_types(name), employees(first_name, last_name, departments(name))").eq("status", "pending").order("start_date")
       : Promise.resolve({ data: [] }),
   ]);
   const pendingAdv = (adv ?? []).filter((a) => a.status === "pending");
+  // Rapor belgeleri için imzalı bağlantılar
+  const docLinks = new Map<string, string>();
+  const withDoc = (leaves ?? []).filter((l) => l.document_path);
+  if (withDoc.length) {
+    const { data: urls } = await supabase.storage.from("documents").createSignedUrls(withDoc.map((l) => l.document_path as string), 600);
+    (urls ?? []).forEach((u, i) => u.signedUrl && docLinks.set(withDoc[i]!.id, u.signedUrl));
+  }
   const doneAdv = (adv ?? []).filter((a) => a.status !== "pending").slice(0, 30);
   const emp = (e: unknown) => e as { first_name: string; last_name: string; card_no?: string | null; departments: { name: string } | null } | null;
   const th = "py-3 px-3 font-semibold border-b border-line";
@@ -100,9 +107,9 @@ export default async function RequestsPage() {
                         <td className={td}><input type="checkbox" name="id" value={l.id} form="bulk-leave" aria-label={`${e?.first_name} ${e?.last_name} seç`} className={check} /></td>
                         <td className={td}><span className="font-semibold">{e?.first_name} {e?.last_name}</span><div className="text-xs text-muted">{e?.departments?.name}</div></td>
                         <td className={td}>{(l.leave_types as unknown as { name: string } | null)?.name}</td>
-                        <td className={td}>{formatDate(l.start_date)}{l.end_date !== l.start_date && ` – ${formatDate(l.end_date)}`}</td>
-                        <td className={`${td} text-right num`}>{l.days}</td>
-                        <td className={td}>{l.note ?? "—"}</td>
+                        <td className={td}>{formatDate(l.start_date)}{l.end_date !== l.start_date && ` – ${formatDate(l.end_date)}`}{l.hours ? <div className="text-xs text-muted num">{String(l.start_time).slice(0, 5)}–{String(l.end_time).slice(0, 5)}</div> : null}</td>
+                        <td className={`${td} text-right num`}>{l.hours ? `${Number(l.hours)} sa` : l.days}</td>
+                        <td className={td}>{l.note ?? "—"}{docLinks.has(l.id) && <a href={docLinks.get(l.id)} target="_blank" rel="noreferrer" className="block text-xs font-semibold text-brand-700">Rapor belgesini aç →</a>}</td>
                         <td className={td}>
                           <div className="flex gap-2">
                             <form action={decideLeave}><input type="hidden" name="id" value={l.id} /><input type="hidden" name="status" value="approved" /><button className="h-9 px-3 rounded-lg bg-brand-700 text-white text-xs font-semibold">Onayla</button></form>

@@ -10,10 +10,14 @@ export function WebPunch({ inside }: { inside?: boolean }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [scan, setScan] = useState(false);
+  const [dir, setDir] = useState<"IN" | "OUT">(inside ? "OUT" : "IN");
   const router = useRouter();
 
   async function send(args: { p_lat: number | null; p_lng: number | null; p_accuracy: number | null; p_qr: string | null }) {
-    const { data, error } = await createClient().rpc("mobile_punch", args);
+    let res = await createClient().rpc("mobile_punch", { ...args, p_direction: dir });
+    // Eski sunucu sürümü (yön parametresi yoksa): otomatik yön
+    if (res.error && /p_direction/.test(res.error.message)) res = await createClient().rpc("mobile_punch", args);
+    const { data, error } = res;
     if (error) return setMsg({ ok: false, text: error.message });
     const d = data as Result;
     setMsg({ ok: true, text: `${d.direction === "IN" ? "Giriş" : "Çıkış"} kaydedildi · ${d.at.slice(11, 16)} · ${d.branch}` });
@@ -40,12 +44,20 @@ export function WebPunch({ inside }: { inside?: boolean }) {
 
   return (
     <div className="flex flex-col gap-3 w-full">
+      <div className="grid grid-cols-2 gap-2 p-1 rounded-[14px] bg-[#EEF2F6]" role="group" aria-label="Yön">
+        {(["IN", "OUT"] as const).map((d) => (
+          <button key={d} type="button" onClick={() => setDir(d)} aria-pressed={dir === d}
+            className={`h-11 rounded-[11px] font-bold text-sm ${dir === d ? (d === "IN" ? "bg-[#1E7A4C] text-white" : "bg-[#B42318] text-white") : "text-[#33414F]"}`}>
+            {d === "IN" ? "Giriş" : "Çıkış"}
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button onClick={punchLocation} disabled={busy} className="h-14 px-6 rounded-[14px] bg-accent text-white font-bold text-base disabled:opacity-60">
-          {busy ? "Konum alınıyor…" : inside ? "Çıkış yap (konumla)" : "Giriş yap (konumla)"}
+        <button onClick={punchLocation} disabled={busy} className={`h-14 px-6 rounded-[14px] text-white font-bold text-base disabled:opacity-60 ${dir === "IN" ? "bg-accent" : "bg-[#B42318]"}`}>
+          {busy ? "Konum alınıyor…" : dir === "IN" ? "Giriş yap (konumla)" : "Çıkış yap (konumla)"}
         </button>
         <button onClick={() => { setMsg(null); setScan(true); }} className="h-14 px-6 rounded-[14px] border border-[#D5DEE8] bg-white text-brand-700 font-bold text-base">
-          QR kod okut
+          {dir === "IN" ? "Giriş yap (QR okut)" : "Çıkış yap (QR okut)"}
         </button>
       </div>
       {msg && <span role="status" className={`text-sm rounded-lg px-3 py-2 ${msg.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{msg.text}</span>}

@@ -110,7 +110,7 @@ export async function loadMonth(supabase: SB, period: string, opts: { employeeId
     supabase.from("public_holidays").select("date, name, half_day").gte("date", first).lte("date", last),
     supabase
       .from("leave_requests")
-      .select("employee_id, start_date, end_date, leave_types(code)")
+      .select("employee_id, start_date, end_date, hours, leave_types(code)")
       .eq("status", "approved")
       .lte("start_date", last)
       .gte("end_date", first),
@@ -154,8 +154,11 @@ export async function loadMonth(supabase: SB, period: string, opts: { employeeId
   const assign = new Map<string, { shift_id: string | null; day_type: string | null }>();
   for (const a of assignments) assign.set(`${a.employee_id}|${a.work_date}`, a);
   const leaves = new Map<string, string>();
+  // Saatlik izin günü izinli sayılmaz; o gün geç gelme / erken çıkış mazeretli kabul edilir
+  const hourly = new Map<string, number>();
   for (const l of leaveRows.data ?? []) {
     const code = (l.leave_types as unknown as { code: string } | null)?.code ?? "IZIN";
+    if (l.hours) { const k = `${l.employee_id}|${l.start_date}`; hourly.set(k, (hourly.get(k) ?? 0) + Number(l.hours)); continue; }
     for (let d = l.start_date as string; d <= (l.end_date as string); d = shiftDate(d, 1)) leaves.set(`${l.employee_id}|${d}`, code);
   }
 
@@ -206,11 +209,13 @@ export async function loadMonth(supabase: SB, period: string, opts: { employeeId
         leave: leaves.has(k),
         hasAnomaly: anomalyDays.has(k),
       });
+      const hourlyLeave = hourly.get(k) ?? 0;
       row.set(d, {
         ...ev,
+        ...(hourlyLeave > 0 ? { lateMin: 0, earlyLeaveMin: 0 } : {}),
         status: employed ? ev.status : "NO_SHIFT",
         shiftCode: shift?.code ?? null,
-        leaveCode: leaves.get(k) ?? null,
+        leaveCode: leaves.get(k) ?? (hourlyLeave > 0 ? `SAATLIK ${hourlyLeave}sa` : null),
         holidayName: holiday?.name ?? null,
         punchCount: punchCount.get(k) ?? 0,
         employed,

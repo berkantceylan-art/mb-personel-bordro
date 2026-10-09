@@ -66,20 +66,52 @@ export function AdvanceRequestForm() {
   );
 }
 
-export function LeaveRequestForm({ types }: { types: Array<{ id: string; name: string }> }) {
+export function LeaveRequestForm({ types }: { types: Array<{ id: string; name: string; code?: string }> }) {
   const { state, pending, formProps: actionProps } = useActionForm(requestLeaveSelf);
+  const visible = types.filter((t) => t.code !== "RAPOR");
+  const [typeId, setTypeId] = useState(visible[0]?.id ?? "");
+  const hourly = visible.find((t) => t.id === typeId)?.code === "SAATLIK";
   return (
     <form {...actionProps} className="grid gap-3 md:grid-cols-4 items-end" key={state?.ok ? state.message : "f"}>
       <label className="flex flex-col gap-1.5 text-sm text-muted">İzin türü
-        <select name="typeId" required className={input}>{types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+        <select name="typeId" required value={typeId} onChange={(e) => setTypeId(e.target.value)} className={input}>{visible.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
       </label>
-      <label className="flex flex-col gap-1.5 text-sm text-muted">Başlangıç<input type="date" name="start" required className={input} /></label>
-      <label className="flex flex-col gap-1.5 text-sm text-muted">Bitiş<input type="date" name="end" className={input} /></label>
-      <label className="flex flex-col gap-1.5 text-sm text-muted">Açıklama<input name="note" className={input} /></label>
+      <label className="flex flex-col gap-1.5 text-sm text-muted">{hourly ? "Gün" : "Başlangıç"}<input type="date" name="start" required className={input} /></label>
+      {hourly ? (
+        <>
+          <label className="flex flex-col gap-1.5 text-sm text-muted">Saat (başlangıç)<input type="time" name="start_time" required className={input} /></label>
+          <label className="flex flex-col gap-1.5 text-sm text-muted">Saat (bitiş)<input type="time" name="end_time" required className={input} /></label>
+        </>
+      ) : (
+        <label className="flex flex-col gap-1.5 text-sm text-muted">Bitiş<input type="date" name="end" className={input} /></label>
+      )}
+      <label className={`flex flex-col gap-1.5 text-sm text-muted ${hourly ? "md:col-span-4" : ""}`}>Açıklama<input name="note" className={input} /></label>
       <div className="md:col-span-4 flex flex-wrap gap-3 items-center">
-        <button disabled={pending} className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-60">İzin iste</button>
+        <button disabled={pending} className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-60">{hourly ? "Saatlik izin iste" : "İzin iste"}</button>
         <Status s={state} />
       </div>
+      {hourly && <p className="md:col-span-4 text-xs text-muted">Saatlik izin en fazla 7,5 saat; onaylanınca o günkü geç gelme / erken çıkış mazeretli sayılır.</p>}
+    </form>
+  );
+}
+
+/** Personel sağlık raporunu fotoğraflayıp bildirir; İK onaylayınca rapor izni olarak işlenir */
+export function SickReportForm({ typeId }: { typeId: string }) {
+  const { state, pending, formProps: actionProps } = useActionForm(requestLeaveSelf);
+  return (
+    <form {...actionProps} className="grid gap-3 md:grid-cols-3 items-end" key={state?.ok ? state.message : "f"}>
+      <input type="hidden" name="typeId" value={typeId} />
+      <label className="flex flex-col gap-1.5 text-sm text-muted">Rapor başlangıcı<input type="date" name="start" required className={input} /></label>
+      <label className="flex flex-col gap-1.5 text-sm text-muted">Rapor bitişi<input type="date" name="end" required className={input} /></label>
+      <label className="flex flex-col gap-1.5 text-sm text-muted">Açıklama<input name="note" placeholder="ör. grip, 3 gün istirahat" className={input} /></label>
+      <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-3">Rapor belgesi (fotoğraf veya PDF) *
+        <input type="file" name="file" required accept="image/*,application/pdf" className="text-sm" />
+      </label>
+      <div className="md:col-span-3 flex flex-wrap gap-3 items-center">
+        <button disabled={pending} className="h-11 px-5 rounded-[10px] bg-[#B42318] text-white font-semibold disabled:opacity-60">{pending ? "Gönderiliyor…" : "Raporu bildir"}</button>
+        <Status s={state} />
+      </div>
+      <p className="md:col-span-3 text-xs text-muted">e-Devlet → e-Nabız / Sağlık Bakanlığı &quot;Raporlarım&quot; sayfasından raporunuzun PDF&apos;ini de indirebilirsiniz. Raporun aslını işe dönünce İK&apos;ya teslim edin.</p>
     </form>
   );
 }

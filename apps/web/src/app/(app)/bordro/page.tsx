@@ -6,6 +6,8 @@ import { computePayroll } from "@/lib/payroll";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, currentPeriod, getSession, periodLabel } from "@/lib/session";
 import { PayrollButtons } from "./PayrollButtons";
+import { PendingSubmit } from "@/components/ConfirmSubmit";
+import { uploadSignedPayslips } from "./actions";
 
 export default async function PayrollPage({ searchParams }: { searchParams: Promise<{ donem?: string; bolum?: string; gorunum?: string }> }) {
   const s = await getSession();
@@ -15,6 +17,9 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
   const view = sp.gorunum === "ic" ? "ic" : "resmi";
   const supabase = await createClient();
   const all = await computePayroll(supabase, period);
+  // İmzalı bordrolar (personel mobilden indirir)
+  const { data: signedRows } = await supabase.from("employee_documents").select("employee_id, file_name, document_types!inner(name)").eq("period", period).eq("document_types.name", "İmzalı bordro");
+  const signedBy = new Map((signedRows ?? []).map((r) => [r.employee_id, r.file_name as string | null]));
   const rows = all.filter((r) => !sp.bolum || r.dept === sp.bolum);
   const depts = [...new Set(all.map((r) => r.dept))];
   const savedCount = all.filter((r) => r.saved).length;
@@ -52,6 +57,18 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
           <PayrollButtons period={period} canPost={savedCount > postedCount} canUnpost={postedCount > 0} />
         </div>
 
+        <details className="bg-white border border-line rounded-[14px] p-4">
+          <summary className="cursor-pointer font-semibold text-brand-800">Islak imzalı bordroları yükle · {signedBy.size}/{all.length} personelin imzalı bordrosu var</summary>
+          <form action={uploadSignedPayslips} className="mt-3 flex flex-wrap gap-3 items-end">
+            <input type="hidden" name="period" value={period} />
+            <label className="flex flex-col gap-1.5 text-sm text-muted">Taranmış bordrolar (birden çok seçilebilir)
+              <input type="file" name="files" multiple required accept=".pdf,.jpg,.jpeg,.png" className="text-sm" />
+            </label>
+            <PendingSubmit className="h-11 px-4 rounded-[10px] bg-brand-700 text-white font-semibold">Yükle</PendingSubmit>
+            <p className="w-full text-xs text-muted">Dosya adında PDKS numarası (ör. <code>35006.pdf</code>) ya da ad soyad (<code>berkant-ceylan.pdf</code>) geçerse doğru personele bağlanır. Personel, Bordrolarım sayfasından indirir. Tek kişi için tablodaki &quot;imzalı yükle&quot; alanını kullanın.</p>
+          </form>
+        </details>
+
         <section className="grid gap-4 grid-cols-2 md:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
           <Stat label="Resmi brüt toplam" value={formatTL(t.gross)} sub={`İşveren maliyeti ${formatTL(t.cost)}`} />
           <Stat label="Bankaya yatacak (bordro neti)" value={formatTL(t.bank)} sub={`BES ${formatTL(t.bes)} · icra ${formatTL(t.icra)}`} />
@@ -82,7 +99,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
               <thead>
                 <tr className="text-xs text-muted">
                   <th className={`${th} text-left`}>Personel</th><th className={th}>Gün</th><th className={th}>Brüt</th><th className={th}>SGK+İşsiz.</th>
-                  <th className={th}>Gelir v.</th><th className={th}>Damga v.</th><th className={th}>Net</th><th className={th}>BES</th><th className={th}>İcra</th><th className={th}>Bankaya</th><th className={th}>Durum</th>
+                  <th className={th}>Gelir v.</th><th className={th}>Damga v.</th><th className={th}>Net</th><th className={th}>BES</th><th className={th}>İcra</th><th className={th}>Bankaya</th><th className={th}>Durum</th><th className={th}>İmzalı</th>
                 </tr>
               </thead>
               <tbody>
@@ -104,6 +121,18 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                       <td className={td}>{r.result.garnishmentTotal ? formatTL(r.result.garnishmentTotal) : "—"}</td>
                       <td className={`${td} font-bold text-brand-700`}>{formatTL(r.result.netToBank)}</td>
                       <td className={td}>{r.saved?.posted ? <span className="text-xs font-semibold text-ok">kesinti yazıldı</span> : r.saved ? <span className="text-xs text-muted">kaydedildi</span> : <span className="text-xs text-warn">taslak</span>}</td>
+                      <td className="py-2 px-2 border-b border-[#EEF2F6]">
+                        {signedBy.has(r.employeeId) ? (
+                          <span className="text-xs font-semibold text-ok" title={signedBy.get(r.employeeId) ?? ""}>imzalı ✓</span>
+                        ) : (
+                          <form action={uploadSignedPayslips} className="flex gap-1 items-center">
+                            <input type="hidden" name="period" value={period} />
+                            <input type="hidden" name="employeeId" value={r.employeeId} />
+                            <input type="file" name="files" required accept=".pdf,.jpg,.jpeg,.png" aria-label={`${r.name} imzalı bordro`} className="text-xs w-36" />
+                            <button className="h-8 px-2 rounded-md border border-[#D5DEE8] text-xs font-semibold text-brand-700">imzalı yükle</button>
+                          </form>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -112,7 +141,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                 <tr className="font-semibold bg-[#F7F9FB]">
                   <td className="py-3 px-2">Toplam ({rows.length})</td><td />
                   <td className={td}>{formatTL(t.gross)}</td><td className={td}>{formatTL(t.sgk)}</td><td className={td}>{formatTL(t.gv)}</td><td className={td}>{formatTL(t.dv)}</td>
-                  <td className={td}>{formatTL(t.net)}</td><td className={td}>{formatTL(t.bes)}</td><td className={td}>{formatTL(t.icra)}</td><td className={td}>{formatTL(t.bank)}</td><td />
+                  <td className={td}>{formatTL(t.net)}</td><td className={td}>{formatTL(t.bes)}</td><td className={td}>{formatTL(t.icra)}</td><td className={td}>{formatTL(t.bank)}</td><td /><td />
                 </tr>
               </tfoot>
             </table>

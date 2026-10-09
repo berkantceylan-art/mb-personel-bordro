@@ -20,26 +20,35 @@ export async function createLeave(_: { ok: boolean; message: string } | null, f:
   if (!employeeId || !typeId || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return { ok: false, message: "Personel, izin türü ve tarih zorunlu." };
   if (end < start) return { ok: false, message: "Bitiş tarihi başlangıçtan önce olamaz." };
   const supabase = await createClient();
+  const startTime = String(f.get("start_time") ?? "") || null;
+  const endTime = String(f.get("end_time") ?? "") || null;
   const [{ data: type }, { data: hol }] = await Promise.all([
     supabase.from("leave_types").select("code, is_sick_leave").eq("id", typeId).single(),
     supabase.from("public_holidays").select("date").gte("date", start).lte("date", end).eq("half_day", false),
   ]);
   // Rapor ve doğum izni takvim günüyle, diğerleri iş günüyle sayılır
   const calendar = type?.is_sick_leave || type?.code === "DOGUM";
-  const days = calendar
+  let hours: number | null = null;
+  if (type?.code === "SAATLIK") {
+    if (!startTime || !endTime || endTime <= startTime) return { ok: false, message: "Saatlik izin için başlangıç ve bitiş saati girin." };
+    const [h1, m1] = startTime.split(":").map(Number); const [h2, m2] = endTime.split(":").map(Number);
+    hours = Math.round(((h2 * 60 + m2 - h1 * 60 - m1) / 60) * 100) / 100;
+    if (hours > 7.5) return { ok: false, message: "Saatlik izin en fazla 7,5 saat; daha uzunu için günlük izin girin." };
+  }
+  const days = hours !== null ? Math.max(0.1, Math.round((hours / 7.5) * 10) / 10) : calendar
     ? (Date.parse(end) - Date.parse(start)) / 86_400_000 + 1
     : countLeaveDays(start, end, { holidays: new Set((hol ?? []).map((h) => h.date as string)), halfDay });
   if (days <= 0) return { ok: false, message: "Seçilen aralıkta izin günü yok (pazar / resmi tatil)." };
 
   const { data: overlap } = await supabase
     .from("leave_requests")
-    .select("id")
+    .select("id, hours")
     .eq("employee_id", employeeId)
     .in("status", ["pending", "approved"])
-    .lte("start_date", end)
+    .lte("start_date", hours !== null ? start : end)
     .gte("end_date", start)
-    .limit(1);
-  if (overlap?.length) return { ok: false, message: "Bu tarihlerde personelin başka bir izni var." };
+    .limit(5);
+  if ((overlap ?? []).some((o) => hours === null || !o.hours)) return { ok: false, message: "Bu tarihlerde personelin başka bir izni var." };
 
   const approve = f.get("approve") === "on";
   const { error } = await supabase.from("leave_requests").insert({
@@ -47,9 +56,10 @@ export async function createLeave(_: { ok: boolean; message: string } | null, f:
     employee_id: employeeId,
     leave_type_id: typeId,
     start_date: start,
-    end_date: end,
+    end_date: hours !== null ? start : end,
     days,
     half_day: halfDay,
+    ...(hours !== null ? { start_time: startTime, end_time: endTime, hours } : {}),
     note: String(f.get("note") ?? "").trim() || null,
     status: approve ? "approved" : "pending",
     decided_by: approve ? s.userId : null,
@@ -58,7 +68,7 @@ export async function createLeave(_: { ok: boolean; message: string } | null, f:
   if (error) return { ok: false, message: error.message };
   revalidatePath("/izin");
   revalidatePath("/puantaj");
-  return { ok: true, message: `${days} günlük izin ${approve ? "onaylandı" : "onaya gönderildi"}.` };
+  return { ok: true, message: `${hours !== null ? `${hours} saatlik` : `${days} günlük`} izin ${approve ? "onaylandı" : "onaya gönderildi"}.` };
 }
 
 export async function decideLeave(f: FormData) {
