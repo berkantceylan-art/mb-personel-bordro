@@ -8,6 +8,10 @@
     {
       "path": "/api/cron/aksam",
       "schedule": "30 17 * * *"
+    },
+    {
+      "path": "/api/cron/yoklama",
+      "schedule": "30 7 * * 1-6"
     }
   ]
 }

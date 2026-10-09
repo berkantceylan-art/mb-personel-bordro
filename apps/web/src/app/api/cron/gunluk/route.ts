@@ -1,6 +1,7 @@
 import { createClient as createAdmin, type SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { isoWeekday } from "@mb/core";
+import { isoWeekday, periodBounds } from "@mb/core";
+import { missed, tracked } from "@/lib/boss";
 import { loadCompliance } from "@/lib/compliance";
 import { openPeriod } from "@/lib/periods";
 import { formatDate, periodLabel, todayIso } from "@/lib/session";
@@ -87,6 +88,8 @@ class JobContext {
   }
 }
 
+const prevPeriod = (p: string) => { const [y, m] = p.split("-").map(Number) as [number, number]; return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; };
+const daysUntil = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
 const addDays = (iso: string, n: number) => new Date(Date.parse(iso + "T00:00:00Z") + n * 86_400_000).toISOString().slice(0, 10);
 const names = (xs: string[], max = 5) => (xs.length > max ? `${xs.slice(0, max).join(", ")} ve ${xs.length - max} kişi daha` : xs.join(", "));
 
@@ -150,6 +153,102 @@ const JOBS: Record<string, (ctx: JobContext) => Promise<unknown>> = {
     return result;
   },
 
+  /** Patron: pazartesi haftalık özet, ayın 1'i ay özeti, SGK / muhtasar / maaş günü yaklaşınca uyarı */
+  async patron(ctx) {
+    const { data: ms } = await ctx.sb.from("memberships").select("user_id, role, is_boss").eq("company_id", ctx.companyId);
+    const bosses = [...new Set((ms ?? []).filter((m) => m.is_boss || m.role === "owner").map((m) => m.user_id as string))];
+    if (!bosses.length) return "patron yok";
+    const out: string[] = [];
+    const tl = (k: number) => (k / 100).toLocaleString("tr-TR", { maximumFractionDigits: 0 }) + " TL";
+    const cur = ctx.today.slice(0, 7);
+    const prev = prevPeriod(cur);
+    const { data: company } = await ctx.sb.from("companies").select("*").eq("id", ctx.companyId).maybeSingle();
+    const payDay = Number((company as { salary_pay_day?: number } | null)?.salary_pay_day ?? 5);
+    const balance = async (p: string) => {
+      const { data } = await ctx.sb.from("ledger_period_summary").select("balance, accrued").eq("company_id", ctx.companyId).eq("period", p);
+      return { remain: (data ?? []).reduce((a, r) => a + Math.max(0, Number(r.balance ?? 0)), 0), accrued: (data ?? []).reduce((a, r) => a + Number(r.accrued ?? 0), 0), people: (data ?? []).filter((r) => Number(r.balance ?? 0) > 0).length };
+    };
+
+    // Ödeme günü yaklaşıyor: maaş (2 gün kala, o gün), SGK ve muhtasar (3 gün, 1 gün, o gün)
+    const payDate = `${cur}-${String(payDay).padStart(2, "0")}`;
+    const toPay = daysUntil(ctx.today, payDate);
+    if (toPay === 2 || toPay === 0) {
+      const b = await balance(prev);
+      if (b.remain > 0) { await ctx.notify(bosses, toPay === 0 ? "Bugün maaş günü" : "Maaş günü 2 gün sonra", `${periodLabel(prev)} için ${b.people} kişiye toplam ${tl(b.remain)} ödeme kaldı (banka + elden).`, "/patron?sekme=para#takvim"); out.push("maaş"); }
+    }
+    const { data: sgk } = await ctx.sb.from("sgk_payments").select("*").eq("company_id", ctx.companyId).eq("period", prev).maybeSingle();
+    const due = (sgk as { due_on?: string | null } | null)?.due_on ?? `${cur}-26`;
+    const toDue = daysUntil(ctx.today, due);
+    if ([3, 1, 0].includes(toDue)) {
+      const r = (sgk ?? {}) as { accrued?: number; paid?: number; tax_accrued?: number; tax_paid?: number };
+      const sgkOpen = !sgk || Number(r.accrued ?? 0) === 0 || Number(r.paid ?? 0) < Number(r.accrued ?? 0);
+      const taxOpen = !sgk || Number(r.tax_accrued ?? 0) === 0 || Number(r.tax_paid ?? 0) < Number(r.tax_accrued ?? 0);
+      if (sgkOpen || taxOpen) {
+        const what = [sgkOpen && "SGK primi", taxOpen && "muhtasar"].filter(Boolean).join(" ve ");
+        const amt = sgk ? ` · kalan ${tl(Math.max(0, Number(r.accrued ?? 0) - Number(r.paid ?? 0)) + Math.max(0, Number(r.tax_accrued ?? 0) - Number(r.tax_paid ?? 0)))}` : "";
+        await ctx.notify(bosses, toDue === 0 ? `Bugün son gün: ${what}` : `${what} için ${toDue} gün kaldı`, `${periodLabel(prev)} ${what} son ödeme ${formatDate(due)}${amt}. Ödeyince patron ekranından işaretleyin.`, "/patron?sekme=para#sgk");
+        out.push("sgk");
+      }
+    }
+
+    // Ayın 1'i: geçen ayın özeti
+    if (ctx.today.slice(8, 10) === "01") {
+      const [a, b] = await Promise.all([balance(prev), balance(prevPeriod(prev))]);
+      const { start, end } = periodBounds(prev);
+      const [{ count: hired }, { count: left }, { data: ot }, { data: pl }] = await Promise.all([
+        ctx.sb.from("employees").select("id", { count: "exact", head: true }).eq("company_id", ctx.companyId).gte("hire_date", start).lte("hire_date", end),
+        ctx.sb.from("employees").select("id", { count: "exact", head: true }).eq("company_id", ctx.companyId).gte("termination_date", start).lte("termination_date", end),
+        ctx.sb.from("overtime_records").select("minutes").eq("company_id", ctx.companyId).eq("period", prev).eq("status", "approved"),
+        ctx.sb.from("payroll_lines").select("employer_cost, official_net").eq("company_id", ctx.companyId).eq("period", prev),
+      ]);
+      const ch = b.accrued ? Math.round(((a.accrued - b.accrued) / b.accrued) * 1000) / 10 : null;
+      const state = (pl ?? []).reduce((x, r) => x + Number(r.employer_cost) - Number(r.official_net), 0);
+      const body = [
+        `Net hakediş ${tl(a.accrued)}${ch !== null ? ` (${ch > 0 ? "▲" : "▼"} %${Math.abs(ch).toLocaleString("tr-TR")})` : ""}`,
+        state ? `SGK + vergi ${tl(state)}, toplam ${tl(a.accrued + state)}` : null,
+        `${hired ?? 0} giriş, ${left ?? 0} çıkış`,
+        `fazla mesai ${Math.round((ot ?? []).reduce((x, r) => x + Number(r.minutes), 0) / 6) / 10} saat`,
+        a.remain ? `ödenecek kalan ${tl(a.remain)}` : "tüm ödemeler yapıldı",
+      ].filter(Boolean).join(" · ");
+      await ctx.notify(bosses, `${periodLabel(prev)} özeti`, body, `/patron?sekme=para&donem=${prev}`);
+      out.push("ay");
+    }
+
+    // Pazartesi: geçen hafta + bu haftanın ödemeleri
+    if (isoWeekday(ctx.today) === 1) {
+      const from = addDays(ctx.today, -7);
+      const weeks = new Set([from.slice(0, 7), addDays(ctx.today, -1).slice(0, 7)]);
+      let absent = 0; let late = 0;
+      for (const p of weeks) {
+        const m = await loadMonth(ctx.sb as unknown as SB, p);
+        for (const [, row] of m.cells) for (const [d, c] of row) {
+          if (d < from || d >= ctx.today || !c.employed || !tracked(row)) continue;
+          if (missed(c, d)) absent++;
+          if (c.lateMin > 0) late++;
+        }
+      }
+      const [{ data: ot }, { count: pAdv }, { count: pLeave }, { count: pOt }] = await Promise.all([
+        ctx.sb.from("overtime_records").select("minutes").eq("company_id", ctx.companyId).eq("status", "approved").gte("work_date", from).lt("work_date", ctx.today),
+        ctx.sb.from("advance_requests").select("id", { count: "exact", head: true }).eq("company_id", ctx.companyId).eq("status", "pending"),
+        ctx.sb.from("leave_requests").select("id", { count: "exact", head: true }).eq("company_id", ctx.companyId).eq("status", "pending"),
+        ctx.sb.from("overtime_records").select("id", { count: "exact", head: true }).eq("company_id", ctx.companyId).eq("status", "pending"),
+      ]);
+      const pays: string[] = [];
+      if (toPay >= 0 && toPay <= 6) { const b = await balance(prev); if (b.remain) pays.push(`maaş ${formatDate(payDate)} · ${tl(b.remain)}`); }
+      if (toDue >= 0 && toDue <= 6) pays.push(`SGK + muhtasar ${formatDate(due)}`);
+      const pend = (pAdv ?? 0) + (pLeave ?? 0) + (pOt ?? 0);
+      const body = [
+        `Geçen hafta ${absent} gün devamsızlık, ${late} geç kalma`,
+        `fazla mesai ${Math.round((ot ?? []).reduce((x, r) => x + Number(r.minutes), 0) / 6) / 10} saat`,
+        pays.length ? `bu hafta ödemeler: ${pays.join(", ")}` : "bu hafta büyük ödeme yok",
+        pend ? `onayınızı bekleyen ${pend} talep` : null,
+      ].filter(Boolean).join(" · ");
+      await ctx.notify(bosses, "Patron haftalık özet", body, "/patron");
+      out.push("hafta");
+    }
+    return out.length ? out : "bildirim yok";
+  },
+
   /** Pazartesi: haftalık özet */
   async haftalik(ctx) {
     if (isoWeekday(ctx.today) !== 1) return "pazartesi değil";
@@ -166,7 +265,10 @@ const JOBS: Record<string, (ctx: JobContext) => Promise<unknown>> = {
       `geçen hafta onaylı fazla mesai ${otH.toLocaleString("tr-TR")} saat`,
       newcomers ? `${newcomers} yeni personel` : null,
     ].filter(Boolean).join(" · ");
-    await ctx.notify(await ctx.users(["owner", "accountant"]), "Haftalık özet", body, "/");
+    // Patronlar ayrıntılı "Patron haftalık özet" alır; burada yalnız diğer sahip / muhasebe kullanıcıları
+    const { data: ms } = await ctx.sb.from("memberships").select("user_id, role, is_boss").eq("company_id", ctx.companyId);
+    const bosses = new Set((ms ?? []).filter((m) => m.is_boss || m.role === "owner").map((m) => m.user_id as string));
+    await ctx.notify((await ctx.users(["owner", "accountant"])).filter((u) => !bosses.has(u)), "Haftalık özet", body, "/");
     return body;
   },
 };
