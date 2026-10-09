@@ -1,16 +1,23 @@
 import { Card } from "@/components/ui";
 import { formatDate } from "@/lib/session";
 import { me, MyHeader, NotLinked } from "../_shared";
+import { ProfileChangeForm } from "./ProfileChangeForm";
+import { EDITABLE, FIELD_LABEL } from "./fields";
 
 const mask = (v: string | null | undefined, keep = 4) => (v ? `${"•".repeat(Math.max(0, v.length - keep))}${v.slice(-keep)}` : "—");
 
 export default async function MyProfilePage() {
   const { supabase, me: e } = await me();
   if (!e) return <NotLinked title="Özlük bilgilerim" />;
-  const [{ data: p }, { data: c }] = await Promise.all([
+  const [{ data: p }, { data: c }, { data: reqs }] = await Promise.all([
     supabase.from("employee_private").select("*").eq("employee_id", e.id).maybeSingle(),
     supabase.from("pay_contracts").select("bes_rate").eq("employee_id", e.id).order("valid_from", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("profile_change_requests").select("id, status, changes, decision_note, created_at, decided_at").eq("employee_id", e.id).order("created_at", { ascending: false }).limit(5),
   ]);
+  const editable: Record<string, string> = {};
+  for (const k of EDITABLE) { const x = (p as Record<string, unknown> | null)?.[k]; editable[k] = x === null || x === undefined ? "" : String(x); }
+  const LABEL = FIELD_LABEL;
+  const STATUS: Record<string, string> = { pending: "Bekliyor", approved: "Onaylandı", rejected: "Reddedildi" };
   const v = (p ?? {}) as Record<string, string | number | null>;
   const d = (x: string | number | null | undefined) => (x === null || x === undefined || x === "" ? "—" : String(x));
   const groups: Array<[string, Array<[string, string]>]> = [
@@ -22,7 +29,7 @@ export default async function MyProfilePage() {
   ];
   return (
     <>
-      <MyHeader title="Özlük bilgilerim" subtitle="Yanlış bilgi için İK'ya yazın" />
+      <MyHeader title="Özlük bilgilerim" subtitle="Değişiklikler İK onayıyla uygulanır" />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[760px]">
         {groups.map(([title, rows]) => (
           <Card key={title} title={title}>
@@ -33,7 +40,21 @@ export default async function MyProfilePage() {
             </dl>
           </Card>
         ))}
-        <p className="text-xs text-muted">TC kimlik ve IBAN güvenlik için kısmen gizlenir. Bilgilerinizi düzeltmek için Mesajlar&apos;dan İK&apos;ya yazabilirsiniz.</p>
+        <Card title="Bilgi güncelleme">
+          <ProfileChangeForm values={editable} pending={(reqs ?? []).some((r) => r.status === "pending")} />
+          {(reqs ?? []).length > 0 && (
+            <ul className="divide-y divide-[#EEF2F6] text-sm">
+              {(reqs ?? []).map((r) => (
+                <li key={r.id} className="py-2 flex flex-col gap-1">
+                  <div className="flex justify-between"><span className="text-muted">{formatDate(r.created_at.slice(0, 10))}</span><span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${r.status === "approved" ? "bg-ok-bg text-ok" : r.status === "rejected" ? "bg-bad-bg text-bad" : "bg-warn-bg text-warn"}`}>{STATUS[r.status]}</span></div>
+                  <div className="text-xs text-muted">{Object.entries(r.changes as Record<string, { old: string | null; new: string | null }>).map(([k, v]) => `${LABEL[k] ?? k}: ${v.new ?? "—"}`).join(" · ")}</div>
+                  {r.decision_note && <div className="text-xs">{r.decision_note}</div>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+        <p className="text-xs text-muted">TC kimlik ve IBAN güvenlik için kısmen gizlenir. Kimlik bilgileri (ad, TC, doğum) için İK&apos;ya başvurun.</p>
       </div>
     </>
   );

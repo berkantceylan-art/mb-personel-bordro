@@ -6,6 +6,7 @@ import { EnablePush } from "@/components/Pwa";
 import { MenuIcon } from "@/components/MobileNav";
 import { currentPeriod, formatDate, periodLabel } from "@/lib/session";
 import { me, MY_MENU, NotLinked } from "./_shared";
+import { acknowledgeOfficeCall } from "./ozluk/actions";
 
 export default async function MyPage() {
   const { supabase, me: e } = await me();
@@ -23,6 +24,7 @@ export default async function MyPage() {
     supabase.from("document_types").select("id").eq("onboarding_step", 2).eq("required", true),
     supabase.from("employee_documents").select("document_type_id").eq("employee_id", e.id),
   ]);
+  const { data: calls } = await supabase.from("office_calls").select("id, on_date, at_time, reason, acknowledged_at").eq("employee_id", e.id).is("cancelled_at", null).gte("on_date", today).order("on_date");
   const n = (v: number | null | undefined) => Number(v ?? 0);
   const haveDoc = new Set((myDocs ?? []).map((d) => d.document_type_id));
   const missingDocs = (reqDocs ?? []).filter((t) => !haveDoc.has(t.id)).length;
@@ -58,6 +60,16 @@ export default async function MyPage() {
         </Card>
 
         <EnablePush />
+
+        {(calls ?? []).map((c) => (
+          <div key={c.id} className="rounded-[14px] border border-[#F2C94C] bg-[#FFF4E0] p-4 flex flex-col gap-2">
+            <div className="font-semibold text-[#8A5A00]">📍 {formatDate(c.on_date)}{c.at_time ? ` saat ${String(c.at_time).slice(0, 5)}` : ""} ofise gelmeniz isteniyor</div>
+            {c.reason && <div className="text-sm">{c.reason}</div>}
+            {c.acknowledged_at ? <div className="text-xs text-ok font-semibold">✓ Geleceğinizi bildirdiniz</div> : (
+              <form action={acknowledgeOfficeCall}><input type="hidden" name="id" value={c.id} /><button className="h-11 px-4 rounded-[10px] bg-brand-700 text-white font-semibold">Tamam, geleceğim</button></form>
+            )}
+          </div>
+        ))}
 
         <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           <div className="col-span-2 md:col-span-3 lg:col-span-4 grid gap-3 grid-cols-2 sm:grid-cols-3 rounded-[14px] bg-brand-900 text-white p-4">

@@ -185,3 +185,14 @@ export async function markNotificationsRead() {
   await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("user_id", s.userId).is("read_at", null);
   revalidatePath("/bildirimler");
 }
+
+/* ---------------- Özlük değişiklik talepleri ---------------- */
+export async function decideProfileChange(status: "approved" | "rejected", f: FormData) {
+  await getSession();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("decide_profile_change", { p_id: str(f, "id"), p_status: status, p_note: str(f, "note") || null });
+  if (error) await fail(error.message);
+  revalidatePath("/talepler");
+  revalidatePath("/personel");
+  await done(status === "approved" ? "Değişiklik onaylandı ve personel kartına işlendi." : "Talep reddedildi; personele bildirildi.");
+}

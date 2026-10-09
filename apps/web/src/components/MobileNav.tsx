@@ -21,6 +21,7 @@ const ICONS: Record<string, React.ReactNode> = {
   clock: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2" />,
   id: <path d="M3 5h18v14H3zM7 14a3 3 0 0 1 6 0M10 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4M15 9h4M15 13h4" />,
   folder: <path d="M3 6h6l2 2h10v12H3zM3 10h18" />,
+  shield: <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4" />,
 };
 export const MenuIcon = ({ name }: { name: string }) => (
   <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>

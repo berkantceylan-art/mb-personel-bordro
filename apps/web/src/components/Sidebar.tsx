@@ -21,6 +21,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "Puantajım", href: "/benim/puantaj", roles: ["employee"] },
       { label: "Özlük bilgilerim", href: "/benim/ozluk", roles: ["employee"] },
       { label: "Belgelerim", href: "/benim/belgeler", roles: ["employee"] },
+      { label: "BES · İcra · İSG · Sağlık", href: "/benim/kayitlar", roles: ["employee"] },
       { label: "Personel", href: "/personel", roles: MANAGERS },
     ],
   },

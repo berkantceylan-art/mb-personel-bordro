@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { formatTL } from "@mb/core";
 import { Card, PageHeader } from "@/components/ui";
-import { decideAdvance, decideAdvancesBulk } from "@/lib/comms-actions";
+import { decideAdvance, decideAdvancesBulk, decideProfileChange } from "@/lib/comms-actions";
+import { FIELD_LABEL } from "../benim/ozluk/fields";
 import { decideLeave, decideLeavesBulk } from "@/lib/leave-ot-actions";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, formatDate, getSession, todayIso } from "@/lib/session";
@@ -31,6 +32,9 @@ export default async function RequestsPage() {
       ? supabase.from("leave_requests").select("id, start_date, end_date, days, note, status, created_at, start_time, end_time, hours, document_path, leave_types(name), employees(first_name, last_name, departments(name))").eq("status", "pending").order("start_date")
       : Promise.resolve({ data: [] }),
   ]);
+  const { data: profileReqs } = hr
+    ? await supabase.from("profile_change_requests").select("id, changes, note, created_at, employees(first_name, last_name, departments(name))").eq("status", "pending").order("created_at")
+    : { data: [] as never[] };
   const pendingAdv = (adv ?? []).filter((a) => a.status === "pending");
   // Rapor belgeleri için imzalı bağlantılar
   const docLinks = new Map<string, string>();
@@ -46,7 +50,7 @@ export default async function RequestsPage() {
 
   return (
     <>
-      <PageHeader title="Talepler" subtitle={`${pendingAdv.length} avans · ${(leaves ?? []).length} izin talebi onay bekliyor`} />
+      <PageHeader title="Talepler" subtitle={`${pendingAdv.length} avans · ${(leaves ?? []).length} izin · ${(profileReqs ?? []).length} özlük değişikliği onay bekliyor`} />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[1320px]">
         {pay && (
           <Card title="Avans talepleri">
@@ -145,6 +149,34 @@ export default async function RequestsPage() {
                     <span className="num w-28 text-right">{formatTL(Number(a.amount))}</span>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${c}`}>{l}</span>
                     <span className="text-muted text-xs">{a.decided_at ? formatDate(a.decided_at) : formatDate(a.created_at)}{a.channel ? ` · ${a.channel === "BANK" ? "Banka" : "Elden"}` : ""}{a.decision_note ? ` · ${a.decision_note}` : ""}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        )}
+        {hr && (profileReqs ?? []).length > 0 && (
+          <Card title="Özlük bilgisi değişiklik talepleri" action={<span className="text-xs text-muted">Onaylanınca personel kartı güncellenir</span>}>
+            <ul className="divide-y divide-[#EEF2F6] text-sm">
+              {(profileReqs ?? []).map((r) => {
+                const e = emp(r.employees);
+                const ch = r.changes as Record<string, { old: string | null; new: string | null }>;
+                return (
+                  <li key={r.id} className="py-3 flex flex-col gap-2">
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <span><b>{e?.first_name} {e?.last_name}</b> <span className="text-muted">· {e?.departments?.name} · {formatDate(r.created_at.slice(0, 10))}</span>{r.note && <span className="text-muted"> · &quot;{r.note}&quot;</span>}</span>
+                    </div>
+                    <table className="w-full max-w-[720px] text-sm"><tbody>
+                      {Object.entries(ch).map(([k, v]) => (
+                        <tr key={k}><td className="py-1 pr-3 text-muted w-40">{FIELD_LABEL[k] ?? k}</td><td className="py-1 pr-3 line-through text-muted">{v.old ?? "—"}</td><td className="py-1 font-semibold text-ok">{v.new ?? "— (silinecek)"}</td></tr>
+                      ))}
+                    </tbody></table>
+                    <form action={decideProfileChange.bind(null, "approved")} className="flex flex-wrap gap-2 items-center">
+                      <input type="hidden" name="id" value={r.id} />
+                      <input name="note" placeholder="Not (personele gider)" className="h-9 rounded-lg border border-[#D5DEE8] px-2 text-sm flex-1 min-w-48 max-w-sm" />
+                      <button className="h-9 px-3 rounded-lg bg-brand-700 text-white text-xs font-semibold">Onayla ve uygula</button>
+                      <button formAction={decideProfileChange.bind(null, "rejected")} className="h-9 px-3 rounded-lg border border-[#D5DEE8] text-xs font-semibold text-bad">Reddet</button>
+                    </form>
                   </li>
                 );
               })}

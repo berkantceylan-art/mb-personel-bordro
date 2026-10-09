@@ -23,6 +23,7 @@ export const MY_MENU: Array<{ href: string; label: string; icon: string; desc: s
   { href: "/benim/puantaj", label: "Puantajım", icon: "clock", desc: "Giriş-çıkış saatlerim" },
   { href: "/benim/ozluk", label: "Özlük bilgilerim", icon: "id", desc: "Kimlik, iletişim, banka" },
   { href: "/benim/belgeler", label: "Belgelerim", icon: "folder", desc: "e-Devlet belgelerini yükle" },
+  { href: "/benim/kayitlar", label: "BES · İcra · İSG · Sağlık", icon: "shield", desc: "Kayıtlarım ve belgelerim" },
 ];
 
 export const th = "py-2 px-2 font-semibold border-b border-line";

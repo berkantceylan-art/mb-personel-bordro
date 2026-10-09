@@ -45,3 +45,28 @@ export async function deleteDocument(f: FormData) {
   revalidatePath(`/personel/${employeeId}`);
   revalidatePath("/personel/[id]/kayit", "page");
 }
+
+/** Personeli ofise çağır: bildirim + kayıt */
+export async function callToOffice(f: FormData) {
+  const s = await getSession();
+  if (!["owner", "accountant", "hr", "branch_manager"].includes(s.role)) await fail("Yetkiniz yok");
+  const employeeId = String(f.get("employeeId"));
+  const onDate = String(f.get("on_date") ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(onDate)) await fail("Tarih seçin");
+  const supabase = await createClient();
+  const { error } = await supabase.from("office_calls").insert({
+    company_id: s.companyId, employee_id: employeeId, on_date: onDate, at_time: String(f.get("at_time") ?? "") || null, reason: String(f.get("reason") ?? "").trim() || null,
+  });
+  if (error) await fail(error.message.includes("office_calls") ? "Supabase'de 20261101000000_profile_office_exit.sql çalıştırılmalı." : error.message);
+  revalidatePath(`/personel/${employeeId}`);
+  redirect(`/personel/${employeeId}?tamam=${encodeURIComponent("Personel ofise çağrıldı; telefonuna bildirim gitti.")}`);
+}
+
+export async function cancelOfficeCall(f: FormData) {
+  const s = await getSession();
+  if (!["owner", "accountant", "hr", "branch_manager"].includes(s.role)) await fail("Yetkiniz yok");
+  const id = String(f.get("id")); const employeeId = String(f.get("employeeId"));
+  const supabase = await createClient();
+  await supabase.from("office_calls").update({ cancelled_at: new Date().toISOString() }).eq("id", id);
+  revalidatePath(`/personel/${employeeId}`);
+}

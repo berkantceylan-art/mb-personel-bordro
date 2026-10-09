@@ -5,7 +5,8 @@ import { Card, ChannelChip, TYPE_LABEL } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, currentPeriod, formatDate, getSession, periodLabel } from "@/lib/session";
 import { deleteContract } from "../../zamlar/actions";
-import { deleteDocument, uploadDocument } from "./document-actions";
+import { callToOffice, cancelOfficeCall, deleteDocument, uploadDocument } from "./document-actions";
+import { OfficeCallButton } from "./OfficeCallButton";
 import { cellStyle, loadCompliance } from "@/lib/compliance";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
@@ -72,6 +73,9 @@ export default async function EmployeeProfile({
   const { data: rflag } = await supabase.from("employees").select("is_retired, onboarding_done_at").eq("id", id).maybeSingle();
   const retired = (rflag as { is_retired?: boolean } | null)?.is_retired === true;
   const onboardingDone = !!(rflag as { onboarding_done_at?: string | null } | null)?.onboarding_done_at;
+  // Ofis çağrıları (tablo yoksa boş)
+  const { data: calls } = await supabase.from("office_calls").select("id, on_date, at_time, reason, acknowledged_at, cancelled_at, created_at").eq("employee_id", id).order("on_date", { ascending: false }).limit(5);
+  const openCalls = (calls ?? []).filter((c) => !c.cancelled_at && c.on_date >= new Date().toISOString().slice(0, 10));
 
   const [{ data: priv }, { data: contracts }, { data: entries }, { data: docTypes }, { data: docs }, { data: periods }, { data: payLines }, { data: garnFiles }, { data: besRows }] = await Promise.all([
     supabase.from("employee_private").select("*").eq("employee_id", id).maybeSingle(),
@@ -180,6 +184,8 @@ export default async function EmployeeProfile({
         </div>
         <div className="flex gap-2 flex-wrap">
           {hr && <Link href={`/personel/${id}/duzenle`} className={`${btn} border border-[#D5DEE8] bg-white text-brand-700`}>Düzenle</Link>}
+          {hr && e.status !== "terminated" && <OfficeCallButton employeeId={id} action={callToOffice} />}
+          {hr && <Link href={`/personel/${id}/cikis`} className={`${btn} border border-[#D5DEE8] bg-white ${e.status === "terminated" ? "text-brand-700" : "text-bad"}`}>{e.status === "terminated" ? "Çıkış sihirbazı" : "İşten çıkar"}</Link>}
           {pay && <Link href={`/personel/${id}/zam`} className={`${btn} border border-[#D5DEE8] bg-white text-brand-700`}>Zam / ücret</Link>}
           {pay && <Link href={`/odemeler/yeni?personel=${id}`} className={`${btn} bg-brand-700 text-white`}>+ Avans / Ödeme</Link>}
         </div>
@@ -187,6 +193,17 @@ export default async function EmployeeProfile({
 
       <div className="p-4 md:p-8 flex flex-wrap gap-5 items-start max-w-[1320px]">
         <div className="flex-[999_1_560px] min-w-0 flex flex-col gap-5">
+          {openCalls.length > 0 && (
+            <div className="rounded-[14px] border border-[#F2C94C] bg-[#FFF4E0] p-3.5 text-sm flex flex-col gap-1.5">
+              {openCalls.map((c) => (
+                <div key={c.id} className="flex flex-wrap gap-2 items-center">
+                  <span>📍 <b>{formatDate(c.on_date)}{c.at_time ? ` ${String(c.at_time).slice(0, 5)}` : ""}</b> ofise çağrıldı{c.reason ? ` · ${c.reason}` : ""}</span>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${c.acknowledged_at ? "bg-ok-bg text-ok" : "bg-white text-[#8A5A00]"}`}>{c.acknowledged_at ? "geleceğini onayladı" : "henüz onaylamadı"}</span>
+                  {hr && <form action={cancelOfficeCall} className="ml-auto"><input type="hidden" name="id" value={c.id} /><input type="hidden" name="employeeId" value={id} /><button className="text-xs font-semibold text-muted">İptal</button></form>}
+                </div>
+              ))}
+            </div>
+          )}
           {pay && (
             <Card
               title={all ? "Tüm dönemler" : `${periodLabel(period)} hakedişi`}
