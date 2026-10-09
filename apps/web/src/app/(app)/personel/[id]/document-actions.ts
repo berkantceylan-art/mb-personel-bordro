@@ -70,3 +70,15 @@ export async function cancelOfficeCall(f: FormData) {
   await supabase.from("office_calls").update({ cancelled_at: new Date().toISOString() }).eq("id", id);
   revalidatePath(`/personel/${employeeId}`);
 }
+
+/** Uzaktan oturum kapatma: personelin tüm telefon oturumları düşer (telefon kaybı vb.) */
+export async function forceSignOut(f: FormData) {
+  const s = await getSession();
+  if (!["owner", "accountant", "hr"].includes(s.role)) await fail("Yetkiniz yok");
+  const employeeId = String(f.get("employeeId"));
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("force_signout", { p_employee: employeeId });
+  if (error) await fail(error.message.includes("force_signout") ? "Supabase'de 20261107000000_prefs_security.sql çalıştırılmalı." : error.message);
+  revalidatePath(`/personel/${employeeId}`);
+  redirect(`/personel/${employeeId}?tamam=${encodeURIComponent(`Oturumlar kapatıldı (${(data as { sessions: number })?.sessions ?? 0} cihaz). Personel şifresiyle yeniden giriş yapabilir.`)}`);
+}

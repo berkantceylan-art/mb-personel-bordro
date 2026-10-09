@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { formatTL } from "@mb/core";
 import { Card, PageHeader } from "@/components/ui";
-import { decideAdvance, decideAdvancesBulk, decideProfileChange } from "@/lib/comms-actions";
+import { decideAdvance, decideAdvancesBulk, decideProfileChange, decidePunchRequest } from "@/lib/comms-actions";
 import { FIELD_LABEL } from "../benim/ozluk/fields";
 import { decideLeave, decideLeavesBulk } from "@/lib/leave-ot-actions";
 import { createClient } from "@/lib/supabase/server";
@@ -35,6 +35,9 @@ export default async function RequestsPage() {
   const { data: profileReqs } = hr
     ? await supabase.from("profile_change_requests").select("id, changes, note, created_at, employees(first_name, last_name, departments(name))").eq("status", "pending").order("created_at")
     : { data: [] as never[] };
+  const { data: punchReqs } = hr
+    ? await supabase.from("punch_requests").select("id, on_date, direction, at_time, note, created_at, employees(first_name, last_name, departments(name))").eq("status", "pending").order("on_date")
+    : { data: [] as never[] };
   const pendingAdv = (adv ?? []).filter((a) => a.status === "pending");
   // Rapor belgeleri için imzalı bağlantılar
   const docLinks = new Map<string, string>();
@@ -50,7 +53,7 @@ export default async function RequestsPage() {
 
   return (
     <>
-      <PageHeader title="Talepler" subtitle={`${pendingAdv.length} avans · ${(leaves ?? []).length} izin · ${(profileReqs ?? []).length} özlük değişikliği onay bekliyor`} />
+      <PageHeader title="Talepler" subtitle={`${pendingAdv.length} avans · ${(leaves ?? []).length} izin · ${(punchReqs ?? []).length} okutma · ${(profileReqs ?? []).length} özlük değişikliği onay bekliyor`} />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[1320px]">
         {pay && (
           <Card title="Avans talepleri">
@@ -152,6 +155,23 @@ export default async function RequestsPage() {
                   </li>
                 );
               })}
+            </ul>
+          </Card>
+        )}
+        {hr && (punchReqs ?? []).length > 0 && (
+          <Card title="Unutulan okutma bildirimleri" action={<span className="text-xs text-muted">Onaylanınca puantaja işlenir</span>}>
+            <ul className="divide-y divide-[#EEF2F6] text-sm">
+              {(punchReqs ?? []).map((r) => { const e = emp(r.employees); return (
+                <li key={r.id} className="py-2.5 flex flex-wrap gap-3 items-center">
+                  <span className="flex-1 min-w-48"><b>{e?.first_name} {e?.last_name}</b> <span className="text-muted">· {e?.departments?.name}</span><span className="block num">{formatDate(r.on_date)} {String(r.at_time).slice(0, 5)} · {r.direction === "IN" ? "Giriş" : "Çıkış"}{r.note ? ` · ${r.note}` : ""}</span></span>
+                  <form action={decidePunchRequest.bind(null, "approved")} className="flex gap-2 items-center">
+                    <input type="hidden" name="id" value={r.id} />
+                    <input name="note" placeholder="not" className="h-9 w-28 rounded-lg border border-[#D5DEE8] px-2 text-xs" />
+                    <button className="h-9 px-3 rounded-lg bg-brand-700 text-white text-xs font-semibold">Onayla</button>
+                    <button formAction={decidePunchRequest.bind(null, "rejected")} className="h-9 px-3 rounded-lg border border-[#D5DEE8] text-xs font-semibold text-bad">Reddet</button>
+                  </form>
+                </li>
+              ); })}
             </ul>
           </Card>
         )}

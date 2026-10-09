@@ -5,7 +5,7 @@ import { Card, ChannelChip, TYPE_LABEL } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, currentPeriod, formatDate, getSession, periodLabel } from "@/lib/session";
 import { deleteContract } from "../../zamlar/actions";
-import { callToOffice, cancelOfficeCall, deleteDocument, uploadDocument } from "./document-actions";
+import { callToOffice, cancelOfficeCall, deleteDocument, forceSignOut, uploadDocument } from "./document-actions";
 import { OfficeCallButton } from "./OfficeCallButton";
 import { cellStyle, loadCompliance } from "@/lib/compliance";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
@@ -70,15 +70,17 @@ export default async function EmployeeProfile({
     .maybeSingle();
   if (!e) notFound();
   // Emekli işareti ayrı okunur: sütun henüz eklenmemişse sayfa yine açılır
-  const { data: rflag } = await supabase.from("employees").select("is_retired, onboarding_done_at").eq("id", id).maybeSingle();
+  const { data: rflag } = await supabase.from("employees").select("is_retired, onboarding_done_at, user_id").eq("id", id).maybeSingle();
   const retired = (rflag as { is_retired?: boolean } | null)?.is_retired === true;
   const onboardingDone = !!(rflag as { onboarding_done_at?: string | null } | null)?.onboarding_done_at;
+  const hasAccount = !!(rflag as { user_id?: string | null } | null)?.user_id;
   // Ofis çağrıları (tablo yoksa boş)
   const { data: calls } = await supabase.from("office_calls").select("id, on_date, at_time, reason, acknowledged_at, cancelled_at, created_at").eq("employee_id", id).order("on_date", { ascending: false }).limit(5);
   const openCalls = (calls ?? []).filter((c) => !c.cancelled_at && c.on_date >= new Date().toISOString().slice(0, 10));
   // Zimmet
   const { data: assetRows } = await supabase.from("asset_assignments").select("id, assigned_on, returned_on, condition_out, acknowledged_at, assets(code, name, brand_model)").eq("employee_id", id).order("assigned_on", { ascending: false });
   const openAssets = (assetRows ?? []).filter((a) => !a.returned_on);
+  const { data: sigs } = await supabase.from("document_signatures").select("id, template_key, signed_at, document_types(name)").eq("employee_id", id).order("signed_at", { ascending: false }).limit(20);
   const returnedAssets = (assetRows ?? []).filter((a) => a.returned_on).length;
 
   const [{ data: priv }, { data: contracts }, { data: entries }, { data: docTypes }, { data: docs }, { data: periods }, { data: payLines }, { data: garnFiles }, { data: besRows }] = await Promise.all([
@@ -455,6 +457,14 @@ export default async function EmployeeProfile({
             );
           })}
 
+          {hr && (
+            <Card title="Mobil hesap">
+              <div className="flex flex-wrap gap-3 items-center text-sm">
+                <span>{e.status === "terminated" ? "Ayrılmış personel" : "Personel uygulamasına giriş"}: <b>{hasAccount ? "açık" : "bağlı hesap yok"}</b></span>
+                {hasAccount && <form action={forceSignOut} className="ml-auto"><input type="hidden" name="employeeId" value={id} /><ConfirmSubmit label="Tüm cihazlarda oturumu kapat" question="Personelin telefon oturumları düşer; şifresiyle tekrar girebilir. Telefon kaybında kullanın." className="text-xs font-semibold text-bad" /></form>}
+              </div>
+            </Card>
+          )}
           <Card title="Zimmet" action={hr ? <Link href={`/zimmet?personel=${id}`} className="text-sm font-semibold text-brand-700">+ Zimmet ver</Link> : undefined}>
             {openAssets.length === 0 ? <p className="text-sm text-muted">Üzerinde demirbaş yok{returnedAssets ? ` · ${returnedAssets} iade edilmiş` : ""}.</p> : (
               <ul className="text-sm divide-y divide-[#EEF2F6]">
@@ -474,6 +484,15 @@ export default async function EmployeeProfile({
             )}
           </Card>
 
+          {(sigs ?? []).length > 0 && (
+            <Card title="Dijital imzalar">
+              <ul className="text-sm divide-y divide-[#EEF2F6]">
+                {(sigs ?? []).map((g) => (
+                  <li key={g.id} className="py-1.5 flex justify-between gap-2"><span>{(g.document_types as unknown as { name: string } | null)?.name ?? g.template_key}<span className="block text-xs text-muted">{formatDate(g.signed_at.slice(0, 10))}</span></span><a href={`/personel/${id}/imza/${g.id}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand-700 self-center">Yazdır →</a></li>
+                ))}
+              </ul>
+            </Card>
+          )}
           <Card title="Özlük dosyası" action={<span className="num text-xs text-muted">Zorunlu: {required.length - missing} / {required.length}</span>}>
             {hr && (
               <Link href={`/personel/${id}/kayit?adim=${onboardingDone ? 3 : 2}`} className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold ${onboardingDone ? "bg-[#F2F6FB] text-brand-700" : "bg-[#FFF4E0] text-[#8A5A00]"}`}>

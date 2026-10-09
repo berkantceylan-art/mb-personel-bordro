@@ -196,3 +196,13 @@ export async function decideProfileChange(status: "approved" | "rejected", f: Fo
   revalidatePath("/personel");
   await done(status === "approved" ? "Değişiklik onaylandı ve personel kartına işlendi." : "Talep reddedildi; personele bildirildi.");
 }
+
+/* ---------------- Unutulan okutma bildirimleri ---------------- */
+export async function decidePunchRequest(status: "approved" | "rejected", f: FormData) {
+  await getSession();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("decide_punch_request", { p_id: str(f, "id"), p_status: status, p_note: str(f, "note") || null });
+  if (error) await fail(error.message);
+  revalidatePath("/talepler"); revalidatePath("/puantaj");
+  await done(status === "approved" ? "Okutma puantaja işlendi." : "Bildirim reddedildi.");
+}

@@ -154,3 +154,27 @@ export async function renderZip(keys: string[], data: Record<string, unknown>, f
   }
   return zip.generate({ type: "nodebuffer", compression: "DEFLATE" }) as Buffer;
 }
+
+/** Şablonun doldurulmuş düz metni (dijital imza ekranı ve yazdırma için): paragraf listesi */
+export async function renderText(key: string, data: Record<string, unknown>): Promise<{ title: string; paragraphs: string[] } | null> {
+  const r = await renderTemplate(key, data);
+  if (!r || r.ext !== "docx") return null;
+  const zip = new PizZip(r.buf);
+  const xml = zip.file("word/document.xml")?.asText() ?? "";
+  const paras: string[] = [];
+  // Tablolar: satır başına hücreler " · " ile; paragraflar düz
+  for (const m of xml.matchAll(/<w:tr[ >][\s\S]*?<\/w:tr>|<w:p[ >][\s\S]*?<\/w:p>/g)) {
+    const chunk = m[0];
+    if (chunk.startsWith("<w:tr")) {
+      const cells = [...chunk.matchAll(/<w:tc[ >][\s\S]*?<\/w:tc>/g)].map((c) => [...c[0].matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map((t) => t[1]).join("").trim()).filter(Boolean);
+      if (cells.length) paras.push(cells.join(" · "));
+      continue;
+    }
+    const text = [...chunk.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>|<w:tab\/>|<w:br\/>/g)].map((t) => (t[0] === "<w:tab/>" ? " " : t[0] === "<w:br/>" ? "\n" : t[1])).join("").replace(/\s+/g, " ").trim();
+    if (text) paras.push(text);
+  }
+  // Tablo içindeki paragraflar iki kez gelmesin: satır olarak alınan hücre metinleriyle aynıysa ele
+  const seen = new Set<string>();
+  const out = paras.filter((p) => { if (seen.has(p)) return false; seen.add(p); return true; });
+  return { title: TEMPLATES[key]?.title ?? key, paragraphs: out.map((p) => p.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')) };
+}
