@@ -181,8 +181,10 @@ export async function requestLeaveSelf(_: R | null, f: FormData): Promise<R> {
   }
   const args: Record<string, unknown> = { p_type: str(f, "typeId"), p_start: start, p_end: str(f, "end") || null, p_note: str(f, "note") || null };
   if (startTime || endTime || document) Object.assign(args, { p_start_time: startTime, p_end_time: endTime, p_document: document });
+  const travel = Math.min(4, Math.max(0, Number(str(f, "travel_days")) || 0));
+  if (travel) Object.assign(args, { p_travel_days: travel, p_destination: str(f, "destination") || null });
   const { data, error } = await supabase.rpc("request_leave_self", args);
-  if (error) return { ok: false, message: /p_start_time|p_document/.test(error.message) ? "Saatlik izin ve rapor için sunucu güncellemesi gerekli (20261031000000_mobile_self_service.sql)." : error.message };
+  if (error) return { ok: false, message: /p_travel_days/.test(error.message) ? "Yol izni için sunucu güncellemesi gerekli (20261118000000_annual_leave.sql)." : /p_start_time|p_document/.test(error.message) ? "Saatlik izin ve rapor için sunucu güncellemesi gerekli (20261031000000_mobile_self_service.sql)." : error.message };
   revalidatePath("/benim");
   revalidatePath("/benim/izin");
   const d = data as { days: number; hours?: number | null };

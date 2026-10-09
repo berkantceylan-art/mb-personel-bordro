@@ -70,7 +70,7 @@ export default async function MyLettersPage() {
             <ul className="text-sm divide-y divide-[#EEF2F6]">{(plans ?? []).map((p, i) => (
               <li key={i} className="py-2 flex justify-between gap-2"><span>{formatDate(p.start_date)} – {formatDate(p.end_date)}{p.note ? ` · ${p.note}` : ""}</span><b>{Number(p.days)} gün</b></li>
             ))}</ul>
-            <p className="text-xs text-muted">Plan değişikliği için İK ile görüşün ya da İzin iste bölümünden talep oluşturun.</p>
+            <p className="text-xs text-muted">Plan değişikliği için İK ile görüşün ya da İzin bölümünden talep oluşturun.</p>
           </Card>
         )}
       </div>

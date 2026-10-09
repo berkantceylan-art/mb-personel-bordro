@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { annualLeaveEntitlement } from "@mb/core";
 import { Card, PageHeader } from "@/components/ui";
 import { LeaveForm } from "@/components/LeaveOtForms";
@@ -16,7 +17,8 @@ const STATUS: Record<string, [string, string]> = {
 export default async function LeavePage({ searchParams }: { searchParams: Promise<{ sekme?: string; personel?: string }> }) {
   await getSession();
   const sp = await searchParams;
-  const tab = sp.sekme === "bakiye" ? "bakiye" : "talepler";
+  if (sp.sekme === "bakiye") redirect("/yillik-izin?sekme=bakiye");
+  const tab = "talepler" as string;
   const supabase = await createClient();
   const [{ data: emps }, { data: types }, { data: requests }, { data: privs }, { data: adjs }, { data: usedRows }] = await Promise.all([
     supabase.from("employees").select("id, first_name, last_name, hire_date, departments(name)").eq("status", "active").order("first_name"),
@@ -48,7 +50,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
 
         <div className="flex gap-1 border-b border-line" role="tablist">
           {[["talepler", "İzin kayıtları"], ["bakiye", "Yıllık izin bakiyeleri"]].map(([k, l]) => (
-            <Link key={k} href={`/izin?sekme=${k}`} role="tab" aria-selected={tab === k} className={`h-11 px-4 inline-flex items-center ${tab === k ? "font-bold text-brand-700 shadow-[inset_0_-3px_0_#00A6D6]" : "text-muted"}`}>{l}</Link>
+            <Link key={k} href={k === "bakiye" ? "/yillik-izin?sekme=bakiye" : `/izin?sekme=${k}`} role="tab" aria-selected={tab === k} className={`h-11 px-4 inline-flex items-center ${tab === k ? "font-bold text-brand-700 shadow-[inset_0_-3px_0_#00A6D6]" : "text-muted"}`}>{l}</Link>
           ))}
         </div>
 

@@ -29,7 +29,7 @@ export default async function RequestsPage() {
       ? supabase.from("advance_requests").select("*, employees(first_name, last_name, card_no, departments(name))").order("created_at", { ascending: false }).limit(100)
       : Promise.resolve({ data: [] }),
     hr
-      ? supabase.from("leave_requests").select("id, start_date, end_date, days, note, status, created_at, start_time, end_time, hours, document_path, leave_types(name), employees(first_name, last_name, departments(name))").eq("status", "pending").order("start_date")
+      ? supabase.from("leave_requests").select("id, start_date, end_date, days, note, status, created_at, start_time, end_time, hours, document_path, stage, leave_types(name), employees(first_name, last_name, departments(name))").eq("status", "pending").order("start_date")
       : Promise.resolve({ data: [] }),
   ]);
   const { data: profileReqs } = hr
@@ -102,7 +102,7 @@ export default async function RequestsPage() {
         )}
 
         {hr && (
-          <Card title="İzin talepleri" action={<Link href="/izin" className="text-sm font-semibold text-brand-700">Tüm izinler →</Link>}>
+          <Card title="İzin talepleri" action={<Link href="/yillik-izin?sekme=onay" className="text-sm font-semibold text-brand-700">Ayrıntılı onay ekranı →</Link>}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[760px]">
                 <thead><tr className="text-left text-xs text-muted"><th className={`${th} w-10`}><span className="sr-only">Seç</span></th><th className={th}>Personel</th><th className={th}>Tür</th><th className={th}>Tarih</th><th className={`${th} text-right`}>Gün</th><th className={th}>Açıklama</th><th className={th}>Karar</th></tr></thead>
@@ -113,7 +113,7 @@ export default async function RequestsPage() {
                       <tr key={l.id}>
                         <td className={td}><input type="checkbox" name="id" value={l.id} form="bulk-leave" aria-label={`${e?.first_name} ${e?.last_name} seç`} className={check} /></td>
                         <td className={td}><span className="font-semibold">{e?.first_name} {e?.last_name}</span><div className="text-xs text-muted">{e?.departments?.name}</div></td>
-                        <td className={td}>{(l.leave_types as unknown as { name: string } | null)?.name}</td>
+                        <td className={td}>{(l.leave_types as unknown as { name: string } | null)?.name}{(l as { stage?: string | null }).stage && <div className={`text-[11px] font-semibold ${(l as { stage?: string }).stage === "chief" ? "text-[#8A5A00]" : "text-brand-700"}`}>{(l as { stage?: string }).stage === "chief" ? "Şef onayı bekliyor" : "İK onayı bekliyor"}</div>}</td>
                         <td className={td}>{formatDate(l.start_date)}{l.end_date !== l.start_date && ` – ${formatDate(l.end_date)}`}{l.hours ? <div className="text-xs text-muted num">{String(l.start_time).slice(0, 5)}–{String(l.end_time).slice(0, 5)}</div> : null}</td>
                         <td className={`${td} text-right num`}>{l.hours ? `${Number(l.hours)} sa` : l.days}</td>
                         <td className={td}>{l.note ?? "—"}{docLinks.has(l.id) && <a href={docLinks.get(l.id)} target="_blank" rel="noreferrer" className="block text-xs font-semibold text-brand-700">Rapor belgesini aç →</a>}</td>

@@ -4,6 +4,7 @@ import { isoWeekday, periodBounds } from "@mb/core";
 import { missed, tracked } from "@/lib/boss";
 import { loadCompliance } from "@/lib/compliance";
 import { workdaysBetween } from "@/lib/labor";
+import { loadLeaveData, returnDate } from "@/lib/annual-leave";
 import { openPeriod } from "@/lib/periods";
 import { formatDate, periodLabel, todayIso } from "@/lib/session";
 import { loadMonth } from "@/lib/timekeeping";
@@ -226,6 +227,46 @@ const JOBS: Record<string, (ctx: JobContext) => Promise<unknown>> = {
     if (!lines.length) return "yok";
     await ctx.notify(hr, "İş Kanunu süreleri", lines.join(" · "), "/is-hukuku");
     return lines.length;
+  },
+
+  /** Yıllık izin: hak ediş günü, izne çıkış (peşin ücret), izin dönüşü gelmeyen, izinde okutma, bekleyen şef onayı */
+  async yillikIzin(ctx) {
+    const d = await loadLeaveData(ctx.sb as unknown as Parameters<typeof loadLeaveData>[0], ctx.today, { companyId: ctx.companyId });
+    const out: Record<string, number> = {};
+    const nm = new Map(d.emps.map((e) => [e.id, `${e.first_name} ${e.last_name}`]));
+    // 1) Bugün hak ediş
+    const earned = d.emps.filter((e) => d.ledgers.get(e.id)?.years.some((y) => y.date === ctx.today));
+    for (const e of earned) {
+      const y = d.ledgers.get(e.id)!.years.find((x) => x.date === ctx.today)!;
+      if (e.user_id) await ctx.notify([e.user_id], "Yeni yıllık izin hakkı", `${y.k}. hizmet yılınızı doldurdunuz: ${y.days} gün yıllık izin hakkınız eklendi. Kalan: ${d.ledgers.get(e.id)!.balance} gün.`, "/benim/izin");
+    }
+    if (earned.length) await ctx.notify(await ctx.users(["owner", "hr"]), "Bugün izne hak kazananlar", names(earned.map((e) => nm.get(e.id)!)), "/yillik-izin?sekme=bakiye");
+    out.hakEdis = earned.length;
+    // 2) 3 gün sonra izne çıkacaklar: izin ücreti peşin (md. 57)
+    const in3 = addDays(ctx.today, 3);
+    const starting = d.rows.filter((r) => r.status === "approved" && r.code === "YILLIK" && r.start_date === in3);
+    if (starting.length) await ctx.notify(await ctx.users(["owner", "accountant"]), "İzne çıkacaklar: izin ücreti peşin", `${formatDate(in3)} izne çıkacak: ${names(starting.map((r) => `${nm.get(r.employee_id)} (${r.days} gün)`))}. İzin ücreti izinden önce peşin veya avans olarak ödenir (md. 57).`, "/yillik-izin");
+    out.cikis = starting.length;
+    // 3) Dün işe dönmesi gerekip okutması olmayanlar / 4) dün yıllık izindeyken okutanlar
+    const y = addDays(ctx.today, -1);
+    const backYesterday = d.rows.filter((r) => r.status === "approved" && r.code !== "SAATLIK" && !r.parent_id && returnDate(r.end_date, d.hol, r.travel_days) === y);
+    const onLeaveY = d.rows.filter((r) => r.status === "approved" && r.code === "YILLIK" && r.start_date <= y && r.end_date >= y);
+    const ids = [...new Set([...backYesterday, ...onLeaveY].map((r) => r.employee_id))];
+    if (ids.length) {
+      const { data: p } = await ctx.sb.from("attendance_punches").select("employee_id").in("employee_id", ids).gte("punched_at", `${y}T00:00:00`).lt("punched_at", `${ctx.today}T00:00:00`);
+      const punched = new Set((p ?? []).map((x) => x.employee_id as string));
+      const stillOff = (id: string) => d.rows.some((r) => r.employee_id === id && r.status === "approved" && r.start_date <= y && r.end_date >= y);
+      const noShow = backYesterday.filter((r) => !punched.has(r.employee_id) && !stillOff(r.employee_id));
+      if (noShow.length) await ctx.notify(await ctx.users(["owner", "hr"]), "İzin dönüşü işe gelmeyen", `${formatDate(y)} işbaşı yapması gerekip okutması olmayan: ${names(noShow.map((r) => nm.get(r.employee_id)!))}`, `/puantaj?donem=${y.slice(0, 7)}`);
+      const worked = onLeaveY.filter((r) => punched.has(r.employee_id));
+      if (worked.length) await ctx.notify(await ctx.users(["owner", "hr"]), "Yıllık izindeyken kart okutma", `${formatDate(y)}: ${names(worked.map((r) => nm.get(r.employee_id)!))}. İzinde ücretli çalışma yasaktır (md. 58); izni kontrol edin.`, "/yillik-izin");
+      out.donmeyen = noShow.length; out.izindeCalisan = worked.length;
+    }
+    // 5) 2 günden uzun şef onayı bekleyen
+    const stale = d.rows.filter((r) => r.status === "pending" && r.stage === "chief" && r.created_at.slice(0, 10) <= addDays(ctx.today, -2));
+    if (stale.length) await ctx.notify(await ctx.users(["owner", "hr"]), "Şef onayında bekleyen izinler", `${stale.length} talep 2 günden uzun süredir şef onayında: ${names(stale.map((r) => nm.get(r.employee_id)!))}`, "/yillik-izin?sekme=onay");
+    out.bekleyen = stale.length;
+    return out;
   },
 
   /** KVKK: saklama süresi dolan aday başvurularını ve dosyalarını siler */

@@ -17,7 +17,7 @@ export const Chip = ({ s }: { s: string }) => {
 /** Personel self-servis menüsü (mobil ana sayfa kutuları ve menü) */
 export const MY_MENU: Array<{ href: string; label: string; icon: string; desc: string }> = [
   { href: "/benim/avans", label: "Avans iste", icon: "money", desc: "Avans talebi ve geçmişi" },
-  { href: "/benim/izin", label: "İzin iste", icon: "calendar", desc: "İzin, saatlik izin, rapor bildir" },
+  { href: "/benim/izin", label: "İzin", icon: "calendar", desc: "Bakiyem, izin talebi, tercih, rapor bildir" },
   { href: "/benim/bordro", label: "Bordrolarım", icon: "doc", desc: "Aylık bordro özetleri" },
   { href: "/benim/hareketler", label: "Hesap hareketlerim", icon: "list", desc: "Hakediş, avans, ödeme, kesinti" },
   { href: "/benim/puantaj", label: "Puantajım", icon: "clock", desc: "Giriş-çıkış, fazla mesai, eksik okutma" },

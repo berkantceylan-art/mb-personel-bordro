@@ -96,7 +96,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
             <Link href="/isg" className="px-2.5 py-1.5 rounded-full bg-bad-bg text-bad">İSG: {isg.counts.expired + isg.counts.d7} acil · {isg.counts.d15 + isg.counts.d30} yaklaşan · {isg.counts.missing} eksik</Link>
             {health && <Link href="/saglik" className="px-2.5 py-1.5 rounded-full bg-warn-bg text-warn">Sağlık: {health.counts.expired + health.counts.d7} acil · {health.counts.d15 + health.counts.d30} yaklaşan · {health.counts.missing} eksik</Link>}
-            {(pendingLeave ?? 0) > 0 && <Link href="/izin" className="px-2.5 py-1.5 rounded-full bg-[#E7F1FB] text-brand-700">Onay bekleyen izin: {pendingLeave}</Link>}
+            {(pendingLeave ?? 0) > 0 && <Link href="/yillik-izin?sekme=onay" className="px-2.5 py-1.5 rounded-full bg-[#E7F1FB] text-brand-700">Onay bekleyen izin: {pendingLeave}</Link>}
             {(pendingOt ?? 0) > 0 && <Link href="/fazla-mesai" className="px-2.5 py-1.5 rounded-full bg-[#E7F1FB] text-brand-700">Onay bekleyen FM: {pendingOt}</Link>}
           </div>
           {urgent.map((a) => (

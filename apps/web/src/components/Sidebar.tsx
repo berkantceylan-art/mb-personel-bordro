@@ -16,7 +16,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "Patron ekranı", href: "/patron", roles: ["owner", "accountant"] },
       { label: "Benim sayfam", href: "/benim", roles: ["employee"] },
       { label: "Avans iste", href: "/benim/avans", roles: ["employee"] },
-      { label: "İzin iste", href: "/benim/izin", roles: ["employee"] },
+      { label: "İzin", href: "/benim/izin", roles: ["employee"] },
       { label: "Bordrolarım", href: "/benim/bordro", roles: ["employee"] },
       { label: "Hesap hareketlerim", href: "/benim/hareketler", roles: ["employee"] },
       { label: "Puantajım", href: "/benim/puantaj", roles: ["employee"] },
@@ -64,7 +64,8 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
     items: [
       { label: "Puantaj", href: "/puantaj", roles: MANAGERS },
       { label: "Vardiyalar", href: "/vardiyalar", roles: MANAGERS },
-      { label: "İzin", href: "/izin", roles: MANAGERS },
+      { label: "Yıllık izin", href: "/yillik-izin", roles: ["owner", "accountant", "hr", "branch_manager"] },
+      { label: "İzin kayıtları", href: "/izin", roles: MANAGERS },
       { label: "Fazla Mesai", href: "/fazla-mesai", roles: MANAGERS },
       { label: "Mesai yemeği", href: "/yemek", roles: ["owner", "accountant", "hr", "branch_manager"] },
 

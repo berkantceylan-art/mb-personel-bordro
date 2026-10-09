@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { annualLeaveEntitlement, nextPeriod, previousPeriod } from "@mb/core";
+import { nextPeriod, previousPeriod } from "@mb/core";
 import { PendingSubmit } from "@/components/ConfirmSubmit";
 import { Card, PageHeader } from "@/components/ui";
 import { CHANGE_TYPES, CONTRACT_LABEL, DECISION_LABEL, DISC_CATEGORIES, ISSUE_LABEL, addWorkdays, disabilityQuota, workTimeIssues, type WorkIssue } from "@/lib/labor";
 import { currentPeriod, formatDate, getSession, periodLabel, todayIso } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { fetchAll, loadMonth } from "@/lib/timekeeping";
-import { addTelafiEntry, askOvertimeConsent, decideCase, deletePlan, recordDefense, requestDefense, saveCase, saveChange, saveContract, saveDisability, saveMaternity, savePlan, saveTelafi } from "./actions";
+import { loadMonth } from "@/lib/timekeeping";
+import { addTelafiEntry, askOvertimeConsent, decideCase, recordDefense, requestDefense, saveCase, saveChange, saveContract, saveDisability, saveMaternity, saveTelafi } from "./actions";
 
 const TABS = [["ozet", "Özet"], ["calisma", "Çalışma süreleri"], ["disiplin", "Disiplin"], ["degisiklik", "Esaslı değişiklik"], ["mesai", "Fazla mesai onayı"], ["telafi", "Telafi çalışması"], ["analik", "Analık ve süt izni"], ["izin", "Yıllık izin planı"], ["sozlesme", "Sözleşmeler"], ["engelli", "Engelli kotası"]] as const;
 type Tab = (typeof TABS)[number][0];
@@ -32,7 +32,7 @@ export default async function LaborLawPage({ searchParams }: { searchParams: Pro
   const dept = (e: Emp) => (e.departments as { name: string } | null)?.name ?? "—";
   const EmpSelect = ({ n = "employee_id" }: { n?: string }) => <select name={n} required className={input} aria-label="Personel"><option value="">Personel seçin</option>{emps.map((e) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}</select>;
 
-  const [{ data: cases }, { data: changes }, { data: works }, { data: entries }, { data: mats }, { data: plans }, { data: privs }, { data: sigs }, { data: docType }] = await Promise.all([
+  const [{ data: cases }, { data: changes }, { data: works }, { data: entries }, { data: mats }, , { data: privs }, { data: sigs }, { data: docType }] = await Promise.all([
     supabase.from("disciplinary_cases").select("*").order("incident_at", { ascending: false }),
     supabase.from("condition_changes").select("*").order("notified_at", { ascending: false }),
     supabase.from("compensatory_work").select("*").order("off_date", { ascending: false }),
@@ -228,7 +228,7 @@ export default async function LaborLawPage({ searchParams }: { searchParams: Pro
           </>
         )}
 
-        {tab === "izin" && <IzinPlan year={year} emps={emps} plans={plans ?? []} pv={pv} />}
+        {tab === "izin" && <Card title="Yıllık izin planı"><p className="text-sm">Yıllık izin planlaması, personel tercihleri, toplu izin ve izin kayıt belgeleri <b>Yıllık izin</b> modülüne taşındı.</p><Link href="/yillik-izin?sekme=plan" className="h-10 px-4 rounded-[10px] bg-brand-700 text-white font-semibold text-sm grid place-items-center self-start">Yıllık izin planına git</Link></Card>}
 
         {tab === "sozlesme" && (
           <Card title="Sözleşme türleri ve uyarılar">
@@ -307,48 +307,3 @@ async function Calisma({ period }: { period: string }) {
   );
 }
 
-async function IzinPlan({ year, emps, plans, pv }: { year: number; emps: Emp[]; plans: Array<{ id: string; employee_id: string; start_date: string; end_date: string; days: number; note: string | null }>; pv: Map<string, { birth_date?: string | null } & Record<string, unknown>> }) {
-  const supabase = await createClient();
-  const today = todayIso();
-  const [used, adj] = await Promise.all([
-    fetchAll<{ employee_id: string; days: number }>((a, b) => supabase.from("leave_requests").select("employee_id, days, leave_types!inner(code)").eq("status", "approved").eq("leave_types.code", "YILLIK").order("id").range(a, b)),
-    fetchAll<{ employee_id: string; days: number }>((a, b) => supabase.from("leave_adjustments").select("employee_id, days").order("id").range(a, b)),
-  ]);
-  const sum = (xs: Array<{ employee_id: string; days: number }>, id: string) => xs.filter((x) => x.employee_id === id).reduce((a, x) => a + Number(x.days), 0);
-  const rows = emps.filter((e) => e.hire_date).map((e) => {
-    const ent = annualLeaveEntitlement(e.hire_date!, today, (pv.get(e.id)?.birth_date as string | null) ?? null);
-    const left = Math.max(0, ent.earned + sum(adj, e.id) - sum(used, e.id));
-    const planned = plans.filter((p) => p.employee_id === e.id).reduce((a, p) => a + Number(p.days), 0);
-    return { e, left, planned, next: ent.nextAnniversary };
-  });
-  const input2 = "h-10 rounded-[10px] border border-[#D5DEE8] bg-white px-2 text-sm";
-  return (
-    <>
-      <Card title={`${year} yıllık izin planı`} action={<a href={`/yazdir/is-hukuku?tur=izin-kayit&yil=${year}`} target="_blank" rel="noopener" className="text-sm font-semibold text-brand-700">Yıllık izin kayıt belgeleri (yazdır)</a>}>
-        <form action={savePlan} className="grid gap-2 sm:grid-cols-[1.4fr_1fr_1fr_.6fr_1fr_auto] items-end text-sm">
-          <select name="employee_id" required className={input2} aria-label="Personel"><option value="">Personel</option>{emps.map((e) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}</select>
-          <label className="flex flex-col gap-1 text-muted">Başlangıç<input type="date" name="start_date" required className={input2} /></label>
-          <label className="flex flex-col gap-1 text-muted">Bitiş<input type="date" name="end_date" required className={input2} /></label>
-          <label className="flex flex-col gap-1 text-muted">İş günü<input name="days" inputMode="decimal" className={input2} /></label>
-          <input name="note" placeholder="Not" className={input2} />
-          <PendingSubmit className="h-10 px-4 rounded-[10px] bg-brand-700 text-white font-semibold">Plana ekle</PendingSubmit>
-        </form>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[720px]">
-            <thead><tr className="text-left text-xs text-muted"><th className="py-2 px-2">Personel</th><th className="py-2 px-2 text-right">Kalan hak</th><th className="py-2 px-2 text-right">Planlanan</th><th className="py-2 px-2">Plan</th><th className="py-2 px-2">Sonraki hak</th></tr></thead>
-            <tbody>{rows.sort((a, b) => b.left - b.planned - (a.left - a.planned)).map(({ e, left, planned, next }) => (
-              <tr key={e.id} className="border-t border-[#EEF2F6] align-top">
-                <td className="py-1.5 px-2">{e.first_name} {e.last_name}</td>
-                <td className={`py-1.5 px-2 text-right num ${left >= 28 ? "text-bad font-semibold" : ""}`}>{left}</td>
-                <td className="py-1.5 px-2 text-right num">{planned}</td>
-                <td className="py-1.5 px-2">{plans.filter((p) => p.employee_id === e.id).map((p) => <form key={p.id} action={deletePlan} className="inline-flex items-center gap-1 mr-2 text-xs"><input type="hidden" name="id" value={p.id} />{d(p.start_date)}–{d(p.end_date)} ({p.days})<button className="text-bad" aria-label="Plandan çıkar">×</button></form>)}</td>
-                <td className="py-1.5 px-2 text-xs text-muted">{next ? d(next) : "—"}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      </Card>
-      <p className="text-xs text-muted">md. 53–60 ve Yıllık Ücretli İzin Yönetmeliği: izin dönemi ve kullanım işverence düzenlenir; izin bölünebilir ama bir bölümü 10 günden az olamaz; kullandırılmayan izin ayrılışta ücretle ödenir. Kalan hakkı yüksek olanlar kırmızıdır. Geçmiş izin kullanımları girilmediyse kalan hak yüksek görünür (Personel → İzin → devir).</p>
-    </>
-  );
-}
