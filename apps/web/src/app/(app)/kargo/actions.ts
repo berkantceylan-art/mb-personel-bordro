@@ -11,7 +11,7 @@ const missing = (m: string) => (/shipment/.test(m) && /exist|schema cache|relati
 
 async function guard() {
   const s = await getSession();
-  if (!s.logistics) await fail("Kargo modülü için yetkiniz yok. Yönetim > Kullanıcılar'dan 'Kargo / kurye' yetkisi verilmeli.");
+  if (!s.logistics) await fail("Kargo modülü için yetkiniz yok. Yönetim > Kullanıcılar'dan 'Laboratuvar / kargo' yetkisi verilmeli.");
   return s;
 }
 

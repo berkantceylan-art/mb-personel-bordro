@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { visibleNav } from "./Sidebar";
+import { activeHref, visibleNav } from "./Sidebar";
 import { SignOutForm } from "./SignOut";
 
 type Tab = { label: string; href: string; icon: string };
@@ -70,7 +70,8 @@ export function MobileNav({ role, companyName, badges, boss = false, siteAccess 
         { label: "Mesajlar", href: "/mesajlar", icon: "chat" },
         { label: "Bildirimler", href: "/bildirimler", icon: "bell" },
       ];
-  const active = (href: string) => (href === "/" ? path === "/" : href === "/benim" ? path === "/benim" : path.startsWith(href));
+  const current = activeHref(path);
+  const active = (href: string) => href === current || (href !== "/" && href !== "/benim" && path.startsWith(href) && !current);
   const groups = visibleNav(role, siteAccess, logistics);
   const badge = (href: string) => badges[href] ?? 0;
 
