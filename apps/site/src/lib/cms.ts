@@ -342,6 +342,7 @@ export type TeamMember = {
   department_id: string | null;
   photo_path: string | null;
   linkedin: string | null;
+  employee_id?: string | null;
   sort: number;
   is_active: boolean;
   deleted_at: string | null;
