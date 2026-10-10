@@ -432,11 +432,24 @@ export async function publicTestimonials(): Promise<Testimonial[]> {
 export type JobPosting = { slug: string; title: string; department: string | null; employment_type: string; experience: string | null; location: string | null; description: string | null; requirements: string | null; closes_on: string | null };
 
 export async function publicJobPostings(): Promise<JobPosting[]> {
-  if (!hasSupabase()) return [];
+  // 1) Veritabanı fonksiyonu (site_growth migration'ı çalıştırıldıysa)
+  if (hasSupabase()) {
+    try {
+      const supabase = await createClient();
+      const { data, error } = await supabase.rpc("public_job_postings");
+      if (!error) return (data ?? []) as JobPosting[];
+    } catch {
+      /* ERP'ye düş */
+    }
+  }
+  // 2) ERP'nin herkese açık ilan listesi
+  const erp = (process.env.NEXT_PUBLIC_ERP_URL ?? "").replace(/\/+$/, "");
+  if (!erp) return [];
   try {
-    const supabase = await createClient();
-    const { data } = await supabase.rpc("public_job_postings");
-    return (data ?? []) as JobPosting[];
+    const res = await fetch(`${erp}/api/ilanlar`, { next: { revalidate: 300 } });
+    if (!res.ok) return [];
+    const data = (await res.json()) as JobPosting[];
+    return Array.isArray(data) ? data : [];
   } catch {
     return [];
   }

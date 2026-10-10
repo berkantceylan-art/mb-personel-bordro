@@ -5,9 +5,10 @@ import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { publicJobPostings } from "@/lib/cms";
 import { CAREER_UI } from "@/lib/growth-ui";
 import { LOCALES, isLocale } from "@/lib/i18n";
+import { ApplyFrame } from "./ApplyFrame";
 
-export const revalidate = 600;
 type Params = Promise<{ locale: string }>;
+type Search = Promise<{ ilan?: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { locale } = await params;
@@ -16,9 +17,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return { title: `${c.title} — MB Dental`, description: c.lead, alternates: { canonical: `/${locale}/kariyer`, languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}/kariyer`])) } };
 }
 
-/** Açık ilanlar ERP işe alım modülünden gelir; başvuru ERP'nin başvuru formuna gider */
-export default async function CareersPage({ params }: { params: Params }) {
+/** Açık ilanlar ERP işe alım modülünden gelir; başvuru formu (ERP) sayfanın içinde açılır */
+export default async function CareersPage({ params, searchParams }: { params: Params; searchParams: Search }) {
   const { locale } = await params;
+  const { ilan } = await searchParams;
   if (!isLocale(locale)) notFound();
   const c = CAREER_UI[locale];
   const jobs = await publicJobPostings();
@@ -26,7 +28,7 @@ export default async function CareersPage({ params }: { params: Params }) {
   const fmt = new Intl.DateTimeFormat(locale === "tr" ? "tr-TR" : locale === "fr" ? "fr-FR" : "en-GB", { dateStyle: "medium" });
   return (
     <>
-      <SiteHeader locale={locale} altPath="/kariyer" />
+      <SiteHeader locale={locale} altPath="/kariyer" current="careers" />
       <main>
         <section className="bg-navy text-white">
           <div className="mx-auto max-w-6xl px-4 pb-14 pt-8 sm:px-6">
@@ -48,15 +50,20 @@ export default async function CareersPage({ params }: { params: Params }) {
               </dl>
               {j.description && <div className="mt-4"><RichText text={j.description} /></div>}
               {j.requirements && <div className="mt-3 text-slate"><RichText text={j.requirements} /></div>}
-              {erp && <a href={`${erp}/kariyer?ilan=${encodeURIComponent(j.slug)}`} className="mt-5 inline-block rounded-full bg-navy px-6 py-3 font-semibold text-white hover:bg-blue">{c.apply}</a>}
+              {erp && <a href={`/${locale}/kariyer?ilan=${encodeURIComponent(j.slug)}#basvuru`} className="mt-5 inline-block rounded-full bg-navy px-6 py-3 font-semibold text-white hover:bg-blue">{c.apply}</a>}
             </article>
           ))}
           {erp && (
-            <div className="rounded-3xl border border-dashed border-gypsum bg-white p-7">
-              <h2 className="display text-xl font-semibold text-navy">{c.general}</h2>
-              <p className="mt-1 text-slate">{c.generalText}</p>
-              <a href={`${erp}/kariyer`} className="mt-4 inline-block rounded-full border border-navy px-5 py-2.5 font-semibold text-navy hover:bg-navy hover:text-white">{c.apply}</a>
-            </div>
+            <section id="basvuru" className="scroll-mt-24">
+              <h2 className="display mb-1 text-2xl font-semibold text-navy">{jobs.length > 0 ? c.apply : c.general}</h2>
+              {jobs.length === 0 && <p className="mb-4 text-slate">{c.generalText}</p>}
+              <ApplyFrame
+                key={ilan ?? ""}
+                src={`${erp}/kariyer?gom=1&form=1${ilan ? `&ilan=${encodeURIComponent(ilan)}` : ""}`}
+                origin={new URL(erp).origin}
+                title={c.title}
+              />
+            </section>
           )}
         </div>
       </main>
