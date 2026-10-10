@@ -20,9 +20,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: pref } = await supabaseBig.from("notification_prefs").select("big_text").eq("user_id", s.userId).maybeSingle();
   const big = (pref as { big_text?: boolean } | null)?.big_text === true;
   const path = (await headers()).get("x-pathname") ?? "/";
-  if (s.role === "employee" && !EMPLOYEE_PATHS.some((p) => path.startsWith(p))) redirect("/benim");
+  const allowKargo = s.logistics && path.startsWith("/kargo");
+  if (s.role === "employee" && !allowKargo && !EMPLOYEE_PATHS.some((p) => path.startsWith(p))) redirect("/benim");
   // Yalnız web sitesi editörü: ERP'de iletişim modülleri ve site yönetimi bağlantısı
-  if (s.role === "site_editor" && !EDITOR_PATHS.some((p) => path.startsWith(p))) redirect("/duyurular");
+  if (s.role === "site_editor" && !allowKargo && !EDITOR_PATHS.some((p) => path.startsWith(p))) redirect("/duyurular");
 
   const supabase = await createClient();
   const [{ count: unreadNotif }, { data: convs }] = await Promise.all([
@@ -37,8 +38,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const badges = { "/bildirimler": unreadNotif ?? 0, "/mesajlar": unreadMsg };
   return (
     <div className={`min-h-screen flex flex-col md:flex-row ${big ? "big-text" : ""}`}>
-      <Sidebar companyName={s.companyName} role={s.role} siteAccess={s.siteAccess} badges={badges} />
-      <MobileNav companyName={s.companyName} role={s.role} badges={badges} boss={s.boss || s.role === "owner"} siteAccess={s.siteAccess} />
+      <Sidebar companyName={s.companyName} role={s.role} siteAccess={s.siteAccess} logistics={s.logistics} badges={badges} />
+      <MobileNav companyName={s.companyName} role={s.role} badges={badges} boss={s.boss || s.role === "owner"} siteAccess={s.siteAccess} logistics={s.logistics} />
       <main className="flex-1 min-w-0 flex flex-col pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">
         <FlashMessage />
         <LiveUpdates userId={s.userId} />

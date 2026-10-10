@@ -114,6 +114,8 @@ export async function updateMember(f: FormData) {
   // Web sitesi yönetimi yetkisi (sütun yoksa sessizce atlanır: 20261123000000_single_sign_on.sql)
   const site = f.get("site_access") === "on" && role !== "owner" && role !== "site_editor";
   await supabase.from("memberships").update({ site_access: site }).eq("user_id", userId).eq("company_id", s.companyId);
+  const logi = f.get("logistics_access") === "on" && !["owner", "accountant", "hr", "branch_manager"].includes(role);
+  await supabase.from("memberships").update({ logistics_access: logi }).eq("user_id", userId).eq("company_id", s.companyId);
   await must(supabase.from("membership_branches").delete().eq("user_id", userId).eq("company_id", s.companyId));
   if (!all) await must(supabase.from("membership_branches").insert(branches.map((b) => ({ user_id: userId, company_id: s.companyId, branch_id: b }))));
   // Şef: sorumlu olduğu bölümler (tablo yoksa atlanır)

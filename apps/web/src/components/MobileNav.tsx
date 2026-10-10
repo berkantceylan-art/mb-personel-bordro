@@ -50,7 +50,7 @@ const Icon = ({ name }: { name: string }) => (
   </svg>
 );
 
-export function MobileNav({ role, companyName, badges, boss = false, siteAccess = false }: { role: string; companyName: string; badges: Record<string, number>; boss?: boolean; siteAccess?: boolean }) {
+export function MobileNav({ role, companyName, badges, boss = false, siteAccess = false, logistics = false }: { role: string; companyName: string; badges: Record<string, number>; boss?: boolean; siteAccess?: boolean; logistics?: boolean }) {
   const path = usePathname();
   const [menu, setMenu] = useState(false);
   useEffect(() => setMenu(false), [path]);
@@ -71,7 +71,7 @@ export function MobileNav({ role, companyName, badges, boss = false, siteAccess 
         { label: "Bildirimler", href: "/bildirimler", icon: "bell" },
       ];
   const active = (href: string) => (href === "/" ? path === "/" : href === "/benim" ? path === "/benim" : path.startsWith(href));
-  const groups = visibleNav(role, siteAccess);
+  const groups = visibleNav(role, siteAccess, logistics);
   const badge = (href: string) => badges[href] ?? 0;
 
   return (

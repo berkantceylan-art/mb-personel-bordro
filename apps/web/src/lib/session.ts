@@ -14,6 +14,8 @@ export interface Session {
   boss: boolean;
   /** Web sitesi yönetimi (mbdentaire.com admin): sahip, site editörü ya da memberships.site_access */
   siteAccess: boolean;
+  /** Kargo / gümrük / kurye modülü: sahip, muhasebe, İK, şef ya da memberships.logistics_access */
+  logistics: boolean;
 }
 
 /** Oturumdaki kullanıcı ve şirketi. Şirketi yoksa kurulum sayfasına gönderir. */
@@ -39,7 +41,8 @@ export const getSession = cache(async (): Promise<Session> => {
 
   if (!m) redirect("/kurulum");
   // site_access sütunu henüz yoksa (20261123000000_single_sign_on.sql çalıştırılmamış) hata yok sayılır
-  const { data: sa } = await supabase.from("memberships").select("site_access").eq("user_id", user.id).eq("company_id", m.company_id).maybeSingle();
+  const flags = await supabase.from("memberships").select("site_access, logistics_access").eq("user_id", user.id).eq("company_id", m.company_id).maybeSingle();
+  const sa = (flags.error ? (await supabase.from("memberships").select("site_access").eq("user_id", user.id).eq("company_id", m.company_id).maybeSingle()).data : flags.data) as { site_access?: boolean; logistics_access?: boolean } | null;
   const company = m.companies as unknown as { name: string } | null;
   return {
     userId: user.id,
@@ -48,7 +51,8 @@ export const getSession = cache(async (): Promise<Session> => {
     companyName: company?.name ?? "",
     role: m.role as Role,
     boss: m.is_boss === true,
-    siteAccess: m.role === "owner" || m.role === "site_editor" || (sa as { site_access?: boolean } | null)?.site_access === true,
+    siteAccess: m.role === "owner" || m.role === "site_editor" || sa?.site_access === true,
+    logistics: ["owner", "accountant", "hr", "branch_manager"].includes(m.role as string) || sa?.logistics_access === true,
   };
 });
 
