@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { IsgNav } from "@/components/IsgNav";
 import { Card, PageHeader } from "@/components/ui";
 import { ComplianceMatrix, ComplianceSummary, Tabs } from "@/components/Compliance";
 import { IncidentForm, PpeForm, RecordForm } from "@/components/ComplianceForms";
@@ -13,6 +15,7 @@ const KIND: Record<string, string> = { KAZA: "İş kazası", RAMAK_KALA: "Ramak 
 export default async function SafetyPage({ searchParams }: { searchParams: Promise<{ sekme?: string; personel?: string; tur?: string }> }) {
   const s = await getSession();
   const sp = await searchParams;
+  if (sp.sekme === "kaza") redirect("/isg/kaza");
   const tab = ["ozet", "matris", "kayit", "kkd", "kaza"].includes(sp.sekme ?? "") ? sp.sekme! : "ozet";
   const supabase = await createClient();
   const data = await loadCompliance(supabase, "TRAINING");
@@ -45,7 +48,8 @@ export default async function SafetyPage({ searchParams }: { searchParams: Promi
         }
       />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[1320px]">
-        <Tabs base="/isg" active={tab} tabs={[["ozet", "Uyarılar"], ["matris", "Eğitim matrisi"], ["kayit", "Eğitim kaydı"], ["kkd", "KKD zimmet"], ["kaza", "İş kazası / ramak kala"]]} />
+        <IsgNav active="/isg" />
+        <Tabs base="/isg" active={tab} tabs={[["ozet", "Uyarılar"], ["matris", "Eğitim matrisi"], ["kayit", "Eğitim kaydı"], ["kkd", "KKD zimmet"]]} />
 
         {tab === "ozet" && <ComplianceSummary data={data} base="/isg" />}
         {tab === "matris" && <ComplianceMatrix data={data} base="/isg" />}

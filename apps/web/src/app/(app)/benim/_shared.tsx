@@ -28,6 +28,7 @@ export const MY_MENU: Array<{ href: string; label: string; icon: string; desc: s
   { href: "/benim/imza", label: "İmzalarım", icon: "pen", desc: "Formları telefonda imzala" },
   { href: "/benim/bes", label: "BES", icon: "piggy", desc: "Emeklilik kesintilerim" },
   { href: "/benim/icra", label: "İcra ve nafaka", icon: "gavel", desc: "Yasal kesintilerim" },
+  { href: "/benim/egitim", label: "Uzaktan eğitim", icon: "play", desc: "İSG eğitim videoları ve sınav" },
   { href: "/benim/isg", label: "İş güvenliği", icon: "shield", desc: "Eğitim ve sertifikalarım" },
   { href: "/benim/saglik", label: "Sağlık", icon: "heart", desc: "Muayene ve raporlarım" },
   { href: "/benim/ilk-gunlerim", label: "İlk günlerim", icon: "flag", desc: "Uyum adımları ve ustam" },

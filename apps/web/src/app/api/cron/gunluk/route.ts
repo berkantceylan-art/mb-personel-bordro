@@ -269,6 +269,54 @@ const JOBS: Record<string, (ctx: JobContext) => Promise<unknown>> = {
     return out;
   },
 
+  /** İSG süreleri: İSG-KATİP sözleşmesi, işe başlama eğitimi, risk/acil durum planı, tatbikat, kurul, tespit, kontrol, ölçüm, SGK kaza bildirimi */
+  async isgSureler(ctx) {
+    const cid = ctx.companyId;
+    const lines: string[] = [];
+    const t = ctx.today;
+    const at = (n: number) => addDays(t, n);
+    const [{ data: asg }, { data: newHires }, { data: risk }, { data: plans }, { data: drills }, { data: meet }, { data: finds }, { data: eq }, { data: ms }, { data: inc }, { data: comp }] = await Promise.all([
+      ctx.sb.from("isg_assignments").select("katip_status, sent_on, end_date, isg_professionals(full_name)").eq("company_id", cid).in("katip_status", ["onay-bekliyor", "onayli"]),
+      ctx.sb.from("employees").select("id, first_name, last_name, hire_date").eq("company_id", cid).eq("status", "active").gte("hire_date", t).lte("hire_date", at(1)),
+      ctx.sb.from("risk_assessments").select("title, valid_until").eq("company_id", cid).eq("status", "yururlukte"),
+      ctx.sb.from("emergency_plans").select("valid_until").eq("company_id", cid).order("done_on", { ascending: false }).limit(1),
+      ctx.sb.from("emergency_drills").select("held_on").eq("company_id", cid).order("held_on", { ascending: false }).limit(1),
+      ctx.sb.from("committee_meetings").select("held_on").eq("company_id", cid).order("held_on", { ascending: false }).limit(1),
+      ctx.sb.from("isg_findings").select("area, description, due_date, level, status").eq("company_id", cid).neq("status", "kapandi"),
+      ctx.sb.from("equipment_checks").select("equipment, next_due").eq("company_id", cid),
+      ctx.sb.from("env_measurements").select("kind, next_due").eq("company_id", cid),
+      ctx.sb.from("safety_incidents").select("occurred_at, kind, sgk_notified_on").eq("company_id", cid).in("kind", ["KAZA", "MESLEK_HASTALIGI"]).is("sgk_notified_on", null),
+      ctx.sb.from("companies").select("hazard_class").eq("id", cid).single(),
+    ]);
+    const pn = (a: { isg_professionals: unknown }) => (a.isg_professionals as { full_name: string } | null)?.full_name ?? "İSG profesyoneli";
+    for (const a of asg ?? []) {
+      if (a.katip_status === "onay-bekliyor" && a.sent_on && daysUntil(a.sent_on as string, t) >= 3) lines.push(`${pn(a)} sözleşmesi İSG-KATİP'te ${daysUntil(a.sent_on as string, t)} gündür onay bekliyor`);
+      if (a.katip_status === "onayli" && a.end_date && [30, 7, 0].includes(daysUntil(t, a.end_date as string))) lines.push(`${pn(a)} İSG-KATİP sözleşmesi ${formatDate(a.end_date as string)} bitiyor`);
+    }
+    for (const e of newHires ?? []) {
+      const { count } = await ctx.sb.from("training_records").select("id", { count: "exact", head: true }).eq("employee_id", e.id).in("training_kind", ["ise-baslama"]);
+      if (!count) lines.push(`${e.first_name} ${e.last_name} ${formatDate(e.hire_date as string)} işe başlıyor: fiilen çalışmadan önce en az 2 saat yüz yüze işe başlama eğitimi`);
+    }
+    for (const r of risk ?? []) if ([60, 30, 0].includes(daysUntil(t, r.valid_until as string))) lines.push(`Risk değerlendirmesi ${formatDate(r.valid_until as string)} tarihinde sona eriyor`);
+    if ((risk ?? []).length === 0 && t.slice(8) === "01") lines.push("Yürürlükte risk değerlendirmesi yok");
+    const p0 = (plans ?? [])[0];
+    if (p0 && [60, 30, 0].includes(daysUntil(t, p0.valid_until as string))) lines.push(`Acil durum planı ${formatDate(p0.valid_until as string)} tarihinde sona eriyor`);
+    const d0 = (drills ?? [])[0];
+    if (d0 && daysUntil(d0.held_on as string, t) === 335) lines.push("Son tatbikatın üzerinden 11 ay geçti; yıllık tatbikatı planlayın");
+    const period = comp?.hazard_class === "COK" ? 1 : comp?.hazard_class === "TEHLIKELI" ? 2 : 3;
+    const m0 = (meet ?? [])[0];
+    if (m0) { const due = new Date(m0.held_on + "T12:00:00Z"); due.setUTCMonth(due.getUTCMonth() + period); const ds = due.toISOString().slice(0, 10); if ([7, 0].includes(daysUntil(t, ds))) lines.push(`İSG kurulu toplantısı ${formatDate(ds)} tarihine kadar yapılmalı`); }
+    const urgent = (finds ?? []).filter((f) => f.level === "acil");
+    if (urgent.length && isoWeekday(t) <= 6) lines.push(`${urgent.length} acil İSG tespiti açık`);
+    if (isoWeekday(t) === 1) { const late = (finds ?? []).filter((f) => f.due_date && (f.due_date as string) < t); if (late.length) lines.push(`${late.length} tespitin termini geçti`); }
+    for (const e of eq ?? []) if (e.next_due && [30, 7, 0].includes(daysUntil(t, e.next_due as string))) lines.push(`${e.equipment} periyodik kontrolü ${formatDate(e.next_due as string)}`);
+    for (const m of ms ?? []) if (m.next_due && [30, 0].includes(daysUntil(t, m.next_due as string))) lines.push(`${m.kind} ölçümü ${formatDate(m.next_due as string)}`);
+    for (const i of inc ?? []) { const dd = daysUntil(String(i.occurred_at).slice(0, 10), t); if (dd >= 1 && dd <= 4) lines.push(`İş kazası ${formatDate(String(i.occurred_at).slice(0, 10))}: SGK bildirimi yapılmadı (3 iş günü)`); }
+    if (!lines.length) return "yok";
+    await ctx.notify(await ctx.users(["owner", "hr", "safety"]), "İSG hatırlatmaları", lines.join(" · "), "/isg/katip");
+    return lines.length;
+  },
+
   /** KVKK: saklama süresi dolan aday başvurularını ve dosyalarını siler */
   async adayImha(ctx) {
     const { data } = await ctx.sb.from("candidates").select("id, cv_path, file_paths").eq("company_id", ctx.companyId).lt("purge_after", ctx.today).is("employee_id", null).limit(500);
