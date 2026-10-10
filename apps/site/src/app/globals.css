@@ -311,3 +311,9 @@ body {
     animation: none !important;
   }
 }
+
+/* Admin menüsü: ince kaydırma çubuğu */
+.admin-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.25) transparent;
+}
