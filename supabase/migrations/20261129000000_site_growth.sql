@@ -105,16 +105,24 @@ create policy cms_announcements_portal_read on cms_announcements for select to a
   );
 
 -- Sitede açık iş ilanları (ERP işe alım modülünden; aday verisi değil, yalnız ilan)
-create or replace function public_job_postings()
-returns table (slug text, title text, department text, employment_type text, experience text, location text, description text, requirements text, closes_on date)
-language sql stable security definer set search_path = public as $$
-  select p.slug, p.title, d.name, p.employment_type, p.experience, p.location, p.description, p.requirements, p.closes_on
-  from job_postings p left join departments d on d.id = p.department_id
-  where p.status = 'open' and (p.closes_on is null or p.closes_on >= current_date)
-  order by p.created_at desc
-  limit 50;
-$$;
-grant execute on function public_job_postings() to anon, authenticated;
+do $jobs$ begin
+  if to_regclass('public.job_postings') is null then
+    raise notice 'job_postings yok (20261110000000_recruiting.sql çalıştırılmamış); kariyer listesi atlandı';
+    return;
+  end if;
+  execute $f$
+    create or replace function public_job_postings()
+    returns table (slug text, title text, department text, employment_type text, experience text, location text, description text, requirements text, closes_on date)
+    language sql stable security definer set search_path = public as $q$
+      select p.slug, p.title, d.name, p.employment_type, p.experience, p.location, p.description, p.requirements, p.closes_on
+      from job_postings p left join departments d on d.id = p.department_id
+      where p.status = 'open' and (p.closes_on is null or p.closes_on >= current_date)
+      order by p.created_at desc
+      limit 50;
+    $q$;
+  $f$;
+  execute 'grant execute on function public_job_postings() to anon, authenticated';
+end $jobs$;
 
 -- Yasal sayfa taslakları (yoksa; yönetim panelinden düzenlenir)
 do $seed$ begin
