@@ -11,7 +11,7 @@ import { getSession } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 /** Personel rolünün web'de girebildiği bölümler */
-const EMPLOYEE_PATHS = ["/benim", "/duyurular", "/mesajlar", "/bildirimler"];
+const EMPLOYEE_PATHS = ["/benim", "/duyurular", "/mesajlar", "/bildirimler", "/asistan"];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const s = await getSession();

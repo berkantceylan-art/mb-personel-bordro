@@ -75,7 +75,7 @@ export async function cikisRows(sb: AnySB, ids: string[], overrides: Record<stri
     const { data: lines } = per ? await sb.from("payroll_lines").select("period, days, official_gross").eq("employee_id", id).in("period", [per, prevPer]) : { data: [] };
     const L = new Map(((lines ?? []) as Array<Record<string, unknown>>).map((l) => [l.period as string, l]));
     const dayOfMonth = end ? Number(end.slice(8, 10)) : 30;
-    const donem = (l: Record<string, unknown> | undefined, days: number): Donem => ({ BELGETURU: 1, HAKEDILENUCRET: Math.round(Number(l?.official_gross ?? 0) * 100) / 100, PRIMIKRAMIYE: 0, EKSIKGUNSAYISI: l ? Math.max(0, days - Number(l.days ?? days)) : 0, EKSIKGUNNEDENI: 0 });
+    const donem = (l: Record<string, unknown> | undefined, days: number): Donem => ({ BELGETURU: 1, HAKEDILENUCRET: Math.round(Number(l?.official_gross ?? 0)) / 100 /* bordro kuruş, SGK TL */, PRIMIKRAMIYE: 0, EKSIKGUNSAYISI: l ? Math.max(0, days - Number(l.days ?? days)) : 0, EKSIKGUNNEDENI: 0 });
     const o = overrides[id] ?? {};
     const cur = { ...donem(L.get(per), Math.min(30, dayOfMonth)), ...Object.fromEntries(Object.entries(o).filter(([k, v]) => k !== "prev" && k !== "reason" && v !== undefined)) } as Donem;
     const prev = L.get(prevPer) || o.prev ? ({ ...donem(L.get(prevPer), 30), ...(o.prev ?? {}) } as Donem) : null;

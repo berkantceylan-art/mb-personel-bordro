@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
       const l = data.ledgers.get(e.id);
       if (!l || l.balance <= 0) continue;
       const x = w.get(e.id);
-      ws.addRow({ ...base(e), kalan: l.balance, go: x?.official ?? null, to: x ? x.official * l.balance : null, gr: x?.real ?? null, tr: x ? x.real * l.balance : null });
+      ws.addRow({ ...base(e), kalan: l.balance, go: x ? x.official / 100 : null, to: x ? (x.official * l.balance) / 100 : null, gr: x ? x.real / 100 : null, tr: x ? (x.real * l.balance) / 100 : null });
     }
   } else if (tur === "aylik") {
     cols([["Bölüm", "bolum", 22], ...MONTHS.map((m, i) => [m, `m${i}`, 9] as [string, string, number]), ["Toplam", "top", 10]]);
