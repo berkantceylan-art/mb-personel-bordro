@@ -63,7 +63,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ key:
   }
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "MB Personel & Bordro";
+  wb.creator = "MB Dental ERP";
   const ws = wb.addWorksheet(res.title.slice(0, 31).replace(/[\\/?*[\]:]/g, " "));
   ws.columns = cols.map((c) => ({
     header: c.label,

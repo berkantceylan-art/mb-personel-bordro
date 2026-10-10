@@ -11,9 +11,15 @@ export async function currentUser() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data } = await supabase.from("memberships").select("role, company_id").eq("user_id", user.id);
-  const roles = (data ?? []).map((m) => m.role as SiteRole);
-  return { id: user.id, email: user.email ?? "", roles };
+  // site_access: ERP rolüne ek "Web sitesi yönetimi" yetkisi (sütun yoksa eski sorgu)
+  const first = await supabase.from("memberships").select("role, company_id, site_access").eq("user_id", user.id);
+  const data: unknown[] | null = first.error ? (await supabase.from("memberships").select("role, company_id").eq("user_id", user.id)).data : first.data;
+  const rows = (data ?? []) as Array<{ role: string; site_access?: boolean }>;
+  const roles = rows.map((m) => m.role as SiteRole);
+  // ERP'deki gerçek roller (site editörlüğü hariç): ERP paneline geçiş bağlantısı için
+  const erpRoles = roles.filter((r) => r !== "site_editor");
+  if (rows.some((m) => m.site_access) && !roles.includes("site_editor")) roles.push("site_editor");
+  return { id: user.id, email: user.email ?? "", roles, erpRoles };
 }
 
 export const SITE_EDITOR_ROLES: SiteRole[] = ["owner", "site_editor"];

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignOutForm } from "./SignOut";
 
-type Item = { label: string; href: string; roles?: string[] };
+/** site: yalnız web sitesi yönetim yetkisi olana; raw: Next bağlantısı değil, düz adres (sunucu yönlendirmesi) */
+type Item = { label: string; href: string; roles?: string[]; site?: boolean; raw?: boolean };
 const MANAGERS = ["owner", "accountant", "hr", "branch_manager", "safety"];
 const PAY = ["owner", "accountant"];
 const HR = ["owner", "hr", "branch_manager"];
@@ -74,7 +75,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
     ],
   },
   {
-    group: "Para",
+    group: "Bordro ve ödemeler",
     items: [
       { label: "Ay sonu", href: "/ay-sonu", roles: PAY },
       { label: "Avans & Ödemeler", href: "/odemeler/yeni", roles: PAY },
@@ -88,12 +89,18 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
   },
   { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg", roles: MANAGERS }, { label: "Sağlık", href: "/saglik", roles: ["owner", "hr", "safety"] }, { label: "İş Kanunu uyumu", href: "/is-hukuku", roles: ["owner", "accountant", "hr"] }, { label: "KVKK", href: "/kvkk", roles: ["owner", "hr"] }] },
   { group: "Analiz", items: [{ label: "Raporlar", href: "/raporlar", roles: MANAGERS }, { label: "Excel'den Aktar", href: "/ice-aktar", roles: PAY }] },
+  { group: "Web sitesi", items: [{ label: "Site yönetimi (mbdentaire.com)", href: "/site-gecis", site: true, raw: true }] },
   { group: "Sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", roles: ["owner", "hr", "branch_manager"] }, { label: "Yönetim", href: "/yonetim", roles: ["owner", "hr"] }, { label: "Mevzuat", href: "/mevzuat", roles: ["owner", "accountant", "hr"] }] },
 ];
 
-export function Sidebar({ companyName, role, badges = {} }: { companyName: string; role: string; badges?: Record<string, number> }) {
+/** Kullanıcının yetkili olduğu modüller: rol + web sitesi erişimi */
+export function visibleNav(role: string, siteAccess = false) {
+  return NAV.map((g) => ({ ...g, items: g.items.filter((i) => (i.site ? siteAccess : !i.roles || i.roles.includes(role))) })).filter((g) => g.items.length);
+}
+
+export function Sidebar({ companyName, role, siteAccess = false, badges = {} }: { companyName: string; role: string; siteAccess?: boolean; badges?: Record<string, number> }) {
   const path = usePathname();
-  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(role)) })).filter((g) => g.items.length);
+  const groups = visibleNav(role, siteAccess);
   const isActive = (href: string) => (href === "/" || href === "/benim" ? path === href : path.startsWith(href));
   return (
     <nav aria-label="Ana menü" className="print:hidden hidden md:flex md:w-62 md:shrink-0 bg-brand-900 text-[#C9D6E5] flex-col gap-5 px-3.5 py-5">
@@ -104,14 +111,18 @@ export function Sidebar({ companyName, role, badges = {} }: { companyName: strin
         </div>
         <div className="flex flex-col">
           <span className="font-display font-bold text-white text-[15px] tracking-wide">{companyName.toUpperCase() || "MB DENTAL"}</span>
-          <span className="text-xs text-[#8FA6BF]">Personel &amp; Bordro</span>
+          <span className="text-xs text-[#8FA6BF]">ERP · İK, bordro ve tüm modüller</span>
         </div>
       </div>
       <div className="flex flex-col gap-4">
         {groups.map((g) => (
           <div key={g.group} className="flex flex-col gap-0.5">
             <span className="block text-[11px] uppercase tracking-[0.08em] text-[#6F8AA8] px-2.5 pb-1">{g.group}</span>
-            {g.items.map((n) => (
+            {g.items.map((n) => n.raw ? (
+              <a key={n.href} href={n.href} className="px-3 py-2.5 rounded-lg whitespace-nowrap flex items-center justify-between gap-2 hover:bg-white/5">
+                {n.label} <span aria-hidden="true">↗</span>
+              </a>
+            ) : (
               <Link
                 key={n.href}
                 href={n.href}

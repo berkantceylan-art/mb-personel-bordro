@@ -111,6 +111,9 @@ export async function updateMember(f: FormData) {
   let { error: mErr } = await supabase.from("memberships").update({ role, all_branches: all, display_name: str(f, "display_name") || null, is_boss: boss }).eq("user_id", userId).eq("company_id", s.companyId);
   if (mErr?.message.includes("is_boss")) ({ error: mErr } = await supabase.from("memberships").update({ role, all_branches: all, display_name: str(f, "display_name") || null }).eq("user_id", userId).eq("company_id", s.companyId));
   if (mErr) await fail(mErr.message);
+  // Web sitesi yönetimi yetkisi (sütun yoksa sessizce atlanır: 20261123000000_single_sign_on.sql)
+  const site = f.get("site_access") === "on" && role !== "owner" && role !== "site_editor";
+  await supabase.from("memberships").update({ site_access: site }).eq("user_id", userId).eq("company_id", s.companyId);
   await must(supabase.from("membership_branches").delete().eq("user_id", userId).eq("company_id", s.companyId));
   if (!all) await must(supabase.from("membership_branches").insert(branches.map((b) => ({ user_id: userId, company_id: s.companyId, branch_id: b }))));
   // Şef: sorumlu olduğu bölümler (tablo yoksa atlanır)

@@ -33,7 +33,7 @@ export default async function PrintInvites() {
               <div className="flex items-center gap-2 mb-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo.svg" alt="" className="w-8 h-8 object-contain" />
-                <b className="text-[13px]">MB Personel uygulaması</b>
+                <b className="text-[13px]">MB Dental ERP</b>
               </div>
               <div className="font-semibold text-[14px]">{i.display_name}</div>
               <div className="text-[#5A6878]">{e?.departments?.name ?? ""}</div>

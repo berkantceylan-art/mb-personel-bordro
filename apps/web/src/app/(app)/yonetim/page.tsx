@@ -77,6 +77,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                             <select name="role" defaultValue={m.role} aria-label="Rol" className="h-9 rounded-md border border-[#D5DEE8] px-2 text-xs">{Object.entries(ROLE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
                             <label className="flex gap-1 items-center text-xs"><input type="checkbox" name="all_branches" defaultChecked={m.all_branches} />Tüm şubeler</label>
                             {(m.role === "owner" || m.role === "accountant") && <label className="flex gap-1 items-center text-xs" title="Mobilde patron ekranı: maaş yükü, SGK, devamsızlık, giren-çıkan"><input type="checkbox" name="is_boss" defaultChecked={(m as { is_boss?: boolean }).is_boss === true} />Patron ekranı</label>}
+                            {m.role !== "owner" && m.role !== "site_editor" && <label className="flex gap-1 items-center text-xs" title="Aynı kullanıcı adı ve şifreyle mbdentaire.com yönetim paneline de girebilir"><input type="checkbox" name="site_access" defaultChecked={(m as { site_access?: boolean }).site_access === true} />Web sitesi yönetimi</label>}
                             {(branches ?? []).length > 1 && (branches ?? []).map((b) => (
                               <label key={b.id} className="flex gap-1 items-center text-xs"><input type="checkbox" name="branch_id" value={b.id} defaultChecked={myBranches.has(b.id)} />{b.name}</label>
                             ))}

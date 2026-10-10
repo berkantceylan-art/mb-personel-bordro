@@ -180,7 +180,7 @@ function grid(d: LucaData, department?: string) {
 export async function lucaXlsx(d: LucaData, department?: string): Promise<ArrayBuffer> {
   const { rows, merges, widths } = grid(d, department);
   const wb = new ExcelJS.Workbook();
-  wb.creator = "MB Personel & Bordro";
+  wb.creator = "MB Dental ERP";
   const ws = wb.addWorksheet("Sheet1", { pageSetup: { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
   widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
   rows.forEach((r, ri) => r?.forEach((v, ci) => { if (v !== undefined) ws.getCell(ri + 1, ci + 1).value = v; }));

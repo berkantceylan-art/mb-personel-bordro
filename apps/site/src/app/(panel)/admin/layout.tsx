@@ -81,6 +81,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <p className="text-xs text-white/55">Site yönetimi</p>
           </div>
         </div>
+        {user.erpRoles.length > 0 && process.env.NEXT_PUBLIC_ERP_URL && (
+          <a
+            href="/auth/erp"
+            className="mx-3 mb-3 flex shrink-0 items-center justify-between rounded-lg bg-white/10 px-3 py-2.5 text-sm font-semibold hover:bg-white/20"
+            title="Aynı oturumla ERP'ye geçin: İK, bordro ve yetkili olduğunuz tüm modüller"
+          >
+            ERP paneline geç <span aria-hidden="true">↗</span>
+          </a>
+        )}
         <nav aria-label="Yönetim" className="admin-nav flex gap-1 overflow-x-auto px-3 pb-3 text-sm lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-0 lg:overflow-y-auto lg:overflow-x-visible">
           {NAV.map((group) => (
             <div key={group.title} className="contents lg:mb-3 lg:block">
@@ -111,9 +120,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/tr" className="hover:text-white" target="_blank">
               Siteyi aç
             </Link>
-            <Link href="/giris?kim=personel" className="hover:text-white" title="Şifrenizle bordro / ERP uygulamasına geçin">
-              Bordro / ERP
-            </Link>
+
             <form action={signOut}>
               <button type="submit" className="hover:text-white">
                 Çıkış

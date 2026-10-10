@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
           <img src="/logo.svg" alt="MB Dental logosu" className="w-12 h-12 object-contain" />
           <div>
             <h1 className="font-display font-bold text-lg text-brand-800">Şifremi unuttum</h1>
-            <p className="text-sm text-muted">Personel &amp; Bordro</p>
+            <p className="text-sm text-muted">MB Dental ERP</p>
           </div>
         </div>
 

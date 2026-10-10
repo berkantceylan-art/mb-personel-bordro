@@ -3,9 +3,9 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "MB Personel",
-    short_name: "MB Personel",
-    description: "MB Dental personel uygulaması: giriş-çıkış, maaş, izin, avans, duyurular ve mesajlar",
+    name: "MB Dental ERP",
+    short_name: "MB ERP",
+    description: "MB Dental ERP: İK, bordro, puantaj, giriş-çıkış, maaş, izin, avans, duyurular ve mesajlar",
     start_url: "/",
     scope: "/",
     display: "standalone",

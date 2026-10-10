@@ -3,10 +3,10 @@ import "./globals.css";
 import { ServiceWorker } from "@/components/Pwa";
 
 export const metadata: Metadata = {
-  title: "MB Dental · Personel & Bordro",
-  description: "Personel, puantaj, avans ve bordro yönetimi",
-  applicationName: "MB Personel",
-  appleWebApp: { capable: true, title: "MB Personel", statusBarStyle: "black-translucent" },
+  title: "MB Dental ERP",
+  description: "MB Dental ERP: insan kaynakları, bordro, puantaj, izin, avans ve tüm modüller",
+  applicationName: "MB Dental ERP",
+  appleWebApp: { capable: true, title: "MB ERP", statusBarStyle: "black-translucent" },
   icons: { icon: [{ url: "/logo.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192" }], apple: "/apple-touch-icon.png" },
   formatDetection: { telephone: false },
 };

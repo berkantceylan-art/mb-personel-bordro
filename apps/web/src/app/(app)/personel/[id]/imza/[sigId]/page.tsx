@@ -35,7 +35,7 @@ export default async function SignedDocPage({ params }: { params: Promise<{ id: 
           <div className="text-[10px] text-muted break-all">{sig.user_agent}</div>
         </div>
       </div>
-      <p className="text-[10px] text-muted mt-6">Bu belge personel tarafından MB Personel uygulamasında okunarak dijital imzalanmıştır; imza görüntüsü, metin ve zaman damgası sistemde saklanır (kayıt no {sig.id}).</p>
+      <p className="text-[10px] text-muted mt-6">Bu belge personel tarafından MB Dental ERP uygulamasında okunarak dijital imzalanmıştır; imza görüntüsü, metin ve zaman damgası sistemde saklanır (kayıt no {sig.id}).</p>
       <script dangerouslySetInnerHTML={{ __html: `document.querySelector('[data-print]').addEventListener('click',function(e){e.preventDefault();window.print();});` }} />
     </main>
   );
