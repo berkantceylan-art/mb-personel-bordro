@@ -106,7 +106,10 @@ export function MobileNav({ role, companyName, badges, boss = false, siteAccess 
             <div className="w-10 h-1 rounded-full bg-line mx-auto mb-3" />
             {groups.map((g) => (
               <div key={g.group} className="mb-3">
-                <div className="text-[11px] uppercase tracking-[0.08em] text-muted px-1 pb-1">{g.group}</div>
+                <div className="text-[11px] uppercase tracking-[0.08em] text-muted px-1 pb-1 flex justify-between">
+                  {g.group}
+                  {g.slug !== "genel" && g.slug !== "benim" && <Link href={`/modul/${g.slug}`} onClick={() => setMenu(false)} className="normal-case tracking-normal text-brand-600 font-semibold">Modül sayfası →</Link>}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {g.items.map((i) => i.raw ? (
                     <a key={i.href} href={i.href} className="rounded-xl px-3 py-3 text-sm font-semibold bg-ground text-ink flex justify-between">{i.label}<span aria-hidden="true">↗</span></a>

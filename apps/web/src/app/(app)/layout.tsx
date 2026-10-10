@@ -20,7 +20,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: pref } = await supabaseBig.from("notification_prefs").select("big_text").eq("user_id", s.userId).maybeSingle();
   const big = (pref as { big_text?: boolean } | null)?.big_text === true;
   const path = (await headers()).get("x-pathname") ?? "/";
-  const allowKargo = s.logistics && path.startsWith("/kargo");
+  // Laboratuvar / kargo yetkisi olan personel: kargo, iş kayıt ve modül sayfaları
+  const allowKargo = (s.logistics && ["/kargo", "/isler"].some((p) => path.startsWith(p))) || path.startsWith("/modul/");
   if (s.role === "employee" && !allowKargo && !EMPLOYEE_PATHS.some((p) => path.startsWith(p))) redirect("/benim");
   // Yalnız web sitesi editörü: ERP'de iletişim modülleri ve site yönetimi bağlantısı
   if (s.role === "site_editor" && !allowKargo && !EDITOR_PATHS.some((p) => path.startsWith(p))) redirect("/duyurular");
