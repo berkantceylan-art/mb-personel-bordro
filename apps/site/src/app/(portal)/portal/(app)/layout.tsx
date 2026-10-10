@@ -4,6 +4,9 @@ import { ensurePortalAccount, portalSignOut } from "@/lib/portal-actions";
 import { PORTAL_UI, portalContext, portalLocale } from "@/lib/portal";
 import { PRICE_UI } from "@/lib/prices";
 import { SHIP_UI } from "@/lib/shipments-portal";
+import { PX } from "@/lib/portal-extra-ui";
+import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +19,21 @@ export default async function PortalAppLayout({ children }: { children: React.Re
   const locale = await portalLocale(ctx?.account);
   const ui = PORTAL_UI[locale];
   const acc = ctx?.account;
+  // Okunmamış bildirim sayısı (son "Bildirimler" ziyaretinden sonra laboratuvardan gelenler)
+  let unread = 0;
+  if (acc?.status === "active") {
+    const seen = decodeURIComponent((await cookies()).get("portal-bildirim")?.value ?? "") || new Date(Date.now() - 14 * 86400000).toISOString();
+    const supabase = await createClient();
+    const [a, b] = await Promise.all([
+      supabase.from("portal_case_events").select("id, portal_cases!inner(account_id)", { count: "exact", head: true }).eq("portal_cases.account_id", acc.id).eq("from_lab", true).gt("created_at", seen),
+      supabase.from("shipment_events").select("id, shipments!inner(portal_account_id)", { count: "exact", head: true }).eq("shipments.portal_account_id", acc.id).neq("source", "portal").not("status", "is", null).gt("created_at", seen),
+    ]);
+    unread = (a.count ?? 0) + (b.count ?? 0);
+  }
 
   return (
     <div className="min-h-dvh bg-porcelain">
-      <header className="bg-navy text-white">
+      <header className="bg-navy text-white print:hidden">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4 sm:px-6">
           <Link href="/portal" className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -33,6 +47,10 @@ export default async function PortalAppLayout({ children }: { children: React.Re
             <nav aria-label={ui.title} className="flex flex-wrap gap-1 text-sm">
               <Link href="/portal" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
                 {ui.nav.cases}
+              </Link>
+              <Link href="/portal/bildirimler" className="relative rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
+                {PX[locale].notifNav}
+                {unread > 0 && <span className="ml-1.5 rounded-full bg-smile px-1.5 py-0.5 text-[11px] font-bold text-navy">{unread > 99 ? "99+" : unread}</span>}
               </Link>
               <Link href="/portal/paketler" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
                 {SHIP_UI[locale].nav}
