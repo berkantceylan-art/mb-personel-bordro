@@ -930,3 +930,49 @@ export async function savePriceList(rows: PriceInput[]): Promise<{ ok?: string; 
   revalidatePath("/portal/fiyat-listesi");
   return { ok: `Fiyat listesi kaydedildi (${clean.length} satır).` };
 }
+
+// ---------------------------------------------------------------------
+// Ekibimiz ← bordro/İK personel kaydı
+// ---------------------------------------------------------------------
+type HrEmployee = { id: string; first_name: string; last_name: string; department_name: string | null; position_name: string | null; team_id: string | null };
+
+export async function importTeamFromHr(form: FormData) {
+  await requireSiteEditor();
+  const ids = new Set(form.getAll("employee").map(String).filter((x) => /^[0-9a-f-]{36}$/.test(x)));
+  const createDeps = form.get("create_departments") === "on";
+  if (!ids.size) redirect(`/admin/ekip/bordro?hata=${encodeURIComponent("Hiç çalışan seçilmedi.")}`);
+  const supabase = await createClient();
+  const { data: list, error } = await supabase.rpc("site_hr_employees");
+  if (error) redirect(`/admin/ekip/bordro?hata=${encodeURIComponent(`Personel listesi okunamadı: ${error.message}`)}`);
+  const chosen = ((list ?? []) as HrEmployee[]).filter((e) => ids.has(e.id) && !e.team_id);
+
+  // Departman eşleştirme (Türkçe ada göre, büyük/küçük harf duyarsız)
+  const { data: deps } = await supabase.from("cms_departments").select("id, name").is("deleted_at", null);
+  const depByName = new Map(((deps ?? []) as { id: string; name: I18nText }[]).map((d) => [(d.name.tr ?? "").toLocaleLowerCase("tr"), d.id]));
+  const depId = async (name: string | null): Promise<string | null> => {
+    if (!name) return null;
+    const key = name.toLocaleLowerCase("tr");
+    if (depByName.has(key)) return depByName.get(key)!;
+    if (!createDeps) return null;
+    const { data } = await supabase.from("cms_departments").insert({ name: { tr: name }, sort: await nextSort("cms_departments") }).select("id").single();
+    if (data?.id) depByName.set(key, data.id as string);
+    return (data?.id as string | undefined) ?? null;
+  };
+
+  let sort = await nextSort("cms_team");
+  let done = 0;
+  for (const e of chosen) {
+    const { error: err } = await supabase.from("cms_team").insert({
+      name: `${e.first_name} ${e.last_name}`.trim().slice(0, 120),
+      role: e.position_name ? { tr: e.position_name } : {},
+      department_id: await depId(e.department_name),
+      employee_id: e.id,
+      is_active: true,
+      sort: (sort += 10),
+    });
+    if (!err) done++;
+  }
+  refresh("cms_team");
+  refresh("cms_departments");
+  redirect(`/admin/ekip?ok=${encodeURIComponent(`${done} çalışan bordrodan aktarıldı. Fotoğraflarını düzenleme ekranından ekleyebilirsiniz.`)}`);
+}

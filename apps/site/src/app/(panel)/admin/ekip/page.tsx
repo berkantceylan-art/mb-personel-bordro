@@ -25,7 +25,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   const toRow = (r: TeamMember) => ({
     id: r.id,
     title: r.name,
-    subtitle: t(r.role, "tr"),
+    subtitle: [t(r.role, "tr"), r.employee_id ? "Bordroya bağlı" : ""].filter(Boolean).join(" · "),
     thumb: mediaUrl(r.photo_path),
     round: true,
     active: r.is_active,
@@ -39,6 +39,11 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   return (
     <>
       <PageHead title="Çalışanlar" lead="Sitede “Ekibimiz” sayfasında departmanlarına göre gruplanarak görünür. Sıralama departman içinde yapılır." action={{ href: "/admin/ekip/yeni", label: "Yeni çalışan" }} />
+      <p className="-mt-3 mb-5 text-sm">
+        <a href="/admin/ekip/bordro" className="font-semibold text-navy underline">
+          Bordro / personel kayıtlarından aktar →
+        </a>
+      </p>
       <Flash ok={ok} hata={hata ?? (error ? "Çalışan tablosu henüz kurulmamış (SQL dosyası çalıştırılmalı)." : undefined)} />
       <FilterTabs base="/admin/ekip" current={durum} counts={counts} />
       <SimpleList table="cms_team" editBase="/admin/ekip" trash={durum === "cop"} empty={durum === "cop" ? "Çöp kutusu boş." : "Henüz çalışan eklenmemiş."} groups={groups} />

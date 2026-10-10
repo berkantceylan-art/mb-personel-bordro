@@ -82,6 +82,11 @@ export function TeamMemberForm({ member, departments }: { member?: TeamMember; d
       }
     >
       {member && <input type="hidden" name="id" value={member.id} />}
+      {member?.employee_id && (
+        <p className="rounded-xl bg-smile/10 px-4 py-3 text-sm text-navy">
+          Bu kayıt bordrodaki personel kartına bağlı: ad ve görev (Türkçe) orada değişince burada da güncellenir; çalışan ayrılınca sitede otomatik gizlenir.
+        </p>
+      )}
       <div className="grid gap-4 rounded-xl border border-gypsum bg-white p-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-semibold text-navy">
           Ad soyad <span className="sr-only">(zorunlu)</span>
