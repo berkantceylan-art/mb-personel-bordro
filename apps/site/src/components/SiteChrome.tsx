@@ -39,10 +39,10 @@ export function AnnouncementBar({ items, locale }: { items: Announcement[]; loca
 const FAQ_LABEL: Record<Locale, string> = { tr: "Sıkça sorulanlar", en: "FAQ", fr: "FAQ" };
 const ABOUT: Record<Locale, string> = { tr: "Hakkımızda", en: "About", fr: "À propos" };
 
-const NAV_EXTRA: Record<Locale, { team: string; faq: string; cases: string; menu: string; close: string; portal: string }> = {
-  tr: { team: "Ekibimiz", faq: "SSS", cases: "Vakalar", menu: "Menü", close: "Menüyü kapat", portal: "Hekim portalı" },
-  en: { team: "Team", faq: "FAQ", cases: "Cases", menu: "Menu", close: "Close menu", portal: "Doctor portal" },
-  fr: { team: "Équipe", faq: "FAQ", cases: "Cas", menu: "Menu", close: "Fermer le menu", portal: "Portail praticien" },
+const NAV_EXTRA: Record<Locale, { team: string; faq: string; cases: string; menu: string; close: string; portal: string; staff: string }> = {
+  tr: { team: "Ekibimiz", faq: "SSS", cases: "Vakalar", menu: "Menü", close: "Menüyü kapat", portal: "Hekim portalı", staff: "Personel girişi" },
+  en: { team: "Team", faq: "FAQ", cases: "Cases", menu: "Menu", close: "Close menu", portal: "Doctor portal", staff: "Staff sign-in" },
+  fr: { team: "Équipe", faq: "FAQ", cases: "Cas", menu: "Menu", close: "Fermer le menu", portal: "Portail praticien", staff: "Accès personnel" },
 };
 
 /** altPath: dil değiştirince aynı sayfada kalmak için dil önekinden sonraki yol (ör. "/urunler/zirkonyum") */
@@ -98,6 +98,7 @@ export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; 
               { href: `/${locale}/vaka-gonder`, label: d.nav.sendCase },
               { href: "/portal", label: x.portal },
               { href: "/giris", label: d.nav.login },
+              { href: "/giris?kim=personel", label: x.staff },
             ]}
             labels={{ menu: x.menu, close: x.close }}
           />
@@ -261,6 +262,9 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
         <div className="border-t border-white/10">
           <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-white/50 sm:px-6">
             © {new Date().getFullYear()} MB Dental. {d.footer.rights}
+            <Link href="/giris?kim=personel" className="float-right font-semibold text-white/70 hover:text-smile">
+              {NAV_EXTRA[locale].staff} →
+            </Link>
           </p>
         </div>
       </footer>

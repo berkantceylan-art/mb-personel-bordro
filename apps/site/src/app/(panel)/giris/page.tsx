@@ -16,11 +16,13 @@ const DOORS = [
   { name: "Yurtdışı hekim", note: "Fransa ve diğer ülkeler" },
   { name: "Klinik", note: "Çok hekimli klinik ve hastaneler" },
   { name: "Aracı kuruluş", note: "Hekimlerden vaka toplayan kuruluşlar" },
-  { name: "Personel ve ERP", note: "Laboratuvar ekibi ve yönetim" },
+  { name: "Personel", note: "Bordro, izin, avans, puantaj: kendi ekranınız" },
+  { name: "Yönetim ve ERP", note: "Laboratuvar yönetimi" },
 ];
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ sonra?: string; hata?: string }> }) {
-  const { sonra, hata } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ sonra?: string; hata?: string; kim?: string }> }) {
+  const { sonra, hata, kim } = await searchParams;
+  const staff = kim === "personel";
   const next = sonra && sonra.startsWith("/") && !sonra.startsWith("//") ? sonra : "";
   return (
     <main className="grid min-h-dvh lg:grid-cols-2">
@@ -45,9 +47,19 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       </section>
       <section className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
-          <h2 className="display text-3xl font-semibold text-navy">Giriş yap</h2>
+          <div role="tablist" aria-label="Giriş türü" className="mb-6 grid grid-cols-2 rounded-full bg-gypsum/60 p-1 text-sm font-semibold">
+            <Link role="tab" aria-selected={!staff} href={next ? `/giris?sonra=${encodeURIComponent(next)}` : "/giris"} className={`rounded-full px-4 py-2 text-center ${!staff ? "bg-white text-navy shadow-sm" : "text-slate hover:text-navy"}`}>
+              Hekim / yönetim
+            </Link>
+            <Link role="tab" aria-selected={staff} href="/giris?kim=personel" className={`rounded-full px-4 py-2 text-center ${staff ? "bg-white text-navy shadow-sm" : "text-slate hover:text-navy"}`}>
+              Personel
+            </Link>
+          </div>
+          <h2 className="display text-3xl font-semibold text-navy">{staff ? "Personel girişi" : "Giriş yap"}</h2>
+          {staff && <p className="mt-2 text-sm text-slate">Bordro, izin, avans, puantaj ve belgeleriniz için kendi ekranınıza geçersiniz. Bordro uygulamasındaki kullanıcı adı ve şifrenizi kullanın.</p>}
           {hata && ERRORS[hata] && <p className="mt-4 rounded-lg bg-warn-bg px-3 py-2 text-sm text-warn">{ERRORS[hata]}</p>}
-          <LoginForm next={next} />
+          <LoginForm key={staff ? "personel" : "genel"} next={next} staff={staff} />
+          {!staff && (
           <div className="mt-8 rounded-2xl border border-gypsum bg-white p-5">
             <p className="font-semibold text-navy">Hesabınız yok mu?</p>
             <p className="mt-1 text-sm text-slate">Hekim, klinik ve aracı kuruluşlar portal hesabı açıp vakalarını çevrim içi gönderebilir.</p>
@@ -63,6 +75,15 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               </Link>
             </div>
           </div>
+          )}
+          {staff && process.env.NEXT_PUBLIC_ERP_URL && (
+            <p className="mt-6 text-sm text-slate">
+              İlk kez mi giriyorsunuz?{" "}
+              <a href={`${process.env.NEXT_PUBLIC_ERP_URL.replace(/\/+$/, "")}/davet`} className="font-semibold text-blue hover:underline">
+                Davet kodumla hesap oluştur
+              </a>
+            </p>
+          )}
         </div>
       </section>
     </main>

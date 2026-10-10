@@ -111,6 +111,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/tr" className="hover:text-white" target="_blank">
               Siteyi aç
             </Link>
+            <Link href="/giris?kim=personel" className="hover:text-white" title="Şifrenizle bordro / ERP uygulamasına geçin">
+              Bordro / ERP
+            </Link>
             <form action={signOut}>
               <button type="submit" className="hover:text-white">
                 Çıkış
