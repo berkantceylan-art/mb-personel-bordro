@@ -97,9 +97,31 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
   },
   { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg", roles: MANAGERS }, { label: "Sağlık", href: "/saglik", roles: ["owner", "hr", "safety"] }, { label: "İş Kanunu uyumu", href: "/is-hukuku", roles: ["owner", "accountant", "hr"] }, { label: "KVKK", href: "/kvkk", roles: ["owner", "hr"] }] },
   { group: "Analiz", items: [{ label: "Raporlar", href: "/raporlar", roles: MANAGERS }, { label: "Excel'den Aktar", href: "/ice-aktar", roles: PAY }] },
+  {
+    group: "Laboratuvar",
+    items: [
+      { label: "İş kayıt", href: "/isler/yeni", logistics: true },
+      { label: "İş listesi", href: "/isler", logistics: true },
+      { label: "Prova / teslim listesi", href: "/isler/prova", logistics: true },
+      { label: "Hekim / hastane", href: "/isler/hekimler", logistics: true },
+      { label: "Protez / ürün", href: "/isler/urunler", logistics: true },
+      { label: "Laboratuvar listeleri", href: "/isler/ayarlar", logistics: true },
+    ],
+  },
   { group: "Web sitesi", items: [{ label: "Site yönetimi (mbdentaire.com)", href: "/site-gecis", site: true, raw: true }] },
   { group: "Sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", roles: ["owner", "hr", "branch_manager"] }, { label: "Yönetim", href: "/yonetim", roles: ["owner", "hr"] }, { label: "Mevzuat", href: "/mevzuat", roles: ["owner", "accountant", "hr"] }] },
 ];
+
+const ALL_HREFS = () => NAV.flatMap((g) => g.items.map((i) => i.href));
+/** Yol için en uygun (en uzun eşleşen) menü bağlantısı */
+export function activeHref(path: string): string | null {
+  let best: string | null = null;
+  for (const h of ALL_HREFS()) {
+    const hit = h === "/" ? path === "/" : path === h || path.startsWith(`${h}/`);
+    if (hit && (!best || h.length > best.length)) best = h;
+  }
+  return best;
+}
 
 /** Kullanıcının yetkili olduğu modüller: rol + web sitesi erişimi */
 export function visibleNav(role: string, siteAccess = false, logistics = false) {
@@ -109,7 +131,8 @@ export function visibleNav(role: string, siteAccess = false, logistics = false) 
 export function Sidebar({ companyName, role, siteAccess = false, logistics = false, badges = {} }: { companyName: string; role: string; siteAccess?: boolean; logistics?: boolean; badges?: Record<string, number> }) {
   const path = usePathname();
   const groups = visibleNav(role, siteAccess, logistics);
-  const isActive = (href: string) => (href === "/" || href === "/benim" || href === "/kargo" ? path === href || (href === "/kargo" && /^\/kargo\/(?!okut|kurye)/.test(path)) : path.startsWith(href));
+  const current = activeHref(path);
+  const isActive = (href: string) => href === current;
   return (
     <nav aria-label="Ana menü" className="print:hidden hidden md:flex md:w-62 md:shrink-0 bg-brand-900 text-[#C9D6E5] flex-col gap-5 px-3.5 py-5">
       <div className="flex items-center gap-3 px-2">

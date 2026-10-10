@@ -85,9 +85,10 @@ export default async function ShipmentPage({ params, searchParams }: { params: P
               <button className="h-11 px-3 rounded-[10px] border border-[#D5DEE8] bg-white text-sm font-semibold text-brand-700">Uygula</button>
             </form>
             {x.direction === "in" && (x.status === "opened" || x.status === "arrived") && (
-              <p className="text-sm rounded-lg bg-[#EAF2FB] text-brand-700 p-3">
-                Paket açıldıysa içerik ve açılış fotoğrafını ekleyin, sonra <b>İş kaydı açıldı</b> durumuna alın. İş kayıt ekranı hazır olduğunda buradan tek tıkla, bilgileri dolu olarak açılacak.
-              </p>
+              <div className="rounded-lg bg-[#EAF2FB] p-3 flex flex-wrap items-center gap-3">
+                <p className="text-sm text-brand-700 flex-1 min-w-56">Paketi açınca açılış fotoğrafını çekin, sonra iş kaydını açın: hekim, gelen malzeme ve portal vakası dolu gelir.</p>
+                <Link href={`/isler/yeni?gonderi=${x.id}`} className="h-11 px-4 inline-flex items-center rounded-[10px] bg-[#E53935] text-white font-semibold">İş kaydı aç</Link>
+              </div>
             )}
           </Card>
 
