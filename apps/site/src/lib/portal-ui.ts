@@ -24,6 +24,24 @@ export type PortalAccount = {
   price_requested_at?: string | null;
   price_granted_at?: string | null;
   logo_path?: string | null;
+  website?: string | null;
+  instagram?: string | null;
+  whatsapp?: string | null;
+  contact_email?: string | null;
+  address?: string | null;
+  district?: string | null;
+  postal_code?: string | null;
+  delivery_address?: string | null;
+  delivery_note?: string | null;
+  working_hours?: string | null;
+  invoice_title?: string | null;
+  tax_office?: string | null;
+  tax_no?: string | null;
+  invoice_address?: string | null;
+  e_invoice?: boolean;
+  shade_system?: string | null;
+  preferred_carrier?: string | null;
+  about?: string | null;
 };
 
 export type PortalCase = {

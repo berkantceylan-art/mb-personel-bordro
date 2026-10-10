@@ -5,21 +5,22 @@ import { ACCT_UI } from "./portal-account-ui";
 import { PX } from "./portal-extra-ui";
 import { PORTAL_UI } from "./portal-ui";
 import { PRICE_UI } from "./prices";
+import { PROFILE_UI } from "./portal-profile-ui";
 import { SHIP_UI } from "./shipments-portal";
 import { TEAM_UI } from "./portal-team-ui";
 
 const T: Record<Locale, { cases: string; ship: string; account: string; team: string; d: Record<string, string> }> = {
   tr: {
     cases: "Vakalar", ship: "Kargo", account: "Hesap", team: "Ekip",
-    d: { list: "Gönderdiğiniz vakalar ve aşamaları", new: "Dosya yükleyin ya da ölçü gönderin", notif: "Laboratuvardan gelen güncellemeler", ship: "Kargo bildirin, kurye isteyin, paketleri izleyin", acct: "İşler, cari ekstre ve proforma", price: "Güncel ürün fiyatları", team: "Hesaptaki kişiler, davet kodu, logo", clients: "Vaka gönderdiğiniz hekim ve klinikler" },
+    d: { profile: "Adres, fatura, ekip, e-posta ve şifre", list: "Gönderdiğiniz vakalar ve aşamaları", new: "Dosya yükleyin ya da ölçü gönderin", notif: "Laboratuvardan gelen güncellemeler", ship: "Kargo bildirin, kurye isteyin, paketleri izleyin", acct: "İşler, cari ekstre ve proforma", price: "Güncel ürün fiyatları", team: "Hesaptaki kişiler, davet kodu, logo", clients: "Vaka gönderdiğiniz hekim ve klinikler" },
   },
   en: {
     cases: "Cases", ship: "Shipping", account: "Account", team: "Team",
-    d: { list: "Your cases and their stages", new: "Upload files or send an impression", notif: "Updates from the lab", ship: "Announce parcels, book a courier, track", acct: "Jobs, statement and pro forma", price: "Current product prices", team: "People, invitation codes, logo", clients: "Dentists and clinics you send cases for" },
+    d: { profile: "Address, billing, team, e-mail and password", list: "Your cases and their stages", new: "Upload files or send an impression", notif: "Updates from the lab", ship: "Announce parcels, book a courier, track", acct: "Jobs, statement and pro forma", price: "Current product prices", team: "People, invitation codes, logo", clients: "Dentists and clinics you send cases for" },
   },
   fr: {
     cases: "Cas", ship: "Expédition", account: "Compte", team: "Équipe",
-    d: { list: "Vos cas et leurs étapes", new: "Téléversez des fichiers ou envoyez une empreinte", notif: "Mises à jour du laboratoire", ship: "Annoncez un colis, demandez un coursier, suivez", acct: "Travaux, relevé et proforma", price: "Prix actuels des produits", team: "Membres, codes d’invitation, logo", clients: "Praticiens et cabinets pour lesquels vous envoyez des cas" },
+    d: { profile: "Adresse, facturation, équipe, e-mail et mot de passe", list: "Vos cas et leurs étapes", new: "Téléversez des fichiers ou envoyez une empreinte", notif: "Mises à jour du laboratoire", ship: "Annoncez un colis, demandez un coursier, suivez", acct: "Travaux, relevé et proforma", price: "Prix actuels des produits", team: "Membres, codes d’invitation, logo", clients: "Praticiens et cabinets pour lesquels vous envoyez des cas" },
   },
 };
 
@@ -40,6 +41,7 @@ export function portalNav(locale: Locale, accountType: string): NavGroup[] {
     {
       slug: "hesap", title: t.account, short: t.account,
       items: [
+        { href: "/portal/profil", label: PROFILE_UI[locale].nav, desc: t.d.profile },
         { href: "/portal/hesap", label: ACCT_UI[locale].nav, desc: t.d.acct },
         { href: "/portal/fiyat-listesi", label: PRICE_UI[locale].nav, desc: t.d.price },
       ],
