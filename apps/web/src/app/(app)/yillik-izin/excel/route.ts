@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   await logAccess(supabase, s.companyId, s.userId, "export", "leave_report", null, tur);
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "MB Personel & Bordro";
+  wb.creator = "MB Dental ERP";
   const ws = wb.addWorksheet(TITLES[tur]!.slice(0, 30));
   const cols = (c: Array<[string, string, number, string?]>) => { ws.columns = c.map(([header, key, width, numFmt]) => ({ header, key, width, style: numFmt ? { numFmt } : {} })); };
   const base = (e: (typeof emps)[number]) => ({ ad: `${e.first_name} ${e.last_name}`, kart: e.card_no ?? "", bolum: e.dept });

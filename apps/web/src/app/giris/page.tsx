@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -11,6 +11,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("hata") === "gecis") setError("Tek girişle geçiş yapılamadı. Lütfen şifrenizle giriş yapın.");
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,7 +39,7 @@ export default function LoginPage() {
           <img src="/logo.svg" alt="MB Dental logosu" className="w-12 h-12 object-contain" />
           <div>
             <h1 className="font-display font-bold text-lg text-brand-800">MB DENTAL</h1>
-            <p className="text-sm text-muted">Personel &amp; Bordro</p>
+            <p className="text-sm text-muted">ERP · İK, bordro ve tüm modüller</p>
           </div>
         </div>
         <label className="flex flex-col gap-1.5 text-sm text-muted">

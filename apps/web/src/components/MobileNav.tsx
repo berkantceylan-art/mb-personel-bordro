@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { NAV } from "./Sidebar";
+import { visibleNav } from "./Sidebar";
 import { SignOutForm } from "./SignOut";
 
 type Tab = { label: string; href: string; icon: string };
@@ -50,7 +50,7 @@ const Icon = ({ name }: { name: string }) => (
   </svg>
 );
 
-export function MobileNav({ role, companyName, badges, boss = false }: { role: string; companyName: string; badges: Record<string, number>; boss?: boolean }) {
+export function MobileNav({ role, companyName, badges, boss = false, siteAccess = false }: { role: string; companyName: string; badges: Record<string, number>; boss?: boolean; siteAccess?: boolean }) {
   const path = usePathname();
   const [menu, setMenu] = useState(false);
   useEffect(() => setMenu(false), [path]);
@@ -71,7 +71,7 @@ export function MobileNav({ role, companyName, badges, boss = false }: { role: s
         { label: "Bildirimler", href: "/bildirimler", icon: "bell" },
       ];
   const active = (href: string) => (href === "/" ? path === "/" : href === "/benim" ? path === "/benim" : path.startsWith(href));
-  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(role)) })).filter((g) => g.items.length);
+  const groups = visibleNav(role, siteAccess);
   const badge = (href: string) => badges[href] ?? 0;
 
   return (
@@ -107,7 +107,9 @@ export function MobileNav({ role, companyName, badges, boss = false }: { role: s
               <div key={g.group} className="mb-3">
                 <div className="text-[11px] uppercase tracking-[0.08em] text-muted px-1 pb-1">{g.group}</div>
                 <div className="grid grid-cols-2 gap-2">
-                  {g.items.map((i) => (
+                  {g.items.map((i) => i.raw ? (
+                    <a key={i.href} href={i.href} className="rounded-xl px-3 py-3 text-sm font-semibold bg-ground text-ink flex justify-between">{i.label}<span aria-hidden="true">↗</span></a>
+                  ) : (
                     <Link key={i.href} href={i.href} className={`rounded-xl px-3 py-3 text-sm font-semibold flex justify-between ${active(i.href) ? "bg-[#EAF2FB] text-brand-700" : "bg-ground text-ink"}`}>
                       {i.label}
                       {badge(i.href) > 0 && <span className="text-accent-ink">{badge(i.href)}</span>}

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const rows = await loadRaises(year, dept);
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "MB Personel & Bordro";
+  wb.creator = "MB Dental ERP";
   const header = (ws: ExcelJS.Worksheet) => {
     const r = ws.getRow(1);
     r.font = { bold: true, color: { argb: "FFFFFFFF" } };

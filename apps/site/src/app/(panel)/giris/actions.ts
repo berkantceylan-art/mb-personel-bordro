@@ -29,7 +29,7 @@ export async function signIn(_: LoginState, form: FormData): Promise<LoginState>
   const editor = canManageSite(roles);
   const portal = !editor && (await isPortalUser());
   const erp = process.env.NEXT_PUBLIC_ERP_URL?.replace(/\/+$/, "");
-  const staff = roles.some((r) => r !== "site_editor");
+  const staff = (u?.erpRoles ?? []).length > 0;
 
   // Personel ekranı: açıkça istendiyse ya da hesabın sitede başka paneli yoksa
   if (erp && staff && (toStaff || (!editor && !portal))) {
