@@ -1,3 +1,4 @@
+import { requestOrigin } from "@/lib/origin";
 import { createPortalInvite, deletePortalInvite, removePortalMember } from "@/lib/portal-team-actions";
 import { TEAM_UI } from "@/lib/portal-team-ui";
 import { PORTAL_BUCKET, formatDate, portalContext, portalLocale } from "@/lib/portal";
@@ -28,7 +29,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   let logoUrl: string | null = null;
   const logoPath = (acc as { logo_path?: string | null }).logo_path;
   if (logoPath) logoUrl = (await supabase.storage.from(PORTAL_BUCKET).createSignedUrl(logoPath, 3600)).data?.signedUrl ?? null;
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const site = await requestOrigin();
   const card = "rounded-3xl bg-white p-6";
 
   return (

@@ -111,7 +111,7 @@ export const PORTAL_UI: Record<
       login: string;
       checkEmail: string;
       privacy: string;
-      errors: Record<"required" | "password" | "exists" | "server" | "disabled", string>;
+      errors: Record<"required" | "password" | "exists" | "server" | "disabled" | "email" | "weak", string>;
     };
   }
 > = {
@@ -188,6 +188,8 @@ export const PORTAL_UI: Record<
         exists: "Bu e-posta ile zaten bir hesap var. Giriş yapın ya da şifrenizi sıfırlayın.",
         server: "Başvuru şu an alınamadı. Lütfen bizi arayın ya da e-posta gönderin.",
         disabled: "Çevrim içi kayıt şu an kapalı. Başvurunuz için bize e-posta gönderin.",
+        email: "Onay e-postası şu an gönderilemedi. Birkaç dakika sonra tekrar deneyin ya da bizi arayın.",
+        weak: "Bu şifre çok zayıf ya da sızdırılmış şifreler listesinde. Harf, rakam ve işaret içeren farklı bir şifre seçin.",
       },
     },
   },
@@ -264,6 +266,8 @@ export const PORTAL_UI: Record<
         exists: "An account with this email already exists. Sign in or reset your password.",
         server: "We could not take your application right now. Please call or email us.",
         disabled: "Online sign-up is currently closed. Please email us to apply.",
+        email: "We could not send the confirmation email right now. Please try again in a few minutes or call us.",
+        weak: "This password is too weak or has appeared in a data breach. Choose a different one with letters, numbers and symbols.",
       },
     },
   },
@@ -340,6 +344,8 @@ export const PORTAL_UI: Record<
         exists: "Un compte existe déjà avec cet e-mail. Connectez-vous ou réinitialisez votre mot de passe.",
         server: "Votre demande n'a pas pu être envoyée. Appelez-nous ou écrivez-nous.",
         disabled: "L'inscription en ligne est fermée pour le moment. Écrivez-nous pour faire une demande.",
+        email: "Impossible d'envoyer l'e-mail de confirmation pour le moment. Réessayez dans quelques minutes ou appelez-nous.",
+        weak: "Ce mot de passe est trop faible ou figure dans une fuite de données. Choisissez-en un autre avec lettres, chiffres et symboles.",
       },
     },
   },

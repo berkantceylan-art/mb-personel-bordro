@@ -5,17 +5,17 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireSiteEditor } from "./auth";
 import { isLocale } from "./i18n";
+import { requestOrigin } from "./origin";
 import { CASE_STATUSES, PATIENT_REF_RE, portalContext } from "./portal";
 import { createClient } from "./supabase/server";
 
 const s = (f: FormData, k: string, max = 300) => String(f.get(k) ?? "").trim().slice(0, max);
 const TYPES = ["doctor_tr", "doctor_foreign", "clinic", "agency"];
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
 
 // ---------------------------------------------------------------------
 // Kayıt
 // ---------------------------------------------------------------------
-export type SignUpState = { error?: "required" | "password" | "exists" | "server" | "disabled"; sent?: boolean };
+export type SignUpState = { error?: "required" | "password" | "exists" | "server" | "disabled" | "email" | "weak"; sent?: boolean };
 
 export async function portalSignUp(_prev: SignUpState, form: FormData): Promise<SignUpState> {
   const type = s(form, "type", 20);
@@ -42,11 +42,14 @@ export async function portalSignUp(_prev: SignUpState, form: FormData): Promise<
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { portal }, emailRedirectTo: `${SITE}/auth/callback?sonra=/portal` },
+    options: { data: { portal }, emailRedirectTo: `${await requestOrigin()}/auth/callback?sonra=/portal` },
   });
   if (error) {
-    const m = error.message.toLowerCase();
-    if (m.includes("already") || m.includes("registered")) return { error: "exists" };
+    console.error("portal kayıt hatası:", error.status, error.code, error.message);
+    const m = `${error.code ?? ""} ${error.message}`.toLowerCase();
+    if (m.includes("already") || m.includes("registered") || m.includes("user_exists")) return { error: "exists" };
+    if (m.includes("weak") || m.includes("pwned") || m.includes("password")) return { error: "weak" };
+    if (m.includes("sending") || m.includes("email") || m.includes("rate limit") || m.includes("over_email")) return { error: "email" };
     if (m.includes("not allowed") || m.includes("disabled")) return { error: "disabled" };
     return { error: "server" };
   }
