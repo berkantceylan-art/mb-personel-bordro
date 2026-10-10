@@ -5,6 +5,7 @@ import { PORTAL_UI, portalContext, portalLocale } from "@/lib/portal";
 import { PRICE_UI } from "@/lib/prices";
 import { SHIP_UI } from "@/lib/shipments-portal";
 import { PX } from "@/lib/portal-extra-ui";
+import { ACCT_UI } from "@/lib/portal-account-ui";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
@@ -54,6 +55,9 @@ export default async function PortalAppLayout({ children }: { children: React.Re
               </Link>
               <Link href="/portal/paketler" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
                 {SHIP_UI[locale].nav}
+              </Link>
+              <Link href="/portal/hesap" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
+                {ACCT_UI[locale].nav}
               </Link>
               <Link href="/portal/fiyat-listesi" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
                 {PRICE_UI[locale].nav}

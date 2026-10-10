@@ -104,6 +104,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "İş listesi", href: "/isler", logistics: true },
       { label: "Prova / teslim listesi", href: "/isler/prova", logistics: true },
       { label: "Hekim / hastane", href: "/isler/hekimler", logistics: true },
+      { label: "Cari hesaplar", href: "/isler/cari", logistics: true },
       { label: "Protez / ürün", href: "/isler/urunler", logistics: true },
       { label: "Laboratuvar listeleri", href: "/isler/ayarlar", logistics: true },
     ],
