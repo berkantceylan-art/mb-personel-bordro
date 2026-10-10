@@ -41,7 +41,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHead title="Medya kütüphanesi" lead="Sitede kullanılan tüm görsel ve videolar. Formlarda “Kütüphaneden seç” ile buradan seçebilirsiniz." />
+      <PageHead title="Medya kütüphanesi" lead="Sitede kullanılan tüm görsel ve videolar. Formlarda “Kütüphaneden seç” ile buradan seçebilirsiniz." action={{ href: "/admin/medya/otomatik", label: "Görselleri içeriklere yerleştir" }} />
       <Flash ok={ok} hata={hata} />
       <MediaUploader />
 
