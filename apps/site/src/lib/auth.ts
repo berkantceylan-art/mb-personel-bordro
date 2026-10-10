@@ -34,6 +34,14 @@ export async function requireSiteEditor() {
   const u = await currentUser();
   if (!u) redirect("/giris?sonra=/admin");
   if (!canManageSite(u.roles)) redirect("/giris?hata=yetki");
+  // İki adımlı doğrulama açıksa (doğrulanmış TOTP faktörü) oturum aal2 olmalı
+  try {
+    const supabase = await createClient();
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2") redirect("/giris/dogrulama?sonra=/admin");
+  } catch (e) {
+    if ((e as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) throw e;
+  }
   return u;
 }
 
