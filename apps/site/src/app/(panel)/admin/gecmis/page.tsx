@@ -12,6 +12,12 @@ const TABLES: Record<string, { label: string; href: string }> = {
   cms_pages: { label: "Sayfa", href: "/admin/sayfalar" },
   cms_cases: { label: "Vaka", href: "/admin/vakalar" },
   site_settings: { label: "Site ayarları", href: "/admin/ayarlar" },
+  cms_posts: { label: "Blog yazısı", href: "/admin/blog" },
+  cms_testimonials: { label: "Hekim görüşü", href: "/admin/gorusler" },
+  cms_faqs: { label: "SSS", href: "/admin/sss" },
+  cms_departments: { label: "Departman", href: "/admin/departmanlar" },
+  cms_team: { label: "Çalışan", href: "/admin/ekip" },
+  cms_price_items: { label: "Fiyat kalemi", href: "/admin/fiyat-listesi" },
 };
 const ACTION: Record<string, { label: string; cls: string }> = {
   INSERT: { label: "eklendi", cls: "bg-ok-bg text-ok" },
@@ -66,7 +72,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
           {rows.map((r) => {
             const tbl = TABLES[r.table_name];
             const act = ACTION[r.action] ?? ACTION.UPDATE;
-            const link = r.table_name === "site_settings" ? tbl.href : r.action !== "DELETE" && r.row_id ? `${tbl.href}/${r.row_id}` : null;
+            const link = !tbl ? null : r.table_name === "site_settings" || r.table_name === "cms_price_items" ? tbl.href : r.action !== "DELETE" && r.row_id ? `${tbl.href}/${r.row_id}` : null;
             const changed = (r.changed ?? []).map((f) => FIELD[f] ?? f);
             const trashed = r.action === "UPDATE" && (r.changed ?? []).includes("deleted_at");
             return (
