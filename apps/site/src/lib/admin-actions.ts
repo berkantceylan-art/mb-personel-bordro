@@ -11,8 +11,8 @@ import { mediaUsage } from "./media-server";
 import { LOCALES, type I18nText } from "./i18n";
 import { createClient } from "./supabase/server";
 
-type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages" | "cms_cases" | "cms_faqs" | "cms_team" | "cms_departments";
-const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler", cms_pages: "/admin/sayfalar", cms_cases: "/admin/vakalar", cms_faqs: "/admin/sss", cms_team: "/admin/ekip", cms_departments: "/admin/departmanlar" };
+type Table = "cms_slides" | "cms_announcements" | "cms_products" | "cms_stories" | "cms_pages" | "cms_cases" | "cms_faqs" | "cms_team" | "cms_departments" | "cms_posts" | "cms_testimonials";
+const LIST_PATH: Record<Table, string> = { cms_slides: "/admin/slaytlar", cms_announcements: "/admin/duyurular", cms_products: "/admin/urunler", cms_stories: "/admin/hikayeler", cms_pages: "/admin/sayfalar", cms_cases: "/admin/vakalar", cms_faqs: "/admin/sss", cms_team: "/admin/ekip", cms_departments: "/admin/departmanlar", cms_posts: "/admin/blog", cms_testimonials: "/admin/gorusler" };
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -135,6 +135,7 @@ export async function saveAnnouncement(_prev: FormState, form: FormData): Promis
   const row: Record<string, unknown> = {
     kind: ["banner", "popup", "news"].includes(kind) ? kind : "banner",
     audience: audience === "portal" ? "portal" : "public",
+    target_types: audience === "portal" ? form.getAll("target_types").map(String).filter((x) => ["doctor_tr", "doctor_foreign", "clinic", "agency"].includes(x)) : [],
     title: i18n(form, "title"),
     body: i18n(form, "body"),
     link_href: safeHref(str(form, "link_href")),
@@ -201,6 +202,7 @@ export async function saveProduct(_prev: FormState, form: FormData): Promise<For
     seo_title: i18n(form, "seo_title"),
     seo_description: i18n(form, "seo_description"),
     is_active: form.get("is_active") === "on",
+    lead_days: str(form, "lead_days") ? Math.min(60, Math.max(0, Number.parseInt(str(form, "lead_days"), 10) || 0)) : null,
   };
   if (form.get("remove_image") === "on") row.image_path = null;
   if (image !== undefined) row.image_path = image;
@@ -336,7 +338,7 @@ export async function moveStory(form: FormData) {
 // Kurumsal sayfalar
 // ---------------------------------------------------------------------
 const PAGE_GROUP_KEYS = ["kurumsal", "teknoloji", "kalite", "diger"];
-const RESERVED = ["urunler", "iletisim", "vaka-gonder", "vakalar", "sss", "ekibimiz", "portal", "admin", "giris", "auth", "api", "sayfa"];
+const RESERVED = ["urunler", "iletisim", "vaka-gonder", "vakalar", "sss", "ekibimiz", "blog", "kariyer", "teslim-suresi", "yurtdisi", "portal", "admin", "giris", "auth", "api", "sayfa"];
 
 export async function savePage(_prev: FormState, form: FormData): Promise<FormState> {
   await requireSiteEditor();
@@ -365,6 +367,7 @@ export async function savePage(_prev: FormState, form: FormData): Promise<FormSt
     seo_description: i18n(form, "seo_description"),
     show_in_footer: form.get("show_in_footer") === "on",
     is_active: form.get("is_active") === "on",
+    publish_at: istanbul(str(form, "publish_at")),
   };
   if (form.get("remove_image") === "on") row.image_path = null;
   if (image !== undefined) row.image_path = image;
@@ -975,4 +978,90 @@ export async function importTeamFromHr(form: FormData) {
   refresh("cms_team");
   refresh("cms_departments");
   redirect(`/admin/ekip?ok=${encodeURIComponent(`${done} çalışan bordrodan aktarıldı. Fotoğraflarını düzenleme ekranından ekleyebilirsiniz.`)}`);
+}
+
+// ---------------------------------------------------------------------
+// Blog
+// ---------------------------------------------------------------------
+const POST_CATS = ["rehber", "vaka", "teknoloji", "haber", "malzeme"];
+
+export async function savePost(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const supabase = await createClient();
+  let image: string | undefined;
+  try {
+    image = uploadedPath(form, "image");
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  const title = i18n(form, "title");
+  if (!title.tr) return { error: "Türkçe başlık zorunlu." };
+  const slug = slugify(str(form, "slug") || title.tr).slice(0, 80);
+  if (!slug) return { error: "Adres (slug) boş olamaz." };
+  const row: Record<string, unknown> = {
+    slug,
+    category: POST_CATS.includes(str(form, "category")) ? str(form, "category") : "rehber",
+    title,
+    summary: i18n(form, "summary"),
+    body: i18n(form, "body"),
+    seo_title: i18n(form, "seo_title"),
+    seo_description: i18n(form, "seo_description"),
+    author: str(form, "author").slice(0, 80) || null,
+    tags: str(form, "tags").split(",").map((t) => t.trim().toLocaleLowerCase("tr")).filter(Boolean).slice(0, 12),
+    publish_at: istanbul(str(form, "publish_at")) ?? new Date().toISOString(),
+    is_active: form.get("is_active") === "on",
+  };
+  if (form.get("remove_image") === "on") row.image_path = null;
+  if (image !== undefined) row.image_path = image;
+  const dup = await supabase.from("cms_posts").select("id").eq("slug", slug).neq("id", id || "00000000-0000-0000-0000-000000000000").maybeSingle();
+  if (dup.data) return { error: `“${slug}” adresi başka bir yazıda kullanılıyor.` };
+  const { error } = id ? await supabase.from("cms_posts").update(row).eq("id", id) : await supabase.from("cms_posts").insert(row);
+  if (error) return { error: `Kaydedilemedi: ${error.message.includes("cms_posts") ? "Supabase'de 20261129000000_site_growth.sql çalıştırılmalı." : error.message}` };
+  refresh("cms_posts");
+  revalidatePath("/sitemap.xml");
+  back("cms_posts", id ? "Yazı güncellendi." : "Yazı eklendi.");
+}
+
+// ---------------------------------------------------------------------
+// Hekim görüşleri (yalnız izinli, gerçek görüşler)
+// ---------------------------------------------------------------------
+export async function saveTestimonial(_prev: FormState, form: FormData): Promise<FormState> {
+  await requireSiteEditor();
+  const id = str(form, "id");
+  const supabase = await createClient();
+  let photo: string | undefined;
+  try {
+    photo = uploadedPath(form, "photo");
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  const name = str(form, "name").slice(0, 120);
+  const quote = i18n(form, "quote");
+  if (name.length < 2 || !Object.keys(quote).length) return { error: "Ad ve görüş metni zorunlu." };
+  const consent = form.get("consent") === "on";
+  const active = form.get("is_active") === "on";
+  if (active && !consent) return { error: "Hekimden yayın izni alınmadan görüş yayınlanamaz. İzin kutusunu işaretleyin ya da taslak bırakın." };
+  const rating = Number.parseInt(str(form, "rating"), 10);
+  const row: Record<string, unknown> = {
+    name,
+    role: str(form, "role").slice(0, 120) || null,
+    city: str(form, "city").slice(0, 80) || null,
+    country: str(form, "country").slice(0, 60) || null,
+    quote,
+    rating: rating >= 1 && rating <= 5 ? rating : null,
+    consent,
+    source: str(form, "source").slice(0, 200) || null,
+    is_active: active,
+  };
+  if (form.get("remove_photo") === "on") row.photo_path = null;
+  if (photo !== undefined) row.photo_path = photo;
+  if (!id) {
+    const { data: last } = await supabase.from("cms_testimonials").select("sort").order("sort", { ascending: false }).limit(1);
+    row.sort = ((last?.[0]?.sort as number | undefined) ?? 0) + 10;
+  }
+  const { error } = id ? await supabase.from("cms_testimonials").update(row).eq("id", id) : await supabase.from("cms_testimonials").insert(row);
+  if (error) return { error: `Kaydedilemedi: ${error.message.includes("cms_testimonials") ? "Supabase'de 20261129000000_site_growth.sql çalıştırılmalı." : error.message}` };
+  refresh("cms_testimonials");
+  back("cms_testimonials", id ? "Görüş güncellendi." : "Görüş eklendi.");
 }

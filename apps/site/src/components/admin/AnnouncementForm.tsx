@@ -74,6 +74,17 @@ export function AnnouncementForm({ item }: { item?: Announcement }) {
             <option value="portal">Yalnız portal kullanıcıları (hekim, klinik, aracı)</option>
           </select>
         </label>
+        <fieldset className="grid gap-1 text-sm font-semibold text-navy sm:col-span-2">
+          <legend className="mb-1">Portal hedefi (yalnız portal duyurusunda; hiçbiri seçilmezse tümü)</legend>
+          <div className="flex flex-wrap gap-3 font-normal">
+            {[["doctor_tr", "Yerli hekim"], ["doctor_foreign", "Yabancı hekim"], ["clinic", "Klinik"], ["agency", "Aracı kuruluş"]].map(([k, v]) => (
+              <label key={k} className="flex items-center gap-2">
+                <input type="checkbox" name="target_types" value={k} defaultChecked={((item as { target_types?: string[] } | undefined)?.target_types ?? []).includes(k)} className="h-4 w-4" />
+                {v}
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <label className="grid gap-1 text-sm font-semibold text-navy">
           Başlangıç
           <input type="datetime-local" name="starts_at" defaultValue={toLocalInput(item?.starts_at)} className="field font-normal" />

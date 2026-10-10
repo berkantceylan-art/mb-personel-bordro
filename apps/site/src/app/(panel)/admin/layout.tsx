@@ -34,6 +34,8 @@ const NAV: { title: string; items: NavItem[] }[] = [
       { href: "/admin/vakalar", label: "Vaka galerisi" },
       { href: "/admin/sayfalar", label: "Sayfalar" },
       { href: "/admin/sss", label: "Sıkça sorulanlar" },
+      { href: "/admin/blog", label: "Blog" },
+      { href: "/admin/gorusler", label: "Hekim görüşleri" },
     ],
   },
   {

@@ -119,6 +119,7 @@ export type Product = {
   is_active: boolean;
   deleted_at: string | null;
   updated_at: string;
+  lead_days?: number | null;
 };
 
 /** Ürünlerde tarih aralığı yok; rozet için ortak durum hesabına uyarlar */
@@ -208,7 +209,7 @@ export const TOPIC_LABELS: Record<MessageTopic, string> = { general: "Genel", ca
 // ---------------------------------------------------------------------
 export const PAGE_GROUPS = ["kurumsal", "teknoloji", "kalite", "diger"] as const;
 export type PageGroup = (typeof PAGE_GROUPS)[number];
-export const RESERVED_SLUGS = ["urunler", "iletisim", "vaka-gonder", "vakalar", "sss", "ekibimiz", "portal", "admin", "giris", "auth", "api", "sayfa"];
+export const RESERVED_SLUGS = ["urunler", "iletisim", "vaka-gonder", "vakalar", "sss", "ekibimiz", "blog", "kariyer", "teslim-suresi", "yurtdisi", "portal", "admin", "giris", "auth", "api", "sayfa"];
 
 export type SitePage = {
   id: string;
@@ -232,7 +233,7 @@ export async function publicPages(): Promise<SitePage[]> {
   if (!hasSupabase()) return [];
   try {
     const supabase = await createClient();
-    const { data } = await supabase.from("cms_pages").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
+    const { data } = await supabase.from("cms_pages").select("*").is("deleted_at", null).eq("is_active", true).or(`publish_at.is.null,publish_at.lte.${new Date().toISOString()}`).order("sort");
     return ((data ?? []) as SitePage[]).sort((a, b) => PAGE_GROUPS.indexOf(a.group) - PAGE_GROUPS.indexOf(b.group) || a.sort - b.sort);
   } catch {
     return [];
@@ -366,6 +367,76 @@ export async function publicTeam(): Promise<TeamMember[]> {
     const supabase = await createClient();
     const { data } = await supabase.from("cms_team").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
     return (data ?? []) as TeamMember[];
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------
+// Blog ve hekim görüşleri
+// ---------------------------------------------------------------------
+export type PostCategory = "rehber" | "vaka" | "teknoloji" | "haber" | "malzeme";
+export type Post = {
+  id: string;
+  slug: string;
+  category: PostCategory;
+  title: I18nText;
+  summary: I18nText;
+  body: I18nText;
+  seo_title: I18nText;
+  seo_description: I18nText;
+  image_path: string | null;
+  author: string | null;
+  tags: string[];
+  publish_at: string;
+  is_active: boolean;
+  deleted_at: string | null;
+  updated_at: string;
+};
+
+export async function publicPosts(limit = 100): Promise<Post[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_posts").select("*").is("deleted_at", null).eq("is_active", true).lte("publish_at", new Date().toISOString()).order("publish_at", { ascending: false }).limit(limit);
+    return (data ?? []) as Post[];
+  } catch {
+    return [];
+  }
+}
+
+export async function publicPost(slug: string): Promise<Post | null> {
+  if (!hasSupabase() || !/^[a-z0-9-]{1,80}$/.test(slug)) return null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_posts").select("*").eq("slug", slug).is("deleted_at", null).eq("is_active", true).lte("publish_at", new Date().toISOString()).maybeSingle();
+    return (data as Post | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export type Testimonial = { id: string; name: string; role: string | null; city: string | null; country: string | null; quote: I18nText; rating: number | null; photo_path: string | null; consent: boolean; source: string | null; sort: number; is_active: boolean; deleted_at: string | null; updated_at: string };
+
+export async function publicTestimonials(): Promise<Testimonial[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_testimonials").select("*").is("deleted_at", null).eq("is_active", true).eq("consent", true).order("sort");
+    return (data ?? []) as Testimonial[];
+  } catch {
+    return [];
+  }
+}
+
+export type JobPosting = { slug: string; title: string; department: string | null; employment_type: string; experience: string | null; location: string | null; description: string | null; requirements: string | null; closes_on: string | null };
+
+export async function publicJobPostings(): Promise<JobPosting[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.rpc("public_job_postings");
+    return (data ?? []) as JobPosting[];
   } catch {
     return [];
   }

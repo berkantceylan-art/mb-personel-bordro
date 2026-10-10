@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { CookieNotice } from "./CookieNotice";
+import { BLOG_UI, CAREER_UI, COOKIE_UI, LEAD_UI } from "@/lib/growth-ui";
 import { CASE_UI, DICTS, LOCALES, LOCALE_NAMES, t, type Locale } from "@/lib/i18n";
 import { getSettings, telHref } from "@/lib/settings";
 import { aiEnabled } from "@/lib/ai";
@@ -56,6 +58,7 @@ export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; 
     [`/${locale}/hakkimizda`, ABOUT[locale], current === "about"],
     [`/${locale}/ekibimiz`, x.team, current === "team"],
     [`/${locale}/sss`, x.faq, current === "faq"],
+    [`/${locale}/blog`, BLOG_UI[locale].nav, false],
     [`/${locale}/iletisim`, d.nav.contact, current === "contact"],
   ];
   return (
@@ -99,6 +102,8 @@ export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; 
               { href: "/portal", label: x.portal },
               { href: "/giris", label: d.nav.login },
               { href: "/giris?kim=personel", label: x.staff },
+              { href: `/${locale}/teslim-suresi`, label: LEAD_UI[locale].nav },
+              { href: `/${locale}/kariyer`, label: CAREER_UI[locale].nav },
             ]}
             labels={{ menu: x.menu, close: x.close }}
           />
@@ -262,6 +267,12 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
         <div className="border-t border-white/10">
           <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-white/50 sm:px-6">
             © {new Date().getFullYear()} MB Dental. {d.footer.rights}
+            <span className="ml-3 inline-flex flex-wrap gap-x-3">
+              <Link href={`/${locale}/blog`} className="hover:text-smile">{BLOG_UI[locale].nav}</Link>
+              <Link href={`/${locale}/teslim-suresi`} className="hover:text-smile">{LEAD_UI[locale].nav}</Link>
+              <Link href={`/${locale}/kariyer`} className="hover:text-smile">{CAREER_UI[locale].nav}</Link>
+              <Link href={`/${locale}/yurtdisi`} className="hover:text-smile">{locale === "tr" ? "Yurt dışı hekimler" : locale === "fr" ? "Praticiens hors Turquie" : "Dentists abroad"}</Link>
+            </span>
             <Link href="/giris?kim=personel" className="float-right font-semibold text-white/70 hover:text-smile">
               {NAV_EXTRA[locale].staff} →
             </Link>
@@ -269,6 +280,7 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
         </div>
       </footer>
       <StoryBubble stories={stories} labels={STORY_LABELS[locale]} />
+      <CookieNotice text={COOKIE_UI[locale].text} more={COOKIE_UI[locale].more} ok={COOKIE_UI[locale].ok} href={`/${locale}/cerez-politikasi`} />
       <SupportHub
         locale={locale}
         phone={st.phone}
