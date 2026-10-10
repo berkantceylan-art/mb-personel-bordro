@@ -23,10 +23,12 @@ export async function portalSignUp(_prev: SignUpState, form: FormData): Promise<
   const email = s(form, "email", 200).toLowerCase();
   const password = String(form.get("password") ?? "");
   const lang = s(form, "language", 2);
-  if (!TYPES.includes(type) || name.length < 2 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "required" };
+  const invite = s(form, "invite", 20).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if ((!invite && !TYPES.includes(type)) || name.length < 2 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "required" };
   if (password.length < 8) return { error: "password" };
   const portal = {
-    type,
+    ...(invite ? { invite } : {}),
+    type: TYPES.includes(type) ? type : "clinic",
     name,
     company: s(form, "company", 160),
     country: s(form, "country", 60) || "TR",
@@ -49,6 +51,10 @@ export async function portalSignUp(_prev: SignUpState, form: FormData): Promise<
     return { error: "server" };
   }
   // E-posta onayı kapalıysa oturum hemen açılır: hesabı hemen oluştur
+  if (data.session && invite) {
+    await supabase.rpc("portal_join", { p_code: invite, p_name: portal.name });
+    redirect("/portal");
+  }
   if (data.session) {
     await supabase.rpc("portal_register", {
       p_type: portal.type,
@@ -73,6 +79,10 @@ export async function ensurePortalAccount(): Promise<boolean> {
   const p = ctx.user.meta.portal as Record<string, string> | undefined;
   if (!p?.type || !p?.name) return false;
   const supabase = await createClient();
+  if (p.invite) {
+    const { error } = await supabase.rpc("portal_join", { p_code: p.invite, p_name: p.name });
+    return !error;
+  }
   const { error } = await supabase.rpc("portal_register", {
     p_type: p.type,
     p_name: p.name,
@@ -95,7 +105,7 @@ export async function setPortalLanguage(form: FormData) {
 // ---------------------------------------------------------------------
 // Vakalar (hekim tarafı)
 // ---------------------------------------------------------------------
-export type NewCaseInput = { patient_ref: string; product_slug: string; teeth: number[]; shade: string; due_date: string; notes: string };
+export type NewCaseInput = { patient_ref: string; product_slug: string; teeth: number[]; shade: string; due_date: string; notes: string; client_id?: string };
 
 export async function createCase(input: NewCaseInput): Promise<{ id?: string; accountId?: string; error?: "patient" | "teeth" | "server" | "inactive" }> {
   const ctx = await portalContext();
@@ -119,6 +129,7 @@ export async function createCase(input: NewCaseInput): Promise<{ id?: string; ac
       shade: String(input.shade ?? "").trim().slice(0, 40) || null,
       due_date: due,
       notes: notes || null,
+      ...(input.client_id && /^[0-9a-f-]{36}$/.test(input.client_id) ? { client_id: input.client_id } : {}),
     })
     .select("id")
     .single();

@@ -5,6 +5,8 @@ import { publicProducts } from "@/lib/cms";
 import { t } from "@/lib/i18n";
 import { formatDate, portalContext, portalLocale, type PortalCase } from "@/lib/portal";
 import { PX } from "@/lib/portal-extra-ui";
+import { TEAM_UI } from "@/lib/portal-team-ui";
+import { PORTAL_BUCKET } from "@/lib/portal";
 import { getSettings } from "@/lib/settings";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,6 +27,8 @@ export default async function DeclarationPage({ params }: { params: Promise<{ id
   const [st, products] = await Promise.all([getSettings(), publicProducts()]);
   const product = products.find((p) => p.slug === c.product_slug);
   const acc = ctx?.account;
+  const client = c.client_id ? (await supabase.from("portal_clients").select("name, city, country").eq("id", c.client_id).maybeSingle()).data : null;
+  const logo = acc?.logo_path ? (await supabase.storage.from(PORTAL_BUCKET).createSignedUrl(acc.logo_path, 3600)).data?.signedUrl : null;
   const row = "grid grid-cols-[11rem_1fr] gap-3 border-b border-gypsum py-2.5";
 
   return (
@@ -40,15 +44,20 @@ export default async function DeclarationPage({ params }: { params: Promise<{ id
             <h1 className="display text-2xl font-semibold text-navy">{d.title}</h1>
             <p className="text-sm text-slate">{d.subtitle}</p>
           </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="" width={56} height={56} className="h-14 w-14" />
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {logo && <img src={logo} alt="" className="max-h-14 max-w-[140px] object-contain" />}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="" width={56} height={56} className="h-14 w-14" />
+          </div>
         </header>
         <section className="mt-4 text-sm">
           <div className={row}><span className="font-semibold">{d.manufacturer}</span><span>MB Dental · {[st.address1, st.address2].filter(Boolean).join(", ")} · {st.phone} · {st.email}</span></div>
           <div className={row}><span className="font-semibold">{d.device}</span><span>{d.deviceText}</span></div>
           <div className={row}><span className="font-semibold">{d.caseNo}</span><span className="num">#{c.no}</span></div>
           <div className={row}><span className="font-semibold">{d.patient}</span><span>{c.patient_ref}</span></div>
-          <div className={row}><span className="font-semibold">{d.prescriber}</span><span>{acc?.name}{acc?.company ? ` · ${acc.company}` : ""}{acc?.city ? ` · ${acc.city}` : ""}{acc?.country ? `, ${acc.country}` : ""}</span></div>
+          {acc?.type === "agency" && <div className={row}><span className="font-semibold">{TEAM_UI[locale].distributor}</span><span>{acc.company || acc.name}</span></div>}
+          <div className={row}><span className="font-semibold">{d.prescriber}</span><span>{client ? `${client.name}${client.city ? ` · ${client.city}` : ""}${client.country ? `, ${client.country}` : ""}` : `${acc?.name ?? ""}${acc?.company ? ` · ${acc.company}` : ""}${acc?.city ? ` · ${acc.city}` : ""}${acc?.country ? `, ${acc.country}` : ""}`}</span></div>
           {product && <div className={row}><span className="font-semibold">{d.product}</span><span>{t(product.name, locale)}</span></div>}
           {c.teeth?.length ? <div className={row}><span className="font-semibold">{d.teeth}</span><span className="num">{c.teeth.join(", ")}</span></div> : null}
           {c.shade && <div className={row}><span className="font-semibold">{d.materials}</span><span>{c.shade}</span></div>}

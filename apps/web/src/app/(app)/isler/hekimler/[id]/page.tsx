@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { JOB_STATUS, money, type Customer, type JobStatus } from "@/lib/jobs";
 import { CustomerForm } from "../CustomerForm";
-import { deleteCustomer, deleteDoctor, deletePayment, savePayment } from "../../actions";
+import { deleteCustomer, deleteCustomerPrice, deleteDoctor, deletePayment, saveCustomerPrice, savePayment } from "../../actions";
 import { PAY_METHOD, buildLedger, type LedgerPayment } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
@@ -20,13 +20,16 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const { data } = await supabase.from("lab_customers").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const c = data as Customer;
-  const [{ data: docs }, { data: jobs }, { data: accs }, { data: links }, { data: pays }] = await Promise.all([
+  const [{ data: docs }, { data: jobs }, { data: accs }, { data: links }, { data: pays }, { data: prods }, { data: specials }] = await Promise.all([
     supabase.from("lab_customer_doctors").select("id, name").eq("customer_id", id).order("name"),
     supabase.from("jobs").select("id, no, patient, in_date, due_date, status, total, currency").eq("customer_id", id).order("no", { ascending: false }).limit(5000),
     supabase.from("portal_accounts").select("id, name, company").eq("status", "active").order("name"),
     supabase.from("lab_customers").select("portal_account_id").not("portal_account_id", "is", null),
     supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note").eq("customer_id", id).order("paid_on"),
+    supabase.from("lab_products").select("id, name, price_try, price_eur").eq("is_active", true).order("sort").order("name"),
+    supabase.from("lab_customer_prices").select("product_id, price_try, price_eur").eq("customer_id", id),
   ]);
+  const prodName = new Map((prods ?? []).map((p) => [p.id as string, p as { id: string; name: string; price_try: number | null; price_eur: number | null }]));
   const linked = new Set((links ?? []).map((l) => l.portal_account_id as string));
   const list = (jobs ?? []) as { id: string; no: number; patient: string | null; in_date: string; due_date: string | null; status: JobStatus; total: number; currency: string }[];
   const billable = list.filter((j) => j.status !== "cancelled");
@@ -91,6 +94,28 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             </table>
           </div>
           {ledger.rows.length > 40 && <p className="text-xs text-muted">Son 40 hareket gösteriliyor; tamamı için ekstreyi yazdırın.</p>}
+        </Card>
+        <Card title="Özel fiyatlar">
+          <p className="text-xs text-muted">Bu hekime / kuruma özel ürün fiyatı. İş kayıtta liste fiyatı ve iskonto yerine bu fiyat gelir.</p>
+          <form action={saveCustomerPrice} className="grid gap-2 md:grid-cols-5 items-end">
+            <input type="hidden" name="customer_id" value={c.id} />
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted md:col-span-2">Ürün<select name="product_id" required className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white"><option value="">Seçin</option>{(prods ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Fiyat TL<input name="price_try" inputMode="decimal" className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white num" /></label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Fiyat €<input name="price_eur" inputMode="decimal" className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white num" /></label>
+            <button className="h-10 rounded-lg bg-brand-700 text-white font-semibold">Kaydet</button>
+          </form>
+          {(specials ?? []).length > 0 && (
+            <ul className="flex flex-col gap-1.5">
+              {(specials ?? []).map((sp) => (
+                <li key={sp.product_id as string} className="flex flex-wrap items-center gap-3 text-sm border-t border-line pt-1.5">
+                  <span className="font-semibold">{prodName.get(sp.product_id as string)?.name ?? "—"}</span>
+                  <span className="num">{sp.price_try != null ? money(sp.price_try as number, "TRY") : ""} {sp.price_eur != null ? `· ${money(sp.price_eur as number, "EUR")}` : ""}</span>
+                  <span className="text-xs text-muted">liste: {prodName.get(sp.product_id as string)?.price_try != null ? money(prodName.get(sp.product_id as string)!.price_try, "TRY") : "—"}</span>
+                  <form action={deleteCustomerPrice} className="ml-auto"><input type="hidden" name="customer_id" value={c.id} /><input type="hidden" name="product_id" value={sp.product_id as string} /><button className="text-xs text-bad font-semibold">Sil</button></form>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
         <Card title={`İşler (${list.length})`}>
           <div className="overflow-x-auto">

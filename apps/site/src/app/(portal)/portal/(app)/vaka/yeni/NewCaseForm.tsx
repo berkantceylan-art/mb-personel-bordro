@@ -8,9 +8,9 @@ import { PORTAL_UI } from "@/lib/portal-ui";
 import { uploadCaseFile } from "@/lib/portal-upload";
 import type { Locale } from "@/lib/i18n";
 
-export type CaseInitial = { patient_ref?: string; product_slug?: string; teeth?: number[]; shade?: string; notes?: string };
+export type CaseInitial = { patient_ref?: string; product_slug?: string; teeth?: number[]; shade?: string; notes?: string; client_id?: string };
 
-export function NewCaseForm({ locale, products, initial, dropLabel }: { locale: Locale; products: { slug: string; name: string; group: string }[]; initial?: CaseInitial; dropLabel?: string }) {
+export function NewCaseForm({ locale, products, initial, dropLabel, clients = [], clientLabels }: { locale: Locale; products: { slug: string; name: string; group: string }[]; initial?: CaseInitial; dropLabel?: string; clients?: { id: string; name: string }[]; clientLabels?: { label: string; none: string } }) {
   const ui = PORTAL_UI[locale].form;
   const router = useRouter();
   const [teeth, setTeeth] = useState<number[]>(initial?.teeth ?? []);
@@ -32,6 +32,7 @@ export function NewCaseForm({ locale, products, initial, dropLabel }: { locale: 
       shade: String(f.get("shade") ?? ""),
       due_date: String(f.get("due_date") ?? ""),
       notes: String(f.get("notes") ?? ""),
+      client_id: String(f.get("client_id") ?? "") || undefined,
     });
     if (res.error || !res.id || !res.accountId) {
       setBusy(null);
@@ -63,6 +64,15 @@ export function NewCaseForm({ locale, products, initial, dropLabel }: { locale: 
         </p>
       )}
       <div className="grid gap-4 rounded-2xl border border-gypsum bg-white p-5 sm:grid-cols-2">
+        {clients.length > 0 && clientLabels && (
+          <label className="grid gap-1.5 text-sm font-semibold text-navy sm:col-span-2">
+            {clientLabels.label}
+            <select name="client_id" defaultValue={initial?.client_id ?? ""} className="field font-normal">
+              <option value="">{clientLabels.none}</option>
+              {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
+        )}
         <label className="grid gap-1.5 text-sm font-semibold text-navy">
           {ui.patient} *
           <input name="patient_ref" required maxLength={40} autoComplete="off" defaultValue={initial?.patient_ref ?? ""} className="field font-normal" />
