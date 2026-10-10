@@ -65,7 +65,10 @@ export default function LoginPage() {
         <button disabled={busy} className="h-12 rounded-lg bg-brand-700 text-white font-semibold disabled:opacity-60">
           {busy ? "Giriş yapılıyor…" : "Giriş yap"}
         </button>
-        <Link href="/davet" className="text-center text-sm text-brand-700 font-semibold">Davet kodum var · hesap oluştur</Link>
+        <div className="flex justify-between gap-3 text-sm font-semibold">
+          <Link href="/sifre" className="text-brand-700">Şifremi unuttum</Link>
+          <Link href="/davet" className="text-brand-700 text-right">Davet kodum var</Link>
+        </div>
       </form>
     </main>
   );
