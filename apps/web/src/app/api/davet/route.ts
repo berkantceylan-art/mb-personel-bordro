@@ -4,8 +4,9 @@ import { NextResponse } from "next/server";
 /**
  * Davet koduyla hesap açma — yalnız sunucuda, service_role ile (anahtar Vercel ortam değişkeninde; istemciye gitmez).
  *  { code }            → ön izleme (şirket, ad, kullanıcı adı)
- *  { code, password }  → hesabı hazırlar: yoksa oluşturur; davetten SONRA açılıp yarım kalmış ve hiçbir şirkete
- *                        bağlanmamış hesabın şifresini yeniler. Ardından istemci giriş yapıp claim_invite çağırır.
+ *  { code, password }  → hesabı hazırlar: yoksa oluşturur; varsa (güvenlik koşulları sağlanıyorsa) şifresini
+ *                        yeniler — yöneticinin ürettiği kod "şifre sıfırlama kodu" olarak da çalışır.
+ *                        Ardından istemci giriş yapıp claim_invite çağırır.
  * Kötüye kullanıma karşı: IP başına 15 dakikada 10 deneme, tüm geçersiz durumlarda tek tip mesaj.
  */
 const INVALID = "Davet kodu geçersiz, kullanılmış ya da süresi dolmuş.";
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
   if (allowed === false) return reply(429, { error: "Çok fazla deneme. 15 dakika sonra tekrar deneyin." });
 
   if (!/^[A-Z0-9]{6,16}$/.test(code)) return reply(404, { error: INVALID });
-  const { data: inv } = await admin.from("invites").select("id, login_email, used_at, expires_at, created_at").eq("code", code).maybeSingle();
+  const { data: inv } = await admin.from("invites").select("id, company_id, role, employee_id, created_by, login_email, used_at, expires_at, created_at").eq("code", code).maybeSingle();
   if (!inv || inv.used_at || new Date(inv.expires_at) < new Date()) return reply(404, { error: INVALID });
 
   // Ön izleme
@@ -55,17 +56,15 @@ export async function POST(req: Request) {
   // Hesap zaten var mı
   const user = await findUser(admin, email);
   if (!user) return reply(500, { error: `Hesap oluşturulamadı (${created.error.message}). Lütfen yöneticinize bildirin.` });
-  const { count } = await admin.from("memberships").select("user_id", { count: "exact", head: true }).eq("user_id", user.id);
-  const halfFinished = (count ?? 0) === 0 && new Date(user.created_at) >= new Date(inv.created_at);
-  if (!halfFinished) {
-    return reply(409, { error: "Bu kullanıcı adıyla zaten bir hesap var. Giriş ekranından şifrenizle girin; şifrenizi unuttuysanız yöneticinize yeni davet kodu ürettirin." });
-  }
+  // Hesap var: geçerli davet kodu aynı zamanda ŞİFRE SIFIRLAMA kodudur (yönetici üretir).
+  const block = await resetBlocked(admin, inv, user.id);
+  if (block) return reply(409, { error: block });
   const { error: upd } = await admin.auth.admin.updateUserById(user.id, { password, email_confirm: true });
   if (upd) {
     console.error("[davet] updateUserById:", upd.status, upd.code, upd.message);
     return reply(upd.code === "weak_password" ? 400 : 500, { error: passwordProblem(upd) ?? "Hesap hazırlanamadı. Lütfen tekrar deneyin." });
   }
-  return reply(200, { ok: true, email });
+  return reply(200, { ok: true, email, reset: true });
 }
 
 type AuthErr = { code?: string; message: string };
@@ -101,6 +100,36 @@ async function findUser(admin: any, email: string): Promise<{ id: string; create
     const u = (list.users as Array<{ id: string; email?: string; created_at: string }>).find((x) => (x.email ?? "").toLowerCase() === email);
     if (u) return { id: u.id, created_at: u.created_at };
     if (list.users.length < 200) return null;
+  }
+  return null;
+}
+
+/** İK'nın kod üretebildiği roller; daha yetkili hesapların şifresi bu yolla sıfırlanamaz */
+const HR_ROLES = ["employee", "branch_manager", "safety"];
+type Inv = { company_id: string; role: string; employee_id: string | null; created_by: string | null };
+
+/**
+ * Var olan hesabın şifresi davet koduyla yenilenebilir mi? Engel varsa nedenini döndürür.
+ * - Hesap yalnız bu şirkete ve davetteki rolle bağlı olmalı (başka şirket / başka rol yok)
+ * - Şirket sahibi hesabı bu yolla sıfırlanmaz; İK/muhasebe/editör hesabı için kodu şirket sahibi üretmiş olmalı
+ * - Davet bir personel kaydına bağlıysa, o kayıt başka bir hesaba bağlı olmamalı
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function resetBlocked(admin: any, inv: Inv, userId: string): Promise<string | null> {
+  const contact = "Yöneticinizle görüşün.";
+  const { data: ms } = await admin.from("memberships").select("company_id, role").eq("user_id", userId);
+  const list = (ms ?? []) as Array<{ company_id: string; role: string }>;
+  if (list.some((m) => m.company_id !== inv.company_id || m.role !== inv.role)) {
+    return `Bu kullanıcı adı farklı bir role ya da şirkete bağlı; davet koduyla şifresi yenilenemez. ${contact}`;
+  }
+  if (inv.role === "owner") return "Şirket sahibi hesabının şifresi davet koduyla yenilenemez. Giriş ekranındaki \"Şifremi unuttum\" ile e-postanıza bağlantı isteyin.";
+  if (!HR_ROLES.includes(inv.role)) {
+    const { data: cr } = await admin.from("memberships").select("role").eq("user_id", inv.created_by ?? "").eq("company_id", inv.company_id).maybeSingle();
+    if (cr?.role !== "owner") return `Bu hesabın şifre sıfırlama kodunu yalnız şirket sahibi üretebilir. ${contact}`;
+  }
+  if (inv.employee_id) {
+    const { data: e } = await admin.from("employees").select("user_id").eq("id", inv.employee_id).maybeSingle();
+    if (e?.user_id && e.user_id !== userId) return `Bu personel kaydı başka bir hesaba bağlı. ${contact}`;
   }
   return null;
 }

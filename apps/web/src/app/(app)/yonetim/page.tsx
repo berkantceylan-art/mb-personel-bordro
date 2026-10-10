@@ -113,7 +113,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
         {tab === "davetler" && (
           <>
-            <Card title="Tek davet"><InviteForm employees={(emps ?? []).filter((e) => !e.user_id).map((e) => ({ id: e.id, name: `${e.first_name} ${e.last_name}` }))} isOwner={isOwner} /></Card>
+            <Card title="Tek davet · şifre sıfırlama kodu"><InviteForm employees={(emps ?? []).map((e) => ({ id: e.id, name: `${e.first_name} ${e.last_name}${e.user_id ? " · hesabı var (şifre sıfırlama)" : ""}` }))} isOwner={isOwner} /></Card>
             <Card title="Toplu davet (personel mobil uygulaması)">
               <p className="text-sm text-muted">Her personele kişisel kod üretilir. Personel uygulamada &quot;Hesap oluştur&quot; deyip kodu ve kendi belirlediği şifreyi girer; giriş için PDKS numarasını (veya e-postasını) kullanır.</p>
               <BulkInviteForm departments={departments ?? []} />

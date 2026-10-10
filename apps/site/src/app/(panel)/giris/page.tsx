@@ -77,12 +77,19 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </div>
           )}
           {staff && process.env.NEXT_PUBLIC_ERP_URL && (
-            <p className="mt-6 text-sm text-slate">
-              İlk kez mi giriyorsunuz?{" "}
-              <a href={`${process.env.NEXT_PUBLIC_ERP_URL.replace(/\/+$/, "")}/davet`} className="font-semibold text-blue hover:underline">
-                Davet kodumla hesap oluştur
-              </a>
-            </p>
+            <div className="mt-6 space-y-2 text-sm text-slate">
+              <p>
+                <a href={`${process.env.NEXT_PUBLIC_ERP_URL.replace(/\/+$/, "")}/sifre`} className="font-semibold text-blue hover:underline">
+                  Şifremi unuttum
+                </a>
+              </p>
+              <p>
+                İlk kez mi giriyorsunuz ya da sıfırlama kodunuz mu var?{" "}
+                <a href={`${process.env.NEXT_PUBLIC_ERP_URL.replace(/\/+$/, "")}/davet`} className="font-semibold text-blue hover:underline">
+                  Kodumla şifre belirle
+                </a>
+              </p>
+            </div>
           )}
         </div>
       </section>

@@ -34,6 +34,7 @@ export function InviteForm({ employees, isOwner }: { employees: Array<{ id: stri
       <div className="md:col-span-4 flex gap-3 items-center flex-wrap">
         <button disabled={pending} className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-60">Davet kodu oluştur</button>
         <Msg s={state} />
+        <span className="text-xs text-muted basis-full">Şifresini unutan kişi için de buradan kod üretin: hesabı olan personeli seçin; kişi kodu davet ekranına girip aynı kullanıcı adıyla yeni şifre belirler.</span>
       </div>
     </form>
   );

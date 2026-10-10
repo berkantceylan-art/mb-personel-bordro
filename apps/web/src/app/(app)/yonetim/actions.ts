@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/session";
 import { PERSONNEL_DOMAIN, formatInviteCode } from "@/lib/constants";
 import { done, fail, must } from "@/lib/flash";
@@ -40,10 +41,19 @@ export async function createInvite(_: R | null, f: FormData): Promise<R> {
   let name = str(f, "display_name") || null;
   if (employeeId) {
     const [{ data: e }, { data: p }] = await Promise.all([
-      supabase.from("employees").select("id, card_no, first_name, last_name").eq("id", employeeId).single(),
+      supabase.from("employees").select("id, card_no, first_name, last_name, user_id").eq("id", employeeId).single(),
       supabase.from("employee_private").select("email").eq("employee_id", employeeId).maybeSingle(),
     ]);
     if (!e) return { ok: false, message: "Personel bulunamadı." };
+    // Hesabı olan personel (şifre sıfırlama): kod, mevcut hesabın kullanıcı adına üretilir
+    if (!login && e.user_id) {
+      try {
+        const { data: u } = await createAdminClient().auth.admin.getUserById(e.user_id);
+        if (u.user?.email) login = u.user.email.toLowerCase();
+      } catch {
+        // Sunucu anahtarı yoksa olağan kurala düşer
+      }
+    }
     login = login || loginFor(e.card_no, p?.email ?? null, e.id);
     name = name ?? `${e.first_name} ${e.last_name}`;
   }
