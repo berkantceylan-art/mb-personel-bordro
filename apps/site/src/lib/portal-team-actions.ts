@@ -52,6 +52,37 @@ export async function joinPortalAccount(form: FormData) {
   redirect("/portal");
 }
 
+/** Giriş yapmış ama portal hesabı olmayan kullanıcı: kendi adına portal başvurusu (onay bekler) */
+export async function registerCurrentUser(form: FormData) {
+  const ctx = await portalContext();
+  if (!ctx) redirect("/giris?sonra=/portal");
+  if (ctx.account) redirect("/portal");
+  const types = ["doctor_tr", "doctor_foreign", "clinic", "agency"];
+  const type = s(form, "type", 20);
+  const name = s(form, "name", 160);
+  const language = s(form, "language", 2);
+  if (!types.includes(type) || name.length < 2) {
+    (await cookies()).set("portal-katil", "required", { path: "/portal", maxAge: 60 });
+    redirect("/portal");
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("portal_register", {
+    p_type: type,
+    p_name: name,
+    p_company: s(form, "company", 160),
+    p_country: s(form, "country", 60) || "TR",
+    p_city: s(form, "city", 80),
+    p_phone: s(form, "phone", 40),
+    p_language: ["tr", "en", "fr"].includes(language) ? language : "tr",
+  });
+  if (error) {
+    console.error("portal başvurusu (giriş yapmış kullanıcı):", error.code, error.message);
+    (await cookies()).set("portal-katil", "server", { path: "/portal", maxAge: 60 });
+  }
+  revalidatePath("/portal", "layout");
+  redirect("/portal");
+}
+
 /** Logo: tarayıcı depoya yükler, burada hesaba işlenir ("" → kaldır) */
 export async function setPortalLogo(path: string): Promise<{ ok: boolean }> {
   const ctx = await portalContext();
