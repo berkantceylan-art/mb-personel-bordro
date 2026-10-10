@@ -11,10 +11,10 @@ type Params = Promise<{ locale: string }>;
 
 const C: Record<Locale, { meta: string; desc: string; kicker: string; h1: string; lead: string; cta: string; cta2: string; whyTitle: string; why: [string, string][]; howTitle: string; how: [string, string][]; leadTitle: string; leadText: string; leadLink: string; days: string; priceTitle: string; priceText: string; finalTitle: string; finalText: string }> = {
   tr: {
-    meta: "Yurt dışındaki hekimler için diş laboratuvarı — MB Dental İstanbul",
-    desc: "Avrupa'daki hekim ve klinikler için İstanbul'dan dijital diş laboratuvarı: portaldan vaka gönderimi, DHL/UPS ile kargo, € fiyat, MDR uygunluk beyanı.",
+    meta: "Yurt dışındaki hekimler için diş laboratuvarı — MB Dental İzmir",
+    desc: "Avrupa'daki hekim ve klinikler için İzmir'den dijital diş laboratuvarı: portaldan vaka gönderimi, DHL/UPS ile kargo, € fiyat, MDR uygunluk beyanı.",
     kicker: "Yurt dışındaki hekimler için",
-    h1: "İstanbul'daki dijital laboratuvarınız",
+    h1: "İzmir'deki dijital laboratuvarınız",
     lead: "Taramanızı ya da ölçünüzü gönderin; tasarımdan teslime her aşamayı kendi dilinizde portaldan izleyin.",
     cta: "Portal hesabı açın",
     cta2: "Teslim süresini hesaplayın",
@@ -32,10 +32,10 @@ const C: Record<Locale, { meta: string; desc: string; kicker: string; h1: string
     finalText: "Başvuru birkaç dakika sürer; onaydan sonra hesabınıza ekibinizi de ekleyebilirsiniz.",
   },
   en: {
-    meta: "Dental laboratory for dentists abroad — MB Dental Istanbul",
-    desc: "Digital dental lab in Istanbul for dentists and clinics in Europe: online case submission, DHL/UPS shipping, prices in euros, MDR declarations of conformity.",
+    meta: "Dental laboratory for dentists abroad — MB Dental Izmir",
+    desc: "Digital dental lab in Izmir for dentists and clinics in Europe: online case submission, DHL/UPS shipping, prices in euros, MDR declarations of conformity.",
     kicker: "For dentists outside Turkey",
-    h1: "Your digital dental lab in Istanbul",
+    h1: "Your digital dental lab in Izmir",
     lead: "Send your scan or impression and follow every stage, from design to delivery, in our portal — in your language.",
     cta: "Open a portal account",
     cta2: "Estimate turnaround",
@@ -53,10 +53,10 @@ const C: Record<Locale, { meta: string; desc: string; kicker: string; h1: string
     finalText: "Applying takes a few minutes; once approved you can add your team to the account.",
   },
   fr: {
-    meta: "Laboratoire de prothèse dentaire en Turquie pour praticiens — MB Dental Istanbul",
-    desc: "Laboratoire dentaire numérique à Istanbul pour praticiens et cabinets en Europe : envoi des cas en ligne, expédition DHL/UPS, prix en euros, déclarations de conformité MDR.",
+    meta: "Laboratoire de prothèse dentaire en Turquie pour praticiens — MB Dental Izmir",
+    desc: "Laboratoire dentaire numérique à Izmir pour praticiens et cabinets en Europe : envoi des cas en ligne, expédition DHL/UPS, prix en euros, déclarations de conformité MDR.",
     kicker: "Pour les praticiens hors de Turquie",
-    h1: "Votre laboratoire numérique à Istanbul",
+    h1: "Votre laboratoire numérique à Izmir",
     lead: "Envoyez votre empreinte numérique ou physique et suivez chaque étape, de la conception à la livraison, dans notre portail en français.",
     cta: "Ouvrir un compte",
     cta2: "Estimer le délai",
