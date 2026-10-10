@@ -12,6 +12,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
     title: "Genel",
     items: [
       { href: "/admin", label: "Pano" },
+      { href: "/admin/istatistik", label: "İstatistik" },
       { href: "/admin/canli-destek", label: "Canlı destek" },
       { href: "/admin/gelen-kutusu", label: "Gelen kutusu" },
     ],
@@ -48,6 +49,7 @@ const NAV: { title: string; items: NavItem[] }[] = [
   {
     title: "Sistem",
     items: [
+      { href: "/admin/guvenlik", label: "Hesap güvenliği (2FA)" },
       { href: "/admin/medya", label: "Medya kütüphanesi" },
       { href: "/admin/ayarlar", label: "Site ayarları" },
       { href: "/admin/gecmis", label: "Değişiklik geçmişi" },
