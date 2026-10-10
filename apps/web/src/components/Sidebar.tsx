@@ -82,6 +82,7 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "Bordro", href: "/bordro", roles: PAY },
       { label: "BES", href: "/bes", roles: PAY },
       { label: "İcra & Nafaka", href: "/icra", roles: PAY },
+      { label: "SGK işlemleri", href: "/sgk", roles: ["owner", "accountant", "hr"] },
     ],
   },
   { group: "Uyum", items: [{ label: "İş Güvenliği", href: "/isg", roles: MANAGERS }, { label: "Sağlık", href: "/saglik", roles: ["owner", "hr", "safety"] }, { label: "İş Kanunu uyumu", href: "/is-hukuku", roles: ["owner", "accountant", "hr"] }, { label: "KVKK", href: "/kvkk", roles: ["owner", "hr"] }] },

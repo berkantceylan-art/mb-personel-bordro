@@ -4,6 +4,7 @@ import { IsgNav } from "@/components/IsgNav";
 import { Card, PageHeader, Stat } from "@/components/ui";
 import { SGK_ISVEREN_URL } from "@/lib/isg";
 import { saveIncident, updateIncident } from "@/lib/isg-actions";
+import { robotIncidentJob } from "../../sgk/actions";
 import { formatDate, getSession, todayIso } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -82,7 +83,8 @@ export default async function IncidentPage() {
             <div className="px-3 pb-3 text-sm flex flex-col gap-2">
               <p>{x.description}</p>
               <p className="text-xs text-muted">{[x.location, x.body_part, x.injury_type, x.hospital, x.witnesses ? `tanık: ${x.witnesses}` : null].filter(Boolean).join(" · ")}</p>
-              <a href={`/yazdir/isg?tur=kaza&id=${x.id}`} target="_blank" rel="noopener" className="text-brand-700 font-semibold text-xs">Kaza raporu ve SGK bildirim özeti</a>
+              <div className="flex flex-wrap gap-3 items-center"><a href={`/yazdir/isg?tur=kaza&id=${x.id}`} target="_blank" rel="noopener" className="text-brand-700 font-semibold text-xs">Kaza raporu ve SGK bildirim özeti</a>
+                {x.kind !== "RAMAK_KALA" && !x.sgk_notified_on && ["owner", "hr"].includes(s.role) && <form action={robotIncidentJob}><input type="hidden" name="id" value={x.id} /><PendingSubmit className="h-8 px-3 rounded-lg border border-[#D5DEE8] text-xs font-semibold text-brand-700">SGK Robotu ile bildir</PendingSubmit></form>}</div>
               {can && (
                 <form action={updateIncident} className="grid gap-2 md:grid-cols-3">
                   <input type="hidden" name="id" value={x.id} />

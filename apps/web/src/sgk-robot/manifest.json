@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "MB SGK Robotu",
+  "version": "1.0.0",
+  "description": "MB Personel yazılımındaki bilgileri SGK ekranlarına doldurur. Güvenlik kodu ve son onay kullanıcıdadır.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["__APP_ORIGIN__/*", "https://*.sgk.gov.tr/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "MB SGK Robotu", "default_icon": { "128": "icon128.png" } },
+  "icons": { "128": "icon128.png" },
+  "content_scripts": [{ "matches": ["https://*.sgk.gov.tr/*"], "js": ["content.js"], "run_at": "document_idle", "all_frames": true }]
+}

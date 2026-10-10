@@ -317,6 +317,34 @@ const JOBS: Record<string, (ctx: JobContext) => Promise<unknown>> = {
     return lines.length;
   },
 
+  /** SGK: işe giriş (1 gün önce) ve işten ayrılış (10 gün) bildirge süreleri; vizite raporlarını çeker */
+  async sgk(ctx) {
+    const cid = ctx.companyId;
+    const lines: string[] = [];
+    const { data: done } = await ctx.sb.from("sgk_transactions").select("employee_id, kind").eq("company_id", cid).eq("status", "basarili").in("kind", ["ise-giris", "isten-cikis"]);
+    const has = (k: string) => new Set((done ?? []).filter((d) => d.kind === k).map((d) => d.employee_id));
+    const [{ data: hires }, { data: exits }] = await Promise.all([
+      ctx.sb.from("employees").select("id, first_name, last_name, hire_date").eq("company_id", cid).neq("status", "terminated").gte("hire_date", addDays(ctx.today, -3)).lte("hire_date", addDays(ctx.today, 1)),
+      ctx.sb.from("employees").select("id, first_name, last_name, termination_date").eq("company_id", cid).gte("termination_date", addDays(ctx.today, -10)).lte("termination_date", ctx.today),
+    ]);
+    for (const e of hires ?? []) if (!has("ise-giris").has(e.id)) lines.push(`${e.first_name} ${e.last_name}: işe giriş ${formatDate(e.hire_date as string)}, SGK bildirgesi yok`);
+    for (const e of exits ?? []) { const left = 10 - daysUntil(e.termination_date as string, ctx.today); if (!has("isten-cikis").has(e.id) && [7, 3, 1, 0].includes(left)) lines.push(`${e.first_name} ${e.last_name}: işten ayrılış bildirgesi için ${left} gün kaldı`); }
+    let fetched = 0;
+    const { data: acc } = await ctx.sb.from("sgk_accounts").select("has_ws").eq("company_id", cid).maybeSingle();
+    if (acc?.has_ws) {
+      try {
+        const { viziteFetch } = await import("@/lib/sgk/tescil");
+        const { storeReports } = await import("@/app/(app)/sgk/actions");
+        const rows = await viziteFetch(cid, null, ctx.today.split("-").reverse().join("."));
+        fetched = await storeReports(ctx.sb, cid, rows);
+        if (fetched) lines.push(`SGK'dan ${fetched} yeni istirahat raporu geldi; Vizite ekranından onaylayın`);
+      } catch (e) { lines.push(`Vizite raporları alınamadı: ${(e as Error).message.slice(0, 120)}`); }
+    }
+    if (!lines.length) return "yok";
+    await ctx.notify(await ctx.users(["owner", "hr", "accountant"]), "SGK hatırlatmaları", lines.join(" · "), "/sgk");
+    return { lines: lines.length, fetched };
+  },
+
   /** KVKK: saklama süresi dolan aday başvurularını ve dosyalarını siler */
   async adayImha(ctx) {
     const { data } = await ctx.sb.from("candidates").select("id, cv_path, file_paths").eq("company_id", ctx.companyId).lt("purge_after", ctx.today).is("employee_id", null).limit(500);
