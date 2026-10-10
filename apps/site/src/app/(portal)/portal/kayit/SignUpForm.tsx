@@ -4,10 +4,14 @@ import { useActionState } from "react";
 import { portalSignUp, type SignUpState } from "@/lib/portal-actions";
 import { PORTAL_UI, type PortalAccountType } from "@/lib/portal-ui";
 import type { Locale } from "@/lib/i18n";
+import { TEAM_UI } from "@/lib/portal-team-ui";
+import { useState } from "react";
 
 const COUNTRIES = ["TR", "FR", "BE", "CH", "DE", "NL", "GB", "IT", "ES", "AZ", "KZ", "DZ", "MA", "TN", "OTHER"];
 
-export function SignUpForm({ locale }: { locale: Locale }) {
+export function SignUpForm({ locale, invite = "" }: { locale: Locale; invite?: string }) {
+  const tu = TEAM_UI[locale];
+  const [code, setCode] = useState(invite);
   const ui = PORTAL_UI[locale].signup;
   const types = PORTAL_UI[locale].types;
   const [state, action, pending] = useActionState<SignUpState, FormData>(portalSignUp, {});
@@ -34,12 +38,17 @@ export function SignUpForm({ locale }: { locale: Locale }) {
           {ui.errors[state.error]}
         </p>
       )}
-      <fieldset className="grid gap-2">
+      <label className="grid gap-1.5 rounded-xl border border-gypsum bg-white p-4 text-sm font-semibold text-navy">
+        {tu.inviteCode}
+        <input name="invite" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={14} autoComplete="off" className="field num font-normal tracking-widest" />
+        <span className="text-xs font-normal text-slate">{tu.inviteCodeHint}</span>
+      </label>
+      <fieldset className={`grid gap-2 ${code ? "hidden" : ""}`}>
         <legend className="mb-1 text-sm font-semibold text-navy">{ui.type}</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {(Object.keys(types) as PortalAccountType[]).map((k, i) => (
             <label key={k} className="flex cursor-pointer items-center gap-3 rounded-xl border border-gypsum bg-white px-4 py-3 text-sm has-[:checked]:border-navy has-[:checked]:bg-porcelain">
-              <input type="radio" name="type" value={k} defaultChecked={locale === "tr" ? i === 0 : k === "doctor_foreign"} required />
+              <input type="radio" name="type" value={k} defaultChecked={locale === "tr" ? i === 0 : k === "doctor_foreign"} required={!code} />
               <span className="font-semibold text-ink">{types[k]}</span>
             </label>
           ))}

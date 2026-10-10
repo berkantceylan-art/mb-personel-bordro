@@ -32,11 +32,15 @@ export default async function NewJobPage({ searchParams }: { searchParams: Promi
     }
   }
   if (caseId) {
-    const { data: pc } = await supabase.from("portal_cases").select("id, no, account_id, patient_ref, teeth, shade, notes, product_slug").eq("id", caseId).maybeSingle();
+    const { data: pc } = await supabase.from("portal_cases").select("id, no, account_id, patient_ref, teeth, shade, notes, product_slug, client_id").eq("id", caseId).maybeSingle();
     if (pc) {
       prefill.portal_case_id = pc.id;
       accountId = accountId ?? pc.account_id;
       prefill.patient = pc.patient_ref;
+      if (pc.client_id) {
+        const { data: cl } = await supabase.from("portal_clients").select("name").eq("id", pc.client_id).maybeSingle();
+        if (cl) prefill.doctor = cl.name as string;
+      }
       prefill.shade = pc.shade ?? undefined;
       prefill.description = [pc.product_slug ? `Ürün: ${pc.product_slug}` : "", pc.notes ?? ""].filter(Boolean).join("\n") || undefined;
       const mat = /zirkon/i.test(pc.product_slug ?? "") ? "zirkon" : /porselen/i.test(pc.product_slug ?? "") ? "porselen" : /implant/i.test(pc.product_slug ?? "") ? "implant" : /inlay/i.test(pc.product_slug ?? "") ? "inlayonlay" : /iskelet/i.test(pc.product_slug ?? "") ? "iskelet" : null;

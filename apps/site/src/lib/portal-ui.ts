@@ -23,9 +23,11 @@ export type PortalAccount = {
   price_access?: boolean;
   price_requested_at?: string | null;
   price_granted_at?: string | null;
+  logo_path?: string | null;
 };
 
 export type PortalCase = {
+  client_id?: string | null;
   id: string;
   no: number;
   account_id: string;

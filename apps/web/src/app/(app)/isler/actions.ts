@@ -356,3 +356,28 @@ export async function deletePayment(f: FormData) {
   revalidatePath("/isler/cari");
   await done("Tahsilat silindi.");
 }
+
+// ---------------------------------------------------------------------
+// Hekime / kuruma özel fiyat
+// ---------------------------------------------------------------------
+export async function saveCustomerPrice(f: FormData) {
+  await guard();
+  const customerId = str(f, "customer_id", 40);
+  const productId = str(f, "product_id", 40);
+  if (!customerId || !productId) await fail("Ürün seçin.");
+  const row = { customer_id: customerId, product_id: productId, price_try: parseMoney(str(f, "price_try", 20)), price_eur: parseMoney(str(f, "price_eur", 20)) };
+  if (row.price_try == null && row.price_eur == null) await fail("En az bir fiyat girin.");
+  const supabase = await createClient();
+  const { error } = await supabase.from("lab_customer_prices").upsert(row);
+  if (error) await fail(/lab_customer_prices/.test(error.message) ? "Supabase'de 20261128000000_portal_teams.sql çalıştırılmalı." : error.message);
+  revalidatePath(`/isler/hekimler/${customerId}`);
+  await done("Özel fiyat kaydedildi.");
+}
+
+export async function deleteCustomerPrice(f: FormData) {
+  await guard();
+  const supabase = await createClient();
+  await supabase.from("lab_customer_prices").delete().eq("customer_id", str(f, "customer_id", 40)).eq("product_id", str(f, "product_id", 40));
+  revalidatePath(`/isler/hekimler/${str(f, "customer_id", 40)}`);
+  await done("Özel fiyat silindi.");
+}

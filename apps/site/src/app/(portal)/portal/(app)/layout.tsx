@@ -6,6 +6,8 @@ import { PRICE_UI } from "@/lib/prices";
 import { SHIP_UI } from "@/lib/shipments-portal";
 import { PX } from "@/lib/portal-extra-ui";
 import { ACCT_UI } from "@/lib/portal-account-ui";
+import { TEAM_UI } from "@/lib/portal-team-ui";
+import { joinPortalAccount } from "@/lib/portal-team-actions";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
@@ -21,6 +23,7 @@ export default async function PortalAppLayout({ children }: { children: React.Re
   const ui = PORTAL_UI[locale];
   const acc = ctx?.account;
   // Okunmamış bildirim sayısı (son "Bildirimler" ziyaretinden sonra laboratuvardan gelenler)
+  const joinError = !acc ? (await cookies()).get("portal-katil")?.value : undefined;
   let unread = 0;
   if (acc?.status === "active") {
     const seen = decodeURIComponent((await cookies()).get("portal-bildirim")?.value ?? "") || new Date(Date.now() - 14 * 86400000).toISOString();
@@ -59,6 +62,14 @@ export default async function PortalAppLayout({ children }: { children: React.Re
               <Link href="/portal/hesap" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
                 {ACCT_UI[locale].nav}
               </Link>
+              {(acc.type === "agency" || acc.type === "clinic") && (
+                <Link href="/portal/musteriler" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
+                  {TEAM_UI[locale].clientsNav}
+                </Link>
+              )}
+              <Link href="/portal/ekip" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
+                {TEAM_UI[locale].teamNav}
+              </Link>
               <Link href="/portal/fiyat-listesi" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
                 {PRICE_UI[locale].nav}
               </Link>
@@ -85,6 +96,16 @@ export default async function PortalAppLayout({ children }: { children: React.Re
             <Link href={`/portal/kayit?dil=${locale}`} className="mt-5 inline-block rounded-full bg-navy px-5 py-3 font-semibold text-white hover:bg-blue">
               {ui.signup.submit}
             </Link>
+            <form action={joinPortalAccount} className="mt-8 grid max-w-lg gap-3 border-t border-gypsum pt-6">
+              <p className="font-semibold text-navy">{TEAM_UI[locale].joinTitle}</p>
+              {joinError && <p className="rounded-lg bg-bad-bg px-3 py-2 text-sm text-bad">{TEAM_UI[locale].errors[joinError] ?? TEAM_UI[locale].errors.server}</p>}
+              <p className="text-sm text-slate">{TEAM_UI[locale].joinLead}</p>
+              <div className="flex flex-wrap gap-2">
+                <input name="code" required maxLength={14} placeholder="ABCD234XYZ" className="field num flex-1 tracking-widest" />
+                <input name="name" maxLength={120} placeholder={TEAM_UI[locale].inviteName} className="field flex-1" />
+                <button className="rounded-full bg-smile px-5 py-3 font-semibold text-navy hover:bg-navy hover:text-white">{TEAM_UI[locale].join}</button>
+              </div>
+            </form>
           </div>
         ) : acc.status === "pending" ? (
           <div className="rounded-3xl bg-white p-8">

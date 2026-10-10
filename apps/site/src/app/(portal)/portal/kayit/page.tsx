@@ -9,8 +9,8 @@ export const metadata = {
   description: "Hekim, klinik ve aracı kuruluşlar için MB Dental portalı: çevrim içi vaka gönderme, dosya yükleme, aşama aşama takip ve fiyat listesi.",
 };
 
-export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ dil?: string }> }) {
-  const { dil } = await searchParams;
+export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ dil?: string; davet?: string }> }) {
+  const { dil, davet } = await searchParams;
   const ctx = await portalContext();
   if (ctx) redirect("/portal");
   const locale: Locale = isLocale(dil) ? dil : await portalLocale();
@@ -44,7 +44,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
       </section>
       <section className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-xl">
-          <SignUpForm locale={locale} />
+          <SignUpForm locale={locale} invite={(davet ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)} />
           <p className="mt-6 text-sm text-slate">
             {ui.signup.haveAccount}{" "}
             <Link href="/giris?sonra=/portal" className="font-semibold text-navy underline-offset-4 hover:underline">

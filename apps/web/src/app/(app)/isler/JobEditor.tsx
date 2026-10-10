@@ -21,9 +21,9 @@ import {
 } from "@/lib/jobs";
 import { saveJob, type JobPayload } from "./actions";
 
-export type CustomerOpt = { id: string; name: string; currency: string; discount_pct: number; doctors: string[] };
+export type CustomerOpt = { id: string; name: string; currency: string; discount_pct: number; doctors: string[]; prices?: Record<string, { try: number | null; eur: number | null }> };
 export type ProductOpt = { id: string; name: string; material: string | null; price_try: number | null; price_eur: number | null };
-export type Prefill = { customer_id?: string; received?: string[]; shipment_id?: string; portal_case_id?: string; patient?: string; teeth?: Record<string, string>; shade?: string; description?: string; note?: string };
+export type Prefill = { doctor?: string; customer_id?: string; received?: string[]; shipment_id?: string; portal_case_id?: string; patient?: string; teeth?: Record<string, string>; shade?: string; description?: string; note?: string };
 
 const SHADES = ["A1", "A2", "A3", "A3.5", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4", "D2", "D3", "D4", "BL1", "BL2", "BL3", "BL4", "OM1", "OM2", "OM3"];
 const box = "rounded-[14px] bg-white border border-line p-4 md:p-5";
@@ -57,7 +57,7 @@ export function JobEditor({
   const [slip, setSlip] = useState(job?.slip_no ?? "");
   const [customerId, setCustomerId] = useState(job?.customer_id ?? prefill?.customer_id ?? "");
   const [custQuery, setCustQuery] = useState(customers.find((c) => c.id === (job?.customer_id ?? prefill?.customer_id))?.name ?? "");
-  const [doctor, setDoctor] = useState(job?.doctor_name ?? "");
+  const [doctor, setDoctor] = useState(job?.doctor_name ?? prefill?.doctor ?? "");
   const [patient, setPatient] = useState(job?.patient ?? prefill?.patient ?? "");
   const [shade, setShade] = useState(job?.shade ?? prefill?.shade ?? "");
   const [cervical, setCervical] = useState(job?.shade_cervical ?? "");
@@ -104,6 +104,10 @@ export function JobEditor({
   const [kind, setKind] = useState<ItemKind>("paid");
   const priceFor = (p: ProductOpt | undefined) => {
     if (!p) return null;
+    // Hekime özel fiyat varsa o (iskonto uygulanmaz), yoksa liste fiyatı - iskonto
+    const special = customer?.prices?.[p.id];
+    const sp = special ? (currency === "EUR" ? special.eur : special.try) : null;
+    if (sp != null) return sp;
     const base = currency === "EUR" ? p.price_eur : p.price_try;
     if (base == null) return null;
     return Math.round(base * (1 - (customer?.discount_pct ?? 0) / 100));
