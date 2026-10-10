@@ -7,6 +7,7 @@ import { t } from "@/lib/i18n";
 import { postCaseMessage } from "@/lib/portal-actions";
 import { PORTAL_BUCKET, PORTAL_UI, portalContext, portalLocale, type CaseEvent, type CaseFile, type PortalCase } from "@/lib/portal";
 import { createClient } from "@/lib/supabase/server";
+import { PX } from "@/lib/portal-extra-ui";
 
 export const metadata = { title: "Portal" };
 
@@ -42,6 +43,16 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
       <div className="mb-6 mt-2 flex flex-wrap items-baseline gap-3">
         <h1 className="display num text-3xl font-semibold text-navy">#{c.no}</h1>
         <span className="text-lg font-semibold">{c.patient_ref}</span>
+        <div className="ml-auto flex flex-wrap gap-2 text-sm font-semibold">
+          {(c.status === "shipped" || c.status === "delivered") && (
+            <Link href={`/portal/vaka/${c.id}/beyan`} className="rounded-full border border-gypsum bg-white px-4 py-2 text-navy hover:border-navy">
+              {PX[locale].declaration}
+            </Link>
+          )}
+          <Link href={`/portal/vaka/yeni?tekrar=${c.id}`} className="rounded-full bg-navy px-4 py-2 text-white hover:bg-blue">
+            ↻ {PX[locale].repeat}
+          </Link>
+        </div>
       </div>
       <div className="mb-6 rounded-2xl border border-gypsum bg-white p-5">
         <CaseProgress c={c} locale={locale} />
