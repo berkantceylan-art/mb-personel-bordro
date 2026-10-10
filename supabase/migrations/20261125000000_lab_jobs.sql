@@ -154,7 +154,9 @@ create index if not exists job_files_idx on job_files (job_id);
 create or replace function lab_touch() returns trigger language plpgsql as $$
 begin
   new.updated_at := now();
-  if tg_table_name = 'jobs' and new.status = 'delivered' and new.delivered_at is null then new.delivered_at := now(); end if;
+  if tg_table_name = 'jobs' then
+    if new.status = 'delivered' and new.delivered_at is null then new.delivered_at := now(); end if;
+  end if;
   return new;
 end $$;
 drop trigger if exists lab_customers_touch on lab_customers;
