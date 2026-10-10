@@ -14,7 +14,7 @@ export default async function LabSettings() {
   const { data, error } = await supabase.from("lab_options").select("id, kind, value, sort").order("sort").order("value");
   const rows = (data ?? []) as { id: string; kind: string; value: string; sort: number }[];
 
-  const Block = ({ kind, title, hint }: { kind: "delivery" | "tryin"; title: string; hint: string }) => (
+  const Block = ({ kind, title, hint }: { kind: "delivery" | "tryin" | "bank"; title: string; hint: string }) => (
     <Card title={title}>
       <p className="text-xs text-muted">{hint}</p>
       <ul className="flex flex-wrap gap-2">
@@ -40,7 +40,8 @@ export default async function LabSettings() {
         {error && <p className="md:col-span-2 text-sm text-bad bg-bad-bg rounded-lg p-3">Tablolar yok: Supabase&apos;de 20261125000000_lab_jobs.sql çalıştırın.</p>}
         <Block kind="delivery" title="Teslim şekli" hint="İşin hekime nasıl gideceği (kurye, kargo, elden...)" />
         <Block kind="tryin" title="Prova türü" hint="Prova / teslim adımlarında seçilir" />
-        <Card title="İş numarası" className="md:col-span-2">
+        <Block kind="bank" title="Banka bilgileri" hint="Ekstre ve proformada basılır; hekim portalında görünür. Ör: Garanti BBVA · TR12 0006 2000 ... · EUR hesabı" />
+        <Card title="İş numarası">
           <p className="text-sm text-muted">Yeni işler otomatik numara alır. Eski programdaki numaradan devam etmek için iş kayıt ekranında ilk işe <b>Numara</b> alanına istediğiniz numarayı yazın; sonraki işler o numaradan devam eder.</p>
         </Card>
       </div>

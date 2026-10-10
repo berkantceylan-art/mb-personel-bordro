@@ -302,8 +302,8 @@ export async function importProductsFromPriceList() {
 // ---------------------------------------------------------------------
 export async function addOption(f: FormData) {
   await guard();
-  const kind = str(f, "kind") === "tryin" ? "tryin" : "delivery";
-  const value = str(f, "value", 80);
+  const kind = ["tryin", "bank"].includes(str(f, "kind")) ? str(f, "kind") : "delivery";
+  const value = str(f, "value", kind === "bank" ? 200 : 80);
   if (!value) await fail("Değer yazın.");
   const supabase = await createClient();
   const { error } = await supabase.from("lab_options").insert({ kind, value, sort: Number(str(f, "sort", 4)) || 50 });
@@ -318,4 +318,41 @@ export async function deleteOption(f: FormData) {
   await supabase.from("lab_options").delete().eq("id", str(f, "id", 40));
   revalidatePath("/isler/ayarlar");
   await done("Silindi.");
+}
+
+// ---------------------------------------------------------------------
+// Tahsilat (cari hesap)
+// ---------------------------------------------------------------------
+export async function savePayment(f: FormData) {
+  await guard();
+  const customerId = str(f, "customer_id", 40);
+  const amount = parseMoney(str(f, "amount", 20));
+  if (!customerId) await fail("Hekim / hastane seçin.");
+  if (!amount) await fail("Tutar girin (ör. 1.250,00).");
+  const supabase = await createClient();
+  const { data: c } = await supabase.from("lab_customers").select("currency").eq("id", customerId).maybeSingle();
+  const row = {
+    customer_id: customerId,
+    paid_on: /^\d{4}-\d{2}-\d{2}$/.test(str(f, "paid_on")) ? str(f, "paid_on") : new Date().toISOString().slice(0, 10),
+    amount,
+    currency: ["TRY", "EUR", "USD"].includes(str(f, "currency")) ? str(f, "currency") : (c?.currency as string) ?? "TRY",
+    method: ["cash", "bank", "card", "check", "offset", "other"].includes(str(f, "method")) ? str(f, "method") : "bank",
+    ref: str(f, "ref", 80) || null,
+    note: str(f, "note", 500) || null,
+  };
+  const { error } = await supabase.from("lab_payments").insert(row);
+  if (error) await fail(/lab_payments/.test(error.message) ? "Supabase'de 20261127000000_lab_accounts.sql çalıştırılmalı." : error.message);
+  revalidatePath(`/isler/hekimler/${customerId}`);
+  revalidatePath("/isler/cari");
+  await done("Tahsilat kaydedildi.");
+}
+
+export async function deletePayment(f: FormData) {
+  const s = await guard();
+  if (!["owner", "accountant"].includes(s.role)) await fail("Tahsilat silme yetkisi yalnız sahip ve muhasebede.");
+  const supabase = await createClient();
+  const { error } = await supabase.from("lab_payments").delete().eq("id", str(f, "id", 40));
+  if (error) await fail(error.message);
+  revalidatePath("/isler/cari");
+  await done("Tahsilat silindi.");
 }
