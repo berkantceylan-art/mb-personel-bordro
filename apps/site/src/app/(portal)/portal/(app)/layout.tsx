@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ensurePortalAccount, portalSignOut } from "@/lib/portal-actions";
 import { PORTAL_UI, portalContext, portalLocale } from "@/lib/portal";
 import { PRICE_UI } from "@/lib/prices";
+import { SHIP_UI } from "@/lib/shipments-portal";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +30,12 @@ export default async function PortalAppLayout({ children }: { children: React.Re
             </span>
           </Link>
           {acc?.status === "active" && (
-            <nav aria-label={ui.title} className="flex gap-1 text-sm">
+            <nav aria-label={ui.title} className="flex flex-wrap gap-1 text-sm">
               <Link href="/portal" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
                 {ui.nav.cases}
+              </Link>
+              <Link href="/portal/paketler" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
+                {SHIP_UI[locale].nav}
               </Link>
               <Link href="/portal/fiyat-listesi" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
                 {PRICE_UI[locale].nav}

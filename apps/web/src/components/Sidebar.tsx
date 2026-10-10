@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { SignOutForm } from "./SignOut";
 
 /** site: yalnız web sitesi yönetim yetkisi olana; raw: Next bağlantısı değil, düz adres (sunucu yönlendirmesi) */
-type Item = { label: string; href: string; roles?: string[]; site?: boolean; raw?: boolean };
+type Item = { label: string; href: string; roles?: string[]; site?: boolean; logistics?: boolean; raw?: boolean };
 const MANAGERS = ["owner", "accountant", "hr", "branch_manager", "safety"];
 const PAY = ["owner", "accountant"];
 const HR = ["owner", "hr", "branch_manager"];
@@ -40,6 +40,14 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
       { label: "Ayarlar", href: "/benim/ayarlar", roles: ["employee"] },
       { label: "Personel", href: "/personel", roles: MANAGERS },
       { label: "Zimmet", href: "/zimmet", roles: ["owner", "accountant", "hr", "branch_manager"] },
+    ],
+  },
+  {
+    group: "Lojistik",
+    items: [
+      { label: "Kargo, gümrük, kurye", href: "/kargo", logistics: true },
+      { label: "Paket okut", href: "/kargo/okut", logistics: true },
+      { label: "Kurye rotası", href: "/kargo/kurye", logistics: true },
     ],
   },
   {
@@ -94,14 +102,14 @@ export const NAV: Array<{ group: string; items: Item[] }> = [
 ];
 
 /** Kullanıcının yetkili olduğu modüller: rol + web sitesi erişimi */
-export function visibleNav(role: string, siteAccess = false) {
-  return NAV.map((g) => ({ ...g, items: g.items.filter((i) => (i.site ? siteAccess : !i.roles || i.roles.includes(role))) })).filter((g) => g.items.length);
+export function visibleNav(role: string, siteAccess = false, logistics = false) {
+  return NAV.map((g) => ({ ...g, items: g.items.filter((i) => (i.site ? siteAccess : i.logistics ? logistics : !i.roles || i.roles.includes(role))) })).filter((g) => g.items.length);
 }
 
-export function Sidebar({ companyName, role, siteAccess = false, badges = {} }: { companyName: string; role: string; siteAccess?: boolean; badges?: Record<string, number> }) {
+export function Sidebar({ companyName, role, siteAccess = false, logistics = false, badges = {} }: { companyName: string; role: string; siteAccess?: boolean; logistics?: boolean; badges?: Record<string, number> }) {
   const path = usePathname();
-  const groups = visibleNav(role, siteAccess);
-  const isActive = (href: string) => (href === "/" || href === "/benim" ? path === href : path.startsWith(href));
+  const groups = visibleNav(role, siteAccess, logistics);
+  const isActive = (href: string) => (href === "/" || href === "/benim" || href === "/kargo" ? path === href || (href === "/kargo" && /^\/kargo\/(?!okut|kurye)/.test(path)) : path.startsWith(href));
   return (
     <nav aria-label="Ana menü" className="print:hidden hidden md:flex md:w-62 md:shrink-0 bg-brand-900 text-[#C9D6E5] flex-col gap-5 px-3.5 py-5">
       <div className="flex items-center gap-3 px-2">
