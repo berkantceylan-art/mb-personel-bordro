@@ -5,7 +5,7 @@ import { PORTAL_UI, portalContext, portalLocale } from "@/lib/portal";
 import { RailNav } from "@/components/RailNav";
 import { PORTAL_RAIL, portalNav } from "@/lib/portal-nav";
 import { TEAM_UI } from "@/lib/portal-team-ui";
-import { joinPortalAccount } from "@/lib/portal-team-actions";
+import { joinPortalAccount, registerCurrentUser } from "@/lib/portal-team-actions";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
@@ -81,12 +81,38 @@ export default async function PortalAppLayout({ children }: { children: React.Re
           <div className="rounded-3xl bg-white p-8">
             <h1 className="display text-2xl font-semibold text-navy">{ui.signup.title}</h1>
             <p className="mt-2 text-slate">{ui.signup.lead}</p>
-            <Link href={`/portal/kayit?dil=${locale}`} className="mt-5 inline-block rounded-full bg-navy px-5 py-3 font-semibold text-white hover:bg-blue">
-              {ui.signup.submit}
-            </Link>
+            {joinError && (
+              <p className="mt-4 rounded-lg bg-bad-bg px-3 py-2 text-sm text-bad">
+                {joinError === "required" ? (locale === "tr" ? "Hesap türünü seçin ve adınızı yazın." : locale === "fr" ? "Choisissez le type de compte et saisissez votre nom." : "Choose an account type and enter your name.") : TEAM_UI[locale].errors[joinError] ?? TEAM_UI[locale].errors.server}
+              </p>
+            )}
+            <form action={registerCurrentUser} className="mt-6 grid gap-4">
+              <input type="hidden" name="language" value={locale} />
+              <fieldset className="grid gap-2">
+                <legend className="mb-1 text-sm font-semibold text-navy">{ui.signup.type}</legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(Object.keys(ui.types) as (keyof typeof ui.types)[]).map((k, i) => (
+                    <label key={k} className="flex cursor-pointer items-center gap-3 rounded-xl border border-gypsum bg-white px-4 py-3 text-sm has-[:checked]:border-navy has-[:checked]:bg-porcelain">
+                      <input type="radio" name="type" value={k} defaultChecked={i === 0} required />
+                      <span className="font-semibold text-ink">{ui.types[k]}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-1.5 text-sm font-semibold text-navy">{ui.signup.name}<input name="name" required minLength={2} maxLength={160} autoComplete="name" className="field font-normal" /></label>
+                <label className="grid gap-1.5 text-sm font-semibold text-navy">{ui.signup.company}<input name="company" maxLength={160} autoComplete="organization" className="field font-normal" /></label>
+                <label className="grid gap-1.5 text-sm font-semibold text-navy">{ui.signup.country}<input name="country" maxLength={60} defaultValue="TR" className="field font-normal" /></label>
+                <label className="grid gap-1.5 text-sm font-semibold text-navy">{ui.signup.city}<input name="city" maxLength={80} autoComplete="address-level2" className="field font-normal" /></label>
+                <label className="grid gap-1.5 text-sm font-semibold text-navy">{ui.signup.phone}<input name="phone" type="tel" maxLength={40} autoComplete="tel" className="field font-normal" /></label>
+              </div>
+              <p className="text-xs text-slate">{ctx?.user.email}</p>
+              <div>
+                <button className="rounded-full bg-navy px-7 py-3 font-semibold text-white hover:bg-blue">{ui.signup.submit}</button>
+              </div>
+            </form>
             <form action={joinPortalAccount} className="mt-8 grid max-w-lg gap-3 border-t border-gypsum pt-6">
               <p className="font-semibold text-navy">{TEAM_UI[locale].joinTitle}</p>
-              {joinError && <p className="rounded-lg bg-bad-bg px-3 py-2 text-sm text-bad">{TEAM_UI[locale].errors[joinError] ?? TEAM_UI[locale].errors.server}</p>}
               <p className="text-sm text-slate">{TEAM_UI[locale].joinLead}</p>
               <div className="flex flex-wrap gap-2">
                 <input name="code" required maxLength={14} placeholder="ABCD234XYZ" className="field num flex-1 tracking-widest" />
