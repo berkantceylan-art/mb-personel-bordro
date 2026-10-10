@@ -28,11 +28,12 @@ export default async function PortalAppLayout({ children }: { children: React.Re
   if (acc?.status === "active") {
     const seen = decodeURIComponent((await cookies()).get("portal-bildirim")?.value ?? "") || new Date(Date.now() - 14 * 86400000).toISOString();
     const supabase = await createClient();
-    const [a, b] = await Promise.all([
+    const [a, b, c] = await Promise.all([
       supabase.from("portal_case_events").select("id, portal_cases!inner(account_id)", { count: "exact", head: true }).eq("portal_cases.account_id", acc.id).eq("from_lab", true).gt("created_at", seen),
       supabase.from("shipment_events").select("id, shipments!inner(portal_account_id)", { count: "exact", head: true }).eq("shipments.portal_account_id", acc.id).neq("source", "portal").not("status", "is", null).gt("created_at", seen),
+      supabase.from("cms_announcements").select("id", { count: "exact", head: true }).eq("audience", "portal").is("deleted_at", null).eq("is_active", true).gt("created_at", seen),
     ]);
-    unread = (a.count ?? 0) + (b.count ?? 0);
+    unread = (a.count ?? 0) + (b.count ?? 0) + (c.count ?? 0);
   }
 
   return (

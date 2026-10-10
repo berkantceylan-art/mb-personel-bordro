@@ -10,6 +10,8 @@ import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicCases, publicP
 import { mediaKind } from "@/lib/media";
 import { businessJsonLd } from "@/lib/seo";
 import { STORY_LABELS, instagramPosts, storyViews } from "@/lib/stories";
+import { publicPosts, publicTestimonials } from "@/lib/cms";
+import { BLOG_UI, TESTI_UI } from "@/lib/growth-ui";
 import { getSettings, telHref } from "@/lib/settings";
 import { CASE_UI, DICTS, PAGE_UI, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
 
@@ -34,7 +36,7 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const d = DICTS[locale];
-  const [banners, news, slides, products, pages, featuredCases, popups, departments, igPosts] = await Promise.all([
+  const [banners, news, slides, products, pages, featuredCases, popups, departments, igPosts, testimonials, posts] = await Promise.all([
     publicAnnouncements("banner"),
     publicAnnouncements("news"),
     publicSlides("home"),
@@ -44,6 +46,8 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
     publicAnnouncements("popup"),
     publicDepartments(),
     instagramPosts(8),
+    publicTestimonials(),
+    publicPosts(3),
   ]);
   const productNames = Object.fromEntries(products.map((p) => [p.slug, t(p.name, locale)]));
   const popup = popups[0];
@@ -330,6 +334,58 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
             </ul>
           </div>
         </section>
+
+        {/* Hekim görüşleri (yalnız izinli, gerçek görüşler) */}
+        {testimonials.filter((x) => t(x.quote, locale)).length > 0 && (
+          <section aria-labelledby="gorusler-baslik" className="border-t border-gypsum">
+            <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+              <h2 id="gorusler-baslik" className="display text-4xl font-semibold text-navy">{TESTI_UI[locale].title}</h2>
+              <p className="mt-2 text-slate">{TESTI_UI[locale].lead}</p>
+              <ul className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                {testimonials.filter((x) => t(x.quote, locale)).slice(0, 6).map((x) => {
+                  const photo = mediaUrl(x.photo_path);
+                  return (
+                    <li key={x.id} className="flex flex-col rounded-3xl bg-white p-7">
+                      {x.rating && <p className="text-smile" aria-label={`${x.rating}/5`}>{"★".repeat(x.rating)}</p>}
+                      <blockquote className="mt-2 flex-1 text-lg leading-relaxed text-ink">“{t(x.quote, locale)}”</blockquote>
+                      <div className="mt-5 flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {photo && <img src={photo} alt="" className="h-11 w-11 rounded-full object-cover" loading="lazy" />}
+                        <div>
+                          <p className="font-semibold text-navy">{x.name}</p>
+                          <p className="text-sm text-slate">{[x.role, x.city, x.country].filter(Boolean).join(" · ")}</p>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </section>
+        )}
+
+        {/* Blogdan son yazılar */}
+        {posts.filter((x) => t(x.title, locale)).length > 0 && (
+          <section aria-labelledby="blog-baslik" className="border-t border-gypsum bg-white">
+            <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <h2 id="blog-baslik" className="display text-4xl font-semibold text-navy">{BLOG_UI[locale].title}</h2>
+                <Link href={`/${locale}/blog`} className="font-semibold text-smile-ink hover:underline">{BLOG_UI[locale].all} →</Link>
+              </div>
+              <ul className="mt-8 grid gap-5 md:grid-cols-3">
+                {posts.filter((x) => t(x.title, locale)).map((x) => (
+                  <li key={x.id}>
+                    <Link href={`/${locale}/blog/${x.slug}`} className="block h-full rounded-3xl bg-porcelain p-6 hover:shadow-md">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-smile-ink">{BLOG_UI[locale].cats[x.category]}</p>
+                      <h3 className="display mt-2 text-xl font-semibold text-navy">{t(x.title, locale)}</h3>
+                      <p className="mt-2 line-clamp-3 text-slate">{t(x.summary, locale)}</p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
 
         {/* Admin panelinden yayınlanan haber türü duyurular */}
         {news.length > 0 && (

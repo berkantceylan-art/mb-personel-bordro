@@ -4,7 +4,7 @@ import { mediaUrl, type SitePage } from "@/lib/cms";
 import { MediaField } from "./MediaField";
 import { UploadForm } from "./UploadForm";
 import { AiSeoButton } from "./AiButtons";
-import { I18nField } from "./ui";
+import { I18nField, toLocalInput } from "./ui";
 
 export const PAGE_GROUP_LABELS: Record<SitePage["group"], string> = { kurumsal: "Kurumsal", teknoloji: "Teknoloji", kalite: "Kalite", diger: "Diğer" };
 
@@ -120,6 +120,11 @@ export function PageForm({ page }: { page?: SitePage }) {
         <label className="flex items-center gap-3 text-sm font-semibold text-navy">
           <input type="checkbox" name="is_active" defaultChecked={page ? page.is_active : true} className="h-5 w-5" />
           Yayında
+        </label>
+        <label className="grid max-w-xs gap-1 text-sm font-semibold text-navy">
+          Yayın zamanı (isteğe bağlı)
+          <input type="datetime-local" name="publish_at" defaultValue={toLocalInput((page as { publish_at?: string | null } | undefined)?.publish_at)} className="field font-normal" />
+          <span className="text-xs font-normal text-slate">İleri bir tarih seçerseniz sayfa o saatte kendiliğinden yayına girer.</span>
         </label>
       </div>
     </UploadForm>

@@ -4,6 +4,7 @@ import { PX } from "@/lib/portal-extra-ui";
 import { SHIP_UI } from "@/lib/shipments-portal";
 import { createClient } from "@/lib/supabase/server";
 import { MarkSeen } from "./MarkSeen";
+import { t } from "@/lib/i18n";
 
 export const metadata = { title: "Bildirimler" };
 
@@ -40,6 +41,13 @@ export default async function PortalNotifications() {
     const s = shipMap.get(e.shipment_id);
     if (!s) continue;
     items.push({ key: `s${e.id}`, at: e.created_at, title: `${px.notifShipment} · ${s.direction === "in" ? sh.incoming : sh.outgoing} · ${sh.carriers[s.carrier] ?? s.carrier}${s.tracking_no ? ` ${s.tracking_no}` : ""}`, body: sh.status[e.status] ?? e.status, href: "/portal/paketler" });
+  }
+  // Laboratuvar duyuruları (hesap türüne göre hedeflenmiş; RLS süzer)
+  const { data: anns } = await supabase.from("cms_announcements").select("id, title, body, link_href, starts_at, created_at").eq("audience", "portal").is("deleted_at", null).eq("is_active", true).order("created_at", { ascending: false }).limit(10);
+  for (const a of (anns ?? []) as { id: string; title: Record<string, string>; body: Record<string, string>; link_href: string | null; starts_at: string | null; created_at: string }[]) {
+    const title = t(a.title, locale);
+    if (!title) continue;
+    items.push({ key: `a${a.id}`, at: a.starts_at ?? a.created_at, title: `📣 ${title}`, body: t(a.body, locale), href: a.link_href ?? "/portal/bildirimler" });
   }
   items.sort((a, b) => b.at.localeCompare(a.at));
 

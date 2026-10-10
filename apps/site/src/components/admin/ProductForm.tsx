@@ -44,6 +44,11 @@ export function ProductForm({ product }: { product?: Product }) {
           </select>
         </label>
         <label className="grid gap-1 text-sm font-semibold text-navy">
+          Üretim süresi (iş günü)
+          <input name="lead_days" type="number" min={0} max={60} defaultValue={product?.lead_days ?? ""} placeholder="ör. 5" className="field font-normal" />
+          <span className="text-xs font-normal text-slate">Sitedeki teslim süresi hesaplayıcı kullanır. Boşsa ürün hesaplayıcıda görünmez.</span>
+        </label>
+        <label className="grid gap-1 text-sm font-semibold text-navy">
           Adres
           <span className="flex items-center rounded-lg border border-gypsum bg-porcelain pl-3 text-sm font-normal text-slate focus-within:border-navy">
             /urunler/
