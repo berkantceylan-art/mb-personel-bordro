@@ -2,7 +2,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { activeHref, visibleNav } from "./Sidebar";
+import { activeHref, visibleNav } from "@/lib/nav";
+import { useNavPrefs } from "@/lib/nav-prefs";
+import { CommandPalette } from "./CommandPalette";
+import { useCommandK } from "./Sidebar";
 import { SignOutForm } from "./SignOut";
 
 type Tab = { label: string; href: string; icon: string };
@@ -53,6 +56,8 @@ const Icon = ({ name }: { name: string }) => (
 export function MobileNav({ role, companyName, badges, boss = false, siteAccess = false, logistics = false }: { role: string; companyName: string; badges: Record<string, number>; boss?: boolean; siteAccess?: boolean; logistics?: boolean }) {
   const path = usePathname();
   const [menu, setMenu] = useState(false);
+  const [search, setSearch] = useCommandK();
+  const { recent } = useNavPrefs();
   useEffect(() => setMenu(false), [path]);
   const employee = role === "employee";
   const canRequests = ["owner", "accountant", "hr", "branch_manager"].includes(role);
@@ -81,7 +86,11 @@ export function MobileNav({ role, companyName, badges, boss = false, siteAccess 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="" className="w-8 h-8" />
         <span className="font-display font-bold flex-1 truncate">{companyName.toUpperCase() || "MB DENTAL"}</span>
+        <button type="button" onClick={() => setSearch(true)} className="w-10 h-10 -mr-1 grid place-items-center rounded-full hover:bg-white/10" aria-label="Ara">
+          <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" /></svg>
+        </button>
       </header>
+      <CommandPalette groups={visibleNav(role, siteAccess, logistics)} open={search} onClose={() => setSearch(false)} recent={recent} />
 
       <nav aria-label="Alt menü" className="md:hidden print:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-line grid" style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, 1fr)`, paddingBottom: "env(safe-area-inset-bottom)" }}>
         {tabs.map((t) => (
@@ -106,7 +115,10 @@ export function MobileNav({ role, companyName, badges, boss = false, siteAccess 
             <div className="w-10 h-1 rounded-full bg-line mx-auto mb-3" />
             {groups.map((g) => (
               <div key={g.group} className="mb-3">
-                <div className="text-[11px] uppercase tracking-[0.08em] text-muted px-1 pb-1">{g.group}</div>
+                <div className="text-[11px] uppercase tracking-[0.08em] text-muted px-1 pb-1 flex justify-between">
+                  {g.group}
+                  {g.slug !== "genel" && g.slug !== "benim" && <Link href={`/modul/${g.slug}`} onClick={() => setMenu(false)} className="normal-case tracking-normal text-brand-600 font-semibold">Modül sayfası →</Link>}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {g.items.map((i) => i.raw ? (
                     <a key={i.href} href={i.href} className="rounded-xl px-3 py-3 text-sm font-semibold bg-ground text-ink flex justify-between">{i.label}<span aria-hidden="true">↗</span></a>
