@@ -2,10 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ensurePortalAccount, portalSignOut } from "@/lib/portal-actions";
 import { PORTAL_UI, portalContext, portalLocale } from "@/lib/portal";
-import { PRICE_UI } from "@/lib/prices";
-import { SHIP_UI } from "@/lib/shipments-portal";
-import { PX } from "@/lib/portal-extra-ui";
-import { ACCT_UI } from "@/lib/portal-account-ui";
+import { RailNav } from "@/components/RailNav";
+import { PORTAL_RAIL, portalNav } from "@/lib/portal-nav";
 import { TEAM_UI } from "@/lib/portal-team-ui";
 import { joinPortalAccount } from "@/lib/portal-team-actions";
 import { cookies } from "next/headers";
@@ -36,60 +34,49 @@ export default async function PortalAppLayout({ children }: { children: React.Re
     unread = (a.count ?? 0) + (b.count ?? 0) + (c.count ?? 0);
   }
 
+  const signOutForm = (
+    <>
+      <p className="truncate px-1">{acc?.company || acc?.name || ctx?.user.email}</p>
+      <div className="mt-1.5 flex gap-3 px-1">
+        <Link href={`/${locale}`} className="hover:text-navy">{ui.nav.site} ↗</Link>
+        <form action={portalSignOut}><button type="submit" className="hover:text-bad">{ui.nav.signOut}</button></form>
+      </div>
+    </>
+  );
+
   return (
-    <div className="min-h-dvh bg-porcelain">
-      <header className="bg-navy text-white print:hidden">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4 sm:px-6">
-          <Link href="/portal" className="flex items-center gap-3">
+    <div className="min-h-dvh bg-porcelain lg:flex">
+      {acc?.status === "active" ? (
+        <div className="contents print:hidden">
+          <RailNav
+            groups={portalNav(locale, acc.type)}
+            root="/portal"
+            homeHref="/portal"
+            badges={{ "/portal/bildirimler": unread }}
+            storageKey="mb-portal-nav-v1"
+            brand={`MB Dental · ${ui.title}`}
+            labels={PORTAL_RAIL[locale]}
+            cta={{ href: "/portal/vaka/yeni", label: ui.nav.newCase }}
+            footer={signOutForm}
+          />
+        </div>
+      ) : (
+        <header className="bg-navy text-white print:hidden lg:fixed lg:inset-x-0 lg:top-0 lg:z-30">
+          <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-4 sm:px-6">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.svg" alt="" width={38} height={38} className="h-[38px] w-[38px]" />
-            <span>
+            <span className="flex-1">
               <span className="display block text-lg font-semibold leading-tight">MB Dental</span>
               <span className="block text-xs text-white/60">{ui.title}</span>
             </span>
-          </Link>
-          {acc?.status === "active" && (
-            <nav aria-label={ui.title} className="flex flex-wrap gap-1 text-sm">
-              <Link href="/portal" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
-                {ui.nav.cases}
-              </Link>
-              <Link href="/portal/bildirimler" className="relative rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
-                {PX[locale].notifNav}
-                {unread > 0 && <span className="ml-1.5 rounded-full bg-smile px-1.5 py-0.5 text-[11px] font-bold text-navy">{unread > 99 ? "99+" : unread}</span>}
-              </Link>
-              <Link href="/portal/paketler" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
-                {SHIP_UI[locale].nav}
-              </Link>
-              <Link href="/portal/hesap" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
-                {ACCT_UI[locale].nav}
-              </Link>
-              {(acc.type === "agency" || acc.type === "clinic") && (
-                <Link href="/portal/musteriler" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
-                  {TEAM_UI[locale].clientsNav}
-                </Link>
-              )}
-              <Link href="/portal/ekip" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
-                {TEAM_UI[locale].teamNav}
-              </Link>
-              <Link href="/portal/fiyat-listesi" className="rounded-lg px-3 py-2 text-white/85 hover:bg-white/10 hover:text-white">
-                {PRICE_UI[locale].nav}
-              </Link>
-              <Link href="/portal/vaka/yeni" className="rounded-lg bg-smile px-3 py-2 font-semibold text-navy hover:bg-white">
-                + {ui.nav.newCase}
-              </Link>
-            </nav>
-          )}
-          <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="hidden max-w-[16rem] truncate text-white/70 sm:inline">{acc?.company || acc?.name || ctx?.user.email}</span>
             <form action={portalSignOut}>
-              <button type="submit" className="rounded-full border border-white/30 px-3 py-1.5 hover:border-white">
-                {ui.nav.signOut}
-              </button>
+              <button type="submit" className="rounded-full border border-white/30 px-3 py-1.5 text-sm hover:border-white">{ui.nav.signOut}</button>
             </form>
           </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        </header>
+      )}
+      <div className="min-w-0 flex-1">
+      <main className={`mx-auto max-w-6xl px-4 py-8 sm:px-6 ${acc?.status === "active" ? "" : "lg:pt-28"}`}>
         {!acc ? (
           <div className="rounded-3xl bg-white p-8">
             <h1 className="display text-2xl font-semibold text-navy">{ui.signup.title}</h1>
@@ -123,6 +110,7 @@ export default async function PortalAppLayout({ children }: { children: React.Re
           children
         )}
       </main>
+      </div>
     </div>
   );
 }
