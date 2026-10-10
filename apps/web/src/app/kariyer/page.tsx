@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ApplyForm } from "./ApplyForm";
+import { EmbedHeight } from "./EmbedHeight";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Kariyer · İş başvurusu", description: "Açık pozisyonlar ve iş başvuru formu" };
@@ -12,10 +13,12 @@ type Posting = { id: string; slug: string; title: string; description: string | 
  *   /kariyer            → ilanlar + form
  *   /kariyer?ilan=slug  → ilan seçili form
  *   /kariyer?gom=1      → üst/alt bölümsüz (iframe için)
+ *   /kariyer?gom=1&form=1 → yalnız başvuru formu (ilanlar sitede listeleniyor)
  */
-export default async function CareerPage({ searchParams }: { searchParams: Promise<{ ilan?: string; gom?: string }> }) {
+export default async function CareerPage({ searchParams }: { searchParams: Promise<{ ilan?: string; gom?: string; form?: string }> }) {
   const sp = await searchParams;
   const embed = sp.gom === "1";
+  const formOnly = embed && sp.form === "1";
   let postings: Posting[] = [];
   let company = "";
   try {
@@ -34,7 +37,8 @@ export default async function CareerPage({ searchParams }: { searchParams: Promi
   const dept = (p: Posting) => (p.departments as { name: string } | null)?.name;
 
   return (
-    <div className="min-h-dvh bg-[#F5F7FA] text-ink">
+    <div className={`${embed ? "" : "min-h-dvh "}bg-[#F5F7FA] text-ink`}>
+      {embed && <EmbedHeight />}
       {!embed && (
         <header className="bg-brand-900 text-white">
           <div className="max-w-[1080px] mx-auto px-4 md:px-6 py-10 md:py-14 flex flex-col gap-3">
@@ -44,7 +48,8 @@ export default async function CareerPage({ searchParams }: { searchParams: Promi
           </div>
         </header>
       )}
-      <main className="max-w-[1080px] mx-auto px-4 md:px-6 py-8 flex flex-col gap-8">
+      <main className={`max-w-[1080px] mx-auto flex flex-col gap-8 ${formOnly ? "p-0" : "px-4 md:px-6 py-8"}`}>
+        {!formOnly && (
         <section aria-labelledby="acik" className="flex flex-col gap-4">
           <h2 id="acik" className="font-display text-2xl font-bold text-brand-900">Açık pozisyonlar</h2>
           {postings.length === 0 && <p className="text-muted">Şu an açık ilan yok. Aşağıdan genel başvuru bırakabilirsiniz; uygun pozisyon açıldığında size ulaşırız.</p>}
@@ -63,6 +68,7 @@ export default async function CareerPage({ searchParams }: { searchParams: Promi
             ))}
           </div>
         </section>
+        )}
         <ApplyForm postings={postings.map((p) => ({ id: p.id, title: p.title }))} selected={selected} />
       </main>
       {!embed && <footer className="text-center text-xs text-muted py-6">{company} · Kişisel verileriniz yalnız işe alım için kullanılır.</footer>}

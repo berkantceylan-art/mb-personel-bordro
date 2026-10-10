@@ -48,7 +48,7 @@ const NAV_EXTRA: Record<Locale, { team: string; faq: string; cases: string; menu
 };
 
 /** altPath: dil değiştirince aynı sayfada kalmak için dil önekinden sonraki yol (ör. "/urunler/zirkonyum") */
-export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; altPath?: string; current?: "products" | "contact" | "about" | "team" | "faq" | "cases" }) {
+export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; altPath?: string; current?: "products" | "contact" | "about" | "team" | "faq" | "cases" | "careers" }) {
   const d = DICTS[locale];
   const x = NAV_EXTRA[locale];
   const links: [string, string, boolean][] = [
@@ -59,6 +59,7 @@ export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; 
     [`/${locale}/ekibimiz`, x.team, current === "team"],
     [`/${locale}/sss`, x.faq, current === "faq"],
     [`/${locale}/blog`, BLOG_UI[locale].nav, false],
+    [`/${locale}/kariyer`, CAREER_UI[locale].nav, current === "careers"],
     [`/${locale}/iletisim`, d.nav.contact, current === "contact"],
   ];
   return (
@@ -103,7 +104,6 @@ export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; 
               { href: "/giris", label: d.nav.login },
               { href: "/giris?kim=personel", label: x.staff },
               { href: `/${locale}/teslim-suresi`, label: LEAD_UI[locale].nav },
-              { href: `/${locale}/kariyer`, label: CAREER_UI[locale].nav },
             ]}
             labels={{ menu: x.menu, close: x.close }}
           />
