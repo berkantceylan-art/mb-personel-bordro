@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AccountForm } from "./AccountForm";
 
 /** Hesap listesi (kasa, banka, kart, kredi, ortak, avans): bakiyeler + yeni hesap */
-export async function AccountsView({ kinds, title, subtitle, newKind }: { kinds: string[]; title: string; subtitle: string; newKind: string }) {
+export async function AccountsView({ kinds, title, subtitle, newKind, children, hideNew }: { kinds: string[]; title: string; subtitle: string; newKind: string; children?: React.ReactNode; hideNew?: boolean }) {
   const s = await getSession();
   if ((s.modules.finance ?? 0) < 1) redirect("/");
   const { rows, error } = await loadAccounts(kinds);
@@ -49,7 +49,8 @@ export async function AccountsView({ kinds, title, subtitle, newKind }: { kinds:
           ))}
           {rows.length === 0 && <EmptyRow cols={6} text="Henüz hesap yok. Aşağıdan açın." />}
         </Table>
-        {canEdit && (
+        {children}
+        {canEdit && !hideNew && (
           <Card title={`Yeni ${ACCOUNT_KIND[newKind]?.label.toLocaleLowerCase("tr")}`}>
             <AccountForm kind={newKind} employees={employees} />
           </Card>
