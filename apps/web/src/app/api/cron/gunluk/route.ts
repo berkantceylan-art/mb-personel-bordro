@@ -82,7 +82,7 @@ export async function GET(req: Request) {
 }
 
 /** Günlük çalışan, parametresiz bakım / uyarı fonksiyonları */
-const DAILY_RPCS = ["stk_expiry_alerts"];
+const DAILY_RPCS = ["stk_expiry_alerts", "prd_machine_alerts"];
 
 class JobContext {
   private roleCache?: Array<{ user_id: string; role: Role }>;
