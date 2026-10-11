@@ -186,7 +186,7 @@ export const NAV: Group[] = [
   },
   { group: "Raporlar", slug: "raporlar", items: [{ label: "Raporlar", href: "/raporlar", roles: MANAGERS }, { label: "Excel'den aktar", href: "/ice-aktar", roles: PAY }] },
   { group: "Web sitesi", slug: "web-sitesi", items: [{ label: "Site yönetimi (mbdentaire.com)", href: "/site-gecis", site: true, raw: true }] },
-  { group: "Sistem", slug: "sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", roles: ["owner", "hr", "branch_manager"] }, { label: "Yönetim ve yetkiler", href: "/yonetim", roles: ["owner", "hr"] }] },
+  { group: "Sistem", slug: "sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", roles: ["owner", "hr", "branch_manager"] }, { label: "Yönetim ve yetkiler", href: "/yonetim", roles: ["owner", "hr"] }, { label: "Modül yetkileri", href: "/yonetim/yetkiler", module: "users", desc: "Kişi bazında finans, satış, stok, üretim… yetkileri; şablonlar" }, { label: "İşlem geçmişi", href: "/yonetim/hareketler", module: "users", level: 2, desc: "Kim, ne zaman, neyi değiştirdi (denetim kaydı)" }] },
 ];
 
 const ALL_HREFS = () => NAV.flatMap((g) => g.items.map((i) => i.href));
