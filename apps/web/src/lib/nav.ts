@@ -93,6 +93,7 @@ export const NAV: Group[] = [
       { label: "Kasa", href: "/finans/kasa", module: "finance", desc: "Nakit kasalar ve hareketleri" },
       { label: "Banka", href: "/finans/banka", module: "finance", desc: "Banka hesapları (TL / döviz) ve hareketleri" },
       { label: "İşlem gir", href: "/finans/islem", module: "finance", level: 2, desc: "Tahsilat, ödeme, virman, gelir, masraf" },
+      { label: "Banka ekstresi aktar", href: "/finans/banka-aktar", module: "finance", level: 2, desc: "Excel / CSV / CAMT / MT940 ekstre: otomatik eşleştirme, cari önerisi, tek tıkla işleme" },
       { label: "İşlem defteri", href: "/finans/islemler", module: "finance", desc: "Tüm finans kayıtları, iptal" },
       { label: "Çek ve senet", href: "/finans/cek-senet", module: "finance", desc: "Portföy, tahsil, ciro, karşılıksız, vade takvimi" },
       { label: "Kredi kartları", href: "/finans/kredi-karti", module: "finance", desc: "Limit, taksitli harcama, ekstre tahmini, borç ödeme" },
@@ -108,6 +109,7 @@ export const NAV: Group[] = [
   {
     group: "Cari", slug: "cari",
     items: [
+      { label: "Cari mutabakat", href: "/finans/mutabakat", module: ["finance", "sales"], desc: "Tarih itibarıyla bakiye mektubu; cari bağlantıdan ya da portaldan onaylar / itiraz eder" },
       { label: "Cari kartlar (tedarikçi / müşteri)", href: "/finans/cariler", module: ["finance", "sales", "purchases"], desc: "Tüm cariler, para birimi, açılış bakiyesi, ekstre" },
       { label: "Hekim cari hesapları", href: "/isler/cari", module: "lab", desc: "Hekim bakiyeleri, tahsilat ve ekstre" },
       { label: "Hekim / hastane kartları", href: "/isler/hekimler", module: "lab" },
