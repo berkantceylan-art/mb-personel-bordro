@@ -25,6 +25,8 @@ export default async function CourierScreen() {
     supabase.from("lab_orders").select("id, year, no, patient, pickup_note, notes, picked_at, lab_customers(name, phone, address, city, doc_lang)").eq("pickup", true).in("status", ["new", "confirmed"]).order("created_at").limit(100),
     supabase.from("companies").select("name").eq("id", s.companyId).maybeSingle(),
   ]);
+  const { data: buyLists } = await supabase.rpc("stk_buy_lists_mine");
+  const myLists = (buyLists ?? []) as { id: string; no: string; planned_on: string | null; note: string | null; total: number; picked: number }[];
   const wbs = (wd ?? []) as unknown as { id: string; year: number; no: number; ship_date: string; total: number; currency: string; job_count: number; delivered_at: string | null; delivered_to: string | null; lab_customers: C | null }[];
   const pickups = ((od ?? []) as unknown as { id: string; year: number; no: number; patient: string | null; pickup_note: string | null; notes: string | null; picked_at: string | null; lab_customers: C | null }[]).filter((o) => !o.picked_at);
   const todo = wbs.filter((w) => !w.delivered_at);
@@ -50,6 +52,13 @@ export default async function CourierScreen() {
     <>
       <PageHeader title="Kurye" subtitle={`${todo.length} teslimat · ${pickups.length} ölçü alma`} actions={<span className="flex gap-4 text-sm font-semibold">{route && <a href={route} target="_blank" rel="noreferrer" className="text-brand-700">Tüm rotayı haritada aç</a>}<Link href="/kargo/kurye" className="text-brand-700">Kargo rotası</Link></span>} />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[900px]">
+        {myLists.map((b) => (
+          <Link key={b.id} href={`/alim/${b.id}`} className="rounded-[18px] border-2 border-[#A78BFA] bg-[#F5F3FF] p-4 flex items-center gap-3">
+            <span className="text-2xl">🛒</span>
+            <span className="flex-1"><b className="font-display text-lg">Alım listesi {b.no}</b><span className="block text-sm text-muted">{b.picked} / {b.total} kalem alındı{b.note ? ` · ${b.note}` : ""}</span></span>
+            <span className="font-semibold text-[#6D28D9]">Aç →</span>
+          </Link>
+        ))}
         {todo.map((w) => (
           <article key={w.id} className="rounded-[18px] border border-line bg-white p-4 flex flex-col gap-3">
             <div className="flex items-start gap-2">

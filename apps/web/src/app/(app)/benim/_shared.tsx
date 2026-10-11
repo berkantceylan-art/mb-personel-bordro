@@ -28,6 +28,8 @@ export const MY_MENU: Array<{ href: string; label: string; icon: string; desc: s
   { href: "/benim/ozluk", label: "Özlük bilgilerim", icon: "id", desc: "Kimlik, iletişim, banka" },
   { href: "/benim/belgeler", label: "Belgelerim", icon: "folder", desc: "e-Devlet belgeleri ve özlük dosyam" },
   { href: "/benim/malzeme", label: "Malzeme iste", icon: "box", desc: "Depodan malzeme iste, teslimde imzala" },
+  { href: "/istekler", label: "Demirbaş / sipariş iste", icon: "box", desc: "Demirbaş, kartuş, temizlik, kırtasiye" },
+  { href: "/servis", label: "Arıza bildir", icon: "shield", desc: "Bozulan masa, fiş, cihaz; fotoğrafla bildir" },
   { href: "/benim/zimmet", label: "Zimmetim", icon: "box", desc: "Üzerimdeki demirbaşlar" },
   { href: "/benim/imza", label: "İmzalarım", icon: "pen", desc: "Formları telefonda imzala" },
   { href: "/benim/bes", label: "BES", icon: "piggy", desc: "Emeklilik kesintilerim" },

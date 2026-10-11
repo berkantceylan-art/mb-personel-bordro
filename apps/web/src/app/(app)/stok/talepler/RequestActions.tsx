@@ -68,7 +68,8 @@ export function PurchaseActions({ id, status, canApprove, canBought }: { id: str
 }
 
 /** Teslim: miktarlar, depo, depo sorumlusu imzası; isteğe bağlı personel aynı ekranda imzalar */
-export function DeliverForm({ id, lines, warehouses, signer, employee }: { id: string; lines: Line[]; warehouses: { id: string; name: string; is_default: boolean }[]; signer: string; employee: string }) {
+export function DeliverForm({ id, lines, warehouses, signer, employee, assets }: { id: string; lines: Line[]; warehouses: { id: string; name: string; is_default: boolean }[]; signer: string; employee: string; assets?: { id: string; code: string | null; name: string }[] }) {
+  const [pick, setPick] = useState<Record<string, string>>({});
   const router = useRouter();
   const wpad = useRef<SignaturePadHandle>(null);
   const epad = useRef<SignaturePadHandle>(null);
@@ -76,7 +77,7 @@ export function DeliverForm({ id, lines, warehouses, signer, employee }: { id: s
   const [qty, setQty] = useState<Record<string, string>>(() => Object.fromEntries(lines.map((l) => [l.id, String(Math.max(0, l.qty - l.issued_qty))])));
   const { state, pending, formProps } = useActionForm(deliverMaterial, {
     prepare: (fd) => {
-      fd.set("lines", JSON.stringify(lines.map((l) => ({ line_id: l.id, qty: Number((qty[l.id] ?? "0").replace(",", ".")) || 0 }))));
+      fd.set("lines", JSON.stringify(lines.map((l) => ({ line_id: l.id, qty: Number((qty[l.id] ?? "0").replace(",", ".")) || 0, asset_id: pick[l.id] || null }))));
       fd.set("sig_warehouse", wpad.current?.toDataURL() ?? "");
       fd.set("sig_employee", here ? epad.current?.toDataURL() ?? "" : "");
     },
@@ -91,7 +92,13 @@ export function DeliverForm({ id, lines, warehouses, signer, employee }: { id: s
           <tbody>
             {lines.map((l) => (
               <tr key={l.id} className="border-t border-[#EEF2F6]">
-                <td className="py-2">{l.name}{!l.item_id && <span className="ml-1 text-xs text-muted">(stoktan düşmez)</span>}</td>
+                <td className="py-2">{l.name}{!l.item_id && !assets && <span className="ml-1 text-xs text-muted">(stoktan düşmez)</span>}
+                  {assets && (
+                    <select value={pick[l.id] ?? ""} onChange={(e) => setPick((p) => ({ ...p, [l.id]: e.target.value }))} className={`${selectCls} mt-1`} aria-label="Zimmetlenecek demirbaş">
+                      <option value="">— Zimmetlenecek demirbaşı seçin (boşta olanlar) —</option>
+                      {assets.filter((a) => !Object.entries(pick).some(([k, v]) => k !== l.id && v === a.id)).map((a) => <option key={a.id} value={a.id}>{a.name}{a.code ? ` · ${a.code}` : ""}</option>)}
+                    </select>
+                  )}</td>
                 <td className="py-2 text-right num">{l.qty} {l.unit}</td>
                 <td className={`py-2 text-right num ${l.onHand != null && l.onHand < Number(qty[l.id] || 0) ? "text-bad font-semibold" : "text-muted"}`}>{l.onHand ?? "—"}</td>
                 <td className="py-2"><input inputMode="decimal" value={qty[l.id] ?? ""} onChange={(e) => setQty((q) => ({ ...q, [l.id]: e.target.value }))} className={`${inputCls} num text-right`} /></td>
@@ -121,7 +128,7 @@ export function DeliverForm({ id, lines, warehouses, signer, employee }: { id: s
         </div>
       </div>
       <Msg state={state} />
-      <div><button disabled={pending} className={btnPrimary}>{pending ? "Kaydediliyor…" : "Teslim et ve stoktan düş"}</button></div>
+      <div><button disabled={pending} className={btnPrimary}>{pending ? "Kaydediliyor…" : assets ? "Teslim et ve zimmetle" : "Teslim et ve stoktan düş"}</button></div>
     </form>
   );
 }

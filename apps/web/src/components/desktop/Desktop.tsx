@@ -51,6 +51,24 @@ export async function Desktop({ selfOnly = false }: { selfOnly?: boolean }) {
     if (count) todos.push({ label: `${count} malzeme isteği satın alma onayında`, href: "/stok/talepler?s=satin", tone: "amber" });
   }
 
+  // Servis / teknik servis / alım listesi (tablolar yoksa sessizce atlanır)
+  const fin = s.modules.finance ?? 0;
+  const buyer = pur >= 2 || (s.modules.assets ?? 0) >= 3;
+  const [myJobs, svcRep, svcCost, svcPay, myLists] = await Promise.all([
+    supabase.from("svc_tickets").select("id", { count: "exact", head: true }).eq("technician_user", s.userId).in("status", ["approved", "in_progress"]),
+    buyer ? supabase.from("svc_tickets").select("id", { count: "exact", head: true }).eq("status", "reported") : Promise.resolve({ count: 0 }),
+    buyer ? supabase.from("svc_tickets").select("id", { count: "exact", head: true }).eq("status", "done") : Promise.resolve({ count: 0 }),
+    fin >= 2 ? supabase.from("svc_tickets").select("id", { count: "exact", head: true }).eq("status", "cost_approved") : Promise.resolve({ count: 0 }),
+    supabase.rpc("stk_buy_lists_mine"),
+  ]);
+  if (myJobs.count) todos.push({ label: `${myJobs.count} teknik servis işi sana atandı`, href: "/teknik-servis", tone: "red" });
+  if (svcRep.count) todos.push({ label: `${svcRep.count} arıza bildirimi onay bekliyor`, href: "/servis?s=onay", tone: "amber" });
+  if (svcCost.count) todos.push({ label: `${svcCost.count} servis ücreti onay bekliyor`, href: "/servis?s=ucret", tone: "amber" });
+  if (svcPay.count) todos.push({ label: `${svcPay.count} servis ödemesi bekliyor`, href: "/servis?s=odeme", tone: "amber" });
+  for (const l of (Array.isArray(myLists.data) ? myLists.data : []) as { id: string; no: string; total: number; picked: number }[]) {
+    todos.push({ label: `🛒 Alım listesi ${l.no}: ${l.picked}/${l.total} alındı`, href: `/alim/${l.id}`, tone: "blue" });
+  }
+
   // Simge seçici: yalnız yetkili olduğu sayfalar
   const groups = visibleNav(s.role, s.siteAccess, s.logistics, s.modules);
   const pickable: Pickable[] = groups

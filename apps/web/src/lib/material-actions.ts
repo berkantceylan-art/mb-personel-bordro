@@ -8,6 +8,7 @@ export type MrState = { ok?: boolean; message: string; id?: string };
 const s = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const back = (id?: string) => {
   revalidatePath("/benim/malzeme");
+  revalidatePath("/istekler");
   revalidatePath("/stok/talepler");
   if (id) revalidatePath(`/stok/talepler/${id}`);
 };
@@ -18,11 +19,13 @@ export async function createMaterialRequest(_: MrState | null, f: FormData): Pro
   let lines: unknown;
   try { lines = JSON.parse(s(f, "lines") || "[]"); } catch { return { ok: false, message: "Kalemler okunamadı." }; }
   if (!Array.isArray(lines) || lines.length === 0) return { ok: false, message: "En az bir malzeme ekleyin." };
+  const kind = ["asset", "supply"].includes(s(f, "kind")) ? s(f, "kind") : "material";
+  const p = { kind, reason: s(f, "reason"), needed_by: s(f, "needed_by") || null, lines };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("stk_req_create", { p: { reason: s(f, "reason"), needed_by: s(f, "needed_by") || null, lines } });
+  const { data, error } = kind === "material" ? await supabase.rpc("stk_req_create", { p }) : await supabase.rpc("stk_req_create2", { p });
   if (error) return { ok: false, message: mrError(error.message) };
   back();
-  return { ok: true, message: "İsteğiniz depo sorumlusuna iletildi.", id: data as string };
+  return { ok: true, message: kind === "supply" ? "Siparişiniz depo sorumlusuna iletildi." : "İsteğiniz depo sorumlusuna iletildi.", id: data as string };
 }
 
 export async function cancelMaterialRequest(f: FormData) {
@@ -84,4 +87,60 @@ export async function signMaterialReceipt(_: MrState | null, f: FormData): Promi
   if (error) return { ok: false, message: mrError(error.message) };
   back(id);
   return { ok: true, message: "Teslim aldığınız imzalandı. Teşekkürler." };
+}
+
+// ------------------------------------------------------------- alım listesi
+
+const UUID = /^[0-9a-f-]{36}$/;
+const backBuy = (id?: string) => {
+  revalidatePath("/stok/talepler");
+  revalidatePath("/stok/talepler/alim");
+  if (id) { revalidatePath(`/stok/talepler/alim/${id}`); revalidatePath(`/alim/${id}`); }
+  revalidatePath("/kurye");
+};
+
+/** Satın alma: onaylı isteklerden alım listesi çıkar ve kuryeye ata */
+export async function createBuyList(_: MrState | null, f: FormData): Promise<MrState> {
+  const reqs = f.getAll("req").map(String).filter((x) => UUID.test(x));
+  if (!reqs.length) return { ok: false, message: "Listeye en az bir istek seçin." };
+  const vendors: Record<string, string> = {};
+  const prices: Record<string, number> = {};
+  for (const [k, v] of f.entries()) {
+    const m = k.match(/^(vendor|price)_([0-9a-f-]{36})$/);
+    if (!m || typeof v !== "string" || !v.trim()) continue;
+    if (m[1] === "vendor") vendors[m[2]!] = v.trim().slice(0, 120);
+    else { const n = Math.round(Number(v.replace(/\./g, "").replace(",", ".")) * 100); if (Number.isFinite(n) && n >= 0) prices[m[2]!] = n; }
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("stk_buy_list_create", { p: { request_ids: reqs, courier_user: s(f, "courier") || null, planned_on: s(f, "planned_on") || null, note: s(f, "note"), vendors, prices } });
+  if (error) return { ok: false, message: /no_lines/.test(error.message) ? "Seçilen isteklerde listelenecek (satın alınacak, onaylı) kalem yok." : mrError(error.message) };
+  backBuy(data as string);
+  return { ok: true, message: "Alım listesi oluşturuldu; kuryeye bildirildi.", id: data as string };
+}
+
+/** Kurye / satın alma: kalem alındı (ödenen tutar TL, isteğe bağlı) */
+export async function buyPick(line: string, picked: boolean, paidTl?: string, list?: string): Promise<MrState> {
+  if (!UUID.test(line)) return { ok: false, message: "Kalem bulunamadı." };
+  const n = paidTl ? Math.round(Number(paidTl.replace(/\./g, "").replace(",", ".")) * 100) : null;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("stk_buy_pick", { p_line: line, p_picked: picked, p_paid: n != null && Number.isFinite(n) && n >= 0 ? n : null });
+  if (error) return { ok: false, message: mrError(error.message) };
+  backBuy(list);
+  return { ok: true, message: picked ? "Alındı." : "Geri alındı." };
+}
+
+export async function buyListDone(_: MrState | null, f: FormData): Promise<MrState> {
+  const id = s(f, "id");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("stk_buy_list_done", { p_list: id, p_note: s(f, "note") || null });
+  if (error) return { ok: false, message: mrError(error.message) };
+  backBuy(id);
+  return { ok: true, message: `Liste tamamlandı; ${data ?? 0} istek depoda teslime hazır.` };
+}
+
+export async function buyListCancel(f: FormData) {
+  const id = s(f, "id");
+  const supabase = await createClient();
+  await supabase.rpc("stk_buy_list_cancel", { p_list: id });
+  backBuy(id);
 }

@@ -10,13 +10,20 @@ export type CatalogItem = { id: string; code: string; name: string; unit: string
 type Line = { key: number; item_id: string | null; name: string; unit: string; qty: string; note: string; available?: boolean };
 
 /** Yeni malzeme isteği: stok kartından seç ya da listede yoksa yaz */
-export function NewRequestForm({ catalog }: { catalog: CatalogItem[] }) {
+const TEXT: Record<string, { search: string; ph: string; why: string; empty: string }> = {
+  material: { search: "Malzeme ara", ph: "ör. zirkon blok, frez ucu, eldiven", why: "ör. Frez makinesi için, haftalık sarf", empty: "malzeme" },
+  asset: { search: "Demirbaş", ph: "ör. dizüstü bilgisayar, sandalye, mikromotor", why: "ör. Yeni başlayan personel için / eskisi bozuldu", empty: "demirbaş" },
+  supply: { search: "Ürün", ph: "ör. HP 305 kartuş, A4 kağıt, çamaşır suyu, kalem", why: "ör. Ön büro yazıcısı için", empty: "ürün" },
+};
+
+export function NewRequestForm({ catalog, kind = "material" }: { catalog: CatalogItem[]; kind?: "material" | "asset" | "supply" }) {
+  const T = TEXT[kind]!;
   const router = useRouter();
   const [lines, setLines] = useState<Line[]>([]);
   const [q, setQ] = useState("");
   const seq = useRef(1);
   const { state, pending, formProps } = useActionForm(createMaterialRequest, {
-    prepare: (fd) => fd.set("lines", JSON.stringify(lines.map((l) => ({ item_id: l.item_id, name: l.name, unit: l.unit, qty: Number(l.qty.replace(",", ".")), note: l.note })))),
+    prepare: (fd) => { fd.set("kind", kind); fd.set("lines", JSON.stringify(lines.map((l) => ({ item_id: l.item_id, name: l.name, unit: l.unit, qty: Number(l.qty.replace(",", ".")), note: l.note })))); },
     onSuccess: () => { setLines([]); router.refresh(); },
   });
   const hits = useMemo(() => {
@@ -30,8 +37,8 @@ export function NewRequestForm({ catalog }: { catalog: CatalogItem[] }) {
   return (
     <form {...formProps} className="flex flex-col gap-4">
       <div className="relative">
-        <Field label="Malzeme ara" hint="ad ya da kod yazın; listede yoksa yazdığınızı ekleyin">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ör. zirkon blok, frez ucu, eldiven" className={inputCls}
+        <Field label={T.search} hint={catalog.length ? "ad ya da kod yazın; listede yoksa yazdığınızı ekleyin" : "yazıp Enter'a basın"}>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={T.ph} className={inputCls}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (hits[0]) add({ item_id: hits[0].id, name: hits[0].name, unit: hits[0].unit, qty: "1", note: "", available: hits[0].available }); else if (q.trim()) add({ item_id: null, name: q.trim(), unit: "adet", qty: "1", note: "" }); } }} />
         </Field>
         {q.trim() && (
@@ -69,11 +76,11 @@ export function NewRequestForm({ catalog }: { catalog: CatalogItem[] }) {
       )}
 
       <div className="grid gap-3 md:grid-cols-[2fr_1fr]">
-        <Field label="Ne için?" hint="isteğe bağlı"><textarea name="reason" rows={2} maxLength={500} placeholder="ör. Frez makinesi için, haftalık sarf" className={textareaCls} /></Field>
+        <Field label="Ne için?" hint="isteğe bağlı"><textarea name="reason" rows={2} maxLength={500} placeholder={T.why} className={textareaCls} /></Field>
         <Field label="Ne zamana lazım?" hint="isteğe bağlı"><input type="date" name="needed_by" className={inputCls} /></Field>
       </div>
       {state && <Notice tone={state.ok ? "ok" : "bad"}>{state.message}</Notice>}
-      <div><button disabled={pending || lines.length === 0} className={btnPrimary}>{pending ? "Gönderiliyor…" : `İsteği gönder${lines.length ? ` (${lines.length} kalem)` : ""}`}</button></div>
+      <div><button disabled={pending || lines.length === 0} className={btnPrimary}>{pending ? "Gönderiliyor…" : `${kind === "supply" ? "Siparişi" : "İsteği"} gönder${lines.length ? ` (${lines.length} kalem)` : ""}`}</button></div>
     </form>
   );
 }
