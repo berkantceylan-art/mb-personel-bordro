@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 /** Onay akışı tasarımcısı: koda dokunmadan "şu tutarın üstü önce şefe, sonra muhasebeye" kuralları */
 export default async function FlowsPage() {
   const s = await getSession();
-  if (s.role !== "owner" && (s.modules.users ?? 0) < 2) redirect("/");
+  if (s.role !== "owner" && (s.modules.users ?? 0) < 3) redirect("/");
   const supabase = await createClient();
   const [{ data: fd, error }, { data: sd }, { data: ud }, { data: cd }] = await Promise.all([
     supabase.from("apr_flows").select("*").order("entity").order("priority", { ascending: false }).order("min_amount"),
