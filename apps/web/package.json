@@ -16,6 +16,7 @@
     "@zxing/browser": "0.1.5",
     "docxtemplater": "^3.71.0",
     "exceljs": "^4.4.0",
+    "fast-xml-parser": "4.5.0",
     "jsqr": "^1.4.0",
     "jszip": "3.10.1",
     "next": "15.5.27",

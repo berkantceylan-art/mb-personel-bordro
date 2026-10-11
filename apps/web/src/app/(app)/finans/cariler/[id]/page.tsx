@@ -41,6 +41,8 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
           {canPost && [["collection", "Tahsilat"], ["payment", "Ödeme"]].map(([k, l]) => (
             <Link key={k} href={`/finans/islem?tur=${k}&cari=${p.id}&geri=/finans/cariler/${p.id}`} className="rounded-full border border-line bg-white px-3.5 py-1.5 font-semibold text-brand-700 hover:border-brand-600">+ {l}</Link>
           ))}
+          {(s.modules.sales ?? 0) >= 2 && p.kind !== "supplier" && <Link href={`/satis/yeni?cari=${p.id}`} className="rounded-full border border-line bg-white px-3.5 py-1.5 font-semibold text-brand-700 hover:border-brand-600">+ Satış faturası</Link>}
+          {(s.modules.purchases ?? 0) >= 2 && p.kind !== "customer" && <Link href={`/alis/yeni?cari=${p.id}`} className="rounded-full border border-line bg-white px-3.5 py-1.5 font-semibold text-brand-700 hover:border-brand-600">+ Alış faturası</Link>}
           {p.lab_customer_id && <Link href={`/isler/hekimler/${p.lab_customer_id}`} className="rounded-full border border-line bg-white px-3.5 py-1.5 font-semibold text-brand-700">Hekim kartı →</Link>}
           {p.phone && <a href={`https://wa.me/${p.phone.replace(/\D/g, "").replace(/^0/, "90")}`} target="_blank" rel="noreferrer" className="rounded-full border border-line bg-white px-3.5 py-1.5 font-semibold text-ok">WhatsApp</a>}
         </div>
