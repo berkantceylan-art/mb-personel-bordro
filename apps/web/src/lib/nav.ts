@@ -147,6 +147,7 @@ export const NAV: Group[] = [
       { label: "Günlük irsaliyeler", href: "/isler/irsaliye", module: ["lab", "sales"], desc: "Her gün müşteriye giden işlerin irsaliyesi; yazdır, kesildi" },
       { label: "Aylık faturalama", href: "/isler/aylik-fatura", module: ["lab", "sales"], desc: "Ay sonunda irsaliyeleri müşteri başına tek faturada topla (TR / EN / FR)" },
       { label: "Prova / teslim listesi", href: "/isler/prova", module: "lab", desc: "Bugün ve önümüzdeki günlerde çıkacak prova ve teslimler" },
+      { label: "Atölye ekranı (TV)", href: "/atolye", module: ["production", "lab"], desc: "Şirketteki bilgisayar için tam ekran canlı pano: giren, çıkan, kalan, aşama, ekip, klinik" },
       { label: "Kutu okut", href: "/uretim/okut", module: "production", desc: "Kutuyu okut: aldım / bitirdim, şef ve kalite onayı, çıkış" },
       { label: "İş nerede?", href: "/uretim/nerede", module: "production", desc: "Her iş hangi aşamada, kimin elinde, ne zamandır" },
       { label: "Personel performansı", href: "/uretim/performans", module: "production", desc: "Kim kaç birim yaptı, birim başı süre, geri dönüş oranı" },
