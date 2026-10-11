@@ -21,11 +21,19 @@ export const MR_EVENT: Record<string, string> = {
   deliver: "Depo teslim etti ve imzaladı",
   deliver_signed: "Teslim edildi; depo ve personel imzaladı",
   employee_sign: "Personel teslim aldığını imzaladı",
+  listed: "Alım listesine eklendi",
 };
-export const mrNo = (r: { year: number; no: number }) => `MT-${r.year}-${String(r.no).padStart(4, "0")}`;
+export const KIND_PREFIX: Record<string, string> = { material: "MT", asset: "DT", supply: "SP" };
+export const KIND_LABEL: Record<string, string> = { material: "Malzeme", asset: "Demirbaş", supply: "Dış sipariş" };
+export const mrNo = (r: { year: number; no: number; kind?: string | null }) => `${KIND_PREFIX[r.kind ?? "material"] ?? "MT"}-${r.year}-${String(r.no).padStart(4, "0")}`;
+export const buyNo = (b: { year: number; no: number }) => `AL-${b.year}-${String(b.no).padStart(4, "0")}`;
 export const qtyFmt = (n: number | string) => Number(n).toLocaleString("tr-TR", { maximumFractionDigits: 3 });
 
 export function mrError(m: string): string {
+  if (/stk_req_create2|stk_buy|kind/.test(m) && /function|column|schema cache|does not exist/.test(m)) return "Supabase'de 20270105000000_request_kinds.sql çalıştırılmalı.";
+  if (/asset_not_available/.test(m)) return "Seçilen demirbaş boşta değil (zimmetli / bakımda).";
+  if (/asset_not_found/.test(m)) return "Demirbaş bulunamadı.";
+  if (/bad_courier/.test(m)) return "Seçilen kurye bu şirkette değil.";
   if (/stk_req|stk_requests|schema cache/.test(m)) return "Supabase'de 20270102000000_material_requests.sql çalıştırılmalı.";
   if (/not_employee/.test(m)) return "Hesabınız bir personel kaydına bağlı değil.";
   if (/not_allowed/.test(m)) return "Bu işlem için yetkiniz yok.";
