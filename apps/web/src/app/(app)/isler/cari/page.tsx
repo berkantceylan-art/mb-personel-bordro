@@ -13,15 +13,19 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
   if (!s.logistics) redirect("/");
   const sp = await searchParams;
   const supabase = await createClient();
-  const [{ data: cs, error }, { data: jobs }, { data: pays, error: pe }] = await Promise.all([
-    supabase.from("lab_customers").select("id, name, kind, currency, city, is_active").order("name"),
+  const [{ data: cs, error }, { data: jobs }, { data: pays, error: pe }, { data: offi }] = await Promise.all([
+    supabase.from("lab_customers").select("id, name, kind, currency, city, is_active, internal_book, internal_opening").order("name"),
     supabase.from("jobs").select("customer_id, total, status").eq("status", "delivered").limit(20000),
-    supabase.from("lab_payments").select("customer_id, amount").limit(20000),
+    supabase.from("lab_payments").select("customer_id, amount, book").limit(20000),
+    supabase.from("fin_party_balances").select("lab_customer_id, balance").not("lab_customer_id", "is", null).limit(5000),
   ]);
+  const flagged = new Set((cs ?? []).filter((c) => (c as { internal_book?: boolean }).internal_book).map((c) => c.id as string));
+  const official = new Map((offi ?? []).map((o) => [o.lab_customer_id as string, Number(o.balance)]));
   const debit = new Map<string, number>();
   const credit = new Map<string, number>();
+  for (const c of cs ?? []) if (flagged.has(c.id)) debit.set(c.id, Number((c as { internal_opening?: number }).internal_opening ?? 0));
   for (const j of jobs ?? []) debit.set(j.customer_id as string, (debit.get(j.customer_id as string) ?? 0) + Number(j.total));
-  for (const p of pays ?? []) credit.set(p.customer_id as string, (credit.get(p.customer_id as string) ?? 0) + Number(p.amount));
+  for (const p of (pays ?? []) as { customer_id: string; amount: number; book?: string }[]) if (!flagged.has(p.customer_id) || p.book !== "official") credit.set(p.customer_id as string, (credit.get(p.customer_id as string) ?? 0) + Number(p.amount));
   const q = (sp.q ?? "").toLocaleLowerCase("tr");
   const rows = (cs ?? [])
     .map((c) => ({ ...c, debit: debit.get(c.id) ?? 0, credit: credit.get(c.id) ?? 0, balance: (debit.get(c.id) ?? 0) - (credit.get(c.id) ?? 0) }))
@@ -33,7 +37,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Cari hesaplar" subtitle="İşler borç, tahsilatlar alacak olarak işlenir" />
+      <PageHeader title="Cari hesaplar" subtitle="İşler çıkışta borç, tahsilatlar alacak olarak işlenir. İç hesap kullanan müşteride resmi cari (fatura + resmi tahsilat) ayrıca gösterilir." actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/isler/irsaliye" className="text-brand-700">Günlük irsaliyeler</Link><Link href="/isler/aylik-fatura" className="text-brand-700">Aylık faturalama</Link></span>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1200px]">
         {(error || pe) && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">Tablolar eksik: Supabase&apos;de 20261125000000_lab_jobs.sql ve 20261127000000_lab_accounts.sql çalıştırın.</p>}
         <section className="grid gap-3 grid-cols-2 md:grid-cols-3">
@@ -48,7 +52,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
         </form>
         <section className="bg-white border border-line rounded-[14px] overflow-x-auto">
           <table className="w-full text-sm min-w-[760px]">
-            <thead><tr className="text-xs text-muted"><th className={th}>Hekim / hastane</th><th className={th}>Tür</th><th className={`${th} text-right`}>İş tutarı</th><th className={`${th} text-right`}>Tahsilat</th><th className={`${th} text-right`}>Bakiye</th><th className={th} /></tr></thead>
+            <thead><tr className="text-xs text-muted"><th className={th}>Hekim / hastane</th><th className={th}>Tür</th><th className={`${th} text-right`}>İş tutarı</th><th className={`${th} text-right`}>Tahsilat</th><th className={`${th} text-right`}>Bakiye</th><th className={`${th} text-right`}>Resmi cari</th><th className={th} /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className={r.is_active ? "" : "opacity-60"}>
@@ -56,11 +60,12 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
                   <td className={td}>{CUSTOMER_KIND[r.kind] ?? r.kind}</td>
                   <td className={`${td} num text-right`}>{money(r.debit, r.currency)}</td>
                   <td className={`${td} num text-right text-ok`}>{money(r.credit, r.currency)}</td>
-                  <td className={`${td} num text-right font-semibold ${r.balance > 0 ? "text-bad" : ""}`}>{money(r.balance, r.currency)}</td>
+                  <td className={`${td} num text-right font-semibold ${r.balance > 0 ? "text-bad" : ""}`}>{money(r.balance, r.currency)}{flagged.has(r.id) && <span className="block text-[10px] font-semibold text-muted">iç hesap</span>}</td>
+                  <td className={`${td} num text-right`}>{flagged.has(r.id) ? money(official.get(r.id) ?? 0, r.currency) : <span className="text-xs text-muted">aynı</span>}</td>
                   <td className={`${td} text-right`}><Link href={`/yazdir/ekstre/${r.id}`} className="text-xs font-semibold text-brand-700">Ekstre</Link></td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-muted">Kayıt yok.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-muted">Kayıt yok.</td></tr>}
             </tbody>
           </table>
         </section>

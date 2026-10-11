@@ -130,6 +130,7 @@ export async function postTxn(form: FormData) {
     const partyAmount = parseAmount(str(form, "party_amount"));
     ({ error } = await supabase.rpc("fin_collect_or_pay", {
       p_kind: kind, p_party: partyId, p_account: acc!.id, p_date: date, p_amount: amount, p_party_amount: partyAmount, p_rate: rate, p_description: desc, p_doc_no: docNo, p_method: null,
+      ...(str(form, "book", 10) ? { p_book: str(form, "book", 10) } : {}),
     }));
   } else if (kind === "transfer" || kind === "exchange") {
     const toId = str(form, "to_account_id", 40);

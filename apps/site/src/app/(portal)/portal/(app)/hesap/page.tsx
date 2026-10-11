@@ -14,7 +14,7 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
   const a = ACCT_UI[locale];
   const tab = (await searchParams).sekme === "ekstre" ? "ekstre" : "isler";
   const supabase = await createClient();
-  const { data: cust } = await supabase.from("lab_customers").select("id, name, currency").eq("portal_account_id", acc.id).maybeSingle();
+  const { data: cust } = await supabase.from("lab_customers").select("id, name, currency, internal_book, internal_opening").eq("portal_account_id", acc.id).maybeSingle();
   if (!cust) {
     return (
       <>
@@ -26,14 +26,18 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
   const cur = cust.currency as string;
   const [{ data: js }, { data: ps }] = await Promise.all([
     supabase.from("jobs").select("id, no, in_date, due_date, patient, doctor_name, total, currency, status, delivered_at").eq("customer_id", cust.id).order("no", { ascending: false }).limit(5000),
-    supabase.from("lab_payments").select("id, paid_on, amount, method, ref").eq("customer_id", cust.id).order("paid_on").limit(5000),
+    supabase.from("lab_payments").select("id, paid_on, amount, method, ref, book").eq("customer_id", cust.id).order("paid_on").limit(5000),
   ]);
   const jobs = (js ?? []) as LJob[];
-  const pays = (ps ?? []) as LPay[];
-  const billed = jobs.filter((j) => j.status === "delivered").reduce((x, j) => x + Number(j.total), 0);
+  // İç hesap kullanan müşteride hesap özeti iç caridir: yalnız iç / ikisi tahsilatları, iç açılış bakiyesi
+  const ib = (cust as { internal_book?: boolean }).internal_book === true;
+  const pays = ((ps ?? []) as (LPay & { book?: string })[]).filter((p) => !ib || p.book !== "official");
+  const billed = jobs.filter((j) => j.status === "delivered").reduce((x, j) => x + Number(j.total), 0) + (ib ? Number((cust as { internal_opening?: number }).internal_opening ?? 0) : 0);
   const paid = pays.reduce((x, p) => x + Number(p.amount), 0);
   // Ekstre satırları (eskiden yeniye, yürüyen bakiye)
+  const ob = ib ? Number((cust as { internal_opening?: number }).internal_opening ?? 0) : 0;
   const lines = [
+    ...(ob ? [{ key: "ob", date: "0000-00-00", desc: "Devir / Opening", debit: ob > 0 ? ob : 0, credit: ob < 0 ? -ob : 0 }] : []),
     ...jobs.filter((j) => j.status === "delivered").map((j) => ({ key: `j${j.id}`, date: (j.delivered_at ?? j.in_date).slice(0, 10), desc: `${a.job} #${j.no}${j.patient ? ` · ${j.patient}` : ""}`, debit: Number(j.total), credit: 0 })),
     ...pays.map((p) => ({ key: `p${p.id}`, date: p.paid_on, desc: `${a.payment} · ${a.methods[p.method] ?? p.method}${p.ref ? ` · ${p.ref}` : ""}`, debit: 0, credit: Number(p.amount) })),
   ].sort((x, y) => x.date.localeCompare(y.date));
@@ -96,7 +100,7 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
             <tbody>
               {rows.map((r) => (
                 <tr key={r.key} className="border-t border-gypsum">
-                  <td className="p-3">{formatDate(r.date, locale)}</td>
+                  <td className="p-3">{r.date.startsWith("0000") ? "" : formatDate(r.date, locale)}</td>
                   <td className="p-3">{r.desc}</td>
                   <td className="num p-3 text-right">{r.debit ? fmtMoney(r.debit, cur, locale) : ""}</td>
                   <td className="num p-3 text-right text-ok">{r.credit ? fmtMoney(r.credit, cur, locale) : ""}</td>

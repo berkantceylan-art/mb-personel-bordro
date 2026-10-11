@@ -6,7 +6,7 @@ import { Field, btnPrimary, inputCls, selectCls, textareaCls } from "@/component
 import { PendingSubmit } from "@/components/ConfirmSubmit";
 
 type Acc = { id: string; name: string; kind: string; currency: string; balance: number };
-type Party = { id: string; name: string; currency: string; kind: string; balance: number };
+type Party = { id: string; name: string; currency: string; kind: string; balance: number ; internalBook?: boolean; payBook?: string };
 type Cat = { id: string; name: string; kind: string };
 
 const KINDS: [string, string, string][] = [
@@ -153,6 +153,14 @@ export function TxnForm({ accounts, parties, categories, rates, initial, back, t
         {(autoRate || crossParty || crossTransfer) && (
           <Field label={`Kur (1 ${acc?.currency} = ? ₺)`} hint={autoRate ? `son kur ${autoRate.toLocaleString("tr-TR")}` : undefined}>
             <input name="rate" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} placeholder={autoRate ? String(autoRate).replace(".", ",") : ""} className={inputCls} />
+          </Field>
+        )}
+        {kind === "collection" && party?.internalBook && (
+          <Field label="Hangi cariye işlensin?" hint="Bu müşteri iç hesap kullanıyor">
+            <select name="book" defaultValue={party.payBook === "official" ? "official" : "both"} key={party.id} className={selectCls}>
+              <option value="both">Resmi + iç cari (ikisine)</option>
+              <option value="official">Yalnız resmi cari</option>
+            </select>
           </Field>
         )}
         {crossParty && (

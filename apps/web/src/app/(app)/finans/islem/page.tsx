@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session";
 import { latestRates, loadAccounts, loadCategories, loadParties } from "@/lib/fin-data";
 import { today } from "@/lib/fin";
 import { TxnForm } from "./TxnForm";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,9 @@ export default async function NewTxnPage({ searchParams }: { searchParams: Promi
   if ((s.modules.finance ?? 0) < 2 && (s.modules.expenses ?? 0) < 2) redirect("/");
   const sp = await searchParams;
   const [{ rows: accounts, error }, { rows: parties }, categories, { rates }] = await Promise.all([loadAccounts(), loadParties(), loadCategories(["income", "expense"]), latestRates()]);
+  const supabase = await createClient();
+  const { data: ibs } = await supabase.from("lab_customers").select("id, pay_book").eq("internal_book", true);
+  const ib = new Map((ibs ?? []).map((x) => [x.id as string, x.pay_book as string]));
   return (
     <>
       <PageHeader title="İşlem gir" subtitle="Tahsilat, ödeme, virman, masraf ve gelir kayıtları" />
@@ -23,7 +27,7 @@ export default async function NewTxnPage({ searchParams }: { searchParams: Promi
         <section className="bg-white border border-line rounded-[14px] p-5 md:p-6">
           <TxnForm
             accounts={accounts.filter((a) => a.is_active).map((a) => ({ id: a.id, name: a.name, kind: a.kind, currency: a.currency, balance: a.balance }))}
-            parties={parties.filter((p) => p.is_active).map((p) => ({ id: p.id, name: p.name, currency: p.currency, kind: p.kind, balance: p.balance }))}
+            parties={parties.filter((p) => p.is_active).map((p) => ({ id: p.id, name: p.name, currency: p.currency, kind: p.kind, balance: p.balance, internalBook: !!p.lab_customer_id && ib.has(p.lab_customer_id), payBook: p.lab_customer_id ? ib.get(p.lab_customer_id) : undefined }))}
             categories={categories.filter((c) => c.is_active).map((c) => ({ id: c.id, name: c.name, kind: c.kind }))}
             rates={rates}
             today={today()}
