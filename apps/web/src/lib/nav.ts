@@ -23,6 +23,7 @@ export const NAV: Group[] = [
       { label: "İsteklerim", href: "/istekler", desc: "Demirbaş ve dış sipariş (kartuş, temizlik, kırtasiye) iste, teslimde imzala" },
       { label: "Arıza / servis", href: "/servis", desc: "Bozulan masa, fiş, cihaz bildir; tamir, dış servis, periyodik bakım, ücret onayı ve ödeme" },
       { label: "Teknik servis", href: "/teknik-servis", desc: "Teknik servis ekranı: atanan işler, tüm demirbaşlar, bakım takvimi" },
+      { label: "Kameralar", href: "/kameralar", desc: "Yetkili olduğunuz kameraların canlı görüntüsü" },
       { label: "Ziyaretçilerim", href: "/ziyaretci", desc: "Misafirini önceden kaydet, QR davetiye, geldiğinde bildirim" },
       { label: "Güvenlik paneli", href: "/guvenlik", desc: "Ziyaretçi giriş-çıkış, kart, içeridekiler" },
       { label: "Onaylar", href: "/onaylar", desc: "Onay akışında sizi bekleyen masraf ve satın alma talepleri" },
