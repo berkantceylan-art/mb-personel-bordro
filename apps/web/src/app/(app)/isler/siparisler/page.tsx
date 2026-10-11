@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { ORDER_SOURCE, ORDER_STATUS, orderError, orderNo } from "@/lib/orders";
 import { saveOrder, setOrderStatus } from "@/lib/order-actions";
+import { SmartOrderBox } from "./SmartOrderBox";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1320px]">
         {error && <Notice tone="bad">{orderError(error.message)}</Notice>}
 
+        {!edit && <SmartOrderBox />}
         <form action={saveOrder} className="rounded-[18px] border border-line bg-white p-4 grid gap-3 md:grid-cols-4" key={edit?.id ?? "new"}>
           <h2 className="md:col-span-4 font-display text-lg font-bold">{edit ? `${orderNo(edit.year, edit.no)} düzenle` : "Yeni sipariş"}</h2>
           {edit && <input type="hidden" name="id" value={edit.id} />}

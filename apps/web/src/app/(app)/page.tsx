@@ -59,6 +59,8 @@ export default async function Home() {
   ]);
   if (s.role === "employee" && !Object.values(s.modules).some((v) => v > 0)) redirect("/benim");
   const d = (data ?? { today: "" }) as D;
+  const { data: rk } = d.lab ? await supabase.rpc("prd_delay_risk") : { data: [] };
+  const riskHigh = ((rk ?? []) as { risk: string }[]).filter((r) => r.risk === "high").length;
   const hour = Number(new Date().toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Europe/Istanbul" }));
   const hello = hour < 6 ? "İyi geceler" : hour < 12 ? "Günaydın" : hour < 18 ? "İyi günler" : "İyi akşamlar";
   const name = ((me?.display_name as string | null) ?? "").split(" ")[0];
@@ -66,6 +68,7 @@ export default async function Home() {
   // Bugün dikkat
   const alerts: { label: string; href: string; tone: "red" | "amber" | "blue" }[] = [];
   if (d.lab?.late) alerts.push({ label: `${d.lab.late} geciken iş`, href: "/uretim/nerede?gec=1", tone: "red" });
+  if (riskHigh) alerts.push({ label: `✨ ${riskHigh} iş teslime yetişmeyebilir`, href: "/uretim/nerede?risk=1", tone: "red" });
   if (d.lab?.due_today) alerts.push({ label: `${d.lab.due_today} iş bugün teslim`, href: "/isler/prova", tone: "amber" });
   if (d.lab?.orders) alerts.push({ label: `${d.lab.orders} sipariş iş kaydı bekliyor`, href: "/isler/siparisler", tone: "blue" });
   if (d.purchases?.pending) alerts.push({ label: `${d.purchases.pending} satın alma onayı`, href: "/alis/siparisler?durum=pending", tone: "amber" });

@@ -12,18 +12,20 @@ export const dynamic = "force-dynamic";
 type J = { id: string; no: number; patient: string | null; doctor_name: string | null; customer_id: string | null; customer: string | null; in_date: string; due_date: string | null; status: string; flow_stage: string; holder_id: string | null; holder: string | null; holder_since: string | null; qty: number; last_action: string | null; last_at: string | null; last_by: string | null; rejects: number };
 
 /** İş nerede: açık her iş hangi aşamada, kimin elinde, ne zamandır */
-export default async function WherePage({ searchParams }: { searchParams: Promise<{ ara?: string; asama?: string; kim?: string; hekim?: string; gec?: string }> }) {
+export default async function WherePage({ searchParams }: { searchParams: Promise<{ ara?: string; asama?: string; kim?: string; hekim?: string; gec?: string; risk?: string }> }) {
   const s = await getSession();
   if ((s.modules.production ?? 0) < 1 && !s.logistics) redirect("/");
   const sp = await searchParams;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("prd_open_jobs");
   const all = (data ?? []) as J[];
+  const { data: rd } = await supabase.rpc("prd_delay_risk");
+  const risk = new Map(((rd ?? []) as { job_id: string; risk: string; eta: string; slack_hours: number }[]).map((r) => [r.job_id, r]));
   const t = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
   const q = (sp.ara ?? "").trim().toLocaleLowerCase("tr").replace(/^is/i, "");
   const rows = all.filter((j) =>
     (!q || String(j.no).includes(q) || (j.patient ?? "").toLocaleLowerCase("tr").includes(q) || (j.customer ?? "").toLocaleLowerCase("tr").includes(q) || (j.doctor_name ?? "").toLocaleLowerCase("tr").includes(q))
-    && (!sp.asama || j.flow_stage === sp.asama) && (!sp.kim || j.holder_id === sp.kim) && (!sp.hekim || j.customer_id === sp.hekim) && (!sp.gec || (j.due_date && j.due_date < t)));
+    && (!sp.asama || j.flow_stage === sp.asama) && (!sp.kim || j.holder_id === sp.kim) && (!sp.hekim || j.customer_id === sp.hekim) && (!sp.gec || (j.due_date && j.due_date < t)) && (!sp.risk || ["high", "late"].includes(risk.get(j.id)?.risk ?? "")));
   const stages = Object.keys(FLOW_STAGE).filter((k) => k !== "out");
   const holders = [...new Map(all.filter((j) => j.holder_id).map((j) => [j.holder_id!, j.holder!])).entries()].sort((a, b) => a[1].localeCompare(b[1], "tr"));
   const customers = [...new Map(all.filter((j) => j.customer_id).map((j) => [j.customer_id!, j.customer ?? ""])).entries()].sort((a, b) => a[1].localeCompare(b[1], "tr"));
@@ -59,7 +61,7 @@ export default async function WherePage({ searchParams }: { searchParams: Promis
             );
           })}
         </div>
-        <div className="flex gap-3 text-sm"><Link href={qs({ gec: sp.gec ? undefined : "1" })} className={`font-semibold ${sp.gec ? "text-bad" : "text-brand-700"}`}>{sp.gec ? "✓ Yalnız gecikenler" : "Yalnız gecikenler"}</Link>{(sp.asama || sp.kim || sp.hekim || sp.ara || sp.gec) && <Link href="/uretim/nerede" className="text-muted">Filtreyi temizle</Link>}</div>
+        <div className="flex gap-3 text-sm"><Link href={qs({ gec: sp.gec ? undefined : "1" })} className={`font-semibold ${sp.gec ? "text-bad" : "text-brand-700"}`}>{sp.gec ? "✓ Yalnız gecikenler" : "Yalnız gecikenler"}</Link><Link href={qs({ risk: sp.risk ? undefined : "1" })} className={`font-semibold ${sp.risk ? "text-[#6D28D9]" : "text-brand-700"}`}>{sp.risk ? "✓ " : ""}✨ Gecikme riski olanlar ({[...risk.values()].filter((r) => r.risk === "high").length})</Link>{(sp.asama || sp.kim || sp.hekim || sp.ara || sp.gec || sp.risk) && <Link href="/uretim/nerede" className="text-muted">Filtreyi temizle</Link>}</div>
 
         {single && (
           <section className="bg-white border border-line rounded-[16px] p-4">
@@ -88,7 +90,7 @@ export default async function WherePage({ searchParams }: { searchParams: Promis
               <td className={td}>{since(j.holder_since)}</td>
               <td className={td}>{j.last_action ? <span className="text-xs">{j.last_by ?? ""} {FLOW_ACTION[j.last_action]}<span className="block text-muted">{since(j.last_at)} önce</span></span> : <span className="text-xs text-muted">okutulmadı</span>}</td>
               <td className={tdNum}>{j.qty}</td>
-              <td className={`${td} ${j.due_date && j.due_date < t ? "text-bad font-semibold" : j.due_date === t ? "text-warn font-semibold" : ""}`}>{j.due_date ? formatDate(j.due_date) : "—"}</td>
+              <td className={`${td} ${j.due_date && j.due_date < t ? "text-bad font-semibold" : j.due_date === t ? "text-warn font-semibold" : ""}`}>{j.due_date ? formatDate(j.due_date) : "—"}{risk.get(j.id)?.risk === "high" && <span className="block text-[10px] font-bold text-[#6D28D9]" title={`Tahmini hazır: ${new Date(risk.get(j.id)!.eta).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}`}>✨ yetişmeyebilir</span>}{risk.get(j.id)?.risk === "medium" && <span className="block text-[10px] font-semibold text-warn">sıkışık</span>}</td>
             </tr>
           ))}
           {rows.length === 0 && <EmptyRow cols={8} text="Kayıt yok." />}
