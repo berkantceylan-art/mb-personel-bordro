@@ -6,6 +6,7 @@ import { getSession, formatDate } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { dateOk, today } from "@/lib/fin";
 import { REMAKE_REASON, minutes } from "@/lib/production";
+import { RemakeInsights } from "../_parts/RemakeInsights";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,7 @@ export default async function ProductionReport({ searchParams }: { searchParams:
     <>
       <PageHeader title="Üretim raporu" subtitle={`${formatDate(from)} – ${formatDate(to)}`} actions={<Link href="/uretim" className="text-sm font-semibold text-brand-700">← Pano</Link>} />
       <div className={page}>
+        <RemakeInsights />
         <form className="flex flex-wrap gap-2 items-end">
           <input type="date" name="bas" defaultValue={from} className={`${inputCls} w-44`} aria-label="Başlangıç" />
           <input type="date" name="bit" defaultValue={to} className={`${inputCls} w-44`} aria-label="Bitiş" />
