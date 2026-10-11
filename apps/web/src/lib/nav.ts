@@ -119,6 +119,7 @@ export const NAV: Group[] = [
     items: [
       { label: "Müşteri takibi (CRM)", href: "/crm", module: ["sales", "lab"], desc: "Potansiyel klinikler, görüşme / numune / teklif, bugünün adımları, geri kazanma" },
       { label: "Cari mutabakat", href: "/finans/mutabakat", module: ["finance", "sales"], desc: "Tarih itibarıyla bakiye mektubu; cari bağlantıdan ya da portaldan onaylar / itiraz eder" },
+      { label: "Fiş / fatura carisi", href: "/finans/fis-cari", module: ["finance", "purchases"], desc: "Tedarikçi fişleri ↔ faturalar, ödeme / çek / senet ikisine de düşer, faturası gelmemiş tutar" },
       { label: "Cari kartlar (tedarikçi / müşteri)", href: "/finans/cariler", module: ["finance", "sales", "purchases"], desc: "Tüm cariler, para birimi, açılış bakiyesi, ekstre" },
       { label: "Hekim cari hesapları", href: "/isler/cari", module: "lab", desc: "Hekim bakiyeleri, tahsilat ve ekstre" },
       { label: "Hekim / hastane kartları", href: "/isler/hekimler", module: "lab" },
