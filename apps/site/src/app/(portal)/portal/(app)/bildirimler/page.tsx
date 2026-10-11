@@ -43,11 +43,14 @@ export default async function PortalNotifications() {
     items.push({ key: `s${e.id}`, at: e.created_at, title: `${px.notifShipment} · ${s.direction === "in" ? sh.incoming : sh.outgoing} · ${sh.carriers[s.carrier] ?? s.carrier}${s.tracking_no ? ` ${s.tracking_no}` : ""}`, body: sh.status[e.status] ?? e.status, href: "/portal/paketler" });
   }
   // Laboratuvar duyuruları (hesap türüne göre hedeflenmiş; RLS süzer)
-  const { data: anns } = await supabase.from("cms_announcements").select("id, title, body, link_href, starts_at, created_at").eq("audience", "portal").is("deleted_at", null).eq("is_active", true).order("created_at", { ascending: false }).limit(10);
-  for (const a of (anns ?? []) as { id: string; title: Record<string, string>; body: Record<string, string>; link_href: string | null; starts_at: string | null; created_at: string }[]) {
+  // + güncelleme duyuruları (herkese açık "update" türü)
+  const now = Date.now();
+  const { data: anns } = await supabase.from("cms_announcements").select("id, kind, title, body, link_href, starts_at, ends_at, created_at").or("audience.eq.portal,kind.eq.update").is("deleted_at", null).eq("is_active", true).order("created_at", { ascending: false }).limit(20);
+  for (const a of (anns ?? []) as { id: string; kind: string; title: Record<string, string>; body: Record<string, string>; link_href: string | null; starts_at: string | null; ends_at: string | null; created_at: string }[]) {
     const title = t(a.title, locale);
-    if (!title) continue;
-    items.push({ key: `a${a.id}`, at: a.starts_at ?? a.created_at, title: `📣 ${title}`, body: t(a.body, locale), href: a.link_href ?? "/portal/bildirimler" });
+    if (!title || (a.starts_at && Date.parse(a.starts_at) > now) || (a.ends_at && Date.parse(a.ends_at) <= now)) continue;
+    const upd = a.kind === "update";
+    items.push({ key: `a${a.id}`, at: a.starts_at ?? a.created_at, title: `${upd ? "✨" : "📣"} ${title}`, body: t(a.body, locale), href: a.link_href ?? (upd ? `/${locale}/yardim#yenilikler` : "/portal/bildirimler") });
   }
   items.sort((a, b) => b.at.localeCompare(a.at));
 

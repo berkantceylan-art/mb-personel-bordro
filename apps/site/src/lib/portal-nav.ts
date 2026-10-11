@@ -8,6 +8,7 @@ import { PRICE_UI } from "./prices";
 import { PROFILE_UI } from "./portal-profile-ui";
 import { SHIP_UI } from "./shipments-portal";
 import { TEAM_UI } from "./portal-team-ui";
+import { HELP_UI } from "./help-content";
 
 const T: Record<Locale, { cases: string; ship: string; account: string; team: string; d: Record<string, string> }> = {
   tr: {
@@ -51,6 +52,13 @@ export function portalNav(locale: Locale, accountType: string): NavGroup[] {
       items: [
         ...(accountType === "agency" || accountType === "clinic" ? [{ href: "/portal/musteriler", label: team.clientsNav, desc: t.d.clients }] : []),
         { href: "/portal/ekip", label: team.teamNav, desc: t.d.team },
+      ],
+    },
+    {
+      slug: "yardim", title: HELP_UI[locale].nav, short: HELP_UI[locale].nav,
+      items: [
+        { href: `/${locale}/yardim`, label: HELP_UI[locale].kicker, desc: HELP_UI[locale].guideTitle },
+        { href: `/${locale}/yardim#yenilikler`, label: HELP_UI[locale].updatesTitle, desc: HELP_UI[locale].updatesLead },
       ],
     },
   ];

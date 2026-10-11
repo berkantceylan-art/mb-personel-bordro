@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CookieNotice } from "./CookieNotice";
 import { BLOG_UI, CAREER_UI, COOKIE_UI, LEAD_UI } from "@/lib/growth-ui";
+import { HELP_UI } from "@/lib/help-content";
 import { CASE_UI, DICTS, LOCALES, LOCALE_NAMES, t, type Locale } from "@/lib/i18n";
 import { getSettings, telHref } from "@/lib/settings";
 import { aiEnabled } from "@/lib/ai";
@@ -48,7 +49,7 @@ const NAV_EXTRA: Record<Locale, { team: string; faq: string; cases: string; menu
 };
 
 /** altPath: dil değiştirince aynı sayfada kalmak için dil önekinden sonraki yol (ör. "/urunler/zirkonyum") */
-export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; altPath?: string; current?: "products" | "contact" | "about" | "team" | "faq" | "cases" | "careers" }) {
+export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; altPath?: string; current?: "products" | "contact" | "about" | "team" | "faq" | "cases" | "careers" | "help" }) {
   const d = DICTS[locale];
   const x = NAV_EXTRA[locale];
   const links: [string, string, boolean][] = [
@@ -58,6 +59,7 @@ export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; 
     [`/${locale}/hakkimizda`, ABOUT[locale], current === "about"],
     [`/${locale}/ekibimiz`, x.team, current === "team"],
     [`/${locale}/sss`, x.faq, current === "faq"],
+    [`/${locale}/yardim`, HELP_UI[locale].nav, current === "help"],
     [`/${locale}/blog`, BLOG_UI[locale].nav, false],
     [`/${locale}/kariyer`, CAREER_UI[locale].nav, current === "careers"],
     [`/${locale}/iletisim`, d.nav.contact, current === "contact"],
@@ -268,6 +270,7 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
           <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-white/50 sm:px-6">
             © {new Date().getFullYear()} MB Dental. {d.footer.rights}
             <span className="ml-3 inline-flex flex-wrap gap-x-3">
+              <Link href={`/${locale}/yardim`} className="hover:text-smile">{HELP_UI[locale].nav}</Link>
               <Link href={`/${locale}/blog`} className="hover:text-smile">{BLOG_UI[locale].nav}</Link>
               <Link href={`/${locale}/teslim-suresi`} className="hover:text-smile">{LEAD_UI[locale].nav}</Link>
               <Link href={`/${locale}/kariyer`} className="hover:text-smile">{CAREER_UI[locale].nav}</Link>

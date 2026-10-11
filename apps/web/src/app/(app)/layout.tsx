@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 /** Personel rolünün web'de girebildiği bölümler */
 const EMPLOYEE_PATHS = ["/benim", "/duyurular", "/mesajlar", "/bildirimler", "/asistan", "/onaylar"];
-const EDITOR_PATHS = ["/duyurular", "/mesajlar", "/bildirimler", "/asistan"];
+const EDITOR_PATHS = ["/duyurular", "/mesajlar", "/bildirimler", "/asistan", "/site-icerik"];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const s = await getSession();

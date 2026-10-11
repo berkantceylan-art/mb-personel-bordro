@@ -133,7 +133,7 @@ export async function saveAnnouncement(_prev: FormState, form: FormData): Promis
   const kind = str(form, "kind");
   const audience = str(form, "audience");
   const row: Record<string, unknown> = {
-    kind: ["banner", "popup", "news"].includes(kind) ? kind : "banner",
+    kind: ["banner", "popup", "news", "update"].includes(kind) ? kind : "banner",
     audience: audience === "portal" ? "portal" : "public",
     target_types: audience === "portal" ? form.getAll("target_types").map(String).filter((x) => ["doctor_tr", "doctor_foreign", "clinic", "agency"].includes(x)) : [],
     title: i18n(form, "title"),
