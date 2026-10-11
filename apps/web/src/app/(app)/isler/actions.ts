@@ -98,6 +98,15 @@ export async function saveJob(p: JobPayload): Promise<{ ok: boolean; id?: string
   };
   let id = p.id ?? null;
   let no: number | undefined;
+  // Kredi limiti: yeni işte limit aşılmışsa engelle (kartta işaretliyse) ya da uyar
+  let riskNote = "";
+  if (!id) {
+    const { data: rk } = await supabase.rpc("lab_customer_risk", { p_customer: p.customer_id });
+    const r = rk as { over?: boolean; block?: boolean; balance?: number; limit?: number | null; overdue?: number } | null;
+    if (r?.over && r.block) return { ok: false, message: "Bu müşterinin kredi limiti aşıldı; kartında “limit aşılınca yeni iş kaydını engelle” açık. Önce tahsilat girin ya da limiti güncelleyin." };
+    if (r?.over) riskNote = " Dikkat: müşterinin kredi limiti aşıldı.";
+    else if ((r?.overdue ?? 0) > 0) riskNote = " Dikkat: müşterinin vadesi geçmiş borcu var.";
+  }
   if (id) {
     const { error } = await supabase.from("jobs").update(row).eq("id", id);
     if (error) return { ok: false, message: missing(error.message) };
@@ -132,7 +141,7 @@ export async function saveJob(p: JobPayload): Promise<{ ok: boolean; id?: string
     const { data } = await supabase.from("jobs").select("no").eq("id", id).single();
     no = data?.no as number;
   }
-  return { ok: true, id: id!, no, message: `İş #${no} kaydedildi.` };
+  return { ok: true, id: id!, no, message: `İş #${no} kaydedildi.${riskNote}` };
 }
 
 export async function setJobStatus(f: FormData) {

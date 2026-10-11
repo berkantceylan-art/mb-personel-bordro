@@ -8,6 +8,7 @@ import { JOB_STATUS, money, type Customer, type JobStatus } from "@/lib/jobs";
 import { CustomerForm } from "../CustomerForm";
 import { deleteCustomer, deleteCustomerPrice, deleteDoctor, deletePayment, saveCustomerPrice } from "../../actions";
 import { addLabPayment, saveCustomerBook } from "@/lib/waybill-actions";
+import { saveContract } from "@/lib/pricing-actions";
 import { LANGS } from "@/lib/waybill";
 import { BOOK_LABEL, PAY_METHOD, buildLedger, internalPays, type LedgerPayment } from "@/lib/ledger";
 
@@ -37,6 +38,9 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
     supabase.from("fin_party_balances").select("party_id, balance").eq("lab_customer_id", id).maybeSingle(),
   ]);
   const finAccounts = (accRows ?? []) as { id: string; name: string; currency: string; kind: string }[];
+  const { data: riskData } = await supabase.rpc("lab_customer_risk", { p_customer: id });
+  const risk = riskData as { balance: number; limit: number | null; over: boolean; overdue: number; term: number; contract_expired: boolean } | null;
+  const cx = data as { credit_limit?: number | null; payment_term_days?: number; block_over_limit?: boolean; contract_start?: string | null; contract_end?: string | null; contract_note?: string | null };
   const prodName = new Map((prods ?? []).map((p) => [p.id as string, p as { id: string; name: string; price_try: number | null; price_eur: number | null }]));
   const linked = new Set((links ?? []).map((l) => l.portal_account_id as string));
   const list = (jobs ?? []) as { id: string; no: number; patient: string | null; in_date: string; due_date: string | null; status: JobStatus; total: number; currency: string; delivered_at: string | null }[];
@@ -73,6 +77,26 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             </ul>
           </Card>
         </div>
+        <Card title="Sözleşme, kredi limiti ve fiyat listesi" action={<Link href={`/yazdir/fiyat-listesi/${c.id}`} className="text-sm font-semibold text-brand-700">Fiyat listesi yazdır</Link>}>
+          {risk && (risk.over || risk.overdue > 0 || risk.contract_expired) && (
+            <div className="flex flex-wrap gap-2 text-sm">
+              {risk.over && <span className="rounded-lg bg-bad-bg text-bad px-3 py-1 font-semibold">Kredi limiti aşıldı: {money(risk.balance, c.currency)} / {money(risk.limit ?? 0, c.currency)}</span>}
+              {risk.overdue > 0 && <span className="rounded-lg bg-warn-bg text-warn px-3 py-1 font-semibold">Vadesi ({risk.term} gün) geçen: {money(risk.overdue, c.currency)}</span>}
+              {risk.contract_expired && <span className="rounded-lg bg-[#EEF2F6] px-3 py-1 font-semibold">Sözleşme süresi doldu</span>}
+            </div>
+          )}
+          <form action={saveContract} className="grid gap-3 md:grid-cols-3 lg:grid-cols-6 items-end">
+            <input type="hidden" name="customer_id" value={c.id} />
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Kredi limiti ({c.currency})<input name="credit_limit" inputMode="decimal" defaultValue={cx.credit_limit ? (Number(cx.credit_limit) / 100).toLocaleString("tr-TR") : ""} placeholder="limitsiz" className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white num" /></label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Vade (gün)<input name="payment_term_days" type="number" min={0} max={365} defaultValue={cx.payment_term_days ?? 30} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white" /></label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Sözleşme başlangıcı<input type="date" name="contract_start" defaultValue={cx.contract_start ?? ""} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white" /></label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Sözleşme bitişi<input type="date" name="contract_end" defaultValue={cx.contract_end ?? ""} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white" /></label>
+            <label className="lg:col-span-2 flex items-center gap-2 text-sm h-10"><input type="checkbox" name="block_over_limit" defaultChecked={cx.block_over_limit} className="w-4 h-4" />Limit aşılınca yeni iş kaydını engelle</label>
+            <label className="md:col-span-3 lg:col-span-5 flex flex-col gap-1 text-xs font-semibold text-muted">Sözleşme notu (iskonto, kampanya, özel koşul)<input name="contract_note" defaultValue={cx.contract_note ?? ""} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white" /></label>
+            <button className="h-10 rounded-lg bg-brand-700 text-white font-semibold">Kaydet</button>
+          </form>
+          <p className="text-xs text-muted">Özel ürün fiyatları aşağıdaki “Özel fiyatlar” bölümünden girilir; fiyat listesi çıktısı bu fiyatlarla müşterinin dilinde basılır.</p>
+        </Card>
         <Card title="İrsaliye, fatura ve cari ayarları">
           <form action={saveCustomerBook} className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 items-end">
             <input type="hidden" name="customer_id" value={c.id} />
