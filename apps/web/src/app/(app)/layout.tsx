@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const path = (await headers()).get("x-pathname") ?? "/";
   // Laboratuvar / kargo yetkisi olan personel: kargo, iş kayıt ve modül sayfaları
   const anyModule = Object.values(s.modules).some((v) => v > 0);
-  const allowKargo = (s.logistics && ["/kargo", "/isler"].some((p) => path.startsWith(p))) || path.startsWith("/modul/") || ((s.modules.users ?? 0) >= 1 && path.startsWith("/yonetim")) || (anyModule && ["/finans", "/stok", "/satis", "/alis", "/fatura", "/uretim", "/demirbas", "/masraf"].some((p) => path.startsWith(p)));
+  const allowKargo = (anyModule && path === "/") || (s.logistics && ["/kargo", "/isler"].some((p) => path.startsWith(p))) || path.startsWith("/modul/") || ((s.modules.users ?? 0) >= 1 && path.startsWith("/yonetim")) || (anyModule && ["/finans", "/stok", "/satis", "/alis", "/fatura", "/uretim", "/demirbas", "/masraf"].some((p) => path.startsWith(p)));
   if (s.role === "employee" && !allowKargo && !EMPLOYEE_PATHS.some((p) => path.startsWith(p))) redirect("/benim");
   // Yalnız web sitesi editörü: ERP'de iletişim modülleri ve site yönetimi bağlantısı
   if (s.role === "site_editor" && !allowKargo && !EDITOR_PATHS.some((p) => path.startsWith(p))) redirect("/duyurular");

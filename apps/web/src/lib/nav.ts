@@ -12,7 +12,7 @@ export const NAV: Group[] = [
   {
     group: "Genel", slug: "genel",
     items: [
-      { label: "Gösterge Paneli", href: "/", roles: MANAGERS },
+      { label: "Gösterge Paneli", href: "/", module: ["hr", "attendance", "payroll", "safety", "lab", "finance", "sales", "purchases", "stock", "production", "assets", "expenses", "users"] },
       { label: "Patron ekranı", href: "/patron", roles: ["owner", "accountant"] },
       { label: "Bildirimler", href: "/bildirimler" },
       { label: "Duyurular", href: "/duyurular" },
@@ -53,6 +53,7 @@ export const NAV: Group[] = [
   {
     group: "İnsan kaynakları", slug: "insan-kaynaklari",
     items: [
+      { label: "İK özeti", href: "/ik-ozet", module: "hr", roles: MANAGERS, desc: "Personel sayısı, maaş yükü, ödemeler, İSG uyarıları, bölümler" },
       { label: "Personel", href: "/personel", module: "hr", roles: MANAGERS },
       { label: "İşe alım ve ilanlar", href: "/ise-alim", module: "hr", roles: HRM },
       { label: "Uyum süreci", href: "/uyum", module: "hr", roles: HRM },
