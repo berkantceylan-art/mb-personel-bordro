@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { ReminderPoller } from "@/components/ReminderPoller";
+import { VoiceGreeter } from "@/components/VoiceGreeter";
 import { redirect } from "next/navigation";
 import { FlashMessage } from "@/components/FlashMessage";
 import { MobileNav } from "@/components/MobileNav";
@@ -35,10 +36,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   const supabase = await createClient();
-  const [{ count: unreadNotif }, { data: convs }] = await Promise.all([
+  const sinceAnn = new Date(Date.now() - 3 * 86400000).toISOString();
+  const [{ count: unreadNotif }, { data: convs }, { data: voice }, { data: who }, { data: emp }, { data: spoken }] = await Promise.all([
     supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", s.userId).eq("silent", false).is("read_at", null),
     supabase.from("conversation_members").select("last_read_at, conversations(last_message_at)").eq("user_id", s.userId),
+    supabase.from("company_voice").select("enabled, template, announce, rate").maybeSingle(),
+    supabase.from("memberships").select("display_name").eq("user_id", s.userId).eq("company_id", s.companyId).maybeSingle(),
+    supabase.from("employees").select("first_name, last_name").eq("user_id", s.userId).maybeSingle(),
+    supabase.from("announcements").select("id, title, body").eq("speak", true).gte("published_at", sinceAnn).order("published_at").limit(5),
   ]);
+  const v = (voice ?? { enabled: true, template: "{selam} {ad}, hoş geldin. Günün iyi geçmesini dilerim.", announce: true, rate: 1 }) as { enabled: boolean; template: string; announce: boolean; rate: number };
+  const myName = (who as { display_name?: string | null } | null)?.display_name || (emp ? `${emp.first_name} ${emp.last_name}` : (s.email?.split("@")[0] ?? ""));
   const unreadMsg = (convs ?? []).filter((c) => {
     const last = (c.conversations as unknown as { last_message_at: string } | null)?.last_message_at;
     return last && last > c.last_read_at;
@@ -54,6 +62,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <LiveUpdates userId={s.userId} />
         <InstallHint />
         <ReminderPoller />
+        <VoiceGreeter userId={s.userId} name={myName} company={s.companyName} template={v.template} enabled={v.enabled} rate={Number(v.rate) || 1} announcements={v.announce ? ((spoken ?? []) as { id: string; title: string; body: string }[]) : []} />
         {children}
       </main>
     </div>

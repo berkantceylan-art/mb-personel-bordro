@@ -69,6 +69,7 @@ export function AnnouncementForm({ departments, branches }: { departments: Array
         <label className="flex gap-2 items-center"><input type="checkbox" name="pinned" className="w-5 h-5" />Üste sabitle</label>
         {kind === "info" && <label className="flex gap-2 items-center"><input type="checkbox" name="require_ack" className="w-5 h-5" />&quot;Okudum, anladım&quot; onayı iste</label>}
         <label className="flex gap-2 items-center"><input type="checkbox" name="push" defaultChecked className="w-5 h-5" />Telefonlara bildirim gönder</label>
+        <label className="flex gap-2 items-center"><input type="checkbox" name="speak" className="w-5 h-5" />🔊 Sesli oku (herkesin ekranında bir kez)</label>
         <button disabled={pending} className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold disabled:opacity-60">{pending ? "Yayınlanıyor…" : "Yayınla"}</button>
         <Status s={state} />
       </div>
