@@ -110,6 +110,7 @@ export const NAV: Group[] = [
   {
     group: "Cari", slug: "cari",
     items: [
+      { label: "Müşteri takibi (CRM)", href: "/crm", module: ["sales", "lab"], desc: "Potansiyel klinikler, görüşme / numune / teklif, bugünün adımları, geri kazanma" },
       { label: "Cari mutabakat", href: "/finans/mutabakat", module: ["finance", "sales"], desc: "Tarih itibarıyla bakiye mektubu; cari bağlantıdan ya da portaldan onaylar / itiraz eder" },
       { label: "Cari kartlar (tedarikçi / müşteri)", href: "/finans/cariler", module: ["finance", "sales", "purchases"], desc: "Tüm cariler, para birimi, açılış bakiyesi, ekstre" },
       { label: "Hekim cari hesapları", href: "/isler/cari", module: "lab", desc: "Hekim bakiyeleri, tahsilat ve ekstre" },
@@ -161,6 +162,7 @@ export const NAV: Group[] = [
       { label: "Teknisyen primi", href: "/uretim/prim", module: ["production", "payroll"], level: 2, desc: "Birim, geri dönüş ve zamanında teslime göre aylık prim; bordroya aktarım" },
       { label: "Akış ekibi", href: "/uretim/ekip", module: "production", desc: "Teknisyen, şef, kontrol sorumlusu ve pazarlama rolleri" },
       { label: "Üretim panosu", href: "/uretim", module: "production", desc: "İstasyon istasyon işler, okutarak başla / bitir, gecikenler" },
+      { label: "Kalite yönetimi", href: "/kalite", module: ["lab", "production", "sales"], desc: "Hekim şikâyetleri, uygunsuzluk ve DÖF, iç denetim, memnuniyet anketi" },
       { label: "Makineler ve kapasite", href: "/uretim/makineler", module: ["production", "lab"], desc: "Frez, yazıcı, fırın kuyruğu; takım ömrü, bakım, arıza; günlük kapasite planı" },
       { label: "Üretim raporu", href: "/uretim/rapor", module: "production", desc: "Teknisyen verimi, yeniden yapım analizi, lot geri izleme" },
       { label: "İstasyon ve rotalar", href: "/uretim/ayarlar", module: "production", desc: "Ürün başına istasyon sırası, süre, malzeme düşüm adımı" },
