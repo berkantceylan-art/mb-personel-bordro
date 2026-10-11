@@ -4,7 +4,8 @@ import { Chip, Notice, Tabs, page } from "@/components/erp";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { adAction, noticeAction, videoAction } from "@/lib/site-content-actions";
-import { AdForm, NoticeForm, TYPES, Thumb, VideoForm, mediaUrl, type AdRow, type NoticeRow, type VideoRow } from "./SiteForms";
+import { AdForm, NoticeForm, Thumb, VideoForm, type AdRow, type NoticeRow, type VideoRow } from "./SiteForms";
+import { PORTAL_TYPE_LABELS as TYPES, siteMediaUrl as mediaUrl } from "@/lib/site-content";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Site içerikleri" };
