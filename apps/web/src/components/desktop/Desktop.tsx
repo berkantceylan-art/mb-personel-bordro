@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { visibleNav } from "@/lib/nav";
 import type { Shortcut } from "@/lib/desktop-actions";
-import { DesktopClient, iconFor, type Note, type Pickable, type Reminder, type Todo } from "./DesktopClient";
+import { iconFor } from "@/lib/desktop-icons";
+import { DesktopClient, type Note, type Pickable, type Reminder, type Todo } from "./DesktopClient";
 
 /** Kişisel masaüstü (sunucu): kişinin simgeleri, notları, hatırlatmaları ve kendisini bekleyen işler */
 export async function Desktop({ selfOnly = false }: { selfOnly?: boolean }) {
