@@ -26,6 +26,7 @@ export default async function MyPage() {
   ]);
   const { data: kv } = await supabase.from("kvkk_notices").select("id").eq("active", true).eq("audience", "employee").eq("kind", "aydinlatma").maybeSingle();
   const { data: kvOk } = kv ? await supabase.from("kvkk_consents").select("id").eq("employee_id", e.id).eq("notice_id", kv.id).is("revoked_at", null).limit(1) : { data: [1] };
+  const { data: inFlow } = await supabase.rpc("prd_in_flow");
   const kvkkPending = !!kv && !(kvOk ?? []).length;
   const { data: calls } = await supabase.from("office_calls").select("id, on_date, at_time, reason, acknowledged_at").eq("employee_id", e.id).is("cancelled_at", null).gte("on_date", today).order("on_date");
   const n = (v: number | null | undefined) => Number(v ?? 0);
@@ -88,6 +89,12 @@ export default async function MyPage() {
             <div><div className="text-[11px] uppercase tracking-wide text-white/70">Bu ay ödenen</div><div className="num text-lg font-bold">{formatTL(n(sum?.paid_bank) + n(sum?.paid_cash))}</div></div>
             <div><div className="text-[11px] uppercase tracking-wide text-white/70">Kalan</div><div className="num text-lg font-bold">{formatTL(n(sum?.balance))}</div></div>
           </div>
+          {inFlow === true && (
+            <Link href="/uretim/okut" className="col-span-2 rounded-[14px] bg-brand-700 text-white p-4 flex items-center gap-4 active:opacity-90">
+              <span className="w-12 h-12 rounded-xl grid place-items-center bg-white/15"><MenuIcon name="box" /></span>
+              <span className="flex flex-col"><span className="font-display text-lg font-bold leading-tight">Kutu okut</span><span className="text-xs text-white/80">Aldığın ve bitirdiğin kutuyu okut</span></span>
+            </Link>
+          )}
           {MY_MENU.map((m) => {
             const i = info[m.href] ?? { text: m.desc };
             return (

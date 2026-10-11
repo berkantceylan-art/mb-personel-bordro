@@ -22,7 +22,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const c = data as Customer;
   const [{ data: docs }, { data: jobs }, { data: accs }, { data: links }, { data: pays }, { data: prods }, { data: specials }] = await Promise.all([
     supabase.from("lab_customer_doctors").select("id, name").eq("customer_id", id).order("name"),
-    supabase.from("jobs").select("id, no, patient, in_date, due_date, status, total, currency").eq("customer_id", id).order("no", { ascending: false }).limit(5000),
+    supabase.from("jobs").select("id, no, patient, in_date, due_date, status, total, currency, delivered_at").eq("customer_id", id).order("no", { ascending: false }).limit(5000),
     supabase.from("portal_accounts").select("id, name, company").eq("status", "active").order("name"),
     supabase.from("lab_customers").select("portal_account_id").not("portal_account_id", "is", null),
     supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note").eq("customer_id", id).order("paid_on"),
@@ -31,7 +31,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   ]);
   const prodName = new Map((prods ?? []).map((p) => [p.id as string, p as { id: string; name: string; price_try: number | null; price_eur: number | null }]));
   const linked = new Set((links ?? []).map((l) => l.portal_account_id as string));
-  const list = (jobs ?? []) as { id: string; no: number; patient: string | null; in_date: string; due_date: string | null; status: JobStatus; total: number; currency: string }[];
+  const list = (jobs ?? []) as { id: string; no: number; patient: string | null; in_date: string; due_date: string | null; status: JobStatus; total: number; currency: string; delivered_at: string | null }[];
   const billable = list.filter((j) => j.status !== "cancelled");
   const month = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 7);
   const sumMonth = billable.filter((j) => j.in_date.startsWith(month)).reduce((a, j) => a + j.total, 0);

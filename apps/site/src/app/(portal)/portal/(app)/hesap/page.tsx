@@ -30,11 +30,11 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
   ]);
   const jobs = (js ?? []) as LJob[];
   const pays = (ps ?? []) as LPay[];
-  const billed = jobs.filter((j) => j.status !== "cancelled").reduce((x, j) => x + Number(j.total), 0);
+  const billed = jobs.filter((j) => j.status === "delivered").reduce((x, j) => x + Number(j.total), 0);
   const paid = pays.reduce((x, p) => x + Number(p.amount), 0);
   // Ekstre satırları (eskiden yeniye, yürüyen bakiye)
   const lines = [
-    ...jobs.filter((j) => j.status !== "cancelled").map((j) => ({ key: `j${j.id}`, date: j.in_date, desc: `${a.job} #${j.no}${j.patient ? ` · ${j.patient}` : ""}`, debit: Number(j.total), credit: 0 })),
+    ...jobs.filter((j) => j.status === "delivered").map((j) => ({ key: `j${j.id}`, date: (j.delivered_at ?? j.in_date).slice(0, 10), desc: `${a.job} #${j.no}${j.patient ? ` · ${j.patient}` : ""}`, debit: Number(j.total), credit: 0 })),
     ...pays.map((p) => ({ key: `p${p.id}`, date: p.paid_on, desc: `${a.payment} · ${a.methods[p.method] ?? p.method}${p.ref ? ` · ${p.ref}` : ""}`, debit: 0, credit: Number(p.amount) })),
   ].sort((x, y) => x.date.localeCompare(y.date));
   let bal = 0;

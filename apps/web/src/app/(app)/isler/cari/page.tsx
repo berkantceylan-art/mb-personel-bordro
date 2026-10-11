@@ -15,7 +15,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
   const supabase = await createClient();
   const [{ data: cs, error }, { data: jobs }, { data: pays, error: pe }] = await Promise.all([
     supabase.from("lab_customers").select("id, name, kind, currency, city, is_active").order("name"),
-    supabase.from("jobs").select("customer_id, total, status").neq("status", "cancelled").limit(20000),
+    supabase.from("jobs").select("customer_id, total, status").eq("status", "delivered").limit(20000),
     supabase.from("lab_payments").select("customer_id, amount").limit(20000),
   ]);
   const debit = new Map<string, number>();

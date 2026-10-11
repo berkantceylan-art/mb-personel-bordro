@@ -8,6 +8,7 @@ import { JOB_STATUS, type Job, type JobItem, type JobStep } from "@/lib/jobs";
 import { JobEditor } from "../JobEditor";
 import { JobFiles } from "../JobFiles";
 import { JobProduction } from "../JobProduction";
+import { JobFlow } from "../JobFlow";
 import { deleteJob, setJobStatus } from "../actions";
 import { editorOptions } from "../data";
 
@@ -56,10 +57,11 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             {job.status !== "delivered" && (
               <form action={setJobStatus}>
                 <input type="hidden" name="id" value={job.id} />
-                <button name="status" value={job.status === "ready" ? "delivered" : "ready"} className="h-10 px-3 rounded-[10px] bg-ok text-white text-sm font-semibold">{job.status === "ready" ? "Teslim edildi" : "Hazır"}</button>
+                <button name="status" value={job.status === "ready" ? "delivered" : "ready"} className="h-10 px-3 rounded-[10px] bg-ok text-white text-sm font-semibold">{job.status === "ready" ? "Teslim edildi (cariye işle)" : "Hazır"}</button>
               </form>
             )}
             <Link href={`/yazdir/is/${job.id}`} className="h-10 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-sm font-semibold text-brand-700">Yazdır</Link>
+            <Link href={`/yazdir/is-etiket/${job.id}`} className="h-10 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-sm font-semibold text-brand-700">Kutu etiketi</Link>
             {shipment && <Link href={`/kargo/${shipment.id}`} className="text-sm font-semibold text-brand-700">Kargo kaydı</Link>}
             <Link href="/isler" className="text-sm font-semibold text-brand-700">İş listesi</Link>
           </div>
@@ -90,6 +92,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             <p className="text-sm text-muted">Henüz resim yok.</p>
           )}
         </Card>
+        <JobFlow job={job as Job & { flow_stage?: string | null; holder_employee_id?: string | null; holder_since?: string | null; chief_passed_at?: string | null; qc_passed_at?: string | null }} />
         <JobProduction jobId={job.id} canEdit={s.logistics || (s.modules.production ?? 0) >= 2} />
         <JobEditor
           job={job}
