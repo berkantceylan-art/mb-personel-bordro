@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { aiModel } from "@/lib/ai-model";
 import { NextResponse } from "next/server";
 import { toolsFor, type Ctx } from "@/lib/assistant/tools";
 import { getSession, todayIso } from "@/lib/session";
@@ -43,7 +44,7 @@ Kurallar:
 - İK, hukuk veya vergi konusunda kesin görüş gerektiren durumlarda İK birimine yönlendir.`;
 
   const client = new Anthropic({ apiKey: key });
-  const model = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
+  const model = aiModel();
   const messages: Anthropic.MessageParam[] = history.map((m) => ({ role: m.role, content: m.content }));
   const used: string[] = [];
   let inTok = 0, outTok = 0;

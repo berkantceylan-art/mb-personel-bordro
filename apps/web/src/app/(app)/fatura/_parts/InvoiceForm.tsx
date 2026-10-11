@@ -28,8 +28,8 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
   const [type, setType] = useState<"invoice" | "return">(initial?.type ?? "invoice");
   const [partyId, setPartyId] = useState(initial?.party_id ?? "");
   const [pq, setPq] = useState("");
-  const [newParty, setNewParty] = useState(false);
-  const [np, setNp] = useState({ name: "", tax_no: "", tax_office: "", address: "", city: "", email: "", phone: "", is_einvoice: false });
+  const [newParty, setNewParty] = useState(!initial?.party_id && !!initial?.new_party?.name);
+  const [np, setNp] = useState({ name: "", tax_no: "", tax_office: "", address: "", city: "", email: "", phone: "", is_einvoice: false, ...(initial?.new_party ?? {}) });
   const [docNo, setDocNo] = useState(initial?.doc_no ?? "");
   const [date, setDate] = useState(initial?.invoice_date ?? today);
   const [due, setDue] = useState(initial?.due_date ?? "");

@@ -1,11 +1,12 @@
 "use server";
 import Anthropic from "@anthropic-ai/sdk";
+import { aiModel } from "@/lib/ai-model";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 
-const model = () => process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
+const model = aiModel;
 const json = <T,>(text: string): T => JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as T;
 
 export type AiResult = { ok: boolean; message: string };

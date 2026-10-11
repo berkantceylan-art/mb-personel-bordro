@@ -18,6 +18,7 @@ export const NAV: Group[] = [
       { label: "Duyurular", href: "/duyurular" },
       { label: "Mesajlar", href: "/mesajlar" },
       { label: "Talepler", href: "/talepler", module: ["hr", "attendance", "payroll"], roles: [...new Set([...PAY, ...HR])] },
+      { label: "Onaylar", href: "/onaylar", desc: "Onay akışında sizi bekleyen masraf ve satın alma talepleri" },
       { label: "İK asistanı", href: "/asistan" },
     ],
   },
@@ -204,7 +205,7 @@ export const NAV: Group[] = [
   },
   { group: "Raporlar", slug: "raporlar", items: [{ label: "Yönetim KPI", href: "/kpi", module: ["sales", "finance", "production"], desc: "Ciro, birim, zamanında teslim, yeniden yapım, üretim süresi, tahsilat süresi" }, { label: "Raporlar", href: "/raporlar", module: ["hr", "attendance", "payroll", "safety"], roles: MANAGERS }, { label: "Excel'den aktar", href: "/ice-aktar", module: "payroll", roles: PAY }] },
   { group: "Web sitesi", slug: "web-sitesi", items: [{ label: "Site yönetimi (mbdentaire.com)", href: "/site-gecis", site: true, raw: true }] },
-  { group: "Sistem", slug: "sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", module: "attendance", roles: ["owner", "hr", "branch_manager"] }, { label: "Kullanıcılar ve hesaplar", href: "/yonetim", module: "users", desc: "Kullanıcılar, personele hesap açma, kullanıcı türleri" }, { label: "Yetki haritası", href: "/yonetim/yetkiler", module: "users", desc: "Kim hangi modülde ne yapabilir: tek bakışta" }, { label: "Şirket ayarları", href: "/yonetim/sirket", module: "users", level: 2, desc: "Şirket bilgileri, şubeler, bölümler, PDKS cihazları" }, { label: "İşlem geçmişi", href: "/yonetim/hareketler", module: "users", level: 2, desc: "Kim, ne zaman, neyi değiştirdi (denetim kaydı)" }] },
+  { group: "Sistem", slug: "sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", module: "attendance", roles: ["owner", "hr", "branch_manager"] }, { label: "Kullanıcılar ve hesaplar", href: "/yonetim", module: "users", desc: "Kullanıcılar, personele hesap açma, kullanıcı türleri" }, { label: "Yetki haritası", href: "/yonetim/yetkiler", module: "users", desc: "Kim hangi modülde ne yapabilir: tek bakışta" }, { label: "Onay akışları", href: "/yonetim/onay-akislari", module: "users", level: 2, desc: "Masraf ve satın alma için tutara göre sıralı onay adımları" }, { label: "Şirket ayarları", href: "/yonetim/sirket", module: "users", level: 2, desc: "Şirket bilgileri, şubeler, bölümler, PDKS cihazları" }, { label: "İşlem geçmişi", href: "/yonetim/hareketler", module: "users", level: 2, desc: "Kim, ne zaman, neyi değiştirdi (denetim kaydı)" }] },
 ];
 
 const ALL_HREFS = () => NAV.flatMap((g) => g.items.map((i) => i.href));
