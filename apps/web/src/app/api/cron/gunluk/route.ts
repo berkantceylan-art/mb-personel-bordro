@@ -69,8 +69,20 @@ export async function GET(req: Request) {
   } catch (e) {
     report.recurring = { error: e instanceof Error ? e.message : String(e) };
   }
+  // Günlük ERP uyarıları (her biri bağımsız; fonksiyon yoksa sessizce geçer)
+  for (const fn of DAILY_RPCS) {
+    try {
+      const { data, error } = await admin.rpc(fn);
+      report[fn] = error ? { error: error.message } : { result: data };
+    } catch (e) {
+      report[fn] = { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
   return NextResponse.json({ ok: true, today, report });
 }
+
+/** Günlük çalışan, parametresiz bakım / uyarı fonksiyonları */
+const DAILY_RPCS = ["stk_expiry_alerts"];
 
 class JobContext {
   private roleCache?: Array<{ user_id: string; role: Role }>;

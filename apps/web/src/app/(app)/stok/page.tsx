@@ -48,7 +48,7 @@ export default async function StockHome() {
               {low.length === 0 && <li className="py-4 text-sm text-muted">Asgari stok altında kalem yok.</li>}
             </ul>
           </Card>
-          <Card title="Son kullanma tarihi yaklaşanlar">
+          <Card title="Son kullanma tarihi yaklaşanlar" action={<Link href="/stok/lotlar?sure=60" className="text-sm font-semibold text-brand-700">Lotlar</Link>}>
             <ul className="divide-y divide-[#EEF2F6]">
               {expiring.slice(0, 12).map((r, n) => (
                 <li key={n} className="flex justify-between gap-3 py-2 text-sm">

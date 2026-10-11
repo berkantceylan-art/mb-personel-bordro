@@ -14,6 +14,7 @@ export function prdError(m: string): string {
   if (/not_allowed|permission/.test(m)) return "Üretim yetkiniz yok (Yönetim > Yetkiler).";
   if (/job_not_found/.test(m)) return "Bu numarayla iş bulunamadı.";
   if (/job_cancelled/.test(m)) return "İş iptal edilmiş.";
+  if (/lot_blocked/.test(m)) return "Bu lot karantinada ya da geri çağrıldı; kullanılamaz.";
   if (/bad_status/.test(m)) return "Adımın durumu bu işleme uygun değil.";
   if (/relation "prd_|function prd_|schema cache/.test(m)) return "Üretim tabloları yok: Supabase'de 20261207000000_production.sql çalıştırılmalı.";
   return m;

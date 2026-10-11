@@ -32,6 +32,9 @@ export function stockError(message: string): string {
   if (/not_allowed|permission|policy/i.test(message)) return "Bu işlem için stok yetkiniz yok (Yönetim > Yetkiler).";
   if (/insufficient:(.+)/.test(message)) return `Çıkış deposunda yeterli stok yok: ${message.match(/insufficient:([^"]+)/)?.[1]}`;
   if (/lot_required/.test(message)) return "Bu malzeme lot takipli: lot numarası yazın.";
+  if (/lot_blocked/.test(message)) return "Bu lot karantinada ya da geri çağrıldı; kullanılamaz (Stok > Lotlar).";
+  if (/reason_required/.test(message)) return "Karantina / geri çağırma için neden yazın.";
+  if (/stk_lot|stk_lots/.test(message) && /exist|schema cache/.test(message)) return "Supabase'de 20261222000000_lots.sql çalıştırılmalı.";
   if (/expiry_required/.test(message)) return "Bu malzeme son kullanma takipli: tarihi yazın.";
   if (/item_not_found/.test(message)) return "Bu barkod / kodla kayıtlı malzeme yok.";
   if (/bad_status|closed/.test(message)) return "Belgenin durumu bu işleme uygun değil.";

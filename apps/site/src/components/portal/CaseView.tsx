@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n";
+import { MODEL_EXT, ModelButton } from "./ModelViewer";
 import { CASE_FLOW, PORTAL_UI, STATUS_CLS, formatBytes, formatDate, type CaseEvent, type CaseFile, type PortalCase } from "@/lib/portal-ui";
 
 /** Vaka ayrıntısı: hekim portalı ve laboratuvar ekranı ortak kullanır */
@@ -60,6 +61,7 @@ export function CaseFiles({ files, urls, locale }: { files: CaseFile[]; urls: Re
           <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${f.from_lab ? "bg-navy text-white" : "bg-porcelain text-navy"}`}>{f.from_lab ? ui.detail.lab : ui.detail.you}</span>
           <span className="min-w-0 flex-1 truncate">{f.name}</span>
           <span className="whitespace-nowrap text-xs text-slate">{formatBytes(f.size)}</span>
+          {urls[f.path] && MODEL_EXT.test(f.name) && <ModelButton url={urls[f.path]!} name={f.name} lang={locale} className="font-semibold text-smile-ink hover:underline" />}
           {urls[f.path] && (
             <a href={urls[f.path]} className="font-semibold text-smile-ink hover:underline" download={f.name}>
               {ui.detail.download}

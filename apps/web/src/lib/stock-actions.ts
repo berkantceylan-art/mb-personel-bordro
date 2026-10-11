@@ -226,3 +226,17 @@ export async function closeCount(form: FormData) {
   revalidatePath("/stok", "layout");
   await done(`Sayım kapandı; ${data ?? 0} kalemde fark stoğa işlendi.`);
 }
+
+/** Lot durumu: kullanılabilir / karantina / geri çağrıldı */
+export async function setLotStatus(form: FormData) {
+  const s = await getSession();
+  if ((s.modules.stock ?? 0) < 2 && (s.modules.production ?? 0) < 3) await fail("Bu işlem için stok yetkiniz yok (Yönetim > Yetkiler).");
+  const item = str(form, "item_id", 40);
+  const lot = str(form, "lot_no", 60);
+  const status = str(form, "status", 20);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("stk_lot_set_status", { p_item: item, p_lot: lot, p_status: status, p_reason: opt(form, "reason", 500), p_cert: opt(form, "cert_no", 80), p_supplier: null, p_note: opt(form, "note", 500) });
+  if (error) await fail(stockError(error.message));
+  revalidatePath("/stok/lotlar");
+  await done(status === "recalled" ? `Lot geri çağrıldı. ${data ?? 0} işte kullanılmış; aşağıdaki listeden hekimlere haber verin.` : status === "quarantine" ? "Lot karantinaya alındı; iş ve satışta kullanılamaz." : "Lot kullanıma açıldı.");
+}
