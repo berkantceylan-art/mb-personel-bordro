@@ -75,3 +75,33 @@ export async function aiRemakeInsights(): Promise<AiResult> {
     return { ok: false, message: `Analiz yapılamadı: ${(e as Error).message.slice(0, 120)}` };
   }
 }
+
+/** İş fotoğrafından renk önerisi (VITA klasik skala): iç not olarak işe yazılır, karar teknisyende */
+export async function aiShadeFromPhoto(f: FormData): Promise<void> {
+  const s = await getSession();
+  const jobId = String(f.get("job_id") ?? "");
+  const path = String(f.get("path") ?? "");
+  if (!s.logistics || !/^[0-9a-f-]{36}$/.test(jobId) || !path.startsWith(`${jobId}/`)) return;
+  const key = process.env.ANTHROPIC_API_KEY;
+  const supabase = await createClient();
+  const note = async (body: string) => { await supabase.from("job_notes").insert({ job_id: jobId, body: body.slice(0, 4000) }); revalidatePath(`/isler/${jobId}`); };
+  if (!key) return note("Renk önerisi için Vercel'e ANTHROPIC_API_KEY eklenmeli.");
+  const { data: blob } = await supabase.storage.from("job-files").download(path);
+  if (!blob || blob.size > 5 * 1024 * 1024) return note("Renk önerisi: fotoğraf okunamadı ya da 5 MB'tan büyük.");
+  const type = ["image/png", "image/webp"].includes(blob.type) ? (blob.type as "image/png" | "image/webp") : "image/jpeg";
+  try {
+    const res = await new Anthropic({ apiKey: key }).messages.create({
+      model: model(), max_tokens: 400,
+      messages: [{ role: "user", content: [
+        { type: "image", source: { type: "base64", media_type: type, data: Buffer.from(await blob.arrayBuffer()).toString("base64") } },
+        { type: "text", text: `Bu, diş rengi seçimi için çekilmiş bir fotoğraf (çoğunlukla renk skalası tablası diş yanında). VITA klasik skalaya göre en yakın rengi öner. Yalnız JSON döndür:
+{"shade":"ör. A2","alt":"ikinci olasılık","cervical":"boyun bölgesi rengi ya da boş","incisal":"kesici kenar notu ya da boş","confidence":"düşük|orta|yüksek","issues":"ışık / beyaz dengesi / açı sorunları, kısa","tip":"daha doğru seçim için tek cümlelik öneri"}` },
+      ] }],
+    });
+    const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
+    const d = json<{ shade?: string; alt?: string; cervical?: string; incisal?: string; confidence?: string; issues?: string; tip?: string }>(text);
+    await note(`✨ Yapay zekâ renk önerisi: ${d.shade ?? "?"}${d.alt ? ` (alternatif ${d.alt})` : ""} · güven: ${d.confidence ?? "?"}${d.cervical ? ` · boyun ${d.cervical}` : ""}${d.incisal ? ` · kesici ${d.incisal}` : ""}${d.issues ? `\nFotoğraf: ${d.issues}` : ""}${d.tip ? `\nÖneri: ${d.tip}` : ""}\nKarar teknisyendedir; skala ve ışık koşullarını kontrol edin.`);
+  } catch (e) {
+    await note(`Renk önerisi yapılamadı: ${(e as Error).message.slice(0, 120)}`);
+  }
+}

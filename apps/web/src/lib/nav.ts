@@ -19,7 +19,7 @@ export const NAV: Group[] = [
       { label: "Mesajlar", href: "/mesajlar" },
       { label: "Talepler", href: "/talepler", module: ["hr", "attendance", "payroll"], roles: [...new Set([...PAY, ...HR])] },
       { label: "Onaylar", href: "/onaylar", desc: "Onay akışında sizi bekleyen masraf ve satın alma talepleri" },
-      { label: "İK asistanı", href: "/asistan" },
+      { label: "Asistan", href: "/asistan", desc: "Doğal dille soru: İK, iş durumu, cari, nakit, stok, kalite" },
     ],
   },
   {
@@ -164,6 +164,7 @@ export const NAV: Group[] = [
       { label: "Üretim panosu", href: "/uretim", module: "production", desc: "İstasyon istasyon işler, okutarak başla / bitir, gecikenler" },
       { label: "Kalite yönetimi", href: "/kalite", module: ["lab", "production", "sales"], desc: "Hekim şikâyetleri, uygunsuzluk ve DÖF, iç denetim, memnuniyet anketi" },
       { label: "Makineler ve kapasite", href: "/uretim/makineler", module: ["production", "lab"], desc: "Frez, yazıcı, fırın kuyruğu; takım ömrü, bakım, arıza; günlük kapasite planı" },
+      { label: "Talep tahmini", href: "/uretim/talep-tahmini", module: ["production", "stock", "purchases"], desc: "Gelecek ayın hacmi ve malzeme ihtiyacı, kaç gün yeter, tek tıkla satın alma siparişi" },
       { label: "Üretim raporu", href: "/uretim/rapor", module: "production", desc: "Teknisyen verimi, yeniden yapım analizi, lot geri izleme" },
       { label: "İstasyon ve rotalar", href: "/uretim/ayarlar", module: "production", desc: "Ürün başına istasyon sırası, süre, malzeme düşüm adımı" },
       { label: "Hekim / hastane kaydı", href: "/isler/hekimler", module: "lab", desc: "Hekim ve klinik kartları, yeni hekim ekleme, özel fiyatlar" },
