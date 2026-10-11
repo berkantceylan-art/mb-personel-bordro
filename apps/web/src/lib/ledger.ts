@@ -1,6 +1,10 @@
 /** Cari hesap ekstresi: işler borç, tahsilatlar alacak; yürüyen bakiye */
 
-export type LedgerJob = { id: string; no: number; in_date: string; patient: string | null; total: number; status: string };
+export type LedgerJob = { id: string; no: number; in_date: string; patient: string | null; total: number; status: string; delivered_at?: string | null };
+
+/** İş tutarı hekim carisine çıkışta (teslim) işlenir; tarih teslim tarihidir */
+export const jobBilled = (j: { status: string }) => j.status === "delivered";
+export const jobBillDate = (j: { in_date: string; delivered_at?: string | null }) => (j.delivered_at ? new Date(new Date(j.delivered_at).getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10) : j.in_date);
 export type LedgerPayment = { id: string; paid_on: string; amount: number; method: string; ref: string | null; note: string | null };
 export type LedgerRow = { key: string; date: string; kind: "job" | "payment" | "opening"; label: string; debit: number; credit: number; balance: number; href?: string; id?: string };
 
@@ -10,8 +14,8 @@ export const PAY_METHOD: Record<string, string> = { cash: "Nakit", bank: "Havale
 export function buildLedger(jobs: LedgerJob[], payments: LedgerPayment[], from?: string | null, to?: string | null): { rows: LedgerRow[]; debit: number; credit: number; balance: number } {
   const all: Omit<LedgerRow, "balance">[] = [
     ...jobs
-      .filter((j) => j.status !== "cancelled")
-      .map((j) => ({ key: `j${j.id}`, id: j.id, date: j.in_date, kind: "job" as const, label: `İş #${j.no}${j.patient ? ` · ${j.patient}` : ""}`, debit: Number(j.total) || 0, credit: 0, href: `/isler/${j.id}` })),
+      .filter(jobBilled)
+      .map((j) => ({ key: `j${j.id}`, id: j.id, date: jobBillDate(j), kind: "job" as const, label: `İş #${j.no}${j.patient ? ` · ${j.patient}` : ""}`, debit: Number(j.total) || 0, credit: 0, href: `/isler/${j.id}` })),
     ...payments.map((p) => ({ key: `p${p.id}`, id: p.id, date: p.paid_on, kind: "payment" as const, label: `Tahsilat · ${PAY_METHOD[p.method] ?? p.method}${p.ref ? ` · ${p.ref}` : ""}${p.note ? ` · ${p.note}` : ""}`, debit: 0, credit: Number(p.amount) || 0 })),
   ].sort((a, b) => a.date.localeCompare(b.date) || (a.kind === "job" ? -1 : 1));
 

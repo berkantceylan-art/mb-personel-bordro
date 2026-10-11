@@ -20,7 +20,7 @@ export default async function Proforma({ searchParams }: { searchParams: Promise
   const end = new Date(`${ay}-01T00:00:00Z`);
   end.setUTCMonth(end.getUTCMonth() + 1);
   const [{ data: js }, { data: banks }, st] = await Promise.all([
-    supabase.from("jobs").select("id, no, in_date, patient, total, currency, status").eq("customer_id", cust.id).neq("status", "cancelled").gte("in_date", `${ay}-01`).lt("in_date", end.toISOString().slice(0, 10)).order("no"),
+    supabase.from("jobs").select("id, no, in_date, patient, total, currency, status").eq("customer_id", cust.id).eq("status", "delivered").gte("delivered_at", `${ay}-01T00:00:00+03:00`).lt("delivered_at", `${end.toISOString().slice(0, 10)}T00:00:00+03:00`).order("no"),
     supabase.from("lab_options").select("value").eq("kind", "bank").order("sort"),
     getSettings(),
   ]);

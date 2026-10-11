@@ -9,6 +9,7 @@ import { fmt, today } from "@/lib/fin";
 import { loadCategories } from "@/lib/fin-data";
 import { creditSale, setCreditSales } from "@/lib/fin2-actions";
 import { aging } from "@/lib/fin2";
+import { jobBillDate } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function CreditBook({ searchParams }: { searchParams: Promi
   const labIds = parties.map((p) => p.lab_customer_id).filter(Boolean) as string[];
   const [{ data: moves }, { data: jobs }, { data: pays }, { data: allParties }] = await Promise.all([
     ids.length ? supabase.from("fin_moves").select("party_id, amount, move_date, fin_txns!inner(voided_at)").in("party_id", ids).is("fin_txns.voided_at", null).limit(20000) : Promise.resolve({ data: [] }),
-    labIds.length ? supabase.from("jobs").select("customer_id, in_date, total").in("customer_id", labIds).neq("status", "cancelled").limit(20000) : Promise.resolve({ data: [] }),
+    labIds.length ? supabase.from("jobs").select("customer_id, in_date, total, delivered_at").in("customer_id", labIds).eq("status", "delivered").limit(20000) : Promise.resolve({ data: [] }),
     labIds.length ? supabase.from("lab_payments").select("customer_id, paid_on, amount").in("customer_id", labIds).is("fin_txn_id", null).limit(20000) : Promise.resolve({ data: [] }),
     supabase.from("fin_parties").select("id, name, currency").eq("is_active", true).in("kind", ["customer", "both", "other"]).order("name").limit(5000),
   ]);
@@ -46,7 +47,7 @@ export default async function CreditBook({ searchParams }: { searchParams: Promi
     if (ob) lines.push({ date: p.opening_date ?? "2000-01-01", debit: ob > 0 ? ob : 0, credit: ob < 0 ? -ob : 0 });
     for (const m of (moves ?? []) as { party_id: string; amount: number; move_date: string }[]) if (m.party_id === p.id) lines.push({ date: m.move_date, debit: m.amount > 0 ? Number(m.amount) : 0, credit: m.amount < 0 ? -Number(m.amount) : 0 });
     if (p.lab_customer_id) {
-      for (const j of (jobs ?? []) as { customer_id: string; in_date: string; total: number }[]) if (j.customer_id === p.lab_customer_id) lines.push({ date: j.in_date, debit: Number(j.total), credit: 0 });
+      for (const j of (jobs ?? []) as { customer_id: string; in_date: string; total: number; delivered_at: string | null }[]) if (j.customer_id === p.lab_customer_id) lines.push({ date: jobBillDate(j), debit: Number(j.total), credit: 0 });
       for (const x of (pays ?? []) as { customer_id: string; paid_on: string; amount: number }[]) if (x.customer_id === p.lab_customer_id) lines.push({ date: x.paid_on, debit: 0, credit: Number(x.amount) });
     }
     const balance = bmap.get(p.id) ?? lines.reduce((x, l) => x + l.debit - l.credit, 0);

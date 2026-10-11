@@ -20,7 +20,7 @@ export default async function StatementPrint({ params, searchParams }: { params:
   const { data: c } = await supabase.from("lab_customers").select("id, name, currency, address, city, country, tax_office, tax_no, phone").eq("id", id).maybeSingle();
   if (!c) notFound();
   const [{ data: jobs }, { data: pays }, { data: banks }] = await Promise.all([
-    supabase.from("jobs").select("id, no, in_date, patient, total, status").eq("customer_id", id).limit(20000),
+    supabase.from("jobs").select("id, no, in_date, patient, total, status, delivered_at").eq("customer_id", id).limit(20000),
     supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note").eq("customer_id", id).limit(20000),
     supabase.from("lab_options").select("value").eq("kind", "bank").order("sort"),
   ]);
