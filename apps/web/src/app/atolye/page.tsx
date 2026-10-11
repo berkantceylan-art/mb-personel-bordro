@@ -20,6 +20,7 @@ type Board = {
   feed: { at: string; action: string; stage: string; no: number; who: string | null; customer: string | null }[];
   forecast: { avg_out_units: number; days_left: number | null };
 };
+type Firm = { id: string; name: string; since: string; total: number; out_n: number; open_n: number; out_today: number; late: number; open_units: number; next_due: string | null; pending: { no: number; stage: string; due: string | null }[] };
 const n = (v: number) => Number(v ?? 0).toLocaleString("tr-TR", { maximumFractionDigits: 1 });
 const SYM: Record<string, string> = { TRY: "₺", EUR: "€", USD: "$" };
 
@@ -28,8 +29,10 @@ export default async function WorkshopScreen() {
   const s = await getSession();
   if ((s.modules.production ?? 0) < 1 && !s.logistics) redirect("/");
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("prd_workshop_board");
+  const [{ data, error }, { data: cData, error: cErr }] = await Promise.all([supabase.rpc("prd_workshop_board"), supabase.rpc("prd_workshop_clinics")]);
   const b = data as Board | null;
+  // Firma bazında ilerleme: kalanı olanlar önce (en yakın teslim), sonra bugün tamamlananlar
+  const firms = cErr ? null : ((cData ?? []) as Firm[]).sort((a, z) => (z.open_n > 0 ? 1 : 0) - (a.open_n > 0 ? 1 : 0) || (a.next_due ?? "9999").localeCompare(z.next_due ?? "9999") || z.open_n - a.open_n);
   const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
   const maxTrend = Math.max(1, ...(b?.trend ?? []).flatMap((t) => [Number(t.in), Number(t.out)]));
   const maxStage = Math.max(1, ...(b?.stages ?? []).map((x) => Number(x.units)));
@@ -105,7 +108,36 @@ export default async function WorkshopScreen() {
             </section>
 
             <section className="rounded-2xl bg-white/[.04] border border-white/10 p-4 min-h-0 overflow-hidden flex flex-col">
-              <div className="flex items-baseline gap-3 mb-3"><h2 className="font-display text-lg font-bold">Klinik ve hekimler</h2><span className="text-sm text-white/50">açık işler</span></div>
+              <div className="flex items-baseline gap-3 mb-3"><h2 className="font-display text-lg font-bold">Firmalar</h2><span className="text-sm text-white/50">{firms ? "gelen · çıkan · kalan" : "açık işler"}</span></div>
+              {firms ? (
+                <ul className="flex flex-col gap-2 min-h-0 overflow-hidden">
+                  {firms.slice(0, 12).map((f) => {
+                    const done = f.open_n === 0;
+                    const pct = f.total ? (f.out_n / f.total) * 100 : 0;
+                    return (
+                      <li key={f.id} className={`rounded-xl p-2.5 ${done ? "bg-[#34D399]/10" : f.late ? "bg-[#F87171]/10" : "bg-white/[.05]"}`}>
+                        <div className="flex items-baseline gap-2">
+                          <b className="truncate flex-1">{f.name}</b>
+                          <span className="text-xs text-white/50 tabular-nums">{f.total} geldi · <span className="text-[#6EE7B7]">{f.out_n} çıktı</span></span>
+                          {done ? <span className="text-sm font-bold text-[#34D399]">✓ tamam</span> : <span className={`font-display text-xl font-black tabular-nums ${f.late ? "text-[#F87171]" : "text-[#FBBF24]"}`}>{f.open_n} kaldı</span>}
+                        </div>
+                        <div className="mt-1 h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#34D399]" style={{ width: `${pct}%` }} /></div>
+                        {!done && (
+                          <div className="mt-1 flex flex-wrap gap-1 text-[11px]">
+                            {f.pending.map((p) => (
+                              <span key={p.no} className={`rounded px-1.5 py-0.5 bg-white/10 ${p.due && p.due < today ? "text-[#FCA5A5]" : "text-white/80"}`}>
+                                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: FLOW_STAGE[p.stage]?.[1] ?? "#64748B" }} />#{p.no} {FLOW_STAGE[p.stage]?.[0] ?? p.stage}{p.due ? ` · ${new Date(`${p.due}T12:00:00Z`).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" })}` : ""}
+                              </span>
+                            ))}
+                            {f.open_n > f.pending.length && <span className="text-white/40">+{f.open_n - f.pending.length}</span>}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                  {firms.length === 0 && <li className="text-white/50">İçeride iş yok.</li>}
+                </ul>
+              ) : (
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-white/40"><th className="pb-1">Klinik / hekim</th><th className="pb-1 text-right">İş</th><th className="pb-1 text-right">Birim</th><th className="pb-1 text-right">Geç</th><th className="pb-1 text-right">En yakın</th></tr></thead>
                 <tbody>
@@ -120,6 +152,7 @@ export default async function WorkshopScreen() {
                   ))}
                 </tbody>
               </table>
+              )}
               <div className="mt-auto pt-3">
                 <div className="text-xs text-white/40 mb-1">Son 14 gün · <span className="text-[#60A5FA]">giren</span> / <span className="text-[#34D399]">çıkan</span> birim</div>
                 <div className="flex items-end gap-1 h-20">
