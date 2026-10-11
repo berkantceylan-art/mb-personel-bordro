@@ -110,3 +110,23 @@ export async function addLabPayment(f: FormData) {
   const b = str(f, "book");
   await done(b === "both" ? "Tahsilat resmi ve iç cariye işlendi." : b === "internal" ? "Tahsilat iç cariye işlendi." : "Tahsilat kaydedildi.");
 }
+
+/** Kurye: irsaliyeyi teslim et (teslim alan + imza) */
+export async function deliverWaybill(f: FormData) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("lab_waybill_deliver", { p_id: str(f, "id"), p_to: str(f, "to"), p_signature: str(f, "signature") || null, p_note: str(f, "note") || null });
+  if (error) await fail(waybillError(error.message));
+  revalidatePath("/kurye");
+  refresh();
+  await done("Teslim edildi olarak kaydedildi.");
+}
+
+/** Kurye: ölçü / model alındı */
+export async function orderPicked(f: FormData) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("lab_order_picked", { p_id: str(f, "id") });
+  if (error) await fail(waybillError(error.message));
+  revalidatePath("/kurye");
+  revalidatePath("/isler/siparisler");
+  await done("Ölçü alındı olarak işaretlendi.");
+}

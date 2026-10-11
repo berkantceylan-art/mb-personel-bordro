@@ -81,7 +81,10 @@ export default async function WaybillPrint({ params, searchParams }: { params: P
         {w.note && <p><b>{t.note}:</b> {w.note}</p>}
         <div className="grid grid-cols-2 gap-8 pt-10 text-center text-[11px]">
           <div className="border-t border-black pt-1">{t.delivered_by}</div>
-          <div className="border-t border-black pt-1">{t.received_by}</div>
+          <div className="border-t border-black pt-1">{t.received_by}{w.delivered_to && <div className="font-semibold">{w.delivered_to}</div>}{w.signature && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={w.signature} alt="" className="mx-auto h-16 object-contain" />
+          )}{w.delivered_at && <div className="text-[10px] text-[#555]">{new Date(w.delivered_at).toLocaleString(lang === "fr" ? "fr-FR" : lang === "en" ? "en-GB" : "tr-TR", { timeZone: "Europe/Istanbul" })}</div>}</div>
         </div>
       </div>
     </main>

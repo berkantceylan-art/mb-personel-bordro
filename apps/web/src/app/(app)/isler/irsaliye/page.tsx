@@ -8,10 +8,11 @@ import { formatDate, getSession } from "@/lib/session";
 import { money } from "@/lib/jobs";
 import { WB_STATUS, waybillError, wbNo } from "@/lib/waybill";
 import { cancelWaybill, createWaybill, issueWaybill } from "@/lib/waybill-actions";
+import { waLink, waWaybillText } from "@/lib/wa";
 
 export const dynamic = "force-dynamic";
 
-type W = { id: string; year: number; no: number; customer_id: string; ship_date: string; status: string; currency: string; job_count: number; unit_count: number; total: number; statement_id: string | null; auto: boolean; lab_customers: { name: string; internal_book: boolean } | null };
+type W = { id: string; year: number; no: number; customer_id: string; ship_date: string; status: string; currency: string; job_count: number; unit_count: number; total: number; statement_id: string | null; auto: boolean; lab_customers: { name: string; internal_book: boolean; phone: string | null; doc_lang: string | null } | null };
 
 const shift = (d: string, n: number) => new Date(new Date(`${d}T12:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10);
 
@@ -24,10 +25,12 @@ export default async function WaybillsPage({ searchParams }: { searchParams: Pro
   const day = /^\d{4}-\d{2}-\d{2}$/.test(sp.gun ?? "") ? sp.gun! : today;
   const supabase = await createClient();
   const [{ data: wd, error }, { data: loose }] = await Promise.all([
-    supabase.from("lab_waybills").select("id, year, no, customer_id, ship_date, status, currency, job_count, unit_count, total, statement_id, auto, lab_customers(name, internal_book)").eq("ship_date", day).neq("status", "cancelled").order("created_at"),
+    supabase.from("lab_waybills").select("id, year, no, customer_id, ship_date, status, currency, job_count, unit_count, total, statement_id, auto, lab_customers(name, internal_book, phone, doc_lang)").eq("ship_date", day).neq("status", "cancelled").order("created_at"),
     supabase.from("jobs").select("id, no, patient, total, currency, customer_id, delivered_at, lab_customers(name)").eq("status", "delivered").is("waybill_id", null).gte("delivered_at", `${day}T00:00:00+03:00`).lte("delivered_at", `${day}T23:59:59+03:00`).order("no"),
   ]);
   const wbs = (wd ?? []) as unknown as W[];
+  const { data: wj } = wbs.length ? await supabase.from("jobs").select("no, patient, waybill_id").in("waybill_id", wbs.map((w) => w.id)).order("no") : { data: [] };
+  const jobsOf = (id: string) => ((wj ?? []) as { no: number; patient: string | null; waybill_id: string }[]).filter((j) => j.waybill_id === id);
   const looseRows = (loose ?? []) as unknown as { id: string; no: number; patient: string | null; total: number; currency: string; customer_id: string; lab_customers: { name: string } | null }[];
   const byCust = new Map<string, typeof looseRows>();
   for (const j of looseRows) byCust.set(j.customer_id, [...(byCust.get(j.customer_id) ?? []), j]);
@@ -61,6 +64,7 @@ export default async function WaybillsPage({ searchParams }: { searchParams: Pro
               <div className="flex flex-wrap gap-2 pt-1 mt-auto border-t border-[#EEF2F6]">
                 <Link href={`/yazdir/irsaliye/${w.id}`} className="h-9 px-3 inline-flex items-center rounded-[10px] bg-brand-700 text-white text-sm font-semibold">Yazdır</Link>
                 <Link href={`/yazdir/irsaliye/${w.id}?fiyat=0`} className="h-9 px-3 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold">Fiyatsız</Link>
+                {(() => { const l = waLink(w.lab_customers?.phone, waWaybillText({ lang: w.lab_customers?.doc_lang, customer: w.lab_customers?.name ?? "", no: wbNo(w.year, w.no), jobs: jobsOf(w.id), total: money(w.total, w.currency), company: s.companyName })); return l ? <a href={l} target="_blank" rel="noreferrer" className="h-9 px-3 inline-flex items-center rounded-[10px] border border-[#25D366] text-[#128C7E] text-sm font-semibold">WhatsApp</a> : null; })()}
                 <Link href={`/yazdir/beyan?irsaliye=${w.id}`} className="h-9 px-3 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold">Beyanlar</Link>
                 {w.status === "open" && <form action={issueWaybill}><input type="hidden" name="id" value={w.id} /><PendingSubmit className="h-9 px-3 rounded-[10px] border border-ok text-ok text-sm font-semibold">Kesildi</PendingSubmit></form>}
                 {!w.statement_id && <form action={cancelWaybill} className="ml-auto self-center"><input type="hidden" name="id" value={w.id} /><ConfirmSubmit label="İptal" question="İrsaliye iptal edilsin mi? İşler irsaliyesiz kalır." /></form>}

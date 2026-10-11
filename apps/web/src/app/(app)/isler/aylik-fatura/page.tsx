@@ -8,6 +8,7 @@ import { formatDate, getSession } from "@/lib/session";
 import { money } from "@/lib/jobs";
 import { LANGS, stNo, waybillError } from "@/lib/waybill";
 import { cancelStatement, createStatements } from "@/lib/waybill-actions";
+import { waLink, waStatementText } from "@/lib/wa";
 
 export const dynamic = "force-dynamic";
 
@@ -29,11 +30,12 @@ export default async function MonthlyBilling({ searchParams }: { searchParams: P
   const supabase = await createClient();
   const [{ data: od, error }, { data: sts }] = await Promise.all([
     supabase.rpc("lab_billing_overview", { p_from: from, p_to: to }),
-    supabase.from("lab_statements").select("id, year, no, customer_id, period_from, period_to, issue_date, currency, job_count, unit_count, total, status, lang, lab_customers(name)").lte("period_from", to).gte("period_to", from).order("no", { ascending: false }),
+    supabase.from("lab_statements").select("id, year, no, customer_id, period_from, period_to, issue_date, currency, job_count, unit_count, total, status, lang, lab_customers(name, phone, doc_lang)").lte("period_from", to).gte("period_to", from).order("no", { ascending: false }),
   ]);
   const rows = (od ?? []) as O[];
+  const { data: banks } = await supabase.from("lab_options").select("value").eq("kind", "bank").order("sort");
   const ready = rows.filter((r) => r.open_jobs + r.loose_jobs > 0);
-  const statements = (sts ?? []) as unknown as { id: string; year: number; no: number; customer_id: string; period_from: string; period_to: string; issue_date: string; currency: string; job_count: number; unit_count: number; total: number; status: string; lang: string; lab_customers: { name: string } | null }[];
+  const statements = (sts ?? []) as unknown as { id: string; year: number; no: number; customer_id: string; period_from: string; period_to: string; issue_date: string; currency: string; job_count: number; unit_count: number; total: number; status: string; lang: string; lab_customers: { name: string; phone: string | null; doc_lang: string | null } | null }[];
   const tot = (cur: string, f: (r: O) => number) => rows.filter((r) => r.currency === cur).reduce((a, r) => a + f(r), 0);
 
   return (
@@ -102,7 +104,7 @@ export default async function MonthlyBilling({ searchParams }: { searchParams: P
                   <td className="p-3 text-right">{x.job_count} / {Number(x.unit_count)}</td>
                   <td className="p-3 text-right num font-semibold">{money(x.total, x.currency)}</td>
                   <td className="p-3 text-right whitespace-nowrap">
-                    {x.status === "issued" && <><Link href={`/yazdir/ic-fatura/${x.id}`} className="text-sm font-semibold text-brand-700 mr-4">Yazdır / PDF</Link><form action={cancelStatement} className="inline"><input type="hidden" name="id" value={x.id} /><ConfirmSubmit label="İptal" question="Fatura iptal edilsin mi? İrsaliyeleri yeniden faturalanabilir." /></form></>}
+                    {x.status === "issued" && <><Link href={`/yazdir/ic-fatura/${x.id}`} className="text-sm font-semibold text-brand-700 mr-4">Yazdır / PDF</Link>{(() => { const l = waLink(x.lab_customers?.phone, waStatementText({ lang: x.lab_customers?.doc_lang, customer: x.lab_customers?.name ?? "", no: stNo(x.year, x.no), period: `${formatDate(x.period_from)} – ${formatDate(x.period_to)}`, total: money(x.total, x.currency), jobs: x.job_count, banks: (banks ?? []).map((b) => b.value as string), company: s.companyName })); return l ? <a href={l} target="_blank" rel="noreferrer" className="text-sm font-semibold text-[#128C7E] mr-4">WhatsApp</a> : null; })()}<form action={cancelStatement} className="inline"><input type="hidden" name="id" value={x.id} /><ConfirmSubmit label="İptal" question="Fatura iptal edilsin mi? İrsaliyeleri yeniden faturalanabilir." /></form></>}
                   </td>
                 </tr>
               ))}
