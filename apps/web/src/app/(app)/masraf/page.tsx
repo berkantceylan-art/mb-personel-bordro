@@ -39,6 +39,13 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
   const paths = rows.map((r) => r.receipt_path).filter(Boolean) as string[];
   const { data: urls } = paths.length ? await supabase.storage.from("receipts").createSignedUrls(paths, 900) : { data: [] };
   const url = new Map((urls ?? []).map((u) => [u.path ?? "", u.signedUrl]));
+  const ids = rows.filter((r) => r.status === "submitted").map((r) => r.id);
+  const [{ data: aprs }, { data: dups }] = ids.length ? await Promise.all([
+    supabase.from("apr_requests").select("entity_id, status, step, steps").eq("entity", "expense_claim").in("entity_id", ids).in("status", ["pending", "approved"]),
+    supabase.rpc("exp_claim_dups", { p_ids: ids }),
+  ]) : [{ data: [] }, { data: [] }];
+  const apr = new Map(((aprs ?? []) as { entity_id: string; status: string; step: number; steps: number }[]).map((a) => [a.entity_id, a]));
+  const dup = new Map(((dups ?? []) as { id: string; dup_no: number }[]).map((d) => [d.id, d.dup_no]));
   const mr = (monthRows ?? []) as unknown as { amount: number; currency: string; category_id: string | null; fin_categories: { name: string } | null; status: string }[];
   const posted = mr.filter((r) => r.status === "posted" && r.currency === "TRY");
   const byCat = new Map<string, number>();
@@ -77,7 +84,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
               <td className={td}>{formatDate(r.expense_date)}<span className="block text-xs text-muted">#{r.no}</span></td>
               <td className={td}>{r.receipt_path && url.get(r.receipt_path) ? <a href={url.get(r.receipt_path) ?? undefined} target="_blank" rel="noreferrer" className="text-brand-700 font-semibold text-xs">Fişi aç</a> : <span className="text-xs text-muted">yok</span>}</td>
               <td className={td}>{empName(r)}</td>
-              <td className={td}>{r.vendor ?? ""}{r.doc_no && <span className="text-xs text-muted"> · {r.doc_no}</span>}{r.description && <span className="block text-xs text-muted">{r.description}</span>}{r.reject_reason && <span className="block text-xs text-bad">Red: {r.reject_reason}</span>}</td>
+              <td className={td}>{r.vendor ?? ""}{r.doc_no && <span className="text-xs text-muted"> · {r.doc_no}</span>}{r.description && <span className="block text-xs text-muted">{r.description}</span>}{r.reject_reason && <span className="block text-xs text-bad">Red: {r.reject_reason}</span>}{dup.has(r.id) && <span className="block text-xs font-semibold text-bad">⚠ #{dup.get(r.id)} ile aynı fiş olabilir</span>}{apr.get(r.id) && <span className={`block text-xs font-semibold ${apr.get(r.id)!.status === "approved" ? "text-ok" : "text-warn"}`}>{apr.get(r.id)!.status === "approved" ? "✓ Onay akışı tamam" : `Onay akışında: adım ${apr.get(r.id)!.step}/${apr.get(r.id)!.steps}`}</span>}</td>
               <td className={td}>{r.fin_categories?.name ?? "—"} <span className="text-xs text-muted">%{Number(r.vat_rate)}</span></td>
               <td className={tdNum}><Money v={r.amount} cur={r.currency} strong /></td>
               <td className={td}>

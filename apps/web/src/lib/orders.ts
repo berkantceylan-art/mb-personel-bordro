@@ -16,6 +16,7 @@ export function orderError(m: string): string {
   if (/order_closed/.test(m)) return "Sipariş işe dönüşmüş ya da iptal edilmiş.";
   if (/customer_required/.test(m)) return "Hekim / klinik seçin.";
   if (/po_locked/.test(m)) return "Yalnız taslak sipariş düzenlenebilir.";
+  if (/approval_pending/.test(m)) return "Sipariş onay akışında; akıştaki onaylar tamamlanınca onaylanır (Onaylar sayfası).";
   if (/po_not_open/.test(m)) return "Sipariş bu işlem için uygun durumda değil.";
   if (/party_required/.test(m)) return "Tedarikçi seçin.";
   if (/lines_required/.test(m)) return "En az bir kalem girin.";

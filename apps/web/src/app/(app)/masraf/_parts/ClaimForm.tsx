@@ -40,12 +40,15 @@ export function ClaimForm({ userId, categories, today, employees, accounts }: {
     if (error) { setMsg({ ok: false, text: `Yüklenemedi: ${error.message}` }); return; }
     setPath(p);
     setPreview(blob.type.startsWith("image/") ? URL.createObjectURL(blob) : null);
+    void read(p, true);
   }
 
-  async function read() {
-    if (!path) return;
+  async function read(target?: string, auto = false) {
+    const pth = target ?? path;
+    if (!pth) return;
     setBusy("ai"); setMsg(null);
-    const r = await readReceipt(path, categories.map((c) => c.name));
+    const r = await readReceipt(pth, categories.map((c) => c.name));
+    if (auto && !r.ok && /ANTHROPIC_API_KEY/.test(r.message ?? "")) { setBusy(""); return; }
     setBusy("");
     if (!r.ok || !r.data) { setMsg({ ok: false, text: r.message ?? "Okunamadı." }); return; }
     const d = r.data;
@@ -64,7 +67,7 @@ export function ClaimForm({ userId, categories, today, employees, accounts }: {
           📷 {path ? "Fişi değiştir" : "Fiş fotoğrafı / PDF"}
           <input type="file" accept="image/*,application/pdf" capture="environment" className="sr-only" onChange={(e) => void onFile(e.target.files?.[0])} />
         </label>
-        {path && <button type="button" onClick={read} disabled={busy !== ""} className={btnSecondary}>{busy === "ai" ? "Okunuyor…" : "✨ Fişi otomatik oku"}</button>}
+        {path && <button type="button" onClick={() => read()} disabled={busy !== ""} className={btnSecondary}>{busy === "ai" ? "Okunuyor…" : "✨ Fişi otomatik oku"}</button>}
         {busy === "upload" && <span className="text-sm text-muted">Yükleniyor…</span>}
         {preview && <img src={preview} alt="Fiş" className="h-20 rounded-lg border border-line object-cover" />}
         {path && !preview && <span className="text-sm text-ok">PDF yüklendi</span>}

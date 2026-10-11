@@ -1,5 +1,6 @@
 "use server";
 import Anthropic from "@anthropic-ai/sdk";
+import { aiModel } from "@/lib/ai-model";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
@@ -11,6 +12,7 @@ const opt = (f: FormData, k: string, max = 400) => str(f, k, max) || null;
 
 function expError(m: string) {
   if (/employee_required/.test(m)) return "Avanstan düşmek için beyanın bir personele ait olması gerekir.";
+  if (/approval_pending/.test(m)) return "Bu masraf onay akışında; tüm onaylar tamamlanmadan finansa işlenemez (Onaylar sayfası).";
   if (/exp_claims|schema cache|relation "exp_/.test(m)) return "Masraf tabloları yok: Supabase'de 20261206000000_expenses_assets.sql çalıştırılmalı.";
   return finError(m);
 }
@@ -128,7 +130,7 @@ export async function readReceipt(path: string, categories: string[]): Promise<{
   try {
     const client = new Anthropic({ apiKey: key });
     const res = await client.messages.create({
-      model: process.env.ANTHROPIC_MODEL || "claude-haiku-5-5",
+      model: aiModel(),
       max_tokens: 500,
       messages: [{ role: "user", content: [media, { type: "text", text: `Bu bir Türk fişi / faturası. Yalnız JSON döndür, açıklama yazma:
 {"amount":"KDV dahil genel toplam, ör. 1250,50","date":"YYYY-MM-DD","vendor":"satıcı unvanı","vendor_tax_no":"satıcı VKN veya TCKN (yalnız rakam)","vat_rate":KDV oranı sayı (birden çoksa en büyük tutarlı olan),"doc_no":"fiş / fatura no","category":"şu listeden en uygunu: ${categories.join(" | ")}","description":"3-6 kelimelik ne alındığı"}
