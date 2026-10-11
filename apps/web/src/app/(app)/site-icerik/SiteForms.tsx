@@ -5,10 +5,11 @@ import { createClient } from "@/lib/supabase/client";
 import { useActionForm } from "@/lib/use-action-form";
 import { Field, Notice, btnPrimary, btnSecondary, inputCls, textareaCls } from "@/components/erp";
 import { saveAd, saveNotice, saveVideo, type SiteFormState } from "@/lib/site-content-actions";
+import { PORTAL_TYPE_LABELS, siteMediaUrl } from "@/lib/site-content";
 
-export const TYPES: [string, string][] = [["doctor_tr", "Hekim (Türkiye)"], ["doctor_foreign", "Hekim (yurtdışı)"], ["clinic", "Klinik"], ["agency", "Aracı kuruluş"]];
+const TYPES = PORTAL_TYPE_LABELS;
 const LANGS: [string, string][] = [["tr", "Türkçe"], ["en", "English"], ["fr", "Français"]];
-export const mediaUrl = (p: string | null | undefined) => (p ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-media/${p}` : null);
+const mediaUrl = siteMediaUrl;
 
 type I18n = Record<string, string>;
 export type AdRow = { id: string; builtin: string | null; title: I18n; subtitle: I18n; button_label: I18n; button_href: string | null; image_path: string | null; image_mobile_path: string | null; video_path: string | null; locales: string[]; sort: number; is_active: boolean; starts_at: string | null; ends_at: string | null };
