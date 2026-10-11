@@ -68,9 +68,8 @@ drop policy if exists module_permissions_read on module_permissions;
 create policy module_permissions_read on module_permissions for select to authenticated
   using (user_id = auth.uid() or module_level('users') >= 1);
 drop policy if exists module_permissions_write on module_permissions;
-create policy module_permissions_write on module_permissions for all to authenticated
-  using (module_level('users') >= 3) with check (module_level('users') >= 3);
-grant select, insert, update, delete on module_permissions to authenticated;
+-- yazma yalnız set_module_levels() ile (sahip korunur, kendini kilitleme engellenir)
+grant select on module_permissions to authenticated;
 
 -- ---------------------------------------------------------------------
 -- Döviz kurları

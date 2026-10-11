@@ -36,7 +36,7 @@ begin
   where m.user_id = p_user and m.company_id in (select company_id from memberships where user_id = auth.uid()) limit 1;
   if v_company is null then raise exception 'not_found'; end if;
   if v_role = 'owner' then raise exception 'owner_full'; end if;
-  if p_user = auth.uid() and p_levels ? 'users' and coalesce((p_levels->>'users')::int, 3) < 3 then raise exception 'self_lockout'; end if;
+  if p_user = auth.uid() and p_levels ? 'users' and (jsonb_typeof(p_levels->'users') = 'null' or (p_levels->>'users')::int < 3) then raise exception 'self_lockout'; end if;
   for k, v in select * from jsonb_each(p_levels) loop
     if k not in ('finance', 'sales', 'purchases', 'stock', 'production', 'assets', 'expenses', 'users') then continue; end if;
     if v is null or jsonb_typeof(v) = 'null' then
@@ -50,6 +50,10 @@ begin
 end $$;
 revoke execute on function set_module_levels(uuid, jsonb) from public, anon;
 grant execute on function set_module_levels(uuid, jsonb) to authenticated;
+
+-- Tabloya doğrudan yazma kapalı (fonksiyon üzerinden)
+drop policy if exists module_permissions_write on module_permissions;
+revoke insert, update, delete on module_permissions from authenticated;
 
 -- Denetim kaydı: kullanıcı yönetimi yetkisi (2+) olanlar da okuyabilir
 drop policy if exists audit_read_users on audit_log;

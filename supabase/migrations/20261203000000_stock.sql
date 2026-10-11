@@ -60,9 +60,12 @@ revoke execute on function fin_post_sys(jsonb, jsonb) from public, anon, authent
 
 create or replace function fin_post(p_header jsonb, p_lines jsonb) returns uuid
 language plpgsql security definer set search_path = public as $$
-declare v_module text := coalesce(p_header->>'module', 'finance');
+declare v_module text := coalesce(p_header->>'module', 'finance'); v_kind text := p_header->>'kind';
 begin
-  if v_module not in ('finance', 'sales', 'purchases', 'expenses', 'stock', 'assets', 'production') or not can_module(v_module, 2) then
+  -- finans yetkisi her kaydı girer; diğer modüller yalnız kendi işlem türlerini
+  if not (can_module('finance', 2)
+          or (v_module = 'sales' and can_module('sales', 2) and v_kind in ('credit_sale'))
+          or (v_module = 'expenses' and can_module('expenses', 2) and v_kind in ('expense', 'advance_close', 'card_spend'))) then
     raise exception 'not_allowed';
   end if;
   return fin_post_sys(p_header, p_lines);
