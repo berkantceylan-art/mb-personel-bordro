@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Card, PageHeader } from "@/components/ui";
-import { ConfirmSubmit } from "@/components/ConfirmSubmit";
+import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { JOB_STATUS, type Job, type JobItem, type JobStep } from "@/lib/jobs";
@@ -11,6 +11,7 @@ import { JobThread, type ThreadItem } from "../JobThread";
 import { ModelButton } from "@/components/ModelViewer";
 import { KIND_LABEL, MODEL_RE, fmtBytes, kindOf, type FileKind } from "@/lib/case-files";
 import { deleteJobFile } from "@/lib/case-actions";
+import { aiShadeFromPhoto } from "@/lib/ai-actions";
 import { waLink } from "@/lib/wa";
 import { JobProduction } from "../JobProduction";
 import { JobFlow } from "../JobFlow";
@@ -118,6 +119,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                       <span className="text-muted">{f.src === "portal" ? (f.fromLab ? "Hekime gönderildi" : "Hekimden (portal)") : "Laboratuvar"}{f.size ? ` · ${fmtBytes(f.size)}` : ""}</span>
                       <span className="flex gap-3">
                         {u && MODEL_RE.test(f.name) && <ModelButton url={u} name={f.name} />}
+                        {f.src === "job" && f.kind === "photo" && <form action={aiShadeFromPhoto}><input type="hidden" name="job_id" value={job.id} /><input type="hidden" name="path" value={f.path} /><PendingSubmit className="font-semibold text-[#6D28D9]">✨ Renk öner</PendingSubmit></form>}
                         {f.src === "job" && (
                           <form action={deleteJobFile}><input type="hidden" name="id" value={f.id} /><input type="hidden" name="job_id" value={job.id} /><ConfirmSubmit label="Sil" question={`${f.name} silinsin mi?`} className="text-bad font-semibold" /></form>
                         )}

@@ -10,6 +10,8 @@ import { RemakeInsights } from "../_parts/RemakeInsights";
 
 export const dynamic = "force-dynamic";
 
+const REASON_TR: Record<string, string> = { fit: "uyum", color: "renk", fracture: "kırık", margin: "kenar", occlusion: "kapanış", contact: "kontakt", doctor_change: "hekim değişikliği", lab_error: "lab hatası", other: "diğer" };
+
 /** Üretim raporu: teknisyen verimi, istasyon yükü, yeniden yapım analizi, zamanında teslim, lot geri izleme */
 export default async function ProductionReport({ searchParams }: { searchParams: Promise<{ bas?: string; bit?: string; malzeme?: string; lot?: string }> }) {
   const s = await getSession();
@@ -26,6 +28,8 @@ export default async function ProductionReport({ searchParams }: { searchParams:
     supabase.from("stk_items").select("id, name, code").eq("track_lot", true).order("name").limit(2000),
     sp.malzeme && sp.lot ? supabase.rpc("prd_lot_trace", { p_item: sp.malzeme, p_lot: sp.lot.trim() }) : Promise.resolve({ data: null }),
   ]);
+  const { data: sigs } = await supabase.rpc("prd_remake_signals", { p_days: 90 });
+  const signals = (sigs ?? []) as { dimension: string; label: string; remakes: number; base: number; rate: number; overall: number; top_reason: string }[];
   type O = { job_id: string; station_id: string; qty: number; std_minutes: number | null; work_minutes: number | null; finished_at: string; round: number; employee_id: string | null; employees: { first_name: string; last_name: string } | null; jobs: { no: number; in_date: string; due_date: string | null } | null };
   const os = (ops ?? []) as unknown as O[];
   const rs = (rem ?? []) as unknown as { id: string; job_id: string; reason: string; station_id: string | null; chargeable: boolean; created_at: string; description: string | null; jobs: { no: number; patient: string | null } | null }[];
@@ -59,6 +63,13 @@ export default async function ProductionReport({ searchParams }: { searchParams:
     <>
       <PageHeader title="Üretim raporu" subtitle={`${formatDate(from)} – ${formatDate(to)}`} actions={<Link href="/uretim" className="text-sm font-semibold text-brand-700">← Pano</Link>} />
       <div className={page}>
+        {signals.length > 0 && (
+          <section className="rounded-[16px] border border-[#FECACA] bg-[#FFF5F5] p-4">
+            <b className="text-bad">⚠ Otomatik kök neden sinyalleri (son 90 gün)</b>
+            <p className="text-xs text-muted mb-2">Yeniden yapım oranı genel oranın en az 2 katı olan kümeler: teknisyen, istasyon, hekim, ürün ya da malzeme lotu.</p>
+            <ul className="grid gap-1.5 sm:grid-cols-2 text-sm">{signals.map((x, i) => <li key={i} className="rounded-[10px] bg-white border border-line px-3 py-2"><span className="text-xs font-bold uppercase text-muted">{x.dimension}</span> <b>{x.label}</b><span className="block text-xs">{x.remakes}/{x.base} işte yeniden yapım · <b className="text-bad">%{x.rate}</b> (genel %{x.overall}) · en sık: {REASON_TR[x.top_reason] ?? x.top_reason}</span></li>)}</ul>
+          </section>
+        )}
         <RemakeInsights />
         <form className="flex flex-wrap gap-2 items-end">
           <input type="date" name="bas" defaultValue={from} className={`${inputCls} w-44`} aria-label="Başlangıç" />

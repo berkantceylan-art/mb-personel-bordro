@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { aiModel } from "@/lib/ai-model";
 import { NextResponse } from "next/server";
 import { toolsFor, type Ctx } from "@/lib/assistant/tools";
+import { erpToolsFor } from "@/lib/assistant/erp-tools";
 import { getSession, todayIso } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,15 +32,16 @@ export async function POST(req: Request) {
   const { data: me } = await supabase.from("employees").select("id, first_name, last_name").eq("user_id", s.userId).maybeSingle();
   const today = todayIso();
   const ctx: Ctx = { sb: supabase, userId: s.userId, companyId: s.companyId, role: s.role, today, selfId: me?.id ?? null, selfName: me ? `${me.first_name} ${me.last_name}` : null };
-  const tools = toolsFor(s.role, !!me);
+  const tools: { name: string; description: string; input_schema: Anthropic.Tool["input_schema"]; run: (c: Ctx, i: Record<string, string>) => Promise<unknown> }[] = [...toolsFor(s.role, !!me), ...erpToolsFor(s.modules, s.role)];
   const byName = new Map(tools.map((t) => [t.name, t]));
-  const system = `Sen ${s.companyName} şirketinin İK asistanısın. Kullanıcı: ${ctx.selfName ?? "adı kayıtlı değil"} (${ROLE[s.role] ?? s.role}). Bugün ${today.split("-").reverse().join(".")}.
+  const system = `Sen ${s.companyName} şirketinin ERP asistanısın (İK, laboratuvar, üretim, finans, satış, stok, kalite, müşteri takibi). Kullanıcı: ${ctx.selfName ?? "adı kayıtlı değil"} (${ROLE[s.role] ?? s.role}). Bugün ${today.split("-").reverse().join(".")}.
 Kurallar:
 - Her zaman Türkçe, kısa ve net yanıt ver. Gerekirse kısa madde işaretleri kullan. Tutarları ₺ ile, tarihleri GG.AA.YYYY biçiminde yaz.
 - Kişiye, şirkete ait sayı ve bilgileri YALNIZ araç sonuçlarından ver. Asla tahmin etme, uydurma. Araç sonucu boşsa veya yetki yoksa bunu açıkça söyle.
 - "Geçen ay", "bu ay" gibi ifadeleri bugünün tarihine göre dönem (YYYY-AA) olarak çevir.
 - Bordro kesinti sorularında her kesinti kalemini tutarıyla ve tek cümlelik nedeniyle açıkla (SGK işçi payı, işsizlik sigortası, gelir vergisi, damga vergisi, istisnalar, BES, icra, avans).
-- Yalnız bilgi verirsin; kayıt değiştiremez, izin veya avans talebi oluşturamazsın. Bunun için ilgili sayfayı söyle: izin /benim/izin, avans /benim/avans, puantaj /benim/puantaj, bordro /benim/bordro; yöneticiler için /yillik-izin, /puantaj, /fazla-mesai.
+- Yalnız bilgi verirsin; kayıt değiştiremezsin. Bunun için ilgili sayfayı söyle: izin /benim/izin, avans /benim/avans, puantaj /benim/puantaj, bordro /benim/bordro; yöneticiler için /yillik-izin, /puantaj, /fazla-mesai; işler /isler, cari /isler/cari, finans /finans, stok /stok, kalite /kalite, CRM /crm, onaylar /onaylar.
+- Araç listesinde olmayan bir modül sorulursa kullanıcının o modüle yetkisi olmadığını söyle.
 - Kullanıcının yetkisi dışındaki kişilerin bilgilerini isteme veya tahmin etme. Personel yalnız kendi bilgisini görebilir.
 - İK, hukuk veya vergi konusunda kesin görüş gerektiren durumlarda İK birimine yönlendir.`;
 

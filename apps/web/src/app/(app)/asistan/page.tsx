@@ -19,12 +19,21 @@ export default async function AssistantPage() {
   ]);
   const owner = s.role === "owner";
   const manager = ["owner", "accountant", "hr", "branch_manager", "safety"].includes(s.role);
-  const suggestions = [...(me ? SELF.slice(0, manager ? 2 : 6) : []), ...(manager ? MANAGER : []), ...(["owner", "accountant"].includes(s.role) ? PAY : [])];
+  const m = s.modules;
+  const erp = [
+    ...((m.lab ?? 0) >= 1 || (m.production ?? 0) >= 1 ? ["Geciken işler hangileri?", "Bugünün özeti nedir?"] : []),
+    ...((m.finance ?? 0) >= 1 || (m.sales ?? 0) >= 1 ? ["Odonto'nun cari durumu nedir?"] : []),
+    ...((m.finance ?? 0) >= 1 ? ["Önümüzdeki 4 haftada nakit durumu nasıl?"] : []),
+    ...((m.sales ?? 0) >= 1 ? ["Son 3 ayın cirosu ve hacmi düşen klinikler?"] : []),
+    ...((m.stock ?? 0) >= 1 ? ["Hangi malzemeler bitmek üzere?"] : []),
+    ...((m.production ?? 0) >= 1 ? ["Kalite durumu ve yeniden yapım sinyalleri?"] : []),
+  ];
+  const suggestions = [...erp.slice(0, 4), ...(me ? SELF.slice(0, manager ? 2 : 6) : []), ...(manager ? MANAGER : []), ...(["owner", "accountant"].includes(s.role) ? PAY : [])].slice(0, 10);
   const { data: usage } = owner ? await supabase.from("assistant_logs").select("tools, input_tokens, output_tokens, error, created_at").gte("created_at", new Date(Date.now() - 30 * 86_400_000).toISOString()) : { data: [] };
   const tok = (usage ?? []).reduce((a, u) => ({ i: a.i + (u.input_tokens ?? 0), o: a.o + (u.output_tokens ?? 0) }), { i: 0, o: 0 });
   return (
     <>
-      <PageHeader title="İK asistanı" subtitle="İzin, bordro, puantaj ve vardiya sorularınızı yazın" />
+      <PageHeader title="Asistan" subtitle="İzin, bordro, puantaj; iş durumu, cari, nakit, stok, kalite ve müşteri sorularınızı yazın (yetkiniz kadar)" />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[820px] w-full">
         {error && <Card><p className="text-sm">Bu bölüm için Supabase&apos;de <b>20261121000000_assistant.sql</b> çalıştırılmalı.</p></Card>}
         {owner && (
@@ -38,7 +47,7 @@ export default async function AssistantPage() {
             <p className="text-xs text-muted">Sorular ve yanıt için gereken veriler (ad, izin günü, bordro tutarı gibi) yanıt üretmek üzere Anthropic&apos;in yapay zekâ servisine (yurt dışı) gönderilir; TC kimlik, IBAN ve iletişim bilgisi gönderilmez. KVKK md. 9 gereği yurt dışına aktarım için Anthropic ile standart sözleşme düzenleyip KVKK&apos;ya bildirmeniz ve aydınlatma metnine eklemeniz gerekir. Anthropic’in ticari koşullarına göre API ile gönderilen veriler varsayılan olarak model eğitiminde kullanılmaz.</p>
           </Card>
         )}
-        {comp?.assistant_enabled ? <Chat suggestions={suggestions} name={me?.first_name ?? ""} /> : !owner && <Card><p className="text-sm text-muted">İK asistanı şirketiniz için henüz açılmadı.</p></Card>}
+        {comp?.assistant_enabled ? <Chat suggestions={suggestions} name={me?.first_name ?? ""} /> : !owner && <Card><p className="text-sm text-muted">Asistan şirketiniz için henüz açılmadı.</p></Card>}
       </div>
     </>
   );
