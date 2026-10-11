@@ -24,7 +24,7 @@ export default async function ApprovalsPage() {
   ]);
   const inbox = (data ?? []) as I[];
   const my = (mine ?? []) as M[];
-  const canAdmin = s.role === "owner" || (s.modules.users ?? 0) >= 2;
+  const canAdmin = s.role === "owner" || (s.modules.users ?? 0) >= 3;
 
   return (
     <>

@@ -85,7 +85,7 @@ export default async function BonusPage({ searchParams }: { searchParams: Promis
                       <td className="text-right">{l.on_time_pct != null ? `%${l.on_time_pct}` : "—"}</td>
                       <td className="text-xs text-muted max-w-[280px]">{l.detail.rule}: {l.detail.paid_units} birim × {fmt((l.detail.base ?? 0) / Math.max(1, l.detail.paid_units ?? 1))}{l.detail.target_hit ? ` + hedef ${fmt(l.detail.target_bonus)}` : ""}{(l.detail.factor ?? 1) < 1 ? ` × ${l.detail.factor} (zamanında şartı)` : ""}{l.detail.penalty ? ` − ${fmt(l.detail.penalty)} kesinti` : ""}{l.detail.capped ? " (üst sınır)" : ""}</td>
                       <td className="text-right num">{fmt(l.amount)}</td>
-                      <td className="text-right">{posted ? (l.adjust ? fmt(l.adjust, "TRY", { sign: true }) : "") : (
+                      <td className="text-right">{posted || !mayPost ? (l.adjust ? fmt(l.adjust, "TRY", { sign: true }) : "") : (
                         <form action={adjustBonus} className="flex justify-end gap-1"><input type="hidden" name="id" value={l.id} /><input name="adjust" defaultValue={l.adjust ? String(l.adjust / 100).replace(".", ",") : ""} placeholder="±" className="h-8 w-20 rounded-[8px] border border-line px-2 text-right text-sm" /><PendingSubmit className="h-8 px-2 rounded-[8px] border border-line text-xs font-semibold">✓</PendingSubmit></form>
                       )}</td>
                       <td className="text-right num font-bold">{fmt(Math.max(0, l.amount + l.adjust))}</td>
@@ -100,8 +100,9 @@ export default async function BonusPage({ searchParams }: { searchParams: Promis
 
         <Card title="Prim kuralları">
           <p className="text-xs text-muted">Kişiye özel kural varsa o, yoksa &quot;Tüm teknisyenler&quot; kuralı uygulanır. Prim = (birim − primsiz birim) × birim başı + hedef primi; zamanında teslim şartı sağlanmazsa çarpanla azalır; geri dönen her iş için kesinti düşülür; üst sınırı geçemez.</p>
-          {rules.map((r) => <div key={r.id} className={`border-t border-line pt-3 ${r.is_active ? "" : "opacity-60"}`}><RuleForm r={r} /></div>)}
-          <div className="border-t border-line pt-3"><RuleForm /></div>
+          {!mayPost && <p className="text-xs text-warn">Kuralları ve düzeltmeleri bordro yetkilisi değiştirir; siz hesaplayıp kontrol edebilirsiniz.</p>}
+          {rules.map((r) => <div key={r.id} className={`border-t border-line pt-3 ${r.is_active ? "" : "opacity-60"}`}>{mayPost ? <RuleForm r={r} /> : <p className="text-sm"><b>{r.name}</b> · {r.employee_id ? ename.get(r.employee_id) : "Tüm teknisyenler"} · birim {fmt(r.unit_amount)}{r.free_units ? ` (ilk ${r.free_units} primsiz)` : ""}{r.target_units ? ` · hedef ${r.target_units} → ${fmt(r.target_bonus)}` : ""}{r.reject_penalty ? ` · geri dönüş −${fmt(r.reject_penalty)}` : ""}</p>}</div>)}
+          {mayPost && <div className="border-t border-line pt-3"><RuleForm /></div>}
         </Card>
       </div>
     </>

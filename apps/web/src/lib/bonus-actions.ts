@@ -8,6 +8,7 @@ import { parseAmount } from "@/lib/fin";
 const str = (f: FormData, k: string, max = 200) => String(f.get(k) ?? "").trim().slice(0, max);
 const err = (m: string) =>
   /not_allowed|permission/.test(m) ? "Prim için üretim (tam) ya da bordro yetkisi gerekir."
+  : /own_line/.test(m) ? "Kendi prim satırınızı düzeltemezsiniz."
   : /already_posted/.test(m) ? "Bu dönemin primi bordroya aktarılmış; değiştirilemez."
   : /name_required/.test(m) ? "Kural adı yazın."
   : /bad_period/.test(m) ? "Dönem geçersiz."
@@ -20,8 +21,13 @@ async function allowed() {
   return s;
 }
 
+async function payroll() {
+  const s = await getSession();
+  if ((s.modules.payroll ?? 0) < 2 && !["owner", "accountant"].includes(s.role)) await fail("Prim kuralı ve düzeltme için bordro yetkisi gerekir.");
+}
+
 export async function saveBonusRule(f: FormData) {
-  await allowed();
+  await payroll();
   const money = (k: string) => { const v = parseAmount(str(f, k, 20)); return v === null ? "" : String(v); };
   const p = {
     id: str(f, "id", 40), name: str(f, "name", 80), employee_id: str(f, "employee_id", 40),
@@ -47,7 +53,7 @@ export async function computeBonus(f: FormData) {
 }
 
 export async function adjustBonus(f: FormData) {
-  await allowed();
+  await payroll();
   const supabase = await createClient();
   const { error } = await supabase.rpc("prd_bonus_adjust", { p_line: str(f, "id", 40), p_adjust: parseAmount(str(f, "adjust", 20), true) ?? 0 });
   if (error) await fail(err(error.message));

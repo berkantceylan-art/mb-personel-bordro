@@ -81,6 +81,7 @@ language plpgsql stable security definer set search_path = public as $$
 declare m date; v_end date; v_cur text := coalesce(nullif(p_currency, ''), 'TRY'); e record; x cns_entries; v_name text;
 begin
   if not can_module('finance', 2) then raise exception 'not_allowed'; end if;
+  if (p_to || '-01')::date < (p_from || '-01')::date or (p_to || '-01')::date > (p_from || '-01')::date + interval '36 months' then raise exception 'range_too_long'; end if;
   select name into v_name from companies where id = lab_company();
   for m in select generate_series((p_from || '-01')::date, (p_to || '-01')::date, interval '1 month')::date loop
     v_end := (m + interval '1 month - 1 day')::date;

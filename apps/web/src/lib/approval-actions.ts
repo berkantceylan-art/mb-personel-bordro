@@ -8,6 +8,7 @@ const str = (f: FormData, k: string, max = 200) => String(f.get(k) ?? "").trim()
 const err = (m: string) =>
   /not_allowed|permission/.test(m) ? "Bu adımda onay yetkiniz yok."
   : /own_request/.test(m) ? "Kendi talebinizi onaylayamazsınız."
+  : /already_approved_step/.test(m) ? "Bu talepte zaten bir adımı onayladınız; sonraki adımı başka biri onaylamalı."
   : /note_required/.test(m) ? "Ret için neden yazın."
   : /not_pending/.test(m) ? "Bu talep artık beklemede değil."
   : /steps_required/.test(m) ? "En az bir onay adımı ekleyin."
