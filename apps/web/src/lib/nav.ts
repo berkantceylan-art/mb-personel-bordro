@@ -119,6 +119,7 @@ export const NAV: Group[] = [
       { label: "Satış faturaları", href: "/satis/faturalar", module: "sales", desc: "Kesilen faturalar, e-fatura durumu, toplu XML indirme" },
       { label: "Faturalanmamış işler", href: "/satis/isler", module: "sales", desc: "Teslim edilen laboratuvar işlerini hekim bazında faturala" },
       { label: "Alış özeti", href: "/alis", module: "purchases", desc: "Aylık alış, tedarikçiler, vadesi geçen borçlar" },
+      { label: "Satın alma siparişleri", href: "/alis/siparisler", module: ["purchases", "stock"], desc: "Tedarikçiye sipariş, onay limiti, teslim alma, stok önerisi" },
       { label: "Alış faturası gir", href: "/alis/yeni", module: "purchases", level: 2, desc: "Malzeme, hammadde, sarf, hizmet alışı; stoğa giriş" },
       { label: "e-Fatura içe aktar", href: "/alis/ice-aktar", module: ["purchases", "sales"], level: 2, desc: "UBL XML / ZIP: cari yoksa açılır, kalemler stokla eşleşir" },
       { label: "Alış faturaları", href: "/alis/faturalar", module: "purchases", desc: "Gelen faturalar, iade, iptal" },
@@ -140,6 +141,7 @@ export const NAV: Group[] = [
   {
     group: "Laboratuvar / üretim", slug: "laboratuvar",
     items: [
+      { label: "Siparişler", href: "/isler/siparisler", module: "lab", desc: "Telefon, WhatsApp, e-posta, tarayıcı ve portal siparişleri; tek tuşla iş kaydı" },
       { label: "İş kayıt", href: "/isler/yeni", module: "lab", desc: "Yeni iş: hekim, hasta, diş şeması, ürünler, prova ve teslim" },
       { label: "İş listesi", href: "/isler", module: "lab", desc: "Tüm işler; duruma, hekime ve tarihe göre ara" },
       { label: "Günlük irsaliyeler", href: "/isler/irsaliye", module: ["lab", "sales"], desc: "Her gün müşteriye giden işlerin irsaliyesi; yazdır, kesildi" },

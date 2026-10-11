@@ -41,6 +41,7 @@ export type JobPayload = {
   steps: { kind: string; out_date: string; back_date: string; delivery_method: string; delivery_time: string; done: boolean; note: string }[];
   shipment_id?: string | null;
   portal_case_id?: string | null;
+  order_id?: string | null;
 };
 
 const date = (v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
@@ -106,6 +107,8 @@ export async function saveJob(p: JobPayload): Promise<{ ok: boolean; id?: string
     if (error || !data) return { ok: false, message: error?.message.includes("jobs_no_key") ? "Bu iş numarası kullanılmış." : missing(error?.message ?? "Kaydedilemedi") };
     id = data.id as string;
     no = data.no as number;
+    // Siparişten açıldıysa sipariş "işe dönüştü"
+    if (p.order_id) await supabase.rpc("lab_order_link", { p_order: p.order_id, p_job: id });
     // Kargodan açıldıysa gönderiyi "iş kaydı açıldı" yap
     if (p.shipment_id) {
       await supabase.from("shipments").update({ status: "job_created" }).eq("id", p.shipment_id);
