@@ -8,6 +8,7 @@ import { loadLeaveData, returnDate } from "@/lib/annual-leave";
 import { openPeriod } from "@/lib/periods";
 import { formatDate, periodLabel, todayIso } from "@/lib/session";
 import { loadMonth } from "@/lib/timekeeping";
+import { fetchTcmb } from "@/lib/tcmb";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -50,6 +51,16 @@ export async function GET(req: Request) {
       if (claimed) await ctx.finish(name, out[name]);
     }
     report[c.id] = out;
+  }
+  // TCMB döviz kurları (finans modülü; tablo yoksa sessizce geçer)
+  try {
+    const fx = await fetchTcmb();
+    if (fx.rates.length) {
+      const { error } = await admin.from("fx_rates").upsert(fx.rates.map((r) => ({ rate_date: fx.date ?? today, currency: r.currency, buying: r.buying, selling: r.selling, source: "tcmb" })));
+      report.fx = error ? { error: error.message } : { date: fx.date, count: fx.rates.length };
+    }
+  } catch (e) {
+    report.fx = { error: e instanceof Error ? e.message : String(e) };
   }
   return NextResponse.json({ ok: true, today, report });
 }

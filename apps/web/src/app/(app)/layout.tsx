@@ -21,7 +21,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const big = (pref as { big_text?: boolean } | null)?.big_text === true;
   const path = (await headers()).get("x-pathname") ?? "/";
   // Laboratuvar / kargo yetkisi olan personel: kargo, iş kayıt ve modül sayfaları
-  const allowKargo = (s.logistics && ["/kargo", "/isler"].some((p) => path.startsWith(p))) || path.startsWith("/modul/");
+  const anyModule = Object.values(s.modules).some((v) => v > 0);
+  const allowKargo = (s.logistics && ["/kargo", "/isler"].some((p) => path.startsWith(p))) || path.startsWith("/modul/") || (anyModule && ["/finans", "/stok", "/satis", "/alis", "/uretim", "/demirbas", "/masraf"].some((p) => path.startsWith(p)));
   if (s.role === "employee" && !allowKargo && !EMPLOYEE_PATHS.some((p) => path.startsWith(p))) redirect("/benim");
   // Yalnız web sitesi editörü: ERP'de iletişim modülleri ve site yönetimi bağlantısı
   if (s.role === "site_editor" && !allowKargo && !EDITOR_PATHS.some((p) => path.startsWith(p))) redirect("/duyurular");
@@ -39,8 +40,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const badges = { "/bildirimler": unreadNotif ?? 0, "/mesajlar": unreadMsg };
   return (
     <div className={`min-h-screen flex flex-col md:flex-row ${big ? "big-text" : ""}`}>
-      <Sidebar companyName={s.companyName} role={s.role} siteAccess={s.siteAccess} logistics={s.logistics} badges={badges} />
-      <MobileNav companyName={s.companyName} role={s.role} badges={badges} boss={s.boss || s.role === "owner"} siteAccess={s.siteAccess} logistics={s.logistics} />
+      <Sidebar companyName={s.companyName} role={s.role} siteAccess={s.siteAccess} logistics={s.logistics} modules={s.modules} badges={badges} />
+      <MobileNav companyName={s.companyName} role={s.role} badges={badges} boss={s.boss || s.role === "owner"} siteAccess={s.siteAccess} logistics={s.logistics} modules={s.modules} />
       <main className="flex-1 min-w-0 flex flex-col pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">
         <FlashMessage />
         <LiveUpdates userId={s.userId} />

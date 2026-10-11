@@ -53,7 +53,7 @@ const Icon = ({ name }: { name: string }) => (
   </svg>
 );
 
-export function MobileNav({ role, companyName, badges, boss = false, siteAccess = false, logistics = false }: { role: string; companyName: string; badges: Record<string, number>; boss?: boolean; siteAccess?: boolean; logistics?: boolean }) {
+export function MobileNav({ role, companyName, badges, boss = false, siteAccess = false, logistics = false, modules = {} }: { role: string; companyName: string; badges: Record<string, number>; boss?: boolean; siteAccess?: boolean; logistics?: boolean; modules?: Record<string, number> }) {
   const path = usePathname();
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useCommandK();
@@ -77,7 +77,7 @@ export function MobileNav({ role, companyName, badges, boss = false, siteAccess 
       ];
   const current = activeHref(path);
   const active = (href: string) => href === current || (href !== "/" && href !== "/benim" && path.startsWith(href) && !current);
-  const groups = visibleNav(role, siteAccess, logistics);
+  const groups = visibleNav(role, siteAccess, logistics, modules);
   const badge = (href: string) => badges[href] ?? 0;
 
   return (
@@ -90,7 +90,7 @@ export function MobileNav({ role, companyName, badges, boss = false, siteAccess 
           <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" /></svg>
         </button>
       </header>
-      <CommandPalette groups={visibleNav(role, siteAccess, logistics)} open={search} onClose={() => setSearch(false)} recent={recent} />
+      <CommandPalette groups={visibleNav(role, siteAccess, logistics, modules)} open={search} onClose={() => setSearch(false)} recent={recent} />
 
       <nav aria-label="Alt menü" className="md:hidden print:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-line grid" style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, 1fr)`, paddingBottom: "env(safe-area-inset-bottom)" }}>
         {tabs.map((t) => (
