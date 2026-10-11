@@ -1,11 +1,11 @@
 /** Kutu akışı: etiketler */
-export const FLOW_ROLE: Record<string, string> = { technician: "Teknisyen", chief: "Şef (ara kontrol)", qc: "Kontrol sorumlusu", dispatch: "Pazarlama / çıkış" };
+export const FLOW_ROLE: Record<string, string> = { technician: "Teknisyen", chief: "Birinci kontrol (şef)", qc: "Son kontrol", dispatch: "Paketleme / çıkış" };
 export const FLOW_STAGE: Record<string, [string, string]> = {
-  reception: ["Kayıtta (alınmadı)", "#64748B"], production: ["Üretimde", "#2563EB"], chief: ["Şef kontrolünde", "#7C3AED"], qc: ["Kalite kontrolde", "#0891B2"],
-  dispatch: ["Çıkışa hazır", "#059669"], tryin: ["Provada (hekimde)", "#D97706"], out: ["Teslim edildi", "#94A3B8"],
+  reception: ["Kayıtta (alınmadı)", "#64748B"], production: ["Üretimde", "#2563EB"], chief: ["Birinci kontrolde", "#7C3AED"], qc: ["Son kontrolde", "#0891B2"],
+  dispatch: ["Paketleme / çıkışta", "#059669"], tryin: ["Provada (hekimde)", "#D97706"], out: ["Teslim edildi", "#94A3B8"],
 };
 export const FLOW_ACTION: Record<string, string> = {
-  take: "aldı", done: "bitirdi, bıraktı", approve: "onayladı", reject: "geri gönderdi", exit: "çıkış yaptı (cariye işlendi)", tryin_out: "provaya gönderdi", note: "not",
+  take: "aldı", done: "bitirdi, bıraktı", approve: "onayladı", reject: "geri gönderdi", exit: "çıkış yaptı (cariye işlendi)", tryin_out: "provaya gönderdi", note: "not", pack: "paketledi",
 };
 export const ACTION_BUTTON: Record<string, string> = { done: "Bitirdim, bırakıyorum", approve: "Onayla", reject: "Geri gönder", exit: "Çıkış yap", tryin_out: "Provaya gönder" };
 
