@@ -19,6 +19,8 @@ export function FlowScanner({ me, people, canPickPerson }: { me: P | null; peopl
   const [reason, setReason] = useState("");
   const [target, setTarget] = useState("");
   const [log, setLog] = useState<{ at: string; text: string; ok: boolean }[]>([]);
+  const [queued, setQueued] = useState(0);
+  const [online, setOnline] = useState(true);
   const input = useRef<HTMLInputElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const stop = useRef<(() => void) | null>(null);
@@ -30,13 +32,57 @@ export function FlowScanner({ me, people, canPickPerson }: { me: P | null; peopl
     return () => stop.current?.();
   }, [canPickPerson]);
 
+  // Çevrimdışı kuyruk: bağlantı yokken okutmalar telefonda saklanır, bağlantı gelince sırayla gönderilir
+  useEffect(() => {
+    setOnline(navigator.onLine);
+    setQueued(readQ().length);
+    const flush = async () => {
+      setOnline(navigator.onLine);
+      if (!navigator.onLine) return;
+      let q = readQ();
+      while (q.length) {
+        const it = q[0]!;
+        try {
+          const r = await flowScan(it.code, it.emp, it.action, it.reason, it.target);
+          setLog((l) => [{ at: new Date(it.at).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }), text: `(çevrimdışı okutma) ${r.ok ? `İş #${r.job} — ${actionText(r)}` : r.message ?? "Hata"}`, ok: r.ok }, ...l].slice(0, 15));
+        } catch { break; }
+        q = readQ().slice(1);
+        writeQ(q);
+        setQueued(q.length);
+      }
+      router.refresh();
+    };
+    void flush();
+    const on = () => void flush();
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    const t = setInterval(() => { if (readQ().length) void flush(); }, 30000);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); clearInterval(t); };
+  }, [router]);
+
   const person = people.find((p) => p.id === emp) ?? me;
 
   async function run(c: string, action = "auto", rsn: string | null = null, tgt: string | null = null) {
     const v = c.trim();
     if (!v || busy) return;
     setBusy(true);
-    const r = await flowScan(v, emp || null, action, rsn, tgt);
+    let r: FlowResult;
+    try {
+      if (!navigator.onLine) throw new Error("offline");
+      r = await flowScan(v, emp || null, action, rsn, tgt);
+    } catch {
+      // bağlantı yok: kuyruğa al
+      const q = [...readQ(), { code: v, emp: emp || null, action, reason: rsn, target: tgt, at: Date.now() }];
+      writeQ(q);
+      setQueued(q.length);
+      setBusy(false);
+      setCode("");
+      setLog((l) => [{ at: new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }), text: `${v} — bağlantı yok, sıraya alındı (${q.length})`, ok: true }, ...l].slice(0, 15));
+      if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
+      input.current?.focus();
+      return;
+    }
     setBusy(false);
     setCode("");
     setRejecting(false); setReason(""); setTarget("");
@@ -68,6 +114,11 @@ export function FlowScanner({ me, people, canPickPerson }: { me: P | null; peopl
   const stage = res?.stage ? FLOW_STAGE[res.stage] : null;
   return (
     <div className="flex flex-col gap-4">
+      {(!online || queued > 0) && (
+        <div className={`rounded-[12px] px-4 py-3 text-sm font-semibold ${online ? "bg-warn-bg text-warn" : "bg-bad-bg text-bad"}`}>
+          {online ? `${queued} çevrimdışı okutma gönderiliyor…` : `İnternet yok: okutmalar telefonda saklanıyor${queued ? ` (${queued})` : ""}; bağlantı gelince otomatik gönderilir.`}
+        </div>
+      )}
       <div className="flex flex-wrap items-end gap-3">
         {canPickPerson ? (
           <label className="flex flex-col gap-1 text-sm font-semibold">Okutan kişi
@@ -156,3 +207,7 @@ function actionText(r: FlowResult) {
     default: return r.action ?? "";
   }
 }
+
+type QItem = { code: string; emp: string | null; action: string; reason: string | null; target: string | null; at: number };
+function readQ(): QItem[] { try { return JSON.parse(localStorage.getItem("flow-queue") ?? "[]") as QItem[]; } catch { return []; } }
+function writeQ(q: QItem[]) { try { localStorage.setItem("flow-queue", JSON.stringify(q.slice(-500))); } catch { /* depolama yok */ } }

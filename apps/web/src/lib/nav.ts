@@ -103,6 +103,7 @@ export const NAV: Group[] = [
       { label: "Ortak hesapları", href: "/finans/ortaklar", module: "finance", desc: "Ortaktan giriş, ortağa çıkış, ortağın ödediği masraflar" },
       { label: "Veresiye ve alacaklar", href: "/finans/veresiye", module: ["finance", "sales"], desc: "Açık hesap, yaşlandırma, limit, WhatsApp hatırlatma" },
       { label: "Nakit akışı tahmini", href: "/finans/nakit-akisi", module: "finance", desc: "13 hafta: alacak, çek, borç, kredi, masraf, sipariş ve maaşla beklenen bakiye" },
+      { label: "Grup konsolidasyonu", href: "/finans/konsolidasyon", module: "finance", level: 2, desc: "Grup şirketleri tek para biriminde, grup içi işlemler elenmiş aylık özet" },
       { label: "Döviz kurları", href: "/finans/kurlar", module: "finance", desc: "TCMB kurları, elle kur girişi" },
       { label: "Gelir / gider hesapları", href: "/finans/kategoriler", module: "finance", desc: "Kategoriler ve dönem özeti" },
     ],
@@ -206,7 +207,7 @@ export const NAV: Group[] = [
       { label: "Mevzuat", href: "/mevzuat", module: "safety", roles: ["owner", "accountant", "hr"] },
     ],
   },
-  { group: "Raporlar", slug: "raporlar", items: [{ label: "Yönetim KPI", href: "/kpi", module: ["sales", "finance", "production"], desc: "Ciro, birim, zamanında teslim, yeniden yapım, üretim süresi, tahsilat süresi" }, { label: "Raporlar", href: "/raporlar", module: ["hr", "attendance", "payroll", "safety"], roles: MANAGERS }, { label: "Excel'den aktar", href: "/ice-aktar", module: "payroll", roles: PAY }] },
+  { group: "Raporlar", slug: "raporlar", items: [{ label: "Yönetim KPI", href: "/kpi", module: ["sales", "finance", "production"], desc: "Ciro, birim, zamanında teslim, yeniden yapım, üretim süresi, tahsilat süresi" }, { label: "Raporlar", href: "/raporlar", module: ["hr", "attendance", "payroll", "safety"], roles: MANAGERS }, { label: "Rapor tasarlayıcı", href: "/rapor-tasarla", module: ["lab", "sales", "production", "finance", "purchases", "stock", "expenses"], desc: "Kendi tablo ve grafiğinizi kurun: işler, ürünler, tahsilat, masraf, fatura, şikâyet, stok" }, { label: "Excel'den aktar", href: "/ice-aktar", module: "payroll", roles: PAY }] },
   { group: "Web sitesi", slug: "web-sitesi", items: [{ label: "Site yönetimi (mbdentaire.com)", href: "/site-gecis", site: true, raw: true }] },
   { group: "Sistem", slug: "sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", module: "attendance", roles: ["owner", "hr", "branch_manager"] }, { label: "Kullanıcılar ve hesaplar", href: "/yonetim", module: "users", desc: "Kullanıcılar, personele hesap açma, kullanıcı türleri" }, { label: "Yetki haritası", href: "/yonetim/yetkiler", module: "users", desc: "Kim hangi modülde ne yapabilir: tek bakışta" }, { label: "Onay akışları", href: "/yonetim/onay-akislari", module: "users", level: 2, desc: "Masraf ve satın alma için tutara göre sıralı onay adımları" }, { label: "Şirket ayarları", href: "/yonetim/sirket", module: "users", level: 2, desc: "Şirket bilgileri, şubeler, bölümler, PDKS cihazları" }, { label: "İşlem geçmişi", href: "/yonetim/hareketler", module: "users", level: 2, desc: "Kim, ne zaman, neyi değiştirdi (denetim kaydı)" }] },
 ];
