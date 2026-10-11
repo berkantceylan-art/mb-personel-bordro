@@ -5,7 +5,7 @@
 --    total    : since'ten beri gelen (iptal olmayan) işler
 --    out_n    : bunlardan teslim edilenler
 --    open_n   : hâlâ içeride olanlar (30 günden eski açık işler dahil)
---    pending  : kalan işler (no, aşama, teslim tarihi), en yakın teslimden başlayarak en çok 4
+--    pending  : kalan işler (no, aşama, teslim tarihi), en yakın teslimden başlayarak en çok 12
 --  Ör. Odonto: 10 iş gelmiş, 9 çıkmış, 1 kalmış (#1234 · Kalite kontrol).
 -- Tekrar çalıştırılabilir. Önce 20261213000000_workshop.sql.
 -- =====================================================================
@@ -42,7 +42,7 @@ begin
     coalesce((select sum(o.u) from op o where o.customer_id = cu.id), 0),
     (select min(o.due_date) from op o where o.customer_id = cu.id),
     coalesce((select jsonb_agg(jsonb_build_object('no', x.no, 'stage', x.flow_stage, 'due', x.due_date) order by x.due_date nulls last, x.no)
-      from (select o.no, o.flow_stage, o.due_date from op o where o.customer_id = cu.id order by o.due_date nulls last, o.no limit 4) x), '[]'::jsonb)
+      from (select o.no, o.flow_stage, o.due_date from op o where o.customer_id = cu.id order by o.due_date nulls last, o.no limit 12) x), '[]'::jsonb)
   from cust cu;
 end $$;
 revoke execute on function prd_workshop_clinics() from public, anon;

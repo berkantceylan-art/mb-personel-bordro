@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session";
 import { FLOW_ACTION, FLOW_ROLE, FLOW_STAGE, since } from "@/lib/flow";
 import { AutoRefresh } from "../(app)/uretim/_parts/AutoRefresh";
 import { Clock } from "./Clock";
+import { FirmBoard, type Firm } from "./FirmBoard";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Atölye ekranı" };
@@ -20,7 +21,6 @@ type Board = {
   feed: { at: string; action: string; stage: string; no: number; who: string | null; customer: string | null }[];
   forecast: { avg_out_units: number; days_left: number | null };
 };
-type Firm = { id: string; name: string; since: string; total: number; out_n: number; open_n: number; out_today: number; late: number; open_units: number; next_due: string | null; pending: { no: number; stage: string; due: string | null }[] };
 const n = (v: number) => Number(v ?? 0).toLocaleString("tr-TR", { maximumFractionDigits: 1 });
 const SYM: Record<string, string> = { TRY: "₺", EUR: "€", USD: "$" };
 
@@ -39,7 +39,7 @@ export default async function WorkshopScreen() {
   const maxPerson = Math.max(1, ...(b?.people ?? []).map((p) => Number(p.holding_units) + Number(p.units_today)));
 
   return (
-    <main className="min-h-screen bg-[#07111F] text-white p-4 lg:p-6 flex flex-col gap-4 overflow-hidden" style={{ backgroundImage: "radial-gradient(circle at 15% 0%, rgba(37,99,235,.18), transparent 45%), radial-gradient(circle at 90% 100%, rgba(5,150,105,.14), transparent 40%)" }}>
+    <main className="min-h-screen xl:h-screen bg-[#07111F] text-white p-4 lg:p-6 flex flex-col gap-4 overflow-hidden" style={{ backgroundImage: "radial-gradient(circle at 15% 0%, rgba(37,99,235,.18), transparent 45%), radial-gradient(circle at 90% 100%, rgba(5,150,105,.14), transparent 40%)" }}>
       <AutoRefresh seconds={30} />
       <header className="flex items-center gap-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -65,23 +65,23 @@ export default async function WorkshopScreen() {
               ["Bugün teslim", b.today.due_today, `yarın ${b.today.due_tomorrow} · provada ${b.today.tryin}`, "#FBBF24"],
               ["Tahmini bitiş", b.forecast.days_left ?? "—", `günde ~${n(b.forecast.avg_out_units)} birim çıkıyor`, "#A78BFA"],
             ].map(([l, v, sub, c]) => (
-              <div key={String(l)} className="rounded-2xl bg-white/[.06] border border-white/10 p-4 backdrop-blur">
+              <div key={String(l)} className="rounded-2xl bg-white/[.06] border border-white/10 p-4 xl:px-4 xl:py-2.5 backdrop-blur">
                 <div className="text-xs uppercase tracking-wider text-white/50">{l}</div>
-                <div className="font-display text-5xl xl:text-6xl font-black leading-tight tabular-nums" style={{ color: String(c) }}>{typeof v === "number" ? n(v) : v}{l === "Tahmini bitiş" && b.forecast.days_left != null ? <span className="text-xl font-bold text-white/60"> gün</span> : null}</div>
+                <div className="font-display text-5xl xl:text-[44px] font-black leading-tight tabular-nums" style={{ color: String(c) }}>{typeof v === "number" ? n(v) : v}{l === "Tahmini bitiş" && b.forecast.days_left != null ? <span className="text-xl font-bold text-white/60"> gün</span> : null}</div>
                 <div className="text-sm text-white/60">{sub}</div>
               </div>
             ))}
           </section>
 
-          <section className="rounded-2xl bg-white/[.04] border border-white/10 p-4">
-            <div className="flex items-baseline gap-3 mb-3"><h2 className="font-display text-lg font-bold">Akış</h2><span className="text-sm text-white/50">işler hangi aşamada</span>{b.today.unassigned > 0 && <span className="ml-auto text-sm text-[#FBBF24]">{b.today.unassigned} iş sırada, kimse almadı</span>}</div>
+          <section className="rounded-2xl bg-white/[.04] border border-white/10 p-4 xl:py-2.5">
+            <div className="flex items-baseline gap-3 mb-3 xl:mb-1.5"><h2 className="font-display text-lg font-bold">Akış</h2><span className="text-sm text-white/50">işler hangi aşamada</span>{b.today.unassigned > 0 && <span className="ml-auto text-sm text-[#FBBF24]">{b.today.unassigned} iş sırada, kimse almadı</span>}</div>
             <div className="grid gap-2 grid-cols-3 lg:grid-cols-6">
               {b.stages.map((st) => (
-                <div key={st.stage} className="relative rounded-xl overflow-hidden bg-white/[.05] p-3">
+                <div key={st.stage} className="relative rounded-xl overflow-hidden bg-white/[.05] p-3 xl:py-1.5">
                   <div className="absolute inset-x-0 bottom-0 opacity-30" style={{ height: `${(Number(st.units) / maxStage) * 100}%`, background: FLOW_STAGE[st.stage]?.[1] }} />
                   <div className="relative">
                     <div className="flex items-center gap-2 text-sm font-semibold"><span className="w-2.5 h-2.5 rounded-full" style={{ background: FLOW_STAGE[st.stage]?.[1] }} />{FLOW_STAGE[st.stage]?.[0]}</div>
-                    <div className="font-display text-4xl font-black tabular-nums">{st.jobs}</div>
+                    <div className="font-display text-4xl xl:text-3xl font-black tabular-nums">{st.jobs}</div>
                     <div className="text-xs text-white/60">{n(st.units)} birim · {st.held} elde{st.late ? <span className="text-[#F87171]"> · {st.late} geç</span> : null}</div>
                   </div>
                 </div>
@@ -89,56 +89,12 @@ export default async function WorkshopScreen() {
             </div>
           </section>
 
-          <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr_.9fr] flex-1 min-h-0">
-            <section className="rounded-2xl bg-white/[.04] border border-white/10 p-4 min-h-0 overflow-hidden">
-              <div className="flex items-baseline gap-3 mb-3"><h2 className="font-display text-lg font-bold">Ekip</h2><span className="text-sm text-white/50">elindeki · bugün bitirdiği</span></div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {b.people.slice(0, 16).map((p) => (
-                  <div key={p.id} className="rounded-xl bg-white/[.05] p-3">
-                    <div className="flex items-baseline gap-2"><b className="truncate">{p.name}</b><span className="text-[11px] text-white/40">{FLOW_ROLE[p.role] ?? p.role}</span></div>
-                    <div className="mt-1 flex h-2.5 rounded-full overflow-hidden bg-white/10">
-                      <span style={{ width: `${(Number(p.holding_units) / maxPerson) * 100}%` }} className="bg-[#60A5FA]" />
-                      <span style={{ width: `${(Number(p.units_today) / maxPerson) * 100}%` }} className="bg-[#34D399]" />
-                    </div>
-                    <div className="mt-1 flex justify-between text-xs text-white/60"><span><b className="text-[#93C5FD]">{p.holding}</b> iş elinde ({n(p.holding_units)} br){p.oldest ? ` · ${since(p.oldest)}` : ""}</span><span><b className="text-[#6EE7B7]">{p.done_today}</b> bitti · {n(p.units_today)} br</span></div>
-                  </div>
-                ))}
-                {b.people.length === 0 && <p className="text-white/50">Akış ekibi tanımlı değil (Üretim › Akış ekibi).</p>}
-              </div>
-            </section>
-
-            <section className="rounded-2xl bg-white/[.04] border border-white/10 p-4 min-h-0 overflow-hidden flex flex-col">
-              <div className="flex items-baseline gap-3 mb-3"><h2 className="font-display text-lg font-bold">Firmalar</h2><span className="text-sm text-white/50">{firms ? "gelen · çıkan · kalan" : "açık işler"}</span></div>
-              {firms ? (
-                <ul className="flex flex-col gap-2 min-h-0 overflow-hidden">
-                  {firms.slice(0, 12).map((f) => {
-                    const done = f.open_n === 0;
-                    const pct = f.total ? (f.out_n / f.total) * 100 : 0;
-                    return (
-                      <li key={f.id} className={`rounded-xl p-2.5 ${done ? "bg-[#34D399]/10" : f.late ? "bg-[#F87171]/10" : "bg-white/[.05]"}`}>
-                        <div className="flex items-baseline gap-2">
-                          <b className="truncate flex-1">{f.name}</b>
-                          <span className="text-xs text-white/50 tabular-nums">{f.total} geldi · <span className="text-[#6EE7B7]">{f.out_n} çıktı</span></span>
-                          {done ? <span className="text-sm font-bold text-[#34D399]">✓ tamam</span> : <span className={`font-display text-xl font-black tabular-nums ${f.late ? "text-[#F87171]" : "text-[#FBBF24]"}`}>{f.open_n} kaldı</span>}
-                        </div>
-                        <div className="mt-1 h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#34D399]" style={{ width: `${pct}%` }} /></div>
-                        {!done && (
-                          <div className="mt-1 flex flex-wrap gap-1 text-[11px]">
-                            {f.pending.map((p) => (
-                              <span key={p.no} className={`rounded px-1.5 py-0.5 bg-white/10 ${p.due && p.due < today ? "text-[#FCA5A5]" : "text-white/80"}`}>
-                                <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: FLOW_STAGE[p.stage]?.[1] ?? "#64748B" }} />#{p.no} {FLOW_STAGE[p.stage]?.[0] ?? p.stage}{p.due ? ` · ${new Date(`${p.due}T12:00:00Z`).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" })}` : ""}
-                              </span>
-                            ))}
-                            {f.open_n > f.pending.length && <span className="text-white/40">+{f.open_n - f.pending.length}</span>}
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                  {firms.length === 0 && <li className="text-white/50">İçeride iş yok.</li>}
-                </ul>
-              ) : (
-              <table className="w-full text-sm">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] flex-1 min-h-0">
+            <section className="rounded-2xl bg-white/[.04] border border-white/10 p-3 min-h-[480px] xl:min-h-0 overflow-hidden flex flex-col">
+              {firms ? <FirmBoard firms={firms} today={today} /> : (
+                <>
+                  <div className="flex items-baseline gap-3 mb-3"><h2 className="font-display text-lg font-bold">Klinik ve hekimler</h2><span className="text-sm text-white/50">açık işler</span></div>
+                  <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-white/40"><th className="pb-1">Klinik / hekim</th><th className="pb-1 text-right">İş</th><th className="pb-1 text-right">Birim</th><th className="pb-1 text-right">Geç</th><th className="pb-1 text-right">En yakın</th></tr></thead>
                 <tbody>
                   {b.clinics.slice(0, 14).map((c) => (
@@ -152,24 +108,30 @@ export default async function WorkshopScreen() {
                   ))}
                 </tbody>
               </table>
+                </>
               )}
-              <div className="mt-auto pt-3">
-                <div className="text-xs text-white/40 mb-1">Son 14 gün · <span className="text-[#60A5FA]">giren</span> / <span className="text-[#34D399]">çıkan</span> birim</div>
-                <div className="flex items-end gap-1 h-20">
-                  {b.trend.map((t) => (
-                    <div key={t.d} className="flex-1 flex items-end gap-px" title={`${t.d}: ${t.in} giren / ${t.out} çıkan`}>
-                      <span className="flex-1 rounded-t bg-[#60A5FA]/70" style={{ height: `${(Number(t.in) / maxTrend) * 80}px` }} />
-                      <span className="flex-1 rounded-t bg-[#34D399]" style={{ height: `${(Number(t.out) / maxTrend) * 80}px` }} />
+            </section>
+            <div className="grid gap-4 min-h-0 xl:grid-rows-[minmax(0,1.1fr)_minmax(0,1fr)]">
+            <section className="rounded-2xl bg-white/[.04] border border-white/10 p-3 min-h-0 overflow-hidden">
+              <div className="flex items-baseline gap-3 mb-2"><h2 className="font-display text-lg font-bold">Ekip</h2><span className="text-sm text-white/50">elindeki · bugün bitirdiği</span></div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {b.people.slice(0, 8).map((p) => (
+                  <div key={p.id} className="rounded-xl bg-white/[.05] p-2">
+                    <div className="flex items-baseline gap-2"><b className="truncate">{p.name}</b><span className="text-[11px] text-white/40">{FLOW_ROLE[p.role] ?? p.role}</span></div>
+                    <div className="mt-1 flex h-2.5 rounded-full overflow-hidden bg-white/10">
+                      <span style={{ width: `${(Number(p.holding_units) / maxPerson) * 100}%` }} className="bg-[#60A5FA]" />
+                      <span style={{ width: `${(Number(p.units_today) / maxPerson) * 100}%` }} className="bg-[#34D399]" />
                     </div>
-                  ))}
-                </div>
+                    <div className="mt-1 flex justify-between text-xs text-white/60"><span><b className="text-[#93C5FD]">{p.holding}</b> iş elinde ({n(p.holding_units)} br){p.oldest ? ` · ${since(p.oldest)}` : ""}</span><span><b className="text-[#6EE7B7]">{p.done_today}</b> bitti · {n(p.units_today)} br</span></div>
+                  </div>
+                ))}
+                {b.people.length === 0 && <p className="text-white/50">Akış ekibi tanımlı değil (Üretim › Akış ekibi).</p>}
               </div>
             </section>
-
-            <section className="rounded-2xl bg-white/[.04] border border-white/10 p-4 min-h-0 overflow-hidden">
+            <section className="rounded-2xl bg-white/[.04] border border-white/10 p-3 min-h-0 overflow-hidden flex flex-col">
               <div className="flex items-baseline gap-3 mb-3"><h2 className="font-display text-lg font-bold">Son okutmalar</h2></div>
               <ul className="flex flex-col gap-1.5 text-sm">
-                {b.feed.slice(0, 14).map((f, i) => (
+                {b.feed.slice(0, 7).map((f, i) => (
                   <li key={i} className="flex items-baseline gap-2">
                     <span className="text-xs tabular-nums text-white/40 w-11">{new Date(f.at).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" })}</span>
                     <span className="w-2 h-2 rounded-full shrink-0 self-center" style={{ background: FLOW_STAGE[f.stage]?.[1] ?? "#64748B" }} />
@@ -178,12 +140,24 @@ export default async function WorkshopScreen() {
                 ))}
               </ul>
               {b.month.length > 0 && (
-                <div className="mt-4 rounded-xl bg-white/[.05] p-3">
+                <div className="mt-3 rounded-xl bg-white/[.05] p-3 xl:hidden">
                   <div className="text-xs uppercase tracking-wider text-white/40">Bu ay çıkan</div>
                   {b.month.map((m) => <div key={m.currency} className="flex justify-between gap-2"><span className="font-display text-2xl font-bold tabular-nums">{n(m.jobs)} iş</span><span className="text-white/60 self-end">{n(m.units)} br · {(Number(m.total) / 100).toLocaleString("tr-TR", { maximumFractionDigits: 0 })} {SYM[m.currency] ?? m.currency}</span></div>)}
                 </div>
               )}
+            <div className="mt-auto pt-2">
+                <div className="text-xs text-white/40 mb-1">Son 14 gün · <span className="text-[#60A5FA]">giren</span> / <span className="text-[#34D399]">çıkan</span> birim</div>
+                <div className="flex items-end gap-1 h-14">
+                  {b.trend.map((t) => (
+                    <div key={t.d} className="flex-1 flex items-end gap-px" title={`${t.d}: ${t.in} giren / ${t.out} çıkan`}>
+                      <span className="flex-1 rounded-t bg-[#60A5FA]/70" style={{ height: `${(Number(t.in) / maxTrend) * 56}px` }} />
+                      <span className="flex-1 rounded-t bg-[#34D399]" style={{ height: `${(Number(t.out) / maxTrend) * 56}px` }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </section>
+            </div>
           </div>
         </>
       )}
