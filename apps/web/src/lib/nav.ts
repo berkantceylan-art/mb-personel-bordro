@@ -105,6 +105,20 @@ export const NAV: Group[] = [
     ],
   },
   {
+    group: "Alış ve satış", slug: "alis-satis",
+    items: [
+      { label: "Satış özeti", href: "/satis", module: "sales", desc: "Aylık satış, en çok çalışılan hekimler, vadesi geçenler" },
+      { label: "Satış faturası kes", href: "/satis/yeni", module: "sales", level: 2, desc: "Protez, malzeme, hizmet; e-Fatura / e-Arşiv, döviz, iskonto, tevkifat" },
+      { label: "Satış faturaları", href: "/satis/faturalar", module: "sales", desc: "Kesilen faturalar, e-fatura durumu, toplu XML indirme" },
+      { label: "Faturalanmamış işler", href: "/satis/isler", module: "sales", desc: "Teslim edilen laboratuvar işlerini hekim bazında faturala" },
+      { label: "Alış özeti", href: "/alis", module: "purchases", desc: "Aylık alış, tedarikçiler, vadesi geçen borçlar" },
+      { label: "Alış faturası gir", href: "/alis/yeni", module: "purchases", level: 2, desc: "Malzeme, hammadde, sarf, hizmet alışı; stoğa giriş" },
+      { label: "e-Fatura içe aktar", href: "/alis/ice-aktar", module: ["purchases", "sales"], level: 2, desc: "UBL XML / ZIP: cari yoksa açılır, kalemler stokla eşleşir" },
+      { label: "Alış faturaları", href: "/alis/faturalar", module: "purchases", desc: "Gelen faturalar, iade, iptal" },
+      { label: "Fatura ayarları", href: "/satis/ayarlar", module: "sales", desc: "Şirket VKN / adres, seri önekleri, KDV, entegratör" },
+    ],
+  },
+  {
     group: "Stok ve depo", slug: "stok",
     items: [
       { label: "Stok özeti", href: "/stok", module: "stock", desc: "Stok değeri, kritik seviye, son kullanma yaklaşanlar" },
@@ -179,7 +193,8 @@ export function visibleNav(role: string, siteAccess = false, logistics = false, 
 export const RELATED: Record<string, string[]> = {
   finans: ["cari"],
   laboratuvar: ["cari", "stok", "lojistik"],
-  stok: ["laboratuvar", "cari"],
+  stok: ["laboratuvar", "alis-satis", "cari"],
+  "alis-satis": ["cari", "stok", "finans"],
   cari: ["laboratuvar"],
   lojistik: ["laboratuvar"],
   "insan-kaynaklari": ["puantaj-izin"],

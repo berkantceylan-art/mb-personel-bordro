@@ -10,7 +10,7 @@ import { TXN_KIND, dateOk, fmt } from "@/lib/fin";
 
 export const dynamic = "force-dynamic";
 
-type Row = { id: string; no: number; txn_date: string; kind: string; description: string | null; doc_no: string | null; amount: number; currency: string; voided_at: string | null; void_reason: string | null; fin_parties: { id: string; name: string } | null; fin_accounts: { id: string; name: string } | null; fin_categories: { name: string } | null };
+type Row = { id: string; no: number; txn_date: string; kind: string; description: string | null; doc_no: string | null; amount: number; currency: string; voided_at: string | null; void_reason: string | null; ref_type: string | null; ref_id: string | null; fin_parties: { id: string; name: string } | null; fin_accounts: { id: string; name: string } | null; fin_categories: { name: string } | null };
 
 /** İşlem defteri: tüm finans kayıtları */
 export default async function TxnsPage({ searchParams }: { searchParams: Promise<{ tur?: string; bas?: string; bit?: string; q?: string; iptal?: string }> }) {
@@ -18,7 +18,7 @@ export default async function TxnsPage({ searchParams }: { searchParams: Promise
   if ((s.modules.finance ?? 0) < 1) redirect("/");
   const sp = await searchParams;
   const supabase = await createClient();
-  let q = supabase.from("fin_txns").select("id, no, txn_date, kind, description, doc_no, amount, currency, voided_at, void_reason, fin_parties(id, name), fin_accounts(id, name), fin_categories(name)").order("txn_date", { ascending: false }).order("no", { ascending: false }).limit(500);
+  let q = supabase.from("fin_txns").select("id, no, txn_date, kind, description, doc_no, amount, currency, voided_at, void_reason, ref_type, ref_id, fin_parties(id, name), fin_accounts(id, name), fin_categories(name)").order("txn_date", { ascending: false }).order("no", { ascending: false }).limit(500);
   if (sp.tur && sp.tur in TXN_KIND) q = q.eq("kind", sp.tur);
   if (dateOk(sp.bas)) q = q.gte("txn_date", sp.bas!);
   if (dateOk(sp.bit)) q = q.lte("txn_date", sp.bit!);
@@ -56,7 +56,8 @@ export default async function TxnsPage({ searchParams }: { searchParams: Promise
               </td>
               <td className={tdNum}>{fmt(r.amount, r.currency)}</td>
               <td className={`${td} text-right`}>
-                {canVoid && !r.voided_at && (
+                {r.ref_type === "invoice" && r.ref_id && <Link href={`/fatura/${r.ref_id}`} className="text-xs font-semibold text-brand-700">Fatura</Link>}
+                {canVoid && !r.voided_at && r.ref_type !== "invoice" && (
                   <form action={voidTxn} className="inline">
                     <input type="hidden" name="id" value={r.id} />
                     <input type="hidden" name="reason" value="İşlem defterinden iptal" />

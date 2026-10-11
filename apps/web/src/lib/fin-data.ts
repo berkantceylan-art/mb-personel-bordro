@@ -50,7 +50,7 @@ export async function latestRates(): Promise<{ rates: Record<string, number>; da
   return { rates, date };
 }
 
-type MoveRow = { id: number; amount: number; move_date: string; description: string | null; fin_txns: { id: string; no: number; kind: string; description: string | null; doc_no: string | null; voided_at: string | null } | null };
+type MoveRow = { id: number; amount: number; move_date: string; description: string | null; fin_txns: { id: string; no: number; kind: string; description: string | null; doc_no: string | null; voided_at: string | null; ref_type?: string | null; ref_id?: string | null } | null };
 
 function runLedger(opening: number, openingDate: string | null, lines: Omit<LedgerLine, "balance">[], from?: string | null, to?: string | null) {
   const sorted = [...lines].sort((a, b) => a.date.localeCompare(b.date) || a.key.localeCompare(b.key));
@@ -96,7 +96,7 @@ export async function accountLedger(account: Account, from?: string | null, to?:
 export async function partyLedger(party: Party, from?: string | null, to?: string | null) {
   const supabase = await createClient();
   const [{ data: moves }, jobsRes, paysRes] = await Promise.all([
-    supabase.from("fin_moves").select("id, amount, move_date, description, fin_txns(id, no, kind, description, doc_no, voided_at)").eq("party_id", party.id).order("move_date").limit(5000),
+    supabase.from("fin_moves").select("id, amount, move_date, description, fin_txns(id, no, kind, description, doc_no, voided_at, ref_type, ref_id)").eq("party_id", party.id).order("move_date").limit(5000),
     party.lab_customer_id ? supabase.from("jobs").select("id, no, in_date, patient, total, status").eq("customer_id", party.lab_customer_id).neq("status", "cancelled").limit(5000) : Promise.resolve({ data: [] as { id: string; no: number; in_date: string; patient: string | null; total: number; status: string }[] }),
     party.lab_customer_id ? supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note").eq("customer_id", party.lab_customer_id).is("fin_txn_id", null).limit(5000) : Promise.resolve({ data: [] as { id: string; paid_on: string; amount: number; method: string; ref: string | null; note: string | null }[] }),
   ]);
@@ -105,7 +105,8 @@ export async function partyLedger(party: Party, from?: string | null, to?: strin
       .filter((m) => m.fin_txns && !m.fin_txns.voided_at)
       .map((m) => ({
         key: `m${String(m.id).padStart(12, "0")}`, date: m.move_date, label: m.fin_txns!.description || m.description || "", sub: `#${m.fin_txns!.no}${m.fin_txns!.doc_no ? ` · ${m.fin_txns!.doc_no}` : ""}`,
-        kind: m.fin_txns!.kind, debit: m.amount > 0 ? Number(m.amount) : 0, credit: m.amount < 0 ? -Number(m.amount) : 0, txnId: m.fin_txns!.id, voidable: true,
+        kind: m.fin_txns!.kind, debit: m.amount > 0 ? Number(m.amount) : 0, credit: m.amount < 0 ? -Number(m.amount) : 0, txnId: m.fin_txns!.id,
+        voidable: m.fin_txns!.ref_type !== "invoice", href: m.fin_txns!.ref_type === "invoice" && m.fin_txns!.ref_id ? `/fatura/${m.fin_txns!.ref_id}` : undefined,
       })),
     ...(jobsRes.data ?? []).map((j) => ({ key: `j${j.in_date}${j.no}`, date: j.in_date, label: `İş #${j.no}${j.patient ? ` · ${j.patient}` : ""}`, kind: "job", debit: Number(j.total) || 0, credit: 0, href: `/isler/${j.id}` })),
     ...(paysRes.data ?? []).map((p) => ({ key: `p${p.paid_on}${p.id}`, date: p.paid_on, label: `Tahsilat (hekim kartından)${p.ref ? ` · ${p.ref}` : ""}${p.note ? ` · ${p.note}` : ""}`, kind: "collection", debit: 0, credit: Number(p.amount) || 0 })),
