@@ -26,6 +26,7 @@ export const MY_MENU: Array<{ href: string; label: string; icon: string; desc: s
   { href: "/benim/takvim", label: "Takvimim", icon: "calendar", desc: "Vardiya, tatil ve izin günleri" },
   { href: "/benim/ozluk", label: "Özlük bilgilerim", icon: "id", desc: "Kimlik, iletişim, banka" },
   { href: "/benim/belgeler", label: "Belgelerim", icon: "folder", desc: "e-Devlet belgeleri ve özlük dosyam" },
+  { href: "/benim/malzeme", label: "Malzeme iste", icon: "box", desc: "Depodan malzeme iste, teslimde imzala" },
   { href: "/benim/zimmet", label: "Zimmetim", icon: "box", desc: "Üzerimdeki demirbaşlar" },
   { href: "/benim/imza", label: "İmzalarım", icon: "pen", desc: "Formları telefonda imzala" },
   { href: "/benim/bes", label: "BES", icon: "piggy", desc: "Emeklilik kesintilerim" },
