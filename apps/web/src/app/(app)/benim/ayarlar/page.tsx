@@ -28,6 +28,10 @@ export default async function MySettingsPage() {
           </Card>
           <PendingSubmit className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold">Kaydet</PendingSubmit>
         </form>
+        <Card title="Şifre">
+          <p className="text-sm text-muted">Size verilen geçici şifreyi kendi belirlediğiniz şifreyle değiştirin.</p>
+          <a href="/auth/sifre-yenile" className="h-11 px-5 inline-flex items-center self-start rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">Şifremi değiştir</a>
+        </Card>
       </div>
     </>
   );

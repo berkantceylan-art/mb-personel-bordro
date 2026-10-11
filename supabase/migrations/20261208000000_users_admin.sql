@@ -3,6 +3,7 @@
 -- Tekrar çalıştırılabilir. Önce 20261202000000_finance_core.sql.
 -- =====================================================================
 
+drop function if exists users_overview();
 -- Kullanıcılar + modül seviyeleri (açık atanmış mı, rol varsayılanı mı) + son giriş
 create or replace function users_overview() returns table (
   user_id uuid, display_name text, role text, email text, last_sign_in_at timestamptz, created_at timestamptz,

@@ -16,21 +16,23 @@ export interface Session {
   siteAccess: boolean;
   /** Kargo / gümrük / kurye modülü: sahip, muhasebe, İK, şef ya da memberships.logistics_access */
   logistics: boolean;
-  /** Modül yetki seviyeleri: 0 yok, 1 görüntüle, 2 düzenle, 3 yönet (finance, sales, purchases, stock, production, assets, expenses, users) */
+  /** Modül yetki seviyeleri: 0 yok, 1 görüntüle, 2 düzenle, 3 yönet (bkz. MODULES) */
   modules: Record<string, number>;
 }
 
-export const MODULES = ["finance", "sales", "purchases", "stock", "production", "assets", "expenses", "users"] as const;
+export const MODULES = ["hr", "attendance", "payroll", "safety", "lab", "finance", "sales", "purchases", "stock", "production", "assets", "expenses", "users"] as const;
 export type ModuleKey = (typeof MODULES)[number];
 
 /** Veritabanındaki module_default_level ile aynı kural (fonksiyon henüz yoksa kullanılır) */
 export function defaultModuleLevel(role: string, logistics: boolean, m: string): number {
-  let lvl = 0;
-  if (role === "owner") lvl = 3;
-  else if (role === "accountant") lvl = ["finance", "sales", "purchases", "expenses", "assets"].includes(m) ? 3 : m === "stock" ? 2 : m === "production" ? 1 : 0;
-  else if (role === "branch_manager") lvl = ["stock", "production"].includes(m) ? 2 : ["sales", "purchases", "expenses", "assets"].includes(m) ? 1 : 0;
-  else if (role === "hr") lvl = ["assets", "expenses"].includes(m) ? 1 : 0;
-  if (logistics && ["stock", "production"].includes(m)) lvl = Math.max(lvl, 2);
+  const T: Record<string, Record<string, number>> = {
+    accountant: { finance: 3, sales: 3, purchases: 3, expenses: 3, assets: 3, payroll: 3, stock: 2, hr: 2, attendance: 2, lab: 2, production: 1, safety: 1 },
+    branch_manager: { stock: 2, production: 2, hr: 2, attendance: 2, lab: 2, sales: 1, purchases: 1, expenses: 1, assets: 1, safety: 1 },
+    hr: { hr: 3, attendance: 3, safety: 3, lab: 2, users: 2, assets: 1, expenses: 1, payroll: 1 },
+    safety: { safety: 3, hr: 1, attendance: 1 },
+  };
+  let lvl = role === "owner" ? 3 : (T[role]?.[m] ?? 0);
+  if (logistics && ["stock", "production", "lab"].includes(m)) lvl = Math.max(lvl, 2);
   return lvl;
 }
 
@@ -60,10 +62,11 @@ export const getSession = cache(async (): Promise<Session> => {
   const flags = await supabase.from("memberships").select("site_access, logistics_access").eq("user_id", user.id).eq("company_id", m.company_id).maybeSingle();
   const sa = (flags.error ? (await supabase.from("memberships").select("site_access").eq("user_id", user.id).eq("company_id", m.company_id).maybeSingle()).data : flags.data) as { site_access?: boolean; logistics_access?: boolean } | null;
   const company = m.companies as unknown as { name: string } | null;
-  const logistics = ["owner", "accountant", "hr", "branch_manager"].includes(m.role as string) || sa?.logistics_access === true;
   const { data: lv, error: lvErr } = await supabase.rpc("my_module_levels");
   const modules: Record<string, number> = {};
   for (const k of MODULES) modules[k] = !lvErr && lv && typeof (lv as Record<string, number>)[k] === "number" ? (lv as Record<string, number>)[k]! : defaultModuleLevel(m.role as string, sa?.logistics_access === true, k);
+  // Laboratuvar / kargo: kullanıcı türünde "lab" modülü (eski kurulumda rol + bayrak)
+  const logistics = (modules.lab ?? 0) >= 1;
   return {
     userId: user.id,
     email: user.email,

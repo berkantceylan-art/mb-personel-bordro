@@ -1,92 +1,16 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/session";
-import { PERSONNEL_DOMAIN, formatInviteCode } from "@/lib/constants";
 import { done, fail, must } from "@/lib/flash";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 type R = { ok: boolean; message: string };
-const ROLES = ["owner", "accountant", "hr", "branch_manager", "safety", "employee", "site_editor"];
-
-/** 12 karakterlik davet kodu (32 harfli alfabe → 60 bit); karışan harfler (0/O, 1/I) yok */
-const code = () => {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(12));
-  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
-};
-const HR_INVITE_ROLES = ["employee", "branch_manager", "safety"];
 
 async function requireAdmin() {
   const s = await getSession();
-  if (!["owner", "hr"].includes(s.role)) await fail("Yetkiniz yok");
+  if (s.role !== "owner" && (s.modules.users ?? 0) < 2) await fail("Yetkiniz yok");
   return s;
-}
-
-/** Personel için giriş kimliği: e-posta varsa o, yoksa PDKS no@alan */
-function loginFor(card: string | null, email: string | null, id: string) {
-  if (email && /.+@.+\..+/.test(email)) return email.toLowerCase();
-  return `${(card ?? id.slice(0, 8)).replace(/\D/g, "") || id.slice(0, 8)}@${PERSONNEL_DOMAIN}`;
-}
-
-export async function createInvite(_: R | null, f: FormData): Promise<R> {
-  const s = await requireAdmin();
-  const role = str(f, "role");
-  if (!ROLES.includes(role)) return { ok: false, message: "Rol seçin." };
-  if (s.role !== "owner" && !HR_INVITE_ROLES.includes(role)) return { ok: false, message: "İK yalnız personel, şube sorumlusu ve İSG uzmanı daveti oluşturabilir." };
-  const supabase = await createClient();
-  const employeeId = str(f, "employeeId") || null;
-  let login = str(f, "email").toLowerCase();
-  let name = str(f, "display_name") || null;
-  if (employeeId) {
-    const [{ data: e }, { data: p }] = await Promise.all([
-      supabase.from("employees").select("id, card_no, first_name, last_name, user_id").eq("id", employeeId).single(),
-      supabase.from("employee_private").select("email").eq("employee_id", employeeId).maybeSingle(),
-    ]);
-    if (!e) return { ok: false, message: "Personel bulunamadı." };
-    // Hesabı olan personel (şifre sıfırlama): kod, mevcut hesabın kullanıcı adına üretilir
-    if (!login && e.user_id) {
-      try {
-        const { data: u } = await createAdminClient().auth.admin.getUserById(e.user_id);
-        if (u.user?.email) login = u.user.email.toLowerCase();
-      } catch {
-        // Sunucu anahtarı yoksa olağan kurala düşer
-      }
-    }
-    login = login || loginFor(e.card_no, p?.email ?? null, e.id);
-    name = name ?? `${e.first_name} ${e.last_name}`;
-  }
-  if (!/.+@.+\..+/.test(login)) return { ok: false, message: "Personel seçin veya giriş e-postası yazın." };
-  const c = code();
-  const { error } = await supabase.from("invites").insert({ company_id: s.companyId, code: c, role, employee_id: employeeId, display_name: name, login_email: login });
-  if (error) return { ok: false, message: error.message };
-  revalidatePath("/yonetim");
-  return { ok: true, message: `Davet kodu: ${formatInviteCode(c)} · giriş: ${login}` };
-}
-
-/** Hesabı olmayan tüm aktif personele davet kodu üretir */
-export async function bulkInvites(_: R | null, f: FormData): Promise<R> {
-  const s = await requireAdmin();
-  const supabase = await createClient();
-  const dept = str(f, "department_id");
-  let q = supabase.from("employees").select("id, card_no, first_name, last_name").eq("status", "active").is("user_id", null);
-  if (dept) q = q.eq("department_id", dept);
-  const [{ data: emps }, { data: open }, { data: privs }] = await Promise.all([
-    q,
-    supabase.from("invites").select("employee_id").is("used_at", null).gt("expires_at", new Date().toISOString()),
-    supabase.from("employee_private").select("employee_id, email"),
-  ]);
-  const has = new Set((open ?? []).map((i) => i.employee_id));
-  const mail = new Map((privs ?? []).map((p) => [p.employee_id, p.email as string | null]));
-  const rows = (emps ?? [])
-    .filter((e) => !has.has(e.id))
-    .map((e) => ({ company_id: s.companyId, code: code(), role: "employee", employee_id: e.id, display_name: `${e.first_name} ${e.last_name}`, login_email: loginFor(e.card_no, mail.get(e.id) ?? null, e.id) }));
-  if (!rows.length) return { ok: true, message: "Yeni davet gereken personel yok." };
-  const { error } = await supabase.from("invites").insert(rows);
-  if (error) return { ok: false, message: error.message };
-  revalidatePath("/yonetim");
-  return { ok: true, message: `${rows.length} personel için davet kodu oluşturuldu. "Davet listesini yazdır" ile dağıtabilirsiniz.` };
 }
 
 export async function deleteInvite(f: FormData) {
@@ -94,48 +18,6 @@ export async function deleteInvite(f: FormData) {
   const supabase = await createClient();
   await must(supabase.from("invites").delete().eq("id", str(f, "id")));
   revalidatePath("/yonetim");
-}
-
-export async function updateMember(f: FormData) {
-  const s = await getSession();
-  if (s.role !== "owner") await fail("Rolleri sadece şirket sahibi değiştirebilir.");
-  const userId = str(f, "userId");
-  const role = str(f, "role");
-  if (!ROLES.includes(role)) return;
-  if (userId === s.userId && role !== "owner") await fail("Kendi sahiplik rolünüzü kaldıramazsınız.");
-  const supabase = await createClient();
-  const branches = f.getAll("branch_id").map(String);
-  const all = f.get("all_branches") === "on";
-  if (!all && !branches.length) await fail("Tüm şubeler seçili değilse en az bir şube seçin.");
-  const boss = f.get("is_boss") === "on" && ["owner", "accountant"].includes(role);
-  let { error: mErr } = await supabase.from("memberships").update({ role, all_branches: all, display_name: str(f, "display_name") || null, is_boss: boss }).eq("user_id", userId).eq("company_id", s.companyId);
-  if (mErr?.message.includes("is_boss")) ({ error: mErr } = await supabase.from("memberships").update({ role, all_branches: all, display_name: str(f, "display_name") || null }).eq("user_id", userId).eq("company_id", s.companyId));
-  if (mErr) await fail(mErr.message);
-  // Web sitesi yönetimi yetkisi (sütun yoksa sessizce atlanır: 20261123000000_single_sign_on.sql)
-  const site = f.get("site_access") === "on" && role !== "owner" && role !== "site_editor";
-  await supabase.from("memberships").update({ site_access: site }).eq("user_id", userId).eq("company_id", s.companyId);
-  const logi = f.get("logistics_access") === "on" && !["owner", "accountant", "hr", "branch_manager"].includes(role);
-  await supabase.from("memberships").update({ logistics_access: logi }).eq("user_id", userId).eq("company_id", s.companyId);
-  await must(supabase.from("membership_branches").delete().eq("user_id", userId).eq("company_id", s.companyId));
-  if (!all) await must(supabase.from("membership_branches").insert(branches.map((b) => ({ user_id: userId, company_id: s.companyId, branch_id: b }))));
-  // Şef: sorumlu olduğu bölümler (tablo yoksa atlanır)
-  const depts = role === "branch_manager" ? f.getAll("department_id").map(String) : [];
-  const { error: dErr } = await supabase.from("membership_departments").delete().eq("user_id", userId).eq("company_id", s.companyId);
-  if (!dErr && depts.length) await must(supabase.from("membership_departments").insert(depts.map((d) => ({ user_id: userId, company_id: s.companyId, department_id: d }))));
-  revalidatePath("/yonetim");
-  await done(dErr && role === "branch_manager" && depts.length ? "Kullanıcı güncellendi; bölüm sınırı için Supabase'de 20261102000000_chief_meal.sql çalıştırılmalı." : "Kullanıcı güncellendi.");
-}
-
-export async function removeMember(f: FormData) {
-  const s = await getSession();
-  if (s.role !== "owner") return;
-  const userId = str(f, "userId");
-  if (userId === s.userId) return;
-  const supabase = await createClient();
-  await must(supabase.from("employees").update({ user_id: null }).eq("user_id", userId).eq("company_id", s.companyId));
-  await must(supabase.from("memberships").delete().eq("user_id", userId).eq("company_id", s.companyId));
-  revalidatePath("/yonetim");
-  await done("Kullanıcının erişimi kaldırıldı.");
 }
 
 export async function saveBranch(_: R | null, f: FormData): Promise<R> {
