@@ -6,10 +6,11 @@ import { EnablePush } from "@/components/Pwa";
 import { MenuIcon } from "@/components/MobileNav";
 import { currentPeriod, formatDate, periodLabel } from "@/lib/session";
 import { me, MY_MENU, NotLinked } from "./_shared";
+import { Desktop } from "@/components/desktop/Desktop";
 import { acknowledgeOfficeCall } from "./ozluk/actions";
 
 export default async function MyPage() {
-  const { supabase, me: e } = await me();
+  const { s: s0, supabase, me: e } = await me();
   if (!e) return <NotLinked title="Benim sayfam" />;
   const period = currentPeriod();
   const year = period.slice(0, 4);
@@ -62,6 +63,7 @@ export default async function MyPage() {
           </div>
           <WebPunch inside={lastDir === "IN"} />
         </Card>
+        <Desktop selfOnly={!Object.values(s0.modules).some((v) => v > 0)} />
 
         <EnablePush />
 

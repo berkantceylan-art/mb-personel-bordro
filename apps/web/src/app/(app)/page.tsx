@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { FLOW_STAGE } from "@/lib/flow";
 import { DashGrid, type DashCard } from "./DashGrid";
+import { Desktop } from "@/components/desktop/Desktop";
 
 export const dynamic = "force-dynamic";
 
@@ -218,6 +219,7 @@ export default async function Home() {
         )}
       </section>
       {error && <p className="rounded-xl bg-warn-bg text-warn p-3 text-sm">Gösterge paneli verisi için Supabase&apos;de 20261214000000_dashboard.sql çalıştırılmalı. İK özetine <Link href="/ik-ozet" className="underline font-semibold">buradan</Link> ulaşabilirsiniz.</p>}
+      <Desktop />
       <DashGrid cards={cards} hidden={(pref?.hidden as string[] | undefined) ?? []} order={(pref?.card_order as string[] | undefined) ?? []} />
     </div>
   );
