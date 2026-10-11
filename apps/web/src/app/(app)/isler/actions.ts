@@ -181,17 +181,6 @@ export async function deleteJob(f: FormData) {
   redirect(`/isler?tamam=${encodeURIComponent("İş kaydı silindi.")}`);
 }
 
-export async function recordJobFile(input: { jobId: string; path: string; name: string }) {
-  const s = await getSession();
-  if (!s.logistics) return { ok: false, message: "Yetkiniz yok." };
-  if (!input.path.startsWith(`${input.jobId}/`)) return { ok: false, message: "Geçersiz yol." };
-  const supabase = await createClient();
-  const { error } = await supabase.from("job_files").insert({ job_id: input.jobId, path: input.path, name: input.name.slice(0, 200) });
-  if (error) return { ok: false, message: missing(error.message) };
-  revalidatePath(`/isler/${input.jobId}`);
-  return { ok: true, message: "Yüklendi." };
-}
-
 // ---------------------------------------------------------------------
 // Hekim / hastane (müşteri) kartları
 // ---------------------------------------------------------------------

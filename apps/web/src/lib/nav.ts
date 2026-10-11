@@ -138,6 +138,7 @@ export const NAV: Group[] = [
       { label: "Depo transferi", href: "/stok/transfer", module: "stock", desc: "İki aşamalı transfer: gönder, yolda, teslim al" },
       { label: "Stok sayımı", href: "/stok/sayim", module: "stock", desc: "Telefonla barkod okutarak sayım, kör sayım, fark işleme" },
       { label: "Stok hareketleri", href: "/stok/hareketler", module: "stock", desc: "Tüm giriş-çıkışlar, maliyet ve belge bağlantısı" },
+      { label: "Lot izlenebilirliği", href: "/stok/lotlar", module: ["stock", "production"], desc: "SKT radarı, karantina, geri çağırma; lot hangi işe, hangi hekime gitti" },
       { label: "Ürün reçeteleri", href: "/stok/receteler", module: ["stock", "production"], desc: "Protez başına malzeme ihtiyacı ve malzeme maliyeti" },
     ],
   },
