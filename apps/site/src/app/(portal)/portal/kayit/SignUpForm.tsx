@@ -9,7 +9,7 @@ import { useState } from "react";
 
 const COUNTRIES = ["TR", "FR", "BE", "CH", "DE", "NL", "GB", "IT", "ES", "AZ", "KZ", "DZ", "MA", "TN", "OTHER"];
 
-export function SignUpForm({ locale, invite = "" }: { locale: Locale; invite?: string }) {
+export function SignUpForm({ locale, invite = "", type }: { locale: Locale; invite?: string; type?: string }) {
   const tu = TEAM_UI[locale];
   const [code, setCode] = useState(invite);
   const ui = PORTAL_UI[locale].signup;
@@ -48,7 +48,7 @@ export function SignUpForm({ locale, invite = "" }: { locale: Locale; invite?: s
         <div className="grid gap-2 sm:grid-cols-2">
           {(Object.keys(types) as PortalAccountType[]).map((k, i) => (
             <label key={k} className="flex cursor-pointer items-center gap-3 rounded-xl border border-gypsum bg-white px-4 py-3 text-sm has-[:checked]:border-navy has-[:checked]:bg-porcelain">
-              <input type="radio" name="type" value={k} defaultChecked={locale === "tr" ? i === 0 : k === "doctor_foreign"} required={!code} />
+              <input type="radio" name="type" value={k} defaultChecked={type && type in types ? k === type : locale === "tr" ? i === 0 : k === "doctor_foreign"} required={!code} />
               <span className="font-semibold text-ink">{types[k]}</span>
             </label>
           ))}

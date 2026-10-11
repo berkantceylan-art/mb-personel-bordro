@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HELP_UI } from "@/lib/help-content";
 import { redirect } from "next/navigation";
 import { LOCALES, LOCALE_NAMES, isLocale, type Locale } from "@/lib/i18n";
 import { PORTAL_UI, portalContext, portalLocale } from "@/lib/portal";
@@ -9,8 +10,8 @@ export const metadata = {
   description: "Hekim, klinik ve aracı kuruluşlar için MB Dental portalı: çevrim içi vaka gönderme, dosya yükleme, aşama aşama takip ve fiyat listesi.",
 };
 
-export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ dil?: string; davet?: string }> }) {
-  const { dil, davet } = await searchParams;
+export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ dil?: string; davet?: string; tip?: string }> }) {
+  const { dil, davet, tip } = await searchParams;
   const ctx = await portalContext();
   if (ctx) redirect("/portal");
   const locale: Locale = isLocale(dil) ? dil : await portalLocale();
@@ -27,6 +28,9 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
           <p className="text-sm font-semibold uppercase tracking-wider text-smile">{ui.title}</p>
           <h1 className="display mt-3 text-4xl font-semibold leading-tight sm:text-5xl">{ui.signup.title}</h1>
           <p className="mt-4 text-lg text-white/75">{ui.signup.lead}</p>
+          <Link href={`/${locale}/yardim`} className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm font-semibold text-white hover:border-smile hover:text-smile">
+            ▶ {HELP_UI[locale].guideTitle} · {HELP_UI[locale].kicker} →
+          </Link>
         </div>
         <nav aria-label={ui.signup.language} className="flex gap-2 text-sm">
           {LOCALES.map((l) => (
@@ -44,7 +48,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
       </section>
       <section className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-xl">
-          <SignUpForm locale={locale} invite={(davet ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)} />
+          <SignUpForm locale={locale} type={tip} invite={(davet ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)} />
           <p className="mt-6 text-sm text-slate">
             {ui.signup.haveAccount}{" "}
             <Link href="/giris?sonra=/portal" className="font-semibold text-navy underline-offset-4 hover:underline">

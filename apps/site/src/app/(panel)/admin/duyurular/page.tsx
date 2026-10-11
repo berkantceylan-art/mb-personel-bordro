@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Duyurular" };
 
-const KIND: Record<Announcement["kind"], string> = { banner: "Üst bant", news: "Haber", popup: "Açılır pencere" };
+const KIND: Record<Announcement["kind"], string> = { banner: "Üst bant", news: "Haber", popup: "Açılır pencere", update: "Güncelleme duyurusu" };
 const AUD: Record<Announcement["audience"], string> = { public: "Herkes", portal: "Portal" };
 
 export default async function AnnouncementsPage({ searchParams }: { searchParams: Promise<{ durum?: string; ok?: string; hata?: string }> }) {

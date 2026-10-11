@@ -8,6 +8,9 @@ import { TEAM_UI } from "@/lib/portal-team-ui";
 import { joinPortalAccount, registerCurrentUser } from "@/lib/portal-team-actions";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { Popup } from "@/components/Popup";
+import { mediaUrl } from "@/lib/cms";
+import { t } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -29,9 +32,24 @@ export default async function PortalAppLayout({ children }: { children: React.Re
     const [a, b, c] = await Promise.all([
       supabase.from("portal_case_events").select("id, portal_cases!inner(account_id)", { count: "exact", head: true }).eq("portal_cases.account_id", acc.id).eq("from_lab", true).gt("created_at", seen),
       supabase.from("shipment_events").select("id, shipments!inner(portal_account_id)", { count: "exact", head: true }).eq("shipments.portal_account_id", acc.id).neq("source", "portal").not("status", "is", null).gt("created_at", seen),
-      supabase.from("cms_announcements").select("id", { count: "exact", head: true }).eq("audience", "portal").is("deleted_at", null).eq("is_active", true).gt("created_at", seen),
+      supabase.from("cms_announcements").select("id", { count: "exact", head: true }).or("audience.eq.portal,kind.eq.update").is("deleted_at", null).eq("is_active", true).gt("created_at", seen),
     ]);
     unread = (a.count ?? 0) + (b.count ?? 0) + (c.count ?? 0);
+  }
+
+  // Laboratuvar duyuruları: portal üst bandı, açılır pencere ve son 14 günün güncelleme duyurusu
+  type Ann = { id: string; kind: string; title: Record<string, string>; body: Record<string, string>; link_href: string | null; image_path: string | null; starts_at: string | null; ends_at: string | null; updated_at: string; created_at: string };
+  let banner: Ann | null = null;
+  let popup: Ann | null = null;
+  if (acc?.status === "active") {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_announcements").select("id, kind, title, body, link_href, image_path, starts_at, ends_at, updated_at, created_at")
+      .or("and(audience.eq.portal,kind.in.(banner,popup)),kind.eq.update").is("deleted_at", null).eq("is_active", true)
+      .order("priority", { ascending: false }).order("created_at", { ascending: false }).limit(20);
+    const now = Date.now();
+    const live = ((data ?? []) as Ann[]).filter((a) => t(a.title, locale) && (!a.starts_at || Date.parse(a.starts_at) <= now) && (!a.ends_at || Date.parse(a.ends_at) > now));
+    banner = live.find((a) => a.kind === "banner") ?? live.find((a) => a.kind === "update" && now - Date.parse(a.starts_at ?? a.created_at) < 14 * 86400000) ?? null;
+    popup = live.find((a) => a.kind === "popup") ?? null;
   }
 
   const signOutForm = (
@@ -76,6 +94,20 @@ export default async function PortalAppLayout({ children }: { children: React.Re
         </header>
       )}
       <div className="min-w-0 flex-1">
+      {banner && (
+        <div className={`print:hidden ${banner.kind === "update" ? "bg-smile text-navy" : "bg-navy text-white"}`}>
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm sm:px-6">
+            <span aria-hidden>{banner.kind === "update" ? "✨" : "📣"}</span>
+            <b>{t(banner.title, locale)}</b>
+            {t(banner.body, locale) && <span className="opacity-80">{t(banner.body, locale).slice(0, 160)}</span>}
+            <Link href={banner.link_href ?? (banner.kind === "update" ? `/${locale}/yardim#yenilikler` : "/portal/bildirimler")} className="ml-auto font-semibold underline-offset-4 hover:underline">{locale === "tr" ? "Ayrıntılar" : locale === "fr" ? "Détails" : "Details"} →</Link>
+          </div>
+        </div>
+      )}
+      {popup && (
+        <Popup id={`portal-${popup.id}`} version={popup.updated_at} title={t(popup.title, locale)} body={t(popup.body, locale)} image={mediaUrl(popup.image_path)}
+          link={popup.link_href ? { href: popup.link_href, label: locale === "tr" ? "Ayrıntılar" : locale === "fr" ? "Détails" : "Details" } : null} closeLabel={locale === "tr" ? "Kapat" : locale === "fr" ? "Fermer" : "Close"} />
+      )}
       <main className={`mx-auto max-w-6xl px-4 py-8 sm:px-6 ${acc?.status === "active" ? "" : "lg:pt-28"}`}>
         {!acc ? (
           <div className="rounded-3xl bg-white p-8">

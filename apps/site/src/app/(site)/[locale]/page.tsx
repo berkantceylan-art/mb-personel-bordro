@@ -6,6 +6,7 @@ import { CaseCard } from "@/components/CaseCard";
 import { Popup } from "@/components/Popup";
 import { CountUp } from "@/components/CountUp";
 import { Stories } from "@/components/Stories";
+import { AdCarousel, type AdSlide } from "@/components/AdCarousel";
 import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicCases, publicPages, publicProducts, publicSlides, publicDepartments } from "@/lib/cms";
 import { mediaKind } from "@/lib/media";
 import { businessJsonLd } from "@/lib/seo";
@@ -39,7 +40,7 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
   const [banners, news, slides, products, pages, featuredCases, popups, departments, igPosts, testimonials, posts] = await Promise.all([
     publicAnnouncements("banner"),
     publicAnnouncements("news"),
-    publicSlides("home"),
+    publicSlides("home", locale),
     publicProducts(),
     publicPages(),
     publicCases({ featured: true }),
@@ -49,6 +50,19 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
     publicTestimonials(),
     publicPosts(3),
   ]);
+  const ads: AdSlide[] = slides
+    .map((sl) => ({
+      id: sl.id,
+      builtin: sl.builtin ?? null,
+      img: mediaUrl(sl.image_path),
+      imgMobile: mediaUrl(sl.image_mobile_path),
+      video: mediaUrl(sl.video_path),
+      title: t(sl.title, locale),
+      sub: t(sl.subtitle, locale),
+      label: t(sl.button_label, locale),
+      href: sl.button_href,
+    }))
+    .filter((sl) => sl.builtin || sl.img || sl.video);
   const productNames = Object.fromEntries(products.map((p) => [p.slug, t(p.name, locale)]));
   const popup = popups[0];
   const techPages = pages.filter((p) => p.group === "teknoloji");
@@ -101,6 +115,9 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
           </section>
         )}
 
+        {/* Dönen reklamlar (ERP › Site içerikleri › Reklamlar; hazır portal reklamları dahil) */}
+        <AdCarousel slides={ads} locale={locale} />
+
         {/* Malzeme ve ürün şeridi */}
         <div className="marquee border-b border-gypsum bg-white py-4" aria-hidden="true">
           <div className="marquee-track">
@@ -131,42 +148,6 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
                 </div>
               ))}
             </dl>
-          </section>
-        )}
-
-        {/* Admin panelinden yönetilen slaytlar */}
-        {slides.length > 0 && (
-          <section aria-labelledby="slaytlar" className="border-b border-gypsum bg-white">
-            <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-              <h2 id="slaytlar" className="display text-3xl font-semibold text-navy">
-                {d.slides.title}
-              </h2>
-              <ul className="mt-8 flex snap-x gap-5 overflow-x-auto pb-2">
-                {slides.map((s) => {
-                  const img = mediaUrl(s.image_path);
-                  const title = t(s.title, locale);
-                  const sub = t(s.subtitle, locale);
-                  const label = t(s.button_label, locale);
-                  return (
-                    <li key={s.id} className="w-[min(85vw,420px)] shrink-0 snap-start">
-                      <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-gypsum">
-                        {img && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={img} alt={title} className="h-full w-full object-cover" loading="lazy" />
-                        )}
-                      </div>
-                      {title && <h3 className="display mt-4 text-xl font-semibold text-navy">{title}</h3>}
-                      {sub && <p className="mt-1 text-slate">{sub}</p>}
-                      {label && s.button_href && (
-                        <a href={s.button_href} className="mt-3 inline-block font-semibold text-smile-ink underline-offset-4 hover:underline">
-                          {label}
-                        </a>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
           </section>
         )}
 

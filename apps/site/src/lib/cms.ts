@@ -11,6 +11,10 @@ export type Slide = {
   image_path: string | null;
   image_mobile_path: string | null;
   video_path: string | null;
+  /** Kodla çizilen hazır reklam ("portal-promo" | "portal-tracking"); görsel gerekmez */
+  builtin?: string | null;
+  /** Gösterileceği diller (boş = hepsi) */
+  locales?: string[];
   sort: number;
   is_active: boolean;
   starts_at: string | null;
@@ -19,7 +23,21 @@ export type Slide = {
   updated_at: string;
 };
 
-export type AnnouncementKind = "banner" | "popup" | "news";
+export type HelpVideo = { id: string; title: I18nText; description: I18nText; target_types: string[]; video_path: string | null; video_url: string | null; poster_path: string | null; sort: number };
+
+/** Yardım sayfası videoları (SQL çalıştırılmadıysa boş) */
+export async function publicHelpVideos(): Promise<HelpVideo[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_help_videos").select("id, title, description, target_types, video_path, video_url, poster_path, sort").eq("is_active", true).is("deleted_at", null).order("sort").order("created_at");
+    return (data ?? []) as HelpVideo[];
+  } catch {
+    return [];
+  }
+}
+
+export type AnnouncementKind = "banner" | "popup" | "news" | "update";
 export type Audience = "public" | "portal";
 
 export type Announcement = {
@@ -52,14 +70,14 @@ export function mediaUrl(path: string | null | undefined): string | null {
 }
 
 /** Sitede yayında olan slaytlar (RLS zaten tarih/aktiflik filtreler; yine de sıralar) */
-export async function publicSlides(placement = "home"): Promise<Slide[]> {
+export async function publicSlides(placement = "home", locale?: string): Promise<Slide[]> {
   if (!hasSupabase()) return [];
   try {
     const supabase = await createClient();
     const { data } = await supabase.from("cms_slides").select("*").eq("placement", placement).is("deleted_at", null).eq("is_active", true).order("sort");
     const now = Date.now();
     return ((data ?? []) as Slide[]).filter(
-      (s) => (!s.starts_at || Date.parse(s.starts_at) <= now) && (!s.ends_at || Date.parse(s.ends_at) > now),
+      (s) => (!s.starts_at || Date.parse(s.starts_at) <= now) && (!s.ends_at || Date.parse(s.ends_at) > now) && (!locale || !s.locales?.length || s.locales.includes(locale)),
     );
   } catch {
     return [];
