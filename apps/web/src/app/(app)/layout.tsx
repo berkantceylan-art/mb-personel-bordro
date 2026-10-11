@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { ReminderPoller } from "@/components/ReminderPoller";
 import { redirect } from "next/navigation";
 import { FlashMessage } from "@/components/FlashMessage";
 import { MobileNav } from "@/components/MobileNav";
@@ -52,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <FlashMessage />
         <LiveUpdates userId={s.userId} />
         <InstallHint />
+        <ReminderPoller />
         {children}
       </main>
     </div>
