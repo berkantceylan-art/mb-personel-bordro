@@ -7,6 +7,7 @@ import { getSession } from "@/lib/session";
 import { JOB_STATUS, type Job, type JobItem, type JobStep } from "@/lib/jobs";
 import { JobEditor } from "../JobEditor";
 import { JobFiles } from "../JobFiles";
+import { JobProduction } from "../JobProduction";
 import { deleteJob, setJobStatus } from "../actions";
 import { editorOptions } from "../data";
 
@@ -89,6 +90,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             <p className="text-sm text-muted">Henüz resim yok.</p>
           )}
         </Card>
+        <JobProduction jobId={job.id} canEdit={s.logistics || (s.modules.production ?? 0) >= 2} />
         <JobEditor
           job={job}
           initialItems={(it ?? []) as JobItem[]}
