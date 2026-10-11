@@ -61,6 +61,10 @@ export async function Desktop({ selfOnly = false }: { selfOnly?: boolean }) {
     fin >= 2 ? supabase.from("svc_tickets").select("id", { count: "exact", head: true }).eq("status", "cost_approved") : Promise.resolve({ count: 0 }),
     supabase.rpc("stk_buy_lists_mine"),
   ]);
+  if ((s.modules.hr ?? 0) >= 1) {
+    const { count: wa } = await supabase.from("wa_threads").select("id", { count: "exact", head: true }).eq("status", "open");
+    if (wa) todos.push({ label: `💬 ${wa} WhatsApp mesajı yanıt bekliyor`, href: "/ik-whatsapp", tone: "red" });
+  }
   if (myJobs.count) todos.push({ label: `${myJobs.count} teknik servis işi sana atandı`, href: "/teknik-servis", tone: "red" });
   if (svcRep.count) todos.push({ label: `${svcRep.count} arıza bildirimi onay bekliyor`, href: "/servis?s=onay", tone: "amber" });
   if (svcCost.count) todos.push({ label: `${svcCost.count} servis ücreti onay bekliyor`, href: "/servis?s=ucret", tone: "amber" });
