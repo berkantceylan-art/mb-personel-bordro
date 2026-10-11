@@ -31,6 +31,11 @@ export async function Desktop({ selfOnly = false }: { selfOnly?: boolean }) {
   const dueToday = remList.filter((r) => r.remind_at <= endToday).length;
   if (dueToday) todos.push({ label: `${dueToday} hatırlatma bugün`, href: "#hatirlatma", tone: "blue" });
   if (unread.count) todos.push({ label: `${unread.count} okunmamış bildirim`, href: "/bildirimler", tone: "blue" });
+  // Yapay zekânın önemli bulduğu e-postalar (Posta modülü)
+  const { data: mails } = await supabase.from("mail_ai").select("account_id, thread_id, summary, urgency").eq("done", false).gte("urgency", 2).gte("created_at", new Date(Date.now() - 4 * 86400000).toISOString()).order("urgency", { ascending: false }).order("created_at", { ascending: false }).limit(4);
+  for (const m of (mails ?? []) as { account_id: string; thread_id: string; summary: string | null; urgency: number }[]) {
+    todos.push({ label: `📧 ${(m.summary ?? "Önemli e-posta").slice(0, 90)}`, href: `/posta?a=${m.account_id}&t=${m.thread_id}`, tone: m.urgency >= 3 ? "red" : "amber" });
+  }
   if (myEmp.data) {
     const { count } = await supabase.from("stk_requests").select("id", { count: "exact", head: true }).eq("employee_id", myEmp.data.id).eq("status", "delivered");
     if (count) todos.push({ label: `${count} malzeme teslimini imzala`, href: "/benim/malzeme", tone: "red" });

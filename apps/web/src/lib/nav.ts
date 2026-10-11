@@ -17,6 +17,7 @@ export const NAV: Group[] = [
       { label: "Bildirimler", href: "/bildirimler" },
       { label: "Duyurular", href: "/duyurular" },
       { label: "Mesajlar", href: "/mesajlar" },
+      { label: "Posta", href: "/posta", desc: "Gmail / Google Workspace hesaplarınız; e-postayı siparişe, CRM'e, hatırlatmaya aktarın" },
       { label: "Talepler", href: "/talepler", module: ["hr", "attendance", "payroll"], roles: [...new Set([...PAY, ...HR])] },
       { label: "Onaylar", href: "/onaylar", desc: "Onay akışında sizi bekleyen masraf ve satın alma talepleri" },
       { label: "Asistan", href: "/asistan", desc: "Doğal dille soru: İK, iş durumu, cari, nakit, stok, kalite" },
