@@ -1,4 +1,5 @@
 import Link from "next/link";
+import QRCode from "qrcode";
 import { notFound, redirect } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
 import { createClient } from "@/lib/supabase/server";
@@ -28,6 +29,7 @@ export default async function JobPrint({ params, searchParams }: { params: Promi
   const rows = (items ?? []) as { name: string; qty: number; unit_price: number; amount: number; kind: ItemKind }[];
   const st = (steps ?? []) as { kind: string; out_date: string | null; back_date: string | null; delivery_method: string | null; delivery_time: string | null; done: boolean }[];
   const cell = "border border-[#9AA7B4] px-2 py-1";
+  const qr = await QRCode.toString(`IS${job.no}`, { type: "svg", margin: 0, errorCorrectionLevel: "M" });
 
   return (
     <main className="bg-[#E9EEF4] min-h-screen print:bg-white text-[12px] text-black">
@@ -45,9 +47,14 @@ export default async function JobPrint({ params, searchParams }: { params: Promi
             <div className="text-[15px] font-bold">MB DENTAL</div>
             <div className="text-[10px]">İş emri</div>
           </div>
-          <div className="text-right">
-            <div className="text-[24px] font-black leading-none">#{job.no}</div>
-            {job.slip_no && <div className="text-[10px]">Fiş: {job.slip_no}</div>}
+          <div className="flex items-start gap-2">
+            <div className="text-right">
+              <div className="text-[24px] font-black leading-none">#{job.no}</div>
+              {job.slip_no && <div className="text-[10px]">Fiş: {job.slip_no}</div>}
+              <div className="text-[8px] mt-0.5">İstasyonda okutun</div>
+            </div>
+            {/* üretim istasyonlarında okutulur: IS + iş no */}
+            <div className="w-[18mm] h-[18mm] [&_svg]:w-full [&_svg]:h-full" dangerouslySetInnerHTML={{ __html: qr }} />
           </div>
         </header>
 
