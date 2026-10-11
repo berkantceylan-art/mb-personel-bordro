@@ -103,6 +103,10 @@ export async function saveCompanyInfo(f: FormData) {
     tax_office: str(f, "tax_office") || null,
     tax_no: str(f, "tax_no") || null,
     sgk_registration_no: str(f, "sgk_registration_no") || null,
+    lab_license_no: str(f, "lab_license_no") || null,
+    uts_firm_no: str(f, "uts_firm_no") || null,
+    mdr_person: str(f, "mdr_person") || null,
+    mdr_person_title: str(f, "mdr_person_title") || null,
   };
   if (!row.name) await fail("Şirket unvanı zorunlu.");
   const { error } = await supabase.from("companies").update(row).eq("id", s.companyId);
