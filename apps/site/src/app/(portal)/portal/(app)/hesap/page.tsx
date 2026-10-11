@@ -3,6 +3,7 @@ import { ACCT_UI, fmtMoney, type LJob, type LPay } from "@/lib/portal-account-ui
 import { formatDate, portalContext, portalLocale } from "@/lib/portal";
 import { PrintButton } from "@/components/portal/PrintButton";
 import { createClient } from "@/lib/supabase/server";
+import { RECON, reconDate, reconLang, reconMoney } from "@/lib/recon-text";
 
 export const metadata = { title: "Account" };
 
@@ -31,6 +32,10 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
     supabase.from("lab_payments").select("id, paid_on, amount, method, ref, book").eq("customer_id", cust.id).order("paid_on").limit(5000),
   ]);
   const jobs = (js ?? []) as LJob[];
+  // Yanıt bekleyen mutabakatlar (bu hekimin carisi)
+  const { data: rc } = await supabase.from("fin_reconciliations").select("id, token, as_of, balance, currency").eq("status", "sent").order("as_of", { ascending: false }).limit(5);
+  const recons = (rc ?? []) as { id: string; token: string; as_of: string; balance: number; currency: string }[];
+  const rl = reconLang(locale);
   const [{ data: stRows }, { data: wbRows }] = tab === "belgeler" ? await Promise.all([
     supabase.from("lab_statements").select("id, year, no, period_from, period_to, total, currency, job_count").eq("customer_id", cust.id).neq("status", "cancelled").order("period_to", { ascending: false }).limit(36),
     supabase.from("lab_waybills").select("id, year, no, ship_date, total, currency, job_count, delivered_at").eq("customer_id", cust.id).neq("status", "cancelled").order("ship_date", { ascending: false }).limit(60),
@@ -70,6 +75,13 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
           </form>
         )}
       </div>
+      {recons.map((r) => (
+        <Link key={r.id} href={`/${rl}/mutabakat/${r.token}`} className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-smile bg-white p-5 print:hidden">
+          <span><b className="text-navy">{RECON[rl].title}</b> · {reconDate(r.as_of, rl)}</span>
+          <span className="display num text-xl font-semibold text-navy">{reconMoney(Number(r.balance), r.currency, rl)}</span>
+          <span className="rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white">{RECON[rl].confirm} / {RECON[rl].dispute} →</span>
+        </Link>
+      ))}
       <section className="mt-6 grid gap-3 sm:grid-cols-3">
         {[[a.balance, bal || billed - paid], [a.billed, billed], [a.paid, paid]].map(([l, v], i) => (
           <div key={i} className="rounded-2xl bg-white p-5">
