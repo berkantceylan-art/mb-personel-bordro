@@ -32,8 +32,9 @@ export async function publishAnnouncement(_: R | null, f: FormData): Promise<R> 
   };
   const { data: ann, error } = await supabase
     .from("announcements")
-    .insert({ company_id: s.companyId, title, body, audience, department_ids: departmentIds, branch_ids: branchIds, pinned: f.get("pinned") === "on", push: f.get("push") === "on", expires_at: str(f, "expires_at") || null, ...extra })
+    .insert({ company_id: s.companyId, title, body, audience, department_ids: departmentIds, branch_ids: branchIds, pinned: f.get("pinned") === "on", push: f.get("push") === "on", expires_at: str(f, "expires_at") || null, ...extra, ...(f.get("speak") === "on" ? { speak: true } : {}) })
     .select("id").single();
+  if (error && error.message.includes("speak")) return { ok: false, message: "Sesli duyuru için Supabase'de 20270109000000_voice.sql çalıştırılmalı." };
   if (error) return { ok: false, message: error.message.includes("kind") || error.message.includes("require_ack") ? "Supabase'de 20261114000000_engagement.sql çalıştırılmalı." : error.message };
   if (kind === "poll" && ann) await supabase.from("poll_options").insert(options.map((label, i) => ({ announcement_id: ann.id, label, sort: i })));
   revalidatePath("/duyurular");

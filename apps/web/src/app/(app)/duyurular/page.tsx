@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, PageHeader } from "@/components/ui";
 import { AnnouncementForm, MarkRead } from "@/components/CommsForms";
+import { VoiceSettings } from "@/components/VoiceSettings";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { AnnCard, KIND_LABEL, type Ann } from "./AnnCard";
@@ -21,6 +22,7 @@ export default async function AnnouncementsPage({ searchParams }: { searchParams
     canPublish ? supabase.from("branches").select("id, name").order("name") : Promise.resolve({ data: [] }),
     supabase.rpc("company_directory"),
   ]);
+  const { data: voice } = ["owner", "hr"].includes(s.role) ? await supabase.from("company_voice").select("enabled, template, announce, rate").maybeSingle() : { data: null };
   const anns = ((list ?? []) as Ann[]).map((a) => ({ ...a, kind: a.kind ?? "info" }));
   const ctx = await loadContext(supabase, anns, s.userId, canPublish);
   const names = new Map(((dir ?? []) as Array<{ user_id: string; display_name: string }>).map((d) => [d.user_id, d.display_name]));
@@ -41,6 +43,12 @@ export default async function AnnouncementsPage({ searchParams }: { searchParams
           <details className="bg-white border border-line rounded-[14px] p-4 group" open={anns.length === 0}>
             <summary className="cursor-pointer list-none font-display font-semibold text-brand-800 flex justify-between">Yeni duyuru, etkinlik, anket veya soru-cevap <span className="text-brand-700 group-open:rotate-45 transition-transform text-xl leading-none">+</span></summary>
             <div className="mt-4"><AnnouncementForm departments={departments ?? []} branches={branches ?? []} /></div>
+          </details>
+        )}
+        {["owner", "hr"].includes(s.role) && (
+          <details className="bg-white border border-line rounded-[14px] p-4 group">
+            <summary className="cursor-pointer list-none font-display font-semibold text-brand-800 flex justify-between">🔊 Sesli karşılama ve sesli duyuru (şirket geneli) <span className="text-brand-700 group-open:rotate-45 transition-transform text-xl leading-none">+</span></summary>
+            <div className="mt-4"><VoiceSettings initial={(voice ?? { enabled: true, template: "{selam} {ad}, hoş geldin. Günün iyi geçmesini dilerim.", announce: true, rate: 1 }) as { enabled: boolean; template: string; announce: boolean; rate: number }} name={names.get(s.userId) ?? "Berkant"} company={s.companyName} /></div>
           </details>
         )}
         {anns.map((a) => <AnnCard key={a.id} a={a} c={{ ...ctx.get(a.id)!, author: names.get(a.created_by), audienceText: audienceLabel(a) }} />)}
