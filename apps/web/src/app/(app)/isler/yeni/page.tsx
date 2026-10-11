@@ -10,7 +10,7 @@ import { editorOptions } from "../data";
 export const dynamic = "force-dynamic";
 
 /** Yeni iş kaydı; ?gonderi= (kargodan) ya da ?vaka= (portal vakasından) bilgileri dolu açılır */
-export default async function NewJobPage({ searchParams }: { searchParams: Promise<{ gonderi?: string; vaka?: string; musteri?: string }> }) {
+export default async function NewJobPage({ searchParams }: { searchParams: Promise<{ gonderi?: string; vaka?: string; musteri?: string; siparis?: string }> }) {
   const s = await getSession();
   if (!s.logistics) redirect("/");
   const sp = await searchParams;
@@ -46,6 +46,30 @@ export default async function NewJobPage({ searchParams }: { searchParams: Promi
       const mat = /zirkon/i.test(pc.product_slug ?? "") ? "zirkon" : /porselen/i.test(pc.product_slug ?? "") ? "porselen" : /implant/i.test(pc.product_slug ?? "") ? "implant" : /inlay/i.test(pc.product_slug ?? "") ? "inlayonlay" : /iskelet/i.test(pc.product_slug ?? "") ? "iskelet" : null;
       if (mat && Array.isArray(pc.teeth)) prefill.teeth = Object.fromEntries((pc.teeth as number[]).map((t) => [String(t), mat]));
       source = source ? `${source} · portal vakası #${pc.no}` : `Portal vakası #${pc.no}`;
+    }
+  }
+  if (sp.siparis) {
+    const { data: o } = await supabase.from("lab_orders").select("id, year, no, customer_id, doctor_name, patient, shade, teeth, items, due_date, notes, status, pickup").eq("id", sp.siparis).maybeSingle();
+    if (o && o.status !== "job" && o.status !== "cancelled") {
+      prefill.order_id = o.id;
+      prefill.customer_id = prefill.customer_id ?? o.customer_id ?? undefined;
+      prefill.doctor = o.doctor_name ?? undefined;
+      prefill.patient = o.patient ?? undefined;
+      prefill.shade = o.shade ?? undefined;
+      prefill.due_date = o.due_date ?? undefined;
+      prefill.description = [o.teeth ? `Dişler: ${o.teeth}` : "", o.notes ?? ""].filter(Boolean).join("\n") || undefined;
+      // ürün adı listede varsa fiyatıyla gelir
+      const items = (o.items as { name: string; qty: number }[]) ?? [];
+      if (items.length) {
+        const cur = opts.customers.find((c) => c.id === o.customer_id);
+        prefill.items = items.map((it) => {
+          const p = opts.products.find((x) => x.name.toLocaleLowerCase("tr") === it.name.toLocaleLowerCase("tr"));
+          const special = p && cur?.prices?.[p.id];
+          const price = p ? (cur?.currency === "EUR" ? (special?.eur ?? p.price_eur) : (special?.try ?? p.price_try)) ?? 0 : 0;
+          return { product_id: p?.id ?? null, name: p?.name ?? it.name, qty: it.qty, unit_price: price, amount: price * it.qty, kind: "paid" as const };
+        });
+      }
+      source = `Sipariş SİP-${o.year}-${String(o.no).padStart(4, "0")}`;
     }
   }
   if (accountId && !prefill.customer_id) {

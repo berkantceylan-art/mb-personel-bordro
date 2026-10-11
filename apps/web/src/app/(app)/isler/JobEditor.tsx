@@ -23,7 +23,7 @@ import { saveJob, type JobPayload } from "./actions";
 
 export type CustomerOpt = { id: string; name: string; currency: string; discount_pct: number; doctors: string[]; prices?: Record<string, { try: number | null; eur: number | null }> };
 export type ProductOpt = { id: string; name: string; material: string | null; price_try: number | null; price_eur: number | null };
-export type Prefill = { doctor?: string; customer_id?: string; received?: string[]; shipment_id?: string; portal_case_id?: string; patient?: string; teeth?: Record<string, string>; shade?: string; description?: string; note?: string };
+export type Prefill = { doctor?: string; customer_id?: string; received?: string[]; shipment_id?: string; portal_case_id?: string; order_id?: string; due_date?: string; items?: JobItem[]; patient?: string; teeth?: Record<string, string>; shade?: string; description?: string; note?: string };
 
 const SHADES = ["A1", "A2", "A3", "A3.5", "A4", "B1", "B2", "B3", "B4", "C1", "C2", "C3", "C4", "D2", "D3", "D4", "BL1", "BL2", "BL3", "BL4", "OM1", "OM2", "OM3"];
 const box = "rounded-[14px] bg-white border border-line p-4 md:p-5";
@@ -70,11 +70,11 @@ export function JobEditor({
   const [teeth, setTeeth] = useState<Record<string, string>>(job?.teeth ?? prefill?.teeth ?? {});
   const [brush, setBrush] = useState<string>("zirkon");
   const [inDate, setInDate] = useState(job?.in_date ?? today());
-  const [dueDate, setDueDate] = useState(job?.due_date ?? "");
+  const [dueDate, setDueDate] = useState(job?.due_date ?? prefill?.due_date ?? "");
   const [delMethod, setDelMethod] = useState(job?.delivery_method ?? "");
   const [delTime, setDelTime] = useState(job?.delivery_time ?? "");
   const [status, setStatus] = useState<string>(job?.status ?? "open");
-  const [items, setItems] = useState<JobItem[]>(initialItems);
+  const [items, setItems] = useState<JobItem[]>(initialItems.length || !prefill?.items?.length ? initialItems : prefill.items);
   const [steps, setSteps] = useState<JobStep[]>(initialSteps);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -189,6 +189,7 @@ export function JobEditor({
       steps: steps.map((x) => ({ kind: x.kind, out_date: x.out_date ?? "", back_date: x.back_date ?? "", delivery_method: x.delivery_method ?? "", delivery_time: x.delivery_time ?? "", done: x.done, note: x.note ?? "" })),
       shipment_id: job ? null : prefill?.shipment_id ?? null,
       portal_case_id: job ? null : prefill?.portal_case_id ?? null,
+      order_id: job ? null : prefill?.order_id ?? null,
     };
     const r = await saveJob(payload);
     setBusy(false);
