@@ -13,7 +13,7 @@ export { NAV, activeHref, visibleNav };
 /** Grubun ana sayfası: modül sayfası; Genel ve Benim sayfam için ilk sayfa */
 export const hubHref = (g: Group) => (g.slug === "genel" || g.slug === "benim" ? g.items[0]?.href ?? "/" : `/modul/${g.slug}`);
 const short = (g: Group) =>
-  ({ genel: "Genel", benim: "Benim", "insan-kaynaklari": "İK", "puantaj-izin": "Puantaj", "muhasebe-bordro": "Bordro", cari: "Cari", laboratuvar: "Lab", lojistik: "Kargo", demirbas: "Demirbaş", "isg-uyum": "İSG", raporlar: "Rapor", "web-sitesi": "Site", sistem: "Sistem" })[g.slug] ?? g.group;
+  ({ genel: "Genel", benim: "Benim", "insan-kaynaklari": "İK", "puantaj-izin": "Puantaj", "muhasebe-bordro": "Bordro", cari: "Cari", laboratuvar: "Lab", lojistik: "Kargo", finans: "Finans", stok: "Stok", "alis-satis": "Alış-satış", uretim: "Üretim", masraf: "Masraf", demirbas: "Demirbaş", "isg-uyum": "İSG", raporlar: "Rapor", "web-sitesi": "Site", sistem: "Sistem" })[g.slug] ?? g.group;
 
 /** Ctrl+K kısayolu ve arama penceresi (masaüstü ve mobil menü ortak) */
 export function useCommandK() {
@@ -36,9 +36,9 @@ export function useCommandK() {
  * İkona basınca modül sayfası açılır; üzerine gelince panel o modülü önizler.
  * Ctrl+K hızlı arama, yıldızla sık kullanılanlar, son açılanlar, daraltılabilir panel.
  */
-export function Sidebar({ companyName, role, siteAccess = false, logistics = false, badges = {} }: { companyName: string; role: string; siteAccess?: boolean; logistics?: boolean; badges?: Record<string, number> }) {
+export function Sidebar({ companyName, role, siteAccess = false, logistics = false, modules = {}, badges = {} }: { companyName: string; role: string; siteAccess?: boolean; logistics?: boolean; modules?: Record<string, number>; badges?: Record<string, number> }) {
   const path = usePathname();
-  const groups = useMemo(() => visibleNav(role, siteAccess, logistics), [role, siteAccess, logistics]);
+  const groups = useMemo(() => visibleNav(role, siteAccess, logistics, modules), [role, siteAccess, logistics, modules]);
   const current = activeHref(path);
   const prefs = useNavPrefs();
   const [paletteOpen, setPaletteOpen] = useCommandK();

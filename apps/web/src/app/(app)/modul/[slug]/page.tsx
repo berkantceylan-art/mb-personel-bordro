@@ -51,7 +51,7 @@ function Tile({ item, primary }: { item: Item; primary?: boolean }) {
 export default async function ModulePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const s = await getSession();
-  const groups = visibleNav(s.role, s.siteAccess, s.logistics);
+  const groups = visibleNav(s.role, s.siteAccess, s.logistics, s.modules);
   const g = groups.find((x) => x.slug === slug);
   if (!g) notFound();
   const related = (RELATED[slug] ?? []).map((r) => groups.find((x) => x.slug === r)).filter((x): x is NonNullable<typeof x> => !!x);

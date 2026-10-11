@@ -16,6 +16,22 @@ export interface Session {
   siteAccess: boolean;
   /** Kargo / gümrük / kurye modülü: sahip, muhasebe, İK, şef ya da memberships.logistics_access */
   logistics: boolean;
+  /** Modül yetki seviyeleri: 0 yok, 1 görüntüle, 2 düzenle, 3 yönet (finance, sales, purchases, stock, production, assets, expenses, users) */
+  modules: Record<string, number>;
+}
+
+export const MODULES = ["finance", "sales", "purchases", "stock", "production", "assets", "expenses", "users"] as const;
+export type ModuleKey = (typeof MODULES)[number];
+
+/** Veritabanındaki module_default_level ile aynı kural (fonksiyon henüz yoksa kullanılır) */
+export function defaultModuleLevel(role: string, logistics: boolean, m: string): number {
+  let lvl = 0;
+  if (role === "owner") lvl = 3;
+  else if (role === "accountant") lvl = ["finance", "sales", "purchases", "expenses", "assets"].includes(m) ? 3 : m === "stock" ? 2 : m === "production" ? 1 : 0;
+  else if (role === "branch_manager") lvl = ["stock", "production"].includes(m) ? 2 : ["sales", "purchases", "expenses", "assets"].includes(m) ? 1 : 0;
+  else if (role === "hr") lvl = ["assets", "expenses"].includes(m) ? 1 : 0;
+  if (logistics && ["stock", "production"].includes(m)) lvl = Math.max(lvl, 2);
+  return lvl;
 }
 
 /** Oturumdaki kullanıcı ve şirketi. Şirketi yoksa kurulum sayfasına gönderir. */
@@ -44,6 +60,10 @@ export const getSession = cache(async (): Promise<Session> => {
   const flags = await supabase.from("memberships").select("site_access, logistics_access").eq("user_id", user.id).eq("company_id", m.company_id).maybeSingle();
   const sa = (flags.error ? (await supabase.from("memberships").select("site_access").eq("user_id", user.id).eq("company_id", m.company_id).maybeSingle()).data : flags.data) as { site_access?: boolean; logistics_access?: boolean } | null;
   const company = m.companies as unknown as { name: string } | null;
+  const logistics = ["owner", "accountant", "hr", "branch_manager"].includes(m.role as string) || sa?.logistics_access === true;
+  const { data: lv, error: lvErr } = await supabase.rpc("my_module_levels");
+  const modules: Record<string, number> = {};
+  for (const k of MODULES) modules[k] = !lvErr && lv && typeof (lv as Record<string, number>)[k] === "number" ? (lv as Record<string, number>)[k]! : defaultModuleLevel(m.role as string, sa?.logistics_access === true, k);
   return {
     userId: user.id,
     email: user.email,
@@ -52,7 +72,8 @@ export const getSession = cache(async (): Promise<Session> => {
     role: m.role as Role,
     boss: m.is_boss === true,
     siteAccess: m.role === "owner" || m.role === "site_editor" || sa?.site_access === true,
-    logistics: ["owner", "accountant", "hr", "branch_manager"].includes(m.role as string) || sa?.logistics_access === true,
+    logistics,
+    modules,
   };
 });
 

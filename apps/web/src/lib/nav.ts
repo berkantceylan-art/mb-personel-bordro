@@ -1,5 +1,5 @@
 /** site: yalnız web sitesi yönetim yetkisi olana; raw: Next bağlantısı değil, düz adres (sunucu yönlendirmesi) */
-export type Item = { label: string; href: string; desc?: string; roles?: string[]; site?: boolean; logistics?: boolean; raw?: boolean };
+export type Item = { label: string; href: string; desc?: string; roles?: string[]; site?: boolean; logistics?: boolean; raw?: boolean; module?: string | string[]; level?: number };
 const MANAGERS = ["owner", "accountant", "hr", "branch_manager", "safety"];
 const PAY = ["owner", "accountant"];
 const HR = ["owner", "hr", "branch_manager"];
@@ -85,9 +85,22 @@ export const NAV: Group[] = [
     ],
   },
   {
+    group: "Finans", slug: "finans",
+    items: [
+      { label: "Finans özeti", href: "/finans", module: "finance", desc: "Kasa, banka, alacak ve borçların anlık durumu" },
+      { label: "Kasa", href: "/finans/kasa", module: "finance", desc: "Nakit kasalar ve hareketleri" },
+      { label: "Banka", href: "/finans/banka", module: "finance", desc: "Banka hesapları (TL / döviz) ve hareketleri" },
+      { label: "İşlem gir", href: "/finans/islem", module: "finance", level: 2, desc: "Tahsilat, ödeme, virman, gelir, masraf" },
+      { label: "İşlem defteri", href: "/finans/islemler", module: "finance", desc: "Tüm finans kayıtları, iptal" },
+      { label: "Döviz kurları", href: "/finans/kurlar", module: "finance", desc: "TCMB kurları, elle kur girişi" },
+      { label: "Gelir / gider hesapları", href: "/finans/kategoriler", module: "finance", desc: "Kategoriler ve dönem özeti" },
+    ],
+  },
+  {
     group: "Cari", slug: "cari",
     items: [
-      { label: "Cari hesaplar", href: "/isler/cari", logistics: true, desc: "Hekim bakiyeleri, tahsilat ve ekstre" },
+      { label: "Cari kartlar (tedarikçi / müşteri)", href: "/finans/cariler", module: ["finance", "sales", "purchases"], desc: "Tüm cariler, para birimi, açılış bakiyesi, ekstre" },
+      { label: "Hekim cari hesapları", href: "/isler/cari", logistics: true, desc: "Hekim bakiyeleri, tahsilat ve ekstre" },
       { label: "Hekim / hastane kartları", href: "/isler/hekimler", logistics: true },
     ],
   },
@@ -141,13 +154,18 @@ export function activeHref(path: string): string | null {
 }
 
 /** Kullanıcının yetkili olduğu modüller: rol + web sitesi erişimi */
-export function visibleNav(role: string, siteAccess = false, logistics = false) {
-  return NAV.map((g) => ({ ...g, items: g.items.filter((i) => (i.site ? siteAccess : i.logistics ? logistics : !i.roles || i.roles.includes(role))) })).filter((g) => g.items.length);
+export function visibleNav(role: string, siteAccess = false, logistics = false, modules: Record<string, number> = {}) {
+  const ok = (i: Item) => {
+    if (i.module) return (Array.isArray(i.module) ? i.module : [i.module]).some((m) => (modules[m] ?? 0) >= (i.level ?? 1));
+    return i.site ? siteAccess : i.logistics ? logistics : !i.roles || i.roles.includes(role);
+  };
+  return NAV.map((g) => ({ ...g, items: g.items.filter(ok) })).filter((g) => g.items.length);
 }
 
 
 /** Modül ana sayfasında ek olarak gösterilecek ilgili modüllerin bağlantıları */
 export const RELATED: Record<string, string[]> = {
+  finans: ["cari"],
   laboratuvar: ["cari", "lojistik"],
   cari: ["laboratuvar"],
   lojistik: ["laboratuvar"],
