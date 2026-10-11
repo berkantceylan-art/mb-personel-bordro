@@ -34,7 +34,11 @@ export default async function CreditBook({ searchParams }: { searchParams: Promi
   const { data: ps } = await q;
   const parties = (ps ?? []) as P[];
   const ids = parties.map((p) => p.id);
-  const labIds = parties.map((p) => p.lab_customer_id).filter(Boolean) as string[];
+  const labAll = parties.map((p) => p.lab_customer_id).filter(Boolean) as string[];
+  // İç hesap kullanan müşteride resmi bakiyeye işler girmez
+  const { data: ibs } = labAll.length ? await supabase.from("lab_customers").select("id").in("id", labAll).eq("internal_book", true) : { data: [] };
+  const ibSet = new Set((ibs ?? []).map((x) => x.id as string));
+  const labIds = labAll.filter((x) => !ibSet.has(x));
   const [{ data: moves }, { data: jobs }, { data: pays }, { data: allParties }] = await Promise.all([
     ids.length ? supabase.from("fin_moves").select("party_id, amount, move_date, fin_txns!inner(voided_at)").in("party_id", ids).is("fin_txns.voided_at", null).limit(20000) : Promise.resolve({ data: [] }),
     labIds.length ? supabase.from("jobs").select("customer_id, in_date, total, delivered_at").in("customer_id", labIds).eq("status", "delivered").limit(20000) : Promise.resolve({ data: [] }),
@@ -46,7 +50,7 @@ export default async function CreditBook({ searchParams }: { searchParams: Promi
     const ob = Number(p.opening_balance);
     if (ob) lines.push({ date: p.opening_date ?? "2000-01-01", debit: ob > 0 ? ob : 0, credit: ob < 0 ? -ob : 0 });
     for (const m of (moves ?? []) as { party_id: string; amount: number; move_date: string }[]) if (m.party_id === p.id) lines.push({ date: m.move_date, debit: m.amount > 0 ? Number(m.amount) : 0, credit: m.amount < 0 ? -Number(m.amount) : 0 });
-    if (p.lab_customer_id) {
+    if (p.lab_customer_id && !ibSet.has(p.lab_customer_id)) {
       for (const j of (jobs ?? []) as { customer_id: string; in_date: string; total: number; delivered_at: string | null }[]) if (j.customer_id === p.lab_customer_id) lines.push({ date: jobBillDate(j), debit: Number(j.total), credit: 0 });
       for (const x of (pays ?? []) as { customer_id: string; paid_on: string; amount: number }[]) if (x.customer_id === p.lab_customer_id) lines.push({ date: x.paid_on, debit: 0, credit: Number(x.amount) });
     }

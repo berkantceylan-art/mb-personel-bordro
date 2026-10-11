@@ -6,8 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { JOB_STATUS, money, type Customer, type JobStatus } from "@/lib/jobs";
 import { CustomerForm } from "../CustomerForm";
-import { deleteCustomer, deleteCustomerPrice, deleteDoctor, deletePayment, saveCustomerPrice, savePayment } from "../../actions";
-import { PAY_METHOD, buildLedger, type LedgerPayment } from "@/lib/ledger";
+import { deleteCustomer, deleteCustomerPrice, deleteDoctor, deletePayment, saveCustomerPrice } from "../../actions";
+import { addLabPayment, saveCustomerBook } from "@/lib/waybill-actions";
+import { LANGS } from "@/lib/waybill";
+import { BOOK_LABEL, PAY_METHOD, buildLedger, internalPays, type LedgerPayment } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -19,16 +21,22 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const supabase = await createClient();
   const { data } = await supabase.from("lab_customers").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
-  const c = data as Customer;
+  const c = data as Customer & { internal_book?: boolean; pay_book?: string; doc_lang?: string; internal_opening?: number; internal_opening_date?: string | null };
+  const ib = c.internal_book === true;
   const [{ data: docs }, { data: jobs }, { data: accs }, { data: links }, { data: pays }, { data: prods }, { data: specials }] = await Promise.all([
     supabase.from("lab_customer_doctors").select("id, name").eq("customer_id", id).order("name"),
     supabase.from("jobs").select("id, no, patient, in_date, due_date, status, total, currency, delivered_at").eq("customer_id", id).order("no", { ascending: false }).limit(5000),
     supabase.from("portal_accounts").select("id, name, company").eq("status", "active").order("name"),
     supabase.from("lab_customers").select("portal_account_id").not("portal_account_id", "is", null),
-    supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note").eq("customer_id", id).order("paid_on"),
+    supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note, book").eq("customer_id", id).order("paid_on"),
     supabase.from("lab_products").select("id, name, price_try, price_eur").eq("is_active", true).order("sort").order("name"),
     supabase.from("lab_customer_prices").select("product_id, price_try, price_eur").eq("customer_id", id),
   ]);
+  const [{ data: accRows }, { data: offi }] = await Promise.all([
+    supabase.from("fin_accounts").select("id, name, currency, kind").in("kind", ["cash", "bank", "pos"]).eq("is_active", true).order("name"),
+    supabase.from("fin_party_balances").select("party_id, balance").eq("lab_customer_id", id).maybeSingle(),
+  ]);
+  const finAccounts = (accRows ?? []) as { id: string; name: string; currency: string; kind: string }[];
   const prodName = new Map((prods ?? []).map((p) => [p.id as string, p as { id: string; name: string; price_try: number | null; price_eur: number | null }]));
   const linked = new Set((links ?? []).map((l) => l.portal_account_id as string));
   const list = (jobs ?? []) as { id: string; no: number; patient: string | null; in_date: string; due_date: string | null; status: JobStatus; total: number; currency: string; delivered_at: string | null }[];
@@ -36,7 +44,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const month = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 7);
   const sumMonth = billable.filter((j) => j.in_date.startsWith(month)).reduce((a, j) => a + j.total, 0);
   const sumAll = billable.reduce((a, j) => a + j.total, 0);
-  const ledger = buildLedger(list.map((j) => ({ ...j, patient: j.patient })), (pays ?? []) as LedgerPayment[]);
+  const ledger = buildLedger(list.map((j) => ({ ...j, patient: j.patient })), internalPays((pays ?? []) as LedgerPayment[], ib), null, null, ib ? { amount: Number(c.internal_opening ?? 0), date: c.internal_opening_date ?? null } : null);
   const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
 
   return (
@@ -47,7 +55,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
           <Stat label="Açık iş" value={String(list.filter((j) => ["open", "tryin", "ready"].includes(j.status)).length)} />
           <Stat label="Bu ay iş tutarı" value={money(sumMonth, c.currency)} />
           <Stat label="Toplam iş tutarı" value={money(sumAll, c.currency)} sub={`${billable.length} iş`} />
-          <Stat label="Bakiye (borç)" value={money(ledger.balance, c.currency)} sub={`${money(ledger.credit, c.currency)} tahsil edildi`} />
+          <Stat label={ib ? "İç cari bakiyesi" : "Bakiye (borç)"} value={money(ledger.balance, c.currency)} sub={ib ? <>Resmi cari: <b>{money(Number(offi?.balance ?? 0), c.currency)}</b>{offi?.party_id && <> · <Link href={`/finans/cariler/${offi.party_id}`} className="text-brand-700">ekstre</Link></>}</> : `${money(ledger.credit, c.currency)} tahsil edildi`} />
         </section>
         <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
           <Card title="Bilgiler">
@@ -65,15 +73,49 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             </ul>
           </Card>
         </div>
-        <Card title="Cari hesap" action={<Link href={`/yazdir/ekstre/${c.id}`} className="text-sm font-semibold text-brand-700">Ekstre yazdır</Link>}>
-          <form action={savePayment} className="grid gap-2 md:grid-cols-6 items-end rounded-xl bg-[#F3F6F9] p-3">
+        <Card title="İrsaliye, fatura ve cari ayarları">
+          <form action={saveCustomerBook} className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 items-end">
+            <input type="hidden" name="customer_id" value={c.id} />
+            <label className="lg:col-span-4 flex items-start gap-3 text-sm"><input type="checkbox" name="internal_book" defaultChecked={ib} className="mt-1 w-5 h-5" />
+              <span><b>İç hesap kullanır (günlük irsaliye + ay sonu fatura)</b><span className="block text-muted">Kutu çıkışında iş o günün irsaliyesine eklenir ve iç cariye işlenir. Ay sonunda irsaliyeler tek faturada toplanır. Resmi cariye yalnız resmi fatura (e-fatura / e-ihracat) ve resmi tahsilat girer; gelen ödemeyi iki hesaba birden işleyebilirsiniz.</span></span>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Tahsilat varsayılanı
+              <select name="pay_book" defaultValue={c.pay_book ?? "both"} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white">{Object.entries(BOOK_LABEL).map(([k, v]) => <option key={k} value={k}>{k === "both" ? "Resmi + iç (ikisine)" : `Yalnız ${v.toLocaleLowerCase("tr")}`}</option>)}</select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">İrsaliye / fatura dili
+              <select name="doc_lang" defaultValue={c.doc_lang ?? "tr"} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white">{Object.entries(LANGS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">İç cari açılış bakiyesi ({c.currency})
+              <span className="flex gap-1"><input name="internal_opening" inputMode="decimal" defaultValue={c.internal_opening ? (Math.abs(Number(c.internal_opening)) / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2 }) : ""} placeholder="0,00" className="h-10 min-w-0 flex-1 rounded-lg border border-[#D5DEE8] px-2 bg-white num" />
+                <select name="opening_side" defaultValue={Number(c.internal_opening ?? 0) < 0 ? "credit" : "debit"} className="h-10 rounded-lg border border-[#D5DEE8] px-1 bg-white"><option value="debit">borçlu</option><option value="credit">alacaklı</option></select></span>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Açılış tarihi<input type="date" name="internal_opening_date" defaultValue={c.internal_opening_date ?? ""} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white" /></label>
+            <div className="lg:col-span-4"><button className="h-10 px-5 rounded-lg bg-brand-700 text-white font-semibold">Kaydet</button>{ib && <span className="ml-3 text-xs text-muted">Resmi cari açılış bakiyesi Finans › Cari kartlar’dan girilir.</span>}</div>
+          </form>
+        </Card>
+        <Card title={ib ? "İç cari hesap" : "Cari hesap"} action={<span className="flex gap-4 text-sm font-semibold">{ib && <Link href="/isler/irsaliye" className="text-brand-700">İrsaliyeler</Link>}<Link href={`/yazdir/ekstre/${c.id}`} className="text-brand-700">Ekstre yazdır</Link></span>}>
+          <form action={addLabPayment} className="grid gap-2 md:grid-cols-4 lg:grid-cols-8 items-end rounded-xl bg-[#F3F6F9] p-3">
             <input type="hidden" name="customer_id" value={c.id} />
             <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Tarih<input type="date" name="paid_on" defaultValue={today} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white" /></label>
             <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Tutar ({c.currency})<input name="amount" inputMode="decimal" required placeholder="0,00" className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white num" /></label>
+            {ib && (
+              <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Hangi hesaba
+                <select name="book" defaultValue={c.pay_book ?? "both"} className="h-10 rounded-lg border border-brand-600 px-2 bg-white font-semibold text-ink">
+                  <option value="both">Resmi + iç (ikisine)</option><option value="official">Yalnız resmi</option><option value="internal">Yalnız iç</option>
+                </select>
+              </label>
+            )}
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Kasa / banka
+              <select name="account_id" defaultValue="" className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white">
+                <option value="">{ib ? "Seçin (iç tahsilatta boş olabilir)" : "Kasaya işleme"}</option>
+                {finAccounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
+              </select>
+            </label>
             <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Yöntem<select name="method" defaultValue="bank" className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white">{Object.entries(PAY_METHOD).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
             <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Belge / dekont no<input name="ref" className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white" /></label>
             <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Not<input name="note" className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white" /></label>
             <button className="h-10 rounded-lg bg-ok text-white font-semibold">Tahsilat ekle</button>
+            {finAccounts.length > 0 && <p className="md:col-span-4 lg:col-span-8 text-[11px] text-muted">Kasa / banka seçerseniz finansa da işlenir. Hesabın para birimi farklıysa hesaba giren tutar güncel kurla hesaplanır.{ib ? " Resmi hesaba giden tahsilatta kasa / banka seçmek zorunludur." : ""}</p>}
           </form>
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[640px]">

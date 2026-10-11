@@ -96,10 +96,13 @@ export async function accountLedger(account: Account, from?: string | null, to?:
 /** Cari ekstre: borç (+) bize borçlandı, alacak (−); hekim kartına bağlıysa işler ve eski tahsilatlar da */
 export async function partyLedger(party: Party, from?: string | null, to?: string | null) {
   const supabase = await createClient();
+  // İç hesap kullanan müşteride resmi ekstreye işler ve iç tahsilatlar girmez (iç cari ayrı)
+  const { data: lc } = party.lab_customer_id ? await supabase.from("lab_customers").select("internal_book").eq("id", party.lab_customer_id).maybeSingle() : { data: null };
+  const labId = (lc as { internal_book?: boolean } | null)?.internal_book ? null : party.lab_customer_id;
   const [{ data: moves }, jobsRes, paysRes] = await Promise.all([
     supabase.from("fin_moves").select("id, amount, move_date, description, fin_txns(id, no, kind, description, doc_no, voided_at, ref_type, ref_id)").eq("party_id", party.id).order("move_date").limit(5000),
-    party.lab_customer_id ? supabase.from("jobs").select("id, no, in_date, patient, total, status, delivered_at").eq("customer_id", party.lab_customer_id).eq("status", "delivered").limit(5000) : Promise.resolve({ data: [] as { id: string; no: number; in_date: string; patient: string | null; total: number; status: string; delivered_at: string | null }[] }),
-    party.lab_customer_id ? supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note").eq("customer_id", party.lab_customer_id).is("fin_txn_id", null).limit(5000) : Promise.resolve({ data: [] as { id: string; paid_on: string; amount: number; method: string; ref: string | null; note: string | null }[] }),
+    labId ? supabase.from("jobs").select("id, no, in_date, patient, total, status, delivered_at").eq("customer_id", labId).eq("status", "delivered").limit(5000) : Promise.resolve({ data: [] as { id: string; no: number; in_date: string; patient: string | null; total: number; status: string; delivered_at: string | null }[] }),
+    labId ? supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note").eq("customer_id", labId).is("fin_txn_id", null).limit(5000) : Promise.resolve({ data: [] as { id: string; paid_on: string; amount: number; method: string; ref: string | null; note: string | null }[] }),
   ]);
   const lines: Omit<LedgerLine, "balance">[] = [
     ...((moves ?? []) as unknown as MoveRow[])

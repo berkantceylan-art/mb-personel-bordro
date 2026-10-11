@@ -4,7 +4,7 @@ import { PrintButton } from "@/components/PrintButton";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { money } from "@/lib/jobs";
-import { buildLedger, type LedgerJob, type LedgerPayment } from "@/lib/ledger";
+import { buildLedger, internalPays, type LedgerJob, type LedgerPayment } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +17,15 @@ export default async function StatementPrint({ params, searchParams }: { params:
   const from = /^\d{4}-\d{2}-\d{2}$/.test(sp.bas ?? "") ? sp.bas! : null;
   const to = /^\d{4}-\d{2}-\d{2}$/.test(sp.bit ?? "") ? sp.bit! : null;
   const supabase = await createClient();
-  const { data: c } = await supabase.from("lab_customers").select("id, name, currency, address, city, country, tax_office, tax_no, phone").eq("id", id).maybeSingle();
+  const { data: c } = await supabase.from("lab_customers").select("id, name, currency, address, city, country, tax_office, tax_no, phone, internal_book, internal_opening, internal_opening_date").eq("id", id).maybeSingle();
   if (!c) notFound();
   const [{ data: jobs }, { data: pays }, { data: banks }] = await Promise.all([
     supabase.from("jobs").select("id, no, in_date, patient, total, status, delivered_at").eq("customer_id", id).limit(20000),
-    supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note").eq("customer_id", id).limit(20000),
+    supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note, book").eq("customer_id", id).limit(20000),
     supabase.from("lab_options").select("value").eq("kind", "bank").order("sort"),
   ]);
-  const led = buildLedger((jobs ?? []) as LedgerJob[], (pays ?? []) as LedgerPayment[], from, to);
+  const ib = (c as { internal_book?: boolean }).internal_book === true;
+  const led = buildLedger((jobs ?? []) as LedgerJob[], internalPays((pays ?? []) as LedgerPayment[], ib), from, to, ib ? { amount: Number((c as { internal_opening?: number }).internal_opening ?? 0), date: (c as { internal_opening_date?: string | null }).internal_opening_date ?? null } : null);
   const cell = "border border-[#9AA7B4] px-2 py-1";
 
   return (
