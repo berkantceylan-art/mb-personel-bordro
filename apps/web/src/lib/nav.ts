@@ -146,7 +146,7 @@ export const NAV: Group[] = [
       { label: "Depolar", href: "/stok/depolar", module: "stock", desc: "Ana depo, üretim, karantina; depo bazında stok" },
       { label: "Depo transferi", href: "/stok/transfer", module: "stock", desc: "İki aşamalı transfer: gönder, yolda, teslim al" },
       { label: "Stok sayımı", href: "/stok/sayim", module: "stock", desc: "Telefonla barkod okutarak sayım, kör sayım, fark işleme" },
-      { label: "İstekler (malzeme / demirbaş / sipariş)", href: "/stok/talepler", module: ["stock", "purchases"], desc: "Malzeme, demirbaş ve dış sipariş istekleri: depodan teslim, satın almaya gönder, çift imzalı teslim tutanağı" }, { label: "Alım listeleri", href: "/stok/talepler/alim", module: ["purchases", "stock"], desc: "Onaylı satın almalardan tedarikçiye göre liste, kuryeye ata" }, { label: "Stok hareketleri", href: "/stok/hareketler", module: "stock", desc: "Tüm giriş-çıkışlar, maliyet ve belge bağlantısı" },
+      { label: "İstekler (malzeme / demirbaş / sipariş)", href: "/stok/talepler", module: ["stock", "purchases"], desc: "Malzeme, demirbaş ve dış sipariş istekleri: depodan teslim, satın almaya gönder, çift imzalı teslim tutanağı" }, { label: "Mal kabul (okut)", href: "/stok/mal-kabul", module: ["stock", "purchases"], desc: "Gelen malı barkodla teyit et; faturalı / faturasız, e-faturayla eşleştir" }, { label: "Personele teslim (okut)", href: "/stok/teslim", module: "stock", level: 2, desc: "Ürünleri okut, iki imzalı teslim tutanağı" }, { label: "Alım listeleri", href: "/stok/talepler/alim", module: ["purchases", "stock"], desc: "Onaylı satın almalardan tedarikçiye göre liste, kuryeye ata" }, { label: "Stok hareketleri", href: "/stok/hareketler", module: "stock", desc: "Tüm giriş-çıkışlar, maliyet ve belge bağlantısı" },
       { label: "Lot izlenebilirliği", href: "/stok/lotlar", module: ["stock", "production"], desc: "SKT radarı, karantina, geri çağırma; lot hangi işe, hangi hekime gitti" },
       { label: "Ürün reçeteleri", href: "/stok/receteler", module: ["stock", "production"], desc: "Protez başına malzeme ihtiyacı ve malzeme maliyeti" },
     ],
@@ -191,6 +191,8 @@ export const NAV: Group[] = [
     items: [
       { label: "Demirbaş listesi", href: "/demirbas", module: "assets", desc: "Değer, amortisman, net defter değeri, bakım ve garanti" },
       { label: "Zimmet", href: "/zimmet", module: ["hr", "assets"], roles: HRM, desc: "Demirbaş ekle, personele zimmetle, iade al" },
+      { label: "Demirbaş sayımı", href: "/demirbas/sayim", module: "assets", desc: "QR / barkod okutarak sayım: eksik, fazla, yer değişen, arızalı" },
+      { label: "QR etiket bas", href: "/demirbas/etiket", module: "assets", desc: "Demirbaşlar için A4 QR etiket" },
       { label: "Amortisman", href: "/demirbas/amortisman", module: "assets", desc: "Aylık amortismanı tek tuşla işle" },
     ],
   },
