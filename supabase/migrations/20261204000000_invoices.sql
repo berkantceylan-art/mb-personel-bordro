@@ -216,6 +216,7 @@ declare
   l jsonb; i int := 0;
   v_qty numeric; v_price numeric; v_disc numeric; v_vr numeric; v_wr numeric;
   v_gross bigint; v_discount bigint; v_net bigint; v_vat bigint; v_wh bigint;
+  v_internal boolean := coalesce(current_setting('inv.internal', true), '') = '1';   -- inv_from_jobs çağırdıysa
 begin
   if v_dir not in ('sale', 'purchase') then raise exception 'bad_direction'; end if;
   if not can_module(inv_module(v_dir), 2) then raise exception 'not_allowed'; end if;
@@ -248,11 +249,13 @@ begin
     currency = v_cur, rate = v_rate,
     warehouse_id = coalesce(nullif(p->>'warehouse_id', '')::uuid, stk_default_warehouse()),
     -- düzenlemede gönderilmeyen alanlar korunur; iade faturası asıl faturanın bakiye davranışını alır
-    affects_balance = coalesce((p->>'affects_balance')::boolean, v_old.affects_balance,
-                               (select o.affects_balance from inv_invoices o where o.id = nullif(p->>'return_of', '')::uuid), true),
-    job_ids = case when p ? 'job_ids' then coalesce((select array_agg(x::uuid) from jsonb_array_elements_text(p->'job_ids') x), '{}') else coalesce(v_old.job_ids, '{}') end,
+    -- bakiye davranışı ve iş bağlantısı istemciden alınmaz: yalnız işlerden fatura (iç çağrı) ya da iade edilen faturadan
+    affects_balance = case when v_internal then coalesce((p->>'affects_balance')::boolean, true)
+                           else coalesce(v_old.affects_balance, (select o.affects_balance from inv_invoices o where o.id = nullif(p->>'return_of', '')::uuid), true) end,
+    job_ids = case when v_internal and p ? 'job_ids' then coalesce((select array_agg(x::uuid) from jsonb_array_elements_text(p->'job_ids') x), '{}') else coalesce(v_old.job_ids, '{}') end,
     return_of = coalesce(nullif(p->>'return_of', '')::uuid, v_old.return_of),
-    source = coalesce(nullif(p->>'source', ''), source),
+    source = case when v_internal then coalesce(nullif(p->>'source', ''), source)
+                  when v_old.id is null and p->>'source' in ('manual', 'ubl') then p->>'source' else source end,
     einvoice_status = coalesce(nullif(p->>'einvoice_status', ''), einvoice_status),
     ubl_xml = coalesce(nullif(p->>'ubl_xml', ''), ubl_xml),
     note = nullif(left(coalesce(p->>'note', ''), 1000), '')
@@ -325,6 +328,13 @@ begin
   if not can_module(inv_module(v.direction), 2) then raise exception 'not_allowed'; end if;
   if v.status <> 'draft' then raise exception 'bad_status'; end if;
   if v.total <= 0 then raise exception 'empty_invoice'; end if;
+  -- aynı iş iki faturaya girmesin
+  if array_length(v.job_ids, 1) > 0 then
+    perform 1 from jobs where id = any (v.job_ids) for update;
+    if exists (select 1 from jobs where id = any (v.job_ids) and ((invoice_id is not null and invoice_id <> v.id) or status = 'cancelled')) then
+      raise exception 'jobs_already_invoiced';
+    end if;
+  end if;
   select * into pt from fin_parties where id = v.party_id;
   select * into co from companies where id = coalesce(v.company_id, lab_company());
 
@@ -477,14 +487,16 @@ begin
   if p_jobs is null or array_length(p_jobs, 1) is null then raise exception 'jobs_required'; end if;
   select count(distinct customer_id), count(distinct currency), min(customer_id::text)::uuid, min(currency)
     into v_customers, v_curs, v_customer, v_cur
-  from jobs where id = any (p_jobs) and status <> 'cancelled' and invoice_id is null;
+  from jobs where id = any (p_jobs) and status <> 'cancelled' and invoice_id is null
+    and not exists (select 1 from inv_invoices i where i.status = 'draft' and jobs.id = any (i.job_ids));
   if v_customers = 0 then raise exception 'jobs_required'; end if;
   if v_customers > 1 then raise exception 'jobs_mixed_customer'; end if;
   if v_curs > 1 then raise exception 'jobs_mixed_currency'; end if;
   select id into v_party from fin_parties where lab_customer_id = v_customer;
   if v_party is null then raise exception 'party_required'; end if;
   select inv_lab_vat into v_vat from companies where id = lab_company();
-  for j in select * from jobs where id = any (p_jobs) and status <> 'cancelled' and invoice_id is null order by in_date, no loop
+  for j in select * from jobs where id = any (p_jobs) and status <> 'cancelled' and invoice_id is null
+             and not exists (select 1 from inv_invoices i where i.status = 'draft' and jobs.id = any (i.job_ids)) order by in_date, no loop
     select coalesce(sum(amount) filter (where amount > 0), 0), coalesce(sum(amount), 0) into v_pos, v_all from job_items where job_id = j.id;
     if v_pos <= 0 then continue; end if;
     v_used := v_used || j.id;
@@ -497,6 +509,7 @@ begin
     end loop;
   end loop;
   if jsonb_array_length(v_lines) = 0 then raise exception 'jobs_empty'; end if;
+  perform set_config('inv.internal', '1', true);
   return inv_save(jsonb_build_object('direction', 'sale', 'party_id', v_party, 'currency', v_cur, 'invoice_date', current_date,
     'affects_balance', false, 'source', 'jobs', 'job_ids', to_jsonb(v_used), 'lines', v_lines));
 end $$;

@@ -78,11 +78,13 @@ create policy exp_claims_read on exp_claims for select to authenticated
   using (can_module('expenses') or can_module('finance') or submitted_by = auth.uid() or (employee_id is not null and is_self_employee(employee_id)));
 drop policy if exists exp_claims_insert on exp_claims;
 create policy exp_claims_insert on exp_claims for insert to authenticated
-  with check (status = 'submitted' and fin_txn_id is null and (can_module('expenses', 2) or (submitted_by = auth.uid() and (employee_id is null or is_self_employee(employee_id)))));
+  with check (status = 'submitted' and fin_txn_id is null and (can_module('expenses', 2) or (submitted_by = auth.uid() and (employee_id is null or is_self_employee(employee_id))
+              and account_id is null and party_id is null and pay_method is null and recurring_id is null)));
 drop policy if exists exp_claims_update on exp_claims;
 create policy exp_claims_update on exp_claims for update to authenticated
   using (status = 'submitted' and (can_module('expenses', 2) or submitted_by = auth.uid()))
-  with check (status = 'submitted' and fin_txn_id is null);
+  with check (status = 'submitted' and fin_txn_id is null and (can_module('expenses', 2) or (submitted_by = auth.uid() and (employee_id is null or is_self_employee(employee_id))
+              and account_id is null and party_id is null and pay_method is null and recurring_id is null)));
 drop policy if exists exp_claims_delete on exp_claims;
 create policy exp_claims_delete on exp_claims for delete to authenticated
   using (status in ('submitted', 'rejected') and (can_module('expenses', 2) or submitted_by = auth.uid()));
@@ -337,18 +339,30 @@ grant execute on function asset_maintenance_add(jsonb) to authenticated;
 -- Satış / hurda: durum hurda; satış bedeli varsa kasaya / bankaya gelir
 create or replace function asset_dispose(p_asset uuid, p_date date, p_amount bigint, p_account uuid, p_note text) returns void
 language plpgsql security definer set search_path = public as $$
-declare a assets; acc fin_accounts; v_txn uuid;
+declare a assets; acc fin_accounts; v_txn uuid; v_date date := coalesce(p_date, current_date); v_sale bigint := greatest(coalesce(p_amount, 0), 0);
+  v_accum bigint; v_nbv bigint := 0; v_lines jsonb := '[]'::jsonb;
 begin
   if not can_module('assets', 3) then raise exception 'not_allowed'; end if;
   select * into a from assets where id = p_asset for update;
   if a.id is null then raise exception 'not_found'; end if;
+  if a.disposed_on is not null then raise exception 'bad_status'; end if;
   if exists (select 1 from asset_assignments where asset_id = a.id and returned_on is null) then raise exception 'asset_assigned'; end if;
-  if coalesce(p_amount, 0) > 0 then
+  select coalesce(sum(amount), 0) into v_accum from asset_depreciation where asset_id = a.id;
+  -- maliyeti finansa işlenmişse (açılış ya da alış faturası) net defter değeri demirbaştan çıkar, fark kâr / zarar
+  if a.opening_txn_id is not null or a.invoice_id is not null then v_nbv := greatest(coalesce(a.value, 0) - v_accum, 0); end if;
+  if v_sale > 0 then
     select * into acc from fin_accounts where id = p_account and kind in ('cash', 'bank');
     if acc.id is null then raise exception 'account_required'; end if;
-    v_txn := fin_post_sys(jsonb_build_object('kind', 'income', 'txn_date', coalesce(p_date, current_date), 'description', 'Demirbaş satışı · ' || a.name, 'amount', p_amount, 'currency', 'TRY', 'account_id', acc.id, 'ref_type', 'asset', 'ref_id', a.id),
-      jsonb_build_array(jsonb_build_object('account_id', acc.id, 'amount', fin_conv(p_amount, 'TRY', acc.currency, coalesce(p_date, current_date)), 'currency', acc.currency, 'rate', fin_rate(acc.currency, coalesce(p_date, current_date))),
-                        jsonb_build_object('category_id', fin_category('income_other'), 'amount', -p_amount, 'currency', 'TRY', 'rate', 1)));
+    v_lines := v_lines || jsonb_build_object('account_id', acc.id, 'amount', fin_conv(v_sale, 'TRY', acc.currency, v_date), 'currency', acc.currency, 'rate', fin_rate(acc.currency, v_date));
+  end if;
+  if v_nbv > 0 then v_lines := v_lines || jsonb_build_object('category_id', fin_category('fixed_assets'), 'amount', -v_nbv, 'currency', 'TRY', 'rate', 1, 'description', 'Net defter değeri'); end if;
+  if v_nbv - v_sale > 0 then v_lines := v_lines || jsonb_build_object('category_id', fin_category('exp_other'), 'amount', v_nbv - v_sale, 'currency', 'TRY', 'rate', 1, 'description', 'Demirbaş elden çıkarma zararı');
+  elsif v_sale - v_nbv > 0 then v_lines := v_lines || jsonb_build_object('category_id', fin_category('income_other'), 'amount', -(v_sale - v_nbv), 'currency', 'TRY', 'rate', 1, 'description', 'Demirbaş satış kârı');
+  end if;
+  if jsonb_array_length(v_lines) >= 2 then
+    v_txn := fin_post_sys(jsonb_build_object('kind', case when v_sale > 0 then 'income' else 'adjust' end, 'txn_date', v_date,
+                                             'description', case when v_sale > 0 then 'Demirbaş satışı · ' else 'Demirbaş hurda · ' end || a.name, 'amount', greatest(v_sale, v_nbv), 'currency', 'TRY',
+                                             'account_id', acc.id, 'ref_type', 'asset', 'ref_id', a.id), v_lines);
   end if;
   update assets set status = 'RETIRED', disposed_on = coalesce(p_date, current_date), disposal_amount = nullif(p_amount, 0), disposal_note = nullif(left(coalesce(p_note, ''), 300), ''), updated_at = now() where id = a.id;
 end $$;

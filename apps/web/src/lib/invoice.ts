@@ -72,9 +72,10 @@ export function invError(message: string): string {
   if (/einvoice_sent/.test(message)) return "Gönderilmiş e-fatura iptal edilemez; iade faturası kesin (ya da alıcı GİB portalından reddetmeli).";
   if (/inv_invoices_sale_no_uidx/.test(message)) return "Bu fatura numarası başka bir satış faturasında kullanılmış.";
   if (/inv_invoices_purchase_no_uidx|inv_invoices_ettn_uidx/.test(message)) return "Bu fatura daha önce kaydedilmiş (aynı numara / ETTN).";
+  if (/jobs_already_invoiced/.test(message)) return "Bu faturadaki işlerden biri başka bir faturaya bağlanmış ya da iptal edilmiş; taslağı silip işlerden yeniden oluşturun.";
   if (/jobs_mixed_customer/.test(message)) return "Seçilen işler farklı hekimlere ait; tek faturada aynı hekimin işleri olmalı.";
   if (/jobs_mixed_currency/.test(message)) return "Seçilen işler farklı para birimlerinde.";
-  if (/jobs_required|jobs_empty/.test(message)) return "Faturalanacak tutarlı iş yok.";
+  if (/jobs_required|jobs_empty/.test(message)) return "Faturalanacak iş yok: seçilen işler zaten faturalanmış, bir taslak faturada ya da tutarsız.";
   if (/party_required/.test(message)) return "Cari seçin.";
   if (/party_name_required/.test(message)) return "Cari adı yok.";
   if (/lines_required|empty_invoice/.test(message)) return "En az bir tutarlı satır girin.";
