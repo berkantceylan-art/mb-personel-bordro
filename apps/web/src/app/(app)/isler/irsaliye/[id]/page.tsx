@@ -27,7 +27,7 @@ export default async function WaybillPage({ params }: { params: Promise<{ id: st
   return (
     <>
       <PageHeader title={`${wbNo(w.year, w.no)} · ${cust?.name ?? ""}`} subtitle={`${formatDate(w.ship_date)} · ${w.job_count} iş · ${Number(w.unit_count)} birim · ${money(w.total, w.currency)}`}
-        actions={<span className="flex flex-wrap gap-3 text-sm font-semibold"><Link href={`/yazdir/irsaliye/${w.id}`} className="text-brand-700">Yazdır</Link><Link href={`/isler/irsaliye?gun=${w.ship_date}`} className="text-brand-700">← Günün irsaliyeleri</Link></span>} />
+        actions={<span className="flex flex-wrap gap-3 text-sm font-semibold"><Link href={`/yazdir/irsaliye/${w.id}`} className="text-brand-700">Yazdır</Link><Link href={`/yazdir/beyan?irsaliye=${w.id}`} className="text-brand-700">Uygunluk beyanları</Link><Link href={`/isler/irsaliye?gun=${w.ship_date}`} className="text-brand-700">← Günün irsaliyeleri</Link></span>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1100px]">
         <div className="flex flex-wrap items-center gap-3">
           <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${WB_STATUS[w.status]?.[1]}`}>{WB_STATUS[w.status]?.[0]}</span>

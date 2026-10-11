@@ -20,7 +20,7 @@ export async function JobFlow({ job }: { job: { id: string; no: number; flow_sta
   const hist = (tl ?? []) as H[];
 
   return (
-    <Card title="Kutu akışı" action={<span className="flex gap-3 text-sm font-semibold"><Link href={`/yazdir/is-etiket/${job.id}`} className="text-brand-700">Kutu etiketi</Link><Link href={`/uretim/nerede?ara=${job.no}`} className="text-brand-700">İş nerede</Link></span>}>
+    <Card title="Kutu akışı" action={<span className="flex gap-3 text-sm font-semibold"><Link href={`/yazdir/is-etiket/${job.id}`} className="text-brand-700">Kutu etiketi</Link><Link href={`/yazdir/beyan?is=${job.id}`} className="text-brand-700">Uygunluk beyanı</Link><Link href={`/uretim/nerede?ara=${job.no}`} className="text-brand-700">İş nerede</Link></span>}>
       {error ? <p className="text-sm text-muted">Kutu akışı için Supabase&apos;de 20261209000000_job_flow.sql çalıştırılmalı.</p> : (
         <div className="grid gap-4 md:grid-cols-[150px_1fr]">
           <div className="flex flex-col items-center gap-1">

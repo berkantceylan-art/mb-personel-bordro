@@ -35,6 +35,7 @@ export default async function WaybillPrint({ params, searchParams }: { params: P
         <Link href={`/isler/irsaliye/${id}`} className="font-semibold text-[#0A3D73]">← İrsaliye</Link>
         <PrintButton />
         <span className="flex gap-1 text-sm">{(["tr", "en", "fr"] as const).map((l) => <Link key={l} href={qs({ dil: l })} className={`px-2.5 py-1 rounded-full border ${l === lang ? "bg-[#0A3D73] text-white border-[#0A3D73]" : "border-[#D5DEE8]"}`}>{l.toUpperCase()}</Link>)}</span>
+        <Link href={`/yazdir/beyan?irsaliye=${id}`} className="text-sm font-semibold text-[#0A3D73]">Uygunluk beyanları</Link>
         <Link href={price ? qs({ fiyat: "0" }) : `/yazdir/irsaliye/${id}?dil=${lang}`} className="text-sm font-semibold text-[#0A3D73]">{price ? "Fiyatsız" : "Fiyatlı"}</Link>
       </div>
       <div className="max-w-[190mm] mx-auto bg-white my-6 print:my-0 p-6 print:p-0 flex flex-col gap-4">

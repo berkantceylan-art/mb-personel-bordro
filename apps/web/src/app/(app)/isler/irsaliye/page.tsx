@@ -61,6 +61,7 @@ export default async function WaybillsPage({ searchParams }: { searchParams: Pro
               <div className="flex flex-wrap gap-2 pt-1 mt-auto border-t border-[#EEF2F6]">
                 <Link href={`/yazdir/irsaliye/${w.id}`} className="h-9 px-3 inline-flex items-center rounded-[10px] bg-brand-700 text-white text-sm font-semibold">Yazdır</Link>
                 <Link href={`/yazdir/irsaliye/${w.id}?fiyat=0`} className="h-9 px-3 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold">Fiyatsız</Link>
+                <Link href={`/yazdir/beyan?irsaliye=${w.id}`} className="h-9 px-3 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold">Beyanlar</Link>
                 {w.status === "open" && <form action={issueWaybill}><input type="hidden" name="id" value={w.id} /><PendingSubmit className="h-9 px-3 rounded-[10px] border border-ok text-ok text-sm font-semibold">Kesildi</PendingSubmit></form>}
                 {!w.statement_id && <form action={cancelWaybill} className="ml-auto self-center"><input type="hidden" name="id" value={w.id} /><ConfirmSubmit label="İptal" question="İrsaliye iptal edilsin mi? İşler irsaliyesiz kalır." /></form>}
               </div>

@@ -39,6 +39,8 @@ export default async function CompanySettings({ searchParams }: { searchParams: 
           const fields: Array<[string, string, string?]> = [
             ["name", "Şirket unvanı"], ["sgk_registration_no", "SGK işyeri sicil no", "Muayene formu ve bankaya verilen dosyalarda kullanılır"], ["tax_office", "Vergi dairesi"], ["tax_no", "Vergi numarası"],
             ["phone", "Telefon"], ["email", "KVKK başvuru e-postası", "Aydınlatma metninde personelin başvuracağı adres"],
+            ["lab_license_no", "Laboratuvar ruhsat no", "Uygunluk beyanına yazılır"], ["uts_firm_no", "ÜTS firma / kayıt no", "Uygunluk beyanına yazılır (varsa)"],
+            ["mdr_person", "Mevzuata uygunluk sorumlusu", "Beyanı imzalayan kişi (mesul müdür)"], ["mdr_person_title", "Unvanı", "ör. Mesul müdür, diş protez teknisyeni"],
           ];
           return (
             <Card title="Şirket bilgileri" action={<span className="text-xs text-muted">İş sözleşmesi, gizlilik sözleşmesi, KVKK ve muayene formuna yazılır</span>}>
