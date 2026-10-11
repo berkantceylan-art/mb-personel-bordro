@@ -18,6 +18,7 @@ export const Chip = ({ s }: { s: string }) => {
 export const MY_MENU: Array<{ href: string; label: string; icon: string; desc: string }> = [
   { href: "/asistan", label: "İK asistanı", icon: "spark", desc: "İzin, bordro, vardiya sorularınızı sorun" },
   { href: "/benim/avans", label: "Avans iste", icon: "money", desc: "Avans talebi ve geçmişi" },
+  { href: "/benim/masraf", label: "Masraf beyanı", icon: "doc", desc: "Fiş fotoğrafı çek, masrafını bildir" },
   { href: "/benim/izin", label: "İzin", icon: "calendar", desc: "Bakiyem, izin talebi, tercih, rapor bildir" },
   { href: "/benim/bordro", label: "Bordrolarım", icon: "doc", desc: "Aylık bordro özetleri" },
   { href: "/benim/hareketler", label: "Hesap hareketlerim", icon: "list", desc: "Hakediş, avans, ödeme, kesinti" },
