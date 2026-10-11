@@ -105,6 +105,18 @@ export const NAV: Group[] = [
     ],
   },
   {
+    group: "Stok ve depo", slug: "stok",
+    items: [
+      { label: "Stok özeti", href: "/stok", module: "stock", desc: "Stok değeri, kritik seviye, son kullanma yaklaşanlar" },
+      { label: "Ürün / malzeme kartları", href: "/stok/urunler", module: "stock", desc: "Hammadde, sarf, mamul, hizmet; barkod, lot, SKT, min-max" },
+      { label: "Depolar", href: "/stok/depolar", module: "stock", desc: "Ana depo, üretim, karantina; depo bazında stok" },
+      { label: "Depo transferi", href: "/stok/transfer", module: "stock", desc: "İki aşamalı transfer: gönder, yolda, teslim al" },
+      { label: "Stok sayımı", href: "/stok/sayim", module: "stock", desc: "Telefonla barkod okutarak sayım, kör sayım, fark işleme" },
+      { label: "Stok hareketleri", href: "/stok/hareketler", module: "stock", desc: "Tüm giriş-çıkışlar, maliyet ve belge bağlantısı" },
+      { label: "Ürün reçeteleri", href: "/stok/receteler", module: ["stock", "production"], desc: "Protez başına malzeme ihtiyacı ve malzeme maliyeti" },
+    ],
+  },
+  {
     group: "Laboratuvar / üretim", slug: "laboratuvar",
     items: [
       { label: "İş kayıt", href: "/isler/yeni", logistics: true, desc: "Yeni iş: hekim, hasta, diş şeması, ürünler, prova ve teslim" },
@@ -166,7 +178,8 @@ export function visibleNav(role: string, siteAccess = false, logistics = false, 
 /** Modül ana sayfasında ek olarak gösterilecek ilgili modüllerin bağlantıları */
 export const RELATED: Record<string, string[]> = {
   finans: ["cari"],
-  laboratuvar: ["cari", "lojistik"],
+  laboratuvar: ["cari", "stok", "lojistik"],
+  stok: ["laboratuvar", "cari"],
   cari: ["laboratuvar"],
   lojistik: ["laboratuvar"],
   "insan-kaynaklari": ["puantaj-izin"],
