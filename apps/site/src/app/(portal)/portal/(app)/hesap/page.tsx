@@ -12,7 +12,9 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
   const acc = ctx!.account!;
   const locale = await portalLocale(acc);
   const a = ACCT_UI[locale];
-  const tab = (await searchParams).sekme === "ekstre" ? "ekstre" : "isler";
+  const sekme = (await searchParams).sekme;
+  const tab = sekme === "ekstre" ? "ekstre" : sekme === "belgeler" ? "belgeler" : "isler";
+  const DL = { tr: { docs: "Faturalar ve irsaliyeler", inv: "Aylık faturalar", wb: "İrsaliyeler", period: "Dönem", jobs: "iş", open: "Görüntüle / yazdır", delivered: "teslim alındı", none: "Belge yok." }, en: { docs: "Invoices & delivery notes", inv: "Monthly invoices", wb: "Delivery notes", period: "Period", jobs: "cases", open: "View / print", delivered: "received", none: "No documents." }, fr: { docs: "Factures et bons de livraison", inv: "Factures mensuelles", wb: "Bons de livraison", period: "Période", jobs: "cas", open: "Voir / imprimer", delivered: "reçu", none: "Aucun document." } }[locale as "tr" | "en" | "fr"] ?? { docs: "Faturalar ve irsaliyeler", inv: "Aylık faturalar", wb: "İrsaliyeler", period: "Dönem", jobs: "iş", open: "Görüntüle / yazdır", delivered: "teslim alındı", none: "Belge yok." };
   const supabase = await createClient();
   const { data: cust } = await supabase.from("lab_customers").select("id, name, currency, internal_book, internal_opening").eq("portal_account_id", acc.id).maybeSingle();
   if (!cust) {
@@ -29,6 +31,12 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
     supabase.from("lab_payments").select("id, paid_on, amount, method, ref, book").eq("customer_id", cust.id).order("paid_on").limit(5000),
   ]);
   const jobs = (js ?? []) as LJob[];
+  const [{ data: stRows }, { data: wbRows }] = tab === "belgeler" ? await Promise.all([
+    supabase.from("lab_statements").select("id, year, no, period_from, period_to, total, currency, job_count").eq("customer_id", cust.id).neq("status", "cancelled").order("period_to", { ascending: false }).limit(36),
+    supabase.from("lab_waybills").select("id, year, no, ship_date, total, currency, job_count, delivered_at").eq("customer_id", cust.id).neq("status", "cancelled").order("ship_date", { ascending: false }).limit(60),
+  ]) : [{ data: [] }, { data: [] }];
+  const sts = (stRows ?? []) as { id: string; year: number; no: number; period_from: string; period_to: string; total: number; currency: string; job_count: number }[];
+  const wbs = (wbRows ?? []) as { id: string; year: number; no: number; ship_date: string; total: number; currency: string; job_count: number; delivered_at: string | null }[];
   // İç hesap kullanan müşteride hesap özeti iç caridir: yalnız iç / ikisi tahsilatları, iç açılış bakiyesi
   const ib = (cust as { internal_book?: boolean }).internal_book === true;
   const pays = ((ps ?? []) as (LPay & { book?: string })[]).filter((p) => !ib || p.book !== "official");
@@ -73,9 +81,28 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
       <nav className="mt-6 flex gap-2 print:hidden">
         <Link href="/portal/hesap" className={tabCls(tab === "isler")}>{a.jobs}</Link>
         <Link href="/portal/hesap?sekme=ekstre" className={tabCls(tab === "ekstre")}>{a.statement}</Link>
+        <Link href="/portal/hesap?sekme=belgeler" className={tabCls(tab === "belgeler")}>{DL.docs}</Link>
         {tab === "ekstre" && <span className="ml-auto"><PrintButton label={a.print} /></span>}
       </nav>
-      <section className="mt-4 overflow-x-auto rounded-2xl bg-white p-2">
+      {tab === "belgeler" && (
+        <section className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl bg-white p-4">
+            <h2 className="mb-2 font-semibold text-navy">{DL.inv}</h2>
+            <ul className="divide-y divide-gypsum text-sm">
+              {sts.map((x) => <li key={x.id} className="flex items-center justify-between gap-3 py-2"><span><b>MB-{x.year}-{String(x.no).padStart(4, "0")}</b><span className="block text-xs text-slate">{DL.period}: {formatDate(x.period_from, locale)} – {formatDate(x.period_to, locale)} · {x.job_count} {DL.jobs}</span></span><span className="text-right"><span className="num block font-semibold">{fmtMoney(Number(x.total), x.currency, locale)}</span><Link href={`/portal/hesap/fatura/${x.id}`} className="text-xs font-semibold text-navy underline">{DL.open}</Link></span></li>)}
+              {sts.length === 0 && <li className="py-4 text-slate">{DL.none}</li>}
+            </ul>
+          </div>
+          <div className="rounded-2xl bg-white p-4">
+            <h2 className="mb-2 font-semibold text-navy">{DL.wb}</h2>
+            <ul className="divide-y divide-gypsum text-sm">
+              {wbs.map((x) => <li key={x.id} className="flex items-center justify-between gap-3 py-2"><span><b>İRS-{x.year}-{String(x.no).padStart(5, "0")}</b><span className="block text-xs text-slate">{formatDate(x.ship_date, locale)} · {x.job_count} {DL.jobs}{x.delivered_at ? ` · ✓ ${DL.delivered}` : ""}</span></span><span className="num font-semibold">{fmtMoney(Number(x.total), x.currency, locale)}</span></li>)}
+              {wbs.length === 0 && <li className="py-4 text-slate">{DL.none}</li>}
+            </ul>
+          </div>
+        </section>
+      )}
+      <section className={`mt-4 overflow-x-auto rounded-2xl bg-white p-2 ${tab === "belgeler" ? "hidden" : ""}`}>
         {tab === "isler" ? (
           <table className="w-full min-w-[720px] text-sm">
             <thead><tr className="text-left text-xs text-slate"><th className="p-3">{a.no}</th><th className="p-3">{a.patient}</th><th className="p-3">{a.doctor}</th><th className="p-3">{a.inDate}</th><th className="p-3">{a.due}</th><th className="p-3 text-right">{a.amount}</th><th className="p-3">{a.status}</th></tr></thead>
