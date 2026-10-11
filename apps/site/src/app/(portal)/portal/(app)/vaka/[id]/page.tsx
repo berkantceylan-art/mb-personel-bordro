@@ -8,11 +8,19 @@ import { postCaseMessage } from "@/lib/portal-actions";
 import { PORTAL_BUCKET, PORTAL_UI, portalContext, portalLocale, type CaseEvent, type CaseFile, type PortalCase } from "@/lib/portal";
 import { createClient } from "@/lib/supabase/server";
 import { PX } from "@/lib/portal-extra-ui";
+import { reportCaseIssue } from "@/lib/survey-actions";
+
+const ISSUE = {
+  tr: { title: "Sorun bildir", ph: "Ne oldu? (ör. kron oturmadı, renk farklı)", send: "Bildir", ok: "Bildiriminiz kalite ekibimize iletildi.", err: "Gönderilemedi, tekrar deneyin.", cats: { fit: "Uyum / oturma", shade: "Renk", fracture: "Kırık / çatlak", contact: "Kontakt", occlusion: "Kapanış", aesthetic: "Estetik / form", delay: "Gecikme", damage: "Hasarlı teslim", other: "Diğer" } },
+  en: { title: "Report an issue", ph: "What happened? (e.g. crown did not seat, shade mismatch)", send: "Report", ok: "Your report has been sent to our quality team.", err: "Could not be sent, please try again.", cats: { fit: "Fit / seating", shade: "Shade", fracture: "Fracture / crack", contact: "Contact", occlusion: "Occlusion", aesthetic: "Aesthetics / form", delay: "Delay", damage: "Damaged on delivery", other: "Other" } },
+  fr: { title: "Signaler un problème", ph: "Que s’est-il passé ? (ex. couronne mal ajustée, teinte différente)", send: "Signaler", ok: "Votre signalement a été transmis à notre équipe qualité.", err: "Échec de l’envoi, réessayez.", cats: { fit: "Ajustage", shade: "Teinte", fracture: "Fracture / fissure", contact: "Contact", occlusion: "Occlusion", aesthetic: "Esthétique / forme", delay: "Retard", damage: "Endommagé à la livraison", other: "Autre" } },
+} as const;
 
 export const metadata = { title: "Portal" };
 
-export default async function CasePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CasePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sorun?: string }> }) {
   const { id } = await params;
+  const sorun = (await searchParams).sorun;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const ctx = await portalContext();
   const locale = await portalLocale(ctx?.account);
@@ -86,6 +94,21 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
               {ui.detail.send}
             </button>
           </form>
+          {(() => {
+            const iu = ISSUE[(locale as keyof typeof ISSUE)] ?? ISSUE.tr;
+            return (
+              <details className="mt-5 border-t border-gypsum pt-4" open={!!sorun}>
+                <summary className="cursor-pointer text-sm font-semibold text-navy">⚠ {iu.title}</summary>
+                {sorun && <p className={`mt-3 rounded-xl p-3 text-sm font-semibold ${sorun === "ok" ? "bg-porcelain text-navy" : "bg-[#FDECEA] text-[#9B1C14]"}`}>{sorun === "ok" ? iu.ok : iu.err}</p>}
+                <form action={reportCaseIssue} className="mt-3 grid gap-2">
+                  <input type="hidden" name="case_id" value={c.id} />
+                  <select name="category" className="field">{Object.entries(iu.cats).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+                  <textarea name="description" required rows={3} maxLength={2000} placeholder={iu.ph} className="field" />
+                  <button type="submit" className="justify-self-start rounded-full border border-navy px-5 py-2.5 text-sm font-semibold text-navy hover:bg-navy hover:text-white">{iu.send}</button>
+                </form>
+              </details>
+            );
+          })()}
         </section>
       </div>
     </>

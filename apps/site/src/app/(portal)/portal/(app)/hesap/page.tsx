@@ -4,6 +4,7 @@ import { formatDate, portalContext, portalLocale } from "@/lib/portal";
 import { PrintButton } from "@/components/portal/PrintButton";
 import { createClient } from "@/lib/supabase/server";
 import { RECON, reconDate, reconLang, reconMoney } from "@/lib/recon-text";
+import { SURVEY, svLang } from "@/lib/survey-text";
 
 export const metadata = { title: "Account" };
 
@@ -36,6 +37,8 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
   const { data: rc } = await supabase.from("fin_reconciliations").select("id, token, as_of, balance, currency").eq("status", "sent").order("as_of", { ascending: false }).limit(5);
   const recons = (rc ?? []) as { id: string; token: string; as_of: string; balance: number; currency: string }[];
   const rl = reconLang(locale);
+  const { data: sv } = await supabase.from("srv_responses").select("id, token, jobs(no, patient)").eq("customer_id", cust.id).is("answered_at", null).order("created_at", { ascending: false }).limit(3);
+  const surveys = (sv ?? []) as unknown as { id: string; token: string; jobs: { no: number; patient: string | null } | null }[];
   const [{ data: stRows }, { data: wbRows }] = tab === "belgeler" ? await Promise.all([
     supabase.from("lab_statements").select("id, year, no, period_from, period_to, total, currency, job_count").eq("customer_id", cust.id).neq("status", "cancelled").order("period_to", { ascending: false }).limit(36),
     supabase.from("lab_waybills").select("id, year, no, ship_date, total, currency, job_count, delivered_at").eq("customer_id", cust.id).neq("status", "cancelled").order("ship_date", { ascending: false }).limit(60),
@@ -75,6 +78,12 @@ export default async function PortalAccount({ searchParams }: { searchParams: Pr
           </form>
         )}
       </div>
+      {surveys.map((v) => (
+        <Link key={v.id} href={`/${svLang(locale)}/anket/${v.token}`} className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-5 print:hidden">
+          <span>⭐ <b className="text-navy">{SURVEY[svLang(locale)].title}</b> · {SURVEY[svLang(locale)].q(v.jobs?.no ?? 0, v.jobs?.patient ?? "")}</span>
+          <span className="rounded-full bg-smile px-4 py-2 text-sm font-semibold text-navy">😍 🙂 😐 🙁 😞 →</span>
+        </Link>
+      ))}
       {recons.map((r) => (
         <Link key={r.id} href={`/${rl}/mutabakat/${r.token}`} className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-smile bg-white p-5 print:hidden">
           <span><b className="text-navy">{RECON[rl].title}</b> · {reconDate(r.as_of, rl)}</span>

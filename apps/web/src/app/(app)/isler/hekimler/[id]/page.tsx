@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { addActivity } from "@/lib/crm-actions";
+import { ACT_KIND, Q_CATEGORY, Q_STATUS } from "@/lib/quality";
 import { notFound, redirect } from "next/navigation";
 import { Card, PageHeader, Stat } from "@/components/ui";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
@@ -37,6 +39,13 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
     supabase.from("fin_accounts").select("id, name, currency, kind").in("kind", ["cash", "bank", "pos"]).eq("is_active", true).order("name"),
     supabase.from("fin_party_balances").select("party_id, balance").eq("lab_customer_id", id).maybeSingle(),
   ]);
+  const [{ data: crmActs }, { data: complaints }, { data: surveys }] = await Promise.all([
+    supabase.from("crm_activities").select("id, kind, notes, at, due_date, done").eq("customer_id", id).order("at", { ascending: false }).limit(20),
+    supabase.from("qms_complaints").select("id, no, category, status, received_at").eq("customer_id", id).order("received_at", { ascending: false }).limit(10),
+    supabase.from("srv_responses").select("score").eq("customer_id", id).not("score", "is", null).limit(200),
+  ]);
+  const svScores = ((surveys ?? []) as { score: number }[]).map((x) => x.score);
+  const canCrm = (s.modules.sales ?? 0) >= 2 || (s.modules.lab ?? 0) >= 3;
   const finAccounts = (accRows ?? []) as { id: string; name: string; currency: string; kind: string }[];
   const { data: riskData } = await supabase.rpc("lab_customer_risk", { p_customer: id });
   const risk = riskData as { balance: number; limit: number | null; over: boolean; overdue: number; term: number; contract_expired: boolean } | null;
@@ -201,6 +210,32 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
                 {list.length === 0 && <tr><td colSpan={6} className="py-6 text-center text-muted">Henüz iş yok.</td></tr>}
               </tbody>
             </table>
+          </div>
+        </Card>
+        <Card title="Görüşmeler, şikâyetler, memnuniyet" action={<span className="flex gap-3 text-sm font-semibold"><Link href="/crm" className="text-brand-700">CRM</Link><Link href="/kalite" className="text-brand-700">Kalite</Link></span>}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              {canCrm && (
+                <form action={addActivity} className="flex flex-wrap gap-2">
+                  <input type="hidden" name="customer_id" value={c.id} />
+                  <select name="kind" className="h-9 rounded-[8px] border border-line px-2 text-sm">{Object.entries(ACT_KIND).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+                  <input name="notes" placeholder="Not / görev" className="h-9 flex-1 min-w-[160px] rounded-[8px] border border-line px-2 text-sm" />
+                  <input name="due_date" type="date" className="h-9 rounded-[8px] border border-line px-2 text-sm" title="Görev tarihi" />
+                  <button className="h-9 px-3 rounded-[8px] border border-line text-sm font-semibold">Ekle</button>
+                </form>
+              )}
+              <ul className="divide-y divide-[#EEF2F6] text-sm">
+                {((crmActs ?? []) as { id: string; kind: string; notes: string | null; at: string; due_date: string | null; done: boolean }[]).map((a) => <li key={a.id} className="py-1.5"><b>{ACT_KIND[a.kind]}</b> <span className="text-xs text-muted">{formatDate(a.at.slice(0, 10))}{!a.done && a.due_date ? ` · görev ${formatDate(a.due_date)}` : ""}</span>{a.notes && <span className="block">{a.notes}</span>}</li>)}
+                {(crmActs ?? []).length === 0 && <li className="py-1.5 text-muted">Görüşme kaydı yok.</li>}
+              </ul>
+            </div>
+            <div className="flex flex-col gap-2 text-sm">
+              <div>Memnuniyet: <b>{svScores.length ? `${(svScores.reduce((x, y) => x + y, 0) / svScores.length).toFixed(1)} / 5 (${svScores.length} yanıt)` : "—"}</b></div>
+              <ul className="divide-y divide-[#EEF2F6]">
+                {((complaints ?? []) as { id: string; no: number; category: string; status: string; received_at: string }[]).map((q) => <li key={q.id} className="py-1.5 flex gap-2"><Link href={`/kalite?sikayet=${q.id}`} className="font-semibold text-brand-700">Şikâyet #{q.no}</Link><span>{Q_CATEGORY[q.category]}</span><span className={`ml-auto text-xs font-semibold ${Q_STATUS[q.status]?.[1]}`}>{Q_STATUS[q.status]?.[0]}</span><span className="text-xs text-muted">{formatDate(q.received_at.slice(0, 10))}</span></li>)}
+                {(complaints ?? []).length === 0 && <li className="py-1.5 text-muted">Şikâyet yok.</li>}
+              </ul>
+            </div>
           </div>
         </Card>
         <form action={deleteCustomer} className="text-right">
