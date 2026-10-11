@@ -19,6 +19,8 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
     supabase.from("lab_payments").select("customer_id, amount, book").limit(20000),
     supabase.from("fin_party_balances").select("lab_customer_id, balance").not("lab_customer_id", "is", null).limit(5000),
   ]);
+  const { data: rl } = await supabase.rpc("lab_risk_list");
+  const risk = new Map(((rl ?? []) as { customer_id: string; risk: { over: boolean; overdue: number } | null }[]).map((x) => [x.customer_id, x.risk]));
   const flagged = new Set((cs ?? []).filter((c) => (c as { internal_book?: boolean }).internal_book).map((c) => c.id as string));
   const official = new Map((offi ?? []).map((o) => [o.lab_customer_id as string, Number(o.balance)]));
   const debit = new Map<string, number>();
@@ -60,7 +62,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
                   <td className={td}>{CUSTOMER_KIND[r.kind] ?? r.kind}</td>
                   <td className={`${td} num text-right`}>{money(r.debit, r.currency)}</td>
                   <td className={`${td} num text-right text-ok`}>{money(r.credit, r.currency)}</td>
-                  <td className={`${td} num text-right font-semibold ${r.balance > 0 ? "text-bad" : ""}`}>{money(r.balance, r.currency)}{flagged.has(r.id) && <span className="block text-[10px] font-semibold text-muted">iç hesap</span>}</td>
+                  <td className={`${td} num text-right font-semibold ${r.balance > 0 ? "text-bad" : ""}`}>{money(r.balance, r.currency)}{flagged.has(r.id) && <span className="block text-[10px] font-semibold text-muted">iç hesap</span>}{risk.get(r.id)?.over && <span className="block text-[10px] font-bold text-bad">limit aşıldı</span>}{(risk.get(r.id)?.overdue ?? 0) > 0 && <span className="block text-[10px] font-semibold text-warn">vadesi geçen {money(risk.get(r.id)!.overdue, r.currency)}</span>}</td>
                   <td className={`${td} num text-right`}>{flagged.has(r.id) ? money(official.get(r.id) ?? 0, r.currency) : <span className="text-xs text-muted">aynı</span>}</td>
                   <td className={`${td} text-right`}><Link href={`/yazdir/ekstre/${r.id}`} className="text-xs font-semibold text-brand-700">Ekstre</Link></td>
                 </tr>

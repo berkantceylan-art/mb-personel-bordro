@@ -119,6 +119,7 @@ export const NAV: Group[] = [
       { label: "Satış faturası kes", href: "/satis/yeni", module: "sales", level: 2, desc: "Protez, malzeme, hizmet; e-Fatura / e-Arşiv, döviz, iskonto, tevkifat" },
       { label: "Satış faturaları", href: "/satis/faturalar", module: "sales", desc: "Kesilen faturalar, e-fatura durumu, toplu XML indirme" },
       { label: "Faturalanmamış işler", href: "/satis/isler", module: "sales", desc: "Teslim edilen laboratuvar işlerini hekim bazında faturala" },
+      { label: "Müşteri kârlılığı", href: "/satis/karlilik", module: ["sales", "finance"], desc: "Ciro, malzeme, işçilik, genel gider ve kâr; yeniden yapımlar" },
       { label: "Alış özeti", href: "/alis", module: "purchases", desc: "Aylık alış, tedarikçiler, vadesi geçen borçlar" },
       { label: "Satın alma siparişleri", href: "/alis/siparisler", module: ["purchases", "stock"], desc: "Tedarikçiye sipariş, onay limiti, teslim alma, stok önerisi" },
       { label: "Alış faturası gir", href: "/alis/yeni", module: "purchases", level: 2, desc: "Malzeme, hammadde, sarf, hizmet alışı; stoğa giriş" },
