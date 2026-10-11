@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionForm } from "@/lib/use-action-form";
+import { iconFor } from "@/lib/desktop-icons";
 import { deleteNote, reminderAction, saveNote, saveReminder, saveShortcuts, type Shortcut } from "@/lib/desktop-actions";
 
 export type Note = { id: string; body: string; color: string; pinned: boolean; updated_at: string };
@@ -10,13 +11,7 @@ export type Reminder = { id: string; title: string; note: string | null; remind_
 export type Pickable = { group: string; items: { href: string; label: string }[] };
 export type Todo = { label: string; href: string; tone: "red" | "amber" | "blue" | "green" };
 
-const ICONS: [RegExp, string][] = [
-  [/^\/isler/, "🦷"], [/^\/uretim|^\/atolye/, "🏭"], [/^\/stok/, "📦"], [/^\/alis/, "🛒"], [/^\/satis|fatura/, "🧾"], [/^\/finans/, "💰"], [/^\/cari/, "📒"],
-  [/^\/personel|^\/ik/, "👥"], [/^\/bordro|^\/odemeler|^\/ay-sonu/, "💵"], [/^\/izin|^\/yillik/, "🌴"], [/^\/puantaj|^\/vardiya/, "⏱"], [/^\/benim/, "🙂"],
-  [/^\/kalite/, "✅"], [/^\/crm/, "🤝"], [/^\/rapor|^\/kpi/, "📊"], [/^\/onaylar/, "✔️"], [/^\/kargo|^\/kurye/, "🚚"], [/^\/site|^\/duyuru/, "📣"],
-  [/^\/masraf/, "🧮"], [/^\/asistan/, "✨"], [/^\/mesaj/, "💬"], [/^\/takvim|^\/vardiyalar/, "📅"], [/^\/isg|^\/saglik/, "⛑"], [/^\/zimmet|^\/demirbas/, "🔧"],
-];
-export const iconFor = (href: string) => ICONS.find(([r]) => r.test(href))?.[1] ?? "⭐";
+
 const EMOJIS = ["⭐", "🦷", "🏭", "📦", "🛒", "🧾", "💰", "📒", "👥", "💵", "🌴", "⏱", "✅", "🤝", "📊", "✔️", "🚚", "📣", "🧮", "✨", "💬", "📅", "⛑", "🔧", "📌", "🔥", "🎯", "📁"];
 const NOTE_BG: Record<string, string> = { yellow: "#FFF7C2", blue: "#DCEBFF", green: "#DCF7E3", pink: "#FFE0EC", purple: "#EDE3FF", gray: "#EEF2F6" };
 const TONE: Record<Todo["tone"], string> = { red: "bg-[#FDECEC] text-[#B42318] border-[#F7C9C9]", amber: "bg-[#FFF6E5] text-[#8A5A00] border-[#F5D9A8]", blue: "bg-[#EAF2FB] text-brand-700 border-[#CFE0F3]", green: "bg-ok-bg text-ok border-[#BFE8CF]" };
