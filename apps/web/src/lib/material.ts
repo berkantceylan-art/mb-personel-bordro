@@ -22,6 +22,7 @@ export const MR_EVENT: Record<string, string> = {
   deliver_signed: "Teslim edildi; depo ve personel imzaladı",
   employee_sign: "Personel teslim aldığını imzaladı",
   listed: "Alım listesine eklendi",
+  direct_issue: "Depoda okutularak teslim edildi",
 };
 export const KIND_PREFIX: Record<string, string> = { material: "MT", asset: "DT", supply: "SP" };
 export const KIND_LABEL: Record<string, string> = { material: "Malzeme", asset: "Demirbaş", supply: "Dış sipariş" };
