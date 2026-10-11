@@ -32,9 +32,10 @@ export const TYPE_COLORS = ["#0A3D73", "#2563EB", "#0891B2", "#059669", "#16A34A
 
 /** Seviyelerden temel erişim (veritabanındaki user_type_role ile aynı) */
 export function typeRole(levels: Record<string, number>, scoped: boolean): string {
-  if ((levels.payroll ?? 0) >= 1) return "accountant";
-  if ((levels.hr ?? 0) >= 1 || (levels.attendance ?? 0) >= 1) return scoped ? "branch_manager" : "hr";
+  if ((levels.payroll ?? 0) >= 2) return "accountant";
+  if ((levels.hr ?? 0) >= 2 || (levels.attendance ?? 0) >= 2) return scoped ? "branch_manager" : "hr";
   if ((levels.safety ?? 0) >= 1) return "safety";
+  if ((levels.hr ?? 0) >= 1 || (levels.attendance ?? 0) >= 1) return scoped ? "branch_manager" : "hr";
   return "employee";
 }
 

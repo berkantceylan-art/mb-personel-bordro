@@ -47,7 +47,7 @@ begin
       'tryin', (select count(*) from open where status = 'tryin' or flow_stage = 'tryin'),
       'unassigned', (select count(*) from open where holder_employee_id is null and flow_stage in ('reception', 'production'))
     ),
-    'month', (select coalesce(jsonb_agg(jsonb_build_object('currency', currency, 'jobs', n, 'units', u, 'total', t)), '[]'::jsonb) from (
+    'month', (select coalesce(jsonb_agg(jsonb_build_object('currency', currency, 'jobs', n, 'units', u, 'total', case when can_module('sales') or can_module('finance') then t end)), '[]'::jsonb) from (
       select j.currency, count(*) n, sum(job_units(j.id)) u, sum(j.total) t from jobs j
       where j.status = 'delivered' and j.delivered_at >= date_trunc('month', v_today)::timestamp at time zone 'Europe/Istanbul' group by j.currency) x),
     'stages', (select coalesce(jsonb_agg(jsonb_build_object('stage', s, 'jobs', n, 'units', u, 'held', h, 'late', l) order by o), '[]'::jsonb) from (

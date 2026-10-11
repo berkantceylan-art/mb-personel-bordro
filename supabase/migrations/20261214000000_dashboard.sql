@@ -40,7 +40,7 @@ begin
       'tryin', (select count(*) from jobs where status = 'tryin'),
       'orders', (select count(*) from lab_orders where status in ('new', 'confirmed')) + (select count(*) from portal_cases pc where pc.status in ('received', 'design') and not exists (select 1 from jobs j where j.portal_case_id = pc.id)),
       'stages', (select coalesce(jsonb_object_agg(flow_stage, n), '{}'::jsonb) from (select flow_stage, count(*) n from jobs where status not in ('delivered', 'cancelled') group by flow_stage) x),
-      'unbilled', (select coalesce(jsonb_object_agg(currency, t), '{}'::jsonb) from (select currency, sum(total) t from lab_waybills where status <> 'cancelled' and statement_id is null and ship_date >= v_month group by currency) x),
+      'unbilled', case when module_level('sales') >= 1 or module_level('finance') >= 1 then (select coalesce(jsonb_object_agg(currency, t), '{}'::jsonb) from (select currency, sum(total) t from lab_waybills where status <> 'cancelled' and statement_id is null and ship_date >= v_month group by currency) x) else '{}'::jsonb end,
       'trend', (select jsonb_agg(jsonb_build_object('d', d::date, 'n', (select count(*) from jobs j where j.status = 'delivered' and (j.delivered_at at time zone 'Europe/Istanbul')::date = d::date)) order by d)
                 from generate_series(v_today - 13, v_today, interval '1 day') d)
     ));
@@ -110,7 +110,7 @@ begin
 
   -- Bordro
   if module_level('payroll') >= 1 and v_role in ('owner', 'accountant') then
-    r := r || jsonb_build_object('payroll', (select jsonb_build_object('period', to_char(v_today, 'YYYY-MM'), 'accrued', coalesce(sum(accrued), 0), 'paid', coalesce(sum(paid_bank + paid_cash), 0), 'balance', coalesce(sum(balance), 0))
+    r := r || jsonb_build_object('payroll', (select jsonb_build_object('period', to_char(v_today, 'YYYY-MM'), 'accrued', coalesce(sum(accrued), 0), 'paid', coalesce(sum(coalesce(paid_bank, 0) + coalesce(paid_cash, 0)), 0), 'balance', coalesce(sum(balance), 0))
                                              from ledger_period_summary where period = to_char(v_today, 'YYYY-MM')));
   end if;
 

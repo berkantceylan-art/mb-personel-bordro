@@ -28,7 +28,7 @@ function Spark({ data, color, fmt, invert }: { data: (number | null)[]; color: s
 /** Yönetim KPI: ciro, birim, zamanında teslim, yeniden yapım, üretim süresi, tahsilat günü, hacmi düşen klinikler */
 export default async function KpiPage() {
   const s = await getSession();
-  if ((s.modules.sales ?? 0) < 1 && (s.modules.finance ?? 0) < 1 && (s.modules.production ?? 0) < 1) redirect("/");
+  if ((s.modules.sales ?? 0) < 1 && (s.modules.finance ?? 0) < 1 && (s.modules.production ?? 0) < 3) redirect("/");
   const supabase = await createClient();
   const [{ data, error }, { data: watch }, { data: recv }] = await Promise.all([
     supabase.rpc("kpi_monthly", { p_months: 12 }),
