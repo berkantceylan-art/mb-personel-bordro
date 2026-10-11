@@ -26,6 +26,7 @@ export const NAV: Group[] = [
     items: [
       { label: "Benim sayfam", href: "/benim", roles: ["employee"] },
       { label: "Avans iste", href: "/benim/avans", roles: ["employee"] },
+      { label: "Masraf beyanı", href: "/benim/masraf", desc: "Fiş fotoğrafı ile masraf bildir" },
       { label: "İzin", href: "/benim/izin", roles: ["employee"] },
       { label: "Bordrolarım", href: "/benim/bordro", roles: ["employee"] },
       { label: "Hesap hareketlerim", href: "/benim/hareketler", roles: ["employee"] },
@@ -157,7 +158,18 @@ export const NAV: Group[] = [
   },
   {
     group: "Demirbaş ve zimmet", slug: "demirbas",
-    items: [{ label: "Zimmet / demirbaş", href: "/zimmet", roles: HRM }],
+    items: [
+      { label: "Demirbaş listesi", href: "/demirbas", module: "assets", desc: "Değer, amortisman, net defter değeri, bakım ve garanti" },
+      { label: "Zimmet", href: "/zimmet", roles: HRM, desc: "Demirbaş ekle, personele zimmetle, iade al" },
+      { label: "Amortisman", href: "/demirbas/amortisman", module: "assets", desc: "Aylık amortismanı tek tuşla işle" },
+    ],
+  },
+  {
+    group: "Masraflar", slug: "masraf",
+    items: [
+      { label: "Masraflar ve onay", href: "/masraf", module: "expenses", desc: "Fişli masraf beyanı, yapay zekâ ile okuma, onay ve finansa işleme" },
+      { label: "Tekrarlayan masraflar", href: "/masraf/tekrarlayan", module: "expenses", desc: "Kira, aidat, abonelik: her ay otomatik kuyruğa" },
+    ],
   },
   {
     group: "İSG ve yasal uyum", slug: "isg-uyum",

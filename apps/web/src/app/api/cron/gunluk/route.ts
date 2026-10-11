@@ -62,6 +62,13 @@ export async function GET(req: Request) {
   } catch (e) {
     report.fx = { error: e instanceof Error ? e.message : String(e) };
   }
+  // Tekrarlayan masraflar onay kuyruğuna (tablo yoksa sessizce geçer)
+  try {
+    const { data, error } = await admin.rpc("exp_recurring_run", { p_date: today });
+    report.recurring = error ? { error: error.message } : { created: data };
+  } catch (e) {
+    report.recurring = { error: e instanceof Error ? e.message : String(e) };
+  }
   return NextResponse.json({ ok: true, today, report });
 }
 
