@@ -78,6 +78,11 @@ export function finError(message: string): string {
   if (/not_allowed|permission|policy/i.test(message)) return "Bu işlem için yetkiniz yok (Yönetim > Yetkiler).";
   if (/rate_missing/.test(message)) return "Döviz kuru bulunamadı: Finans > Kurlar sayfasından kur girin ya da formda kuru yazın.";
   if (/unbalanced/.test(message)) return "Kayıt dengesiz (borç ve alacak eşit değil).";
+  if (/use_source_undo/.test(message)) return "Bu kayıt çek / kredi işlemine ait: Çek-senet ya da Krediler ekranından “geri al” ile iptal edin.";
+  if (/account_required/.test(message)) return "Hesap seçin (banka / kasa).";
+  if (/party_required/.test(message)) return "Cari seçin.";
+  if (/schedule_required/.test(message)) return "Ödeme planı boş.";
+  if (/bad_status/.test(message)) return "Kaydın durumu bu işleme uygun değil.";
   if (/use_invoice_cancel/.test(message)) return "Bu kayıt bir faturaya ait: faturayı açıp oradan iptal edin (stok ve KDV de geri alınır).";
   if (/fin_parties_tax_uidx|duplicate key.*tax/i.test(message)) return "Bu vergi / TC numarasıyla kayıtlı başka bir cari var.";
   if (/(fin_|fx_|module_)\w* .*does not exist|relation "(fin_|fx_|module_)|schema cache/i.test(message)) return "Finans tabloları yok: Supabase'de 20261202000000_finance_core.sql çalıştırılmalı.";
