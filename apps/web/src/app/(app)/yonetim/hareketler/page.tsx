@@ -14,12 +14,12 @@ const GROUPS: Record<string, { label: string; tables: string[] }> = {
   stok: { label: "Stok", tables: ["stk_items", "stk_moves", "stk_counts", "stk_transfers"] },
   uretim: { label: "Laboratuvar / üretim", tables: ["jobs", "lab_customers", "lab_products", "prd_remakes"] },
   masraf: { label: "Masraf / demirbaş", tables: ["exp_claims", "exp_recurring", "assets"] },
-  ik: { label: "İK / bordro", tables: ["employees", "leave_requests", "ledger_entries", "advance_requests", "memberships"] },
+  ik: { label: "İK / bordro", tables: ["employees", "leave_requests", "ledger_entries", "advance_requests", "memberships", "user_types"] },
 };
 const TABLE: Record<string, string> = {
   fin_txns: "Finans işlemi", fin_accounts: "Kasa / banka hesabı", fin_parties: "Cari kart", fin_cheques: "Çek / senet", fin_loans: "Kredi", module_permissions: "Modül yetkisi",
   inv_invoices: "Fatura", stk_items: "Stok kartı", stk_moves: "Stok hareketi", stk_counts: "Sayım", stk_transfers: "Depo transferi", jobs: "İş kaydı", lab_customers: "Hekim kartı",
-  lab_products: "Protez ürünü", prd_remakes: "Yeniden yapım", exp_claims: "Masraf", exp_recurring: "Tekrarlayan masraf", assets: "Demirbaş", employees: "Personel", memberships: "Kullanıcı",
+  lab_products: "Protez ürünü", prd_remakes: "Yeniden yapım", exp_claims: "Masraf", exp_recurring: "Tekrarlayan masraf", assets: "Demirbaş", employees: "Personel", memberships: "Kullanıcı", user_types: "Kullanıcı türü",
   leave_requests: "İzin", ledger_entries: "Hesap hareketi", advance_requests: "Avans talebi",
 };
 const LINK: Record<string, (id: string) => string> = {

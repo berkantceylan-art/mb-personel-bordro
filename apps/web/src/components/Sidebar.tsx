@@ -211,7 +211,8 @@ export function Sidebar({ companyName, role, siteAccess = false, logistics = fal
                 </>
               )}
             </div>
-            <SignOutForm className="border-t border-line p-2" buttonClassName="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-muted hover:bg-ground hover:text-bad" />
+            <a href="/auth/sifre-yenile" className="border-t border-line mx-2 mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-muted hover:bg-ground hover:text-ink">Şifremi değiştir</a>
+            <SignOutForm className="p-2 pt-0" buttonClassName="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-muted hover:bg-ground hover:text-bad" />
           </div>
         )}
       </nav>

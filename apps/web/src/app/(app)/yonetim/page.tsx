@@ -1,264 +1,186 @@
-import { formatInviteCode } from "@/lib/constants";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { Card, PageHeader } from "@/components/ui";
-import { Tabs } from "@/components/Compliance";
+import { PageHeader } from "@/components/ui";
+import { Notice } from "@/components/erp";
+import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
+import { formatInviteCode } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
-import { BranchForm, BulkInviteForm, InviteForm } from "./AdminForms";
-import { deleteDepartment, deleteDevice, deleteInvite, removeMember, saveCompanyInfo, saveDepartment, saveDevice, updateMember } from "./actions";
-import { PendingSubmit } from "@/components/ConfirmSubmit";
-import { ConfirmSubmit } from "@/components/ConfirmSubmit";
+import { FLOW_LABEL, ROLE_LABEL, usersError } from "@/lib/users";
+import { assignUserType, restoreUserTypes } from "@/lib/users-actions";
+import { deleteInvite } from "./actions";
+import { AccountCreator } from "./AccountCreator";
+import { AdminTabs, Avatar, ModulePills, TypeBadge, ago, loginLabel, type TypeRow, type UserRow } from "./_ui";
 
-const ROLE: Record<string, string> = { owner: "Şirket sahibi", accountant: "Muhasebe", hr: "İnsan kaynakları", branch_manager: "Şube / bölüm şefi", safety: "İSG uzmanı", employee: "Personel", site_editor: "Web sitesi editörü" };
-const TABLE: Record<string, string> = {
-  employees: "Personel", employee_private: "Kişisel bilgi", pay_contracts: "Ücret", ledger_entries: "Cari hareket", attendance_punches: "Okutma", shifts: "Vardiya",
-  leave_requests: "İzin", overtime_records: "Fazla mesai", payroll_lines: "Bordro", garnishment_files: "İcra", bes_enrollments: "BES", training_records: "Eğitim",
-  health_exams: "Muayene", safety_incidents: "İş kazası", invites: "Davet", advance_requests: "Avans talebi",
-};
+export const dynamic = "force-dynamic";
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ sekme?: string; tablo?: string }> }) {
+/** Yönetim paneli: kullanıcılar, tek ekrandan hesap açma, kullanıcı türleri, davet kodları */
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ sekme?: string; ara?: string; tur?: string }> }) {
   const s = await getSession();
-  if (!["owner", "hr"].includes(s.role)) redirect("/");
+  const lvl = s.role === "owner" ? 3 : (s.modules.users ?? 0);
+  if (lvl < 1) redirect("/");
   const sp = await searchParams;
-  const tab = ["kullanicilar", "davetler", "subeler", "bolumler", "cihazlar", "sirket", "denetim"].includes(sp.sekme ?? "") ? sp.sekme! : "kullanicilar";
+  const tab = ["kullanicilar", "hesap-ac", "turler", "davetler"].includes(sp.sekme ?? "") ? sp.sekme! : "kullanicilar";
   const supabase = await createClient();
-  const isOwner = s.role === "owner";
-
-  const [{ data: dir }, { data: branches }, { data: departments }, { data: emps }] = await Promise.all([
-    supabase.rpc("company_directory"),
-    supabase.from("branches").select("id, name, address, lat, lng, radius_m, mobile_punch_enabled").order("name"),
-    supabase.from("departments").select("id, name").order("name"),
-    supabase.from("employees").select("id, first_name, last_name, user_id, department_id").eq("status", "active").order("first_name"),
+  const [{ data: ud, error: uErr }, { data: td }, { data: ed }, { data: inv }] = await Promise.all([
+    supabase.rpc("users_overview"),
+    supabase.rpc("user_types_list"),
+    lvl >= 2 ? supabase.rpc("users_without_account") : Promise.resolve({ data: [] }),
+    supabase.from("invites").select("id, code, role, display_name, login_email, used_at, expires_at, created_at, user_type_id").is("used_at", null).order("created_at", { ascending: false }).limit(300),
   ]);
-  const [members, mb, md, invites, devices, company, audit] = await Promise.all([
-    tab === "kullanicilar" ? supabase.from("memberships").select("*").order("created_at") : Promise.resolve({ data: [] }),
-    tab === "kullanicilar" ? supabase.from("membership_branches").select("user_id, branch_id") : Promise.resolve({ data: [] }),
-    tab === "kullanicilar" ? supabase.from("membership_departments").select("user_id, department_id") : Promise.resolve({ data: [] }),
-    tab === "davetler" ? supabase.from("invites").select("*").order("created_at", { ascending: false }).limit(300) : Promise.resolve({ data: [] }),
-    tab === "cihazlar" ? supabase.from("devices").select("*").order("code") : Promise.resolve({ data: [] }),
-    tab === "sirket" ? supabase.from("companies").select("*").eq("id", s.companyId).maybeSingle() : Promise.resolve({ data: null }),
-    tab === "denetim" && isOwner
-      ? (() => { let q = supabase.from("audit_log").select("id, table_name, row_id, action, old_data, new_data, actor, at").order("at", { ascending: false }).limit(200); if (sp.tablo) q = q.eq("table_name", sp.tablo); return q; })()
-      : Promise.resolve({ data: [] }),
-  ]);
-  const dirByUser = new Map(((dir ?? []) as Array<{ user_id: string; display_name: string; employee_id: string | null; department: string | null }>).map((d) => [d.user_id, d]));
-  const empName = new Map((emps ?? []).map((e) => [e.id, `${e.first_name} ${e.last_name}`]));
-  const deptCount = new Map<string, number>();
-  for (const e of emps ?? []) if (e.department_id) deptCount.set(e.department_id, (deptCount.get(e.department_id) ?? 0) + 1);
-  const withAccount = (emps ?? []).filter((e) => e.user_id).length;
-  const th = "py-3 px-3 font-semibold border-b border-line";
-  const td = "py-2.5 px-3 border-b border-[#EEF2F6]";
+  const users = (ud ?? []) as UserRow[];
+  const types = (td ?? []) as TypeRow[];
+  const noAccount = (ed ?? []) as { employee_id: string; name: string; card_no: string | null; department: string | null; email: string | null; open_invite: string | null }[];
+  const invites = ((inv ?? []) as { id: string; code: string; role: string; display_name: string | null; login_email: string; expires_at: string; created_at: string; user_type_id: string | null }[]).filter((i) => new Date(i.expires_at) > new Date());
+  const typeName = new Map(types.map((t) => [t.id, t]));
+  const stale = users.filter((u) => !u.last_sign_in_at || Date.now() - new Date(u.last_sign_in_at).getTime() > 30 * 86400000).length;
+  const q = (sp.ara ?? "").trim().toLocaleLowerCase("tr");
+  const shown = users.filter((u) => (!q || `${u.display_name} ${u.email ?? ""} ${u.department ?? ""} ${u.user_type ?? ""}`.toLocaleLowerCase("tr").includes(q)) && (!sp.tur || (sp.tur === "yok" ? !u.user_type_id && u.role !== "owner" : u.user_type_id === sp.tur)));
+  const h = await headers();
+  const url = h.get("host") ?? "";
+  const keyReady = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const defaultType = types.find((t) => t.name.startsWith("Personel"))?.id ?? types[0]?.id ?? "";
 
   return (
     <>
-      <PageHeader title="Yönetim paneli" subtitle={`${(dir ?? []).length} kullanıcı · ${withAccount}/${(emps ?? []).length} personelin mobil hesabı var`} />
-      <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[1320px]">
-        <Tabs base="/yonetim" active={tab} tabs={[["kullanicilar", "Kullanıcılar ve roller"], ["davetler", "Davet kodları"], ["subeler", "Şubeler ve konum"], ["bolumler", "Bölümler"], ["cihazlar", "PDKS cihazları"], ["sirket", "Şirket bilgileri"], ...(isOwner ? [["denetim", "Denetim kaydı"] as [string, string]] : [])]} />
+      <PageHeader title="Kullanıcılar ve hesaplar" subtitle="Kim sisteme girebilir, hangi modülleri kullanır. Türü değiştirin, yetki anında güncellensin."
+        actions={<span className="flex flex-wrap gap-4 text-sm font-semibold"><Link href="/yonetim/yetkiler" className="text-brand-700">Yetki haritası</Link><Link href="/yonetim/sirket" className="text-brand-700">Şirket ayarları</Link>{lvl >= 2 && <Link href="/yonetim/hareketler" className="text-brand-700">İşlem geçmişi</Link>}</span>} />
+      <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1320px]">
+        {uErr && <Notice tone="bad">{usersError(uErr.message)}</Notice>}
+
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          {[
+            ["Kullanıcı", users.length, `${types.length} kullanıcı türü`, "/yonetim?sekme=kullanicilar", ""],
+            ["Hesabı olmayan personel", noAccount.length, noAccount.length ? "Tek tuşla hesap açın →" : "Herkesin hesabı var", "/yonetim?sekme=hesap-ac", noAccount.length ? "warn" : ""],
+            ["Bekleyen davet", invites.length, "kullanılmamış kod", "/yonetim?sekme=davetler", ""],
+            ["30 gündür girmeyen", stale, "ya da hiç girmedi", "/yonetim?sekme=kullanicilar", ""],
+          ].map(([l, v, sub, href, tone]) => (
+            <Link key={String(l)} href={String(href)} className={`rounded-[16px] border p-4 transition hover:border-brand-600 ${tone === "warn" ? "border-[#F5D9A8] bg-[#FFF9EE]" : "border-line bg-white"}`}>
+              <div className="text-xs font-semibold text-muted">{l}</div>
+              <div className="font-display text-3xl font-bold mt-1">{v}</div>
+              <div className={`text-xs ${tone === "warn" ? "text-warn font-semibold" : "text-muted"}`}>{sub}</div>
+            </Link>
+          ))}
+        </div>
+
+        <AdminTabs active={tab} counts={{ "hesap-ac": noAccount.length, davetler: invites.length }} />
 
         {tab === "kullanicilar" && (
-          <section className="bg-white border border-line rounded-[14px] overflow-x-auto">
-            <table className="w-full text-sm min-w-[960px]">
-              <thead><tr className="text-left text-xs text-muted"><th className={th}>Kullanıcı</th><th className={th}>Bağlı personel</th><th className={th}>Rol ve şube yetkisi</th><th className={th}><span className="sr-only">İşlem</span></th></tr></thead>
-              <tbody>
-                {(members.data ?? []).map((m) => {
-                  const d = dirByUser.get(m.user_id);
-                  const myBranches = new Set((mb.data ?? []).filter((x) => x.user_id === m.user_id).map((x) => x.branch_id));
-                  const myDepts = new Set(((md.data ?? []) as Array<{ user_id: string; department_id: string }>).filter((x) => x.user_id === m.user_id).map((x) => x.department_id));
-                  return (
-                    <tr key={m.user_id}>
-                      <td className={td}><b>{d?.display_name ?? m.display_name ?? "—"}</b><span className="block text-xs text-muted">{m.user_id === s.userId ? "siz · " : ""}{formatDate(m.created_at)}</span></td>
-                      <td className={td}>{d?.employee_id ? <Link href={`/personel/${d.employee_id}`} className="text-brand-700 font-semibold">{empName.get(d.employee_id) ?? "Personel"}</Link> : <span className="text-muted">—</span>}{d?.department ? <span className="block text-xs text-muted">{d.department}</span> : null}</td>
-                      <td className={td}>
-                        {isOwner ? (
-                          <form action={updateMember} className="flex flex-wrap gap-2 items-center">
-                            <input type="hidden" name="userId" value={m.user_id} />
-                            <input name="display_name" defaultValue={m.display_name ?? ""} placeholder="Görünen ad" aria-label="Görünen ad" className="h-9 w-36 rounded-md border border-[#D5DEE8] px-2 text-xs" />
-                            <select name="role" defaultValue={m.role} aria-label="Rol" className="h-9 rounded-md border border-[#D5DEE8] px-2 text-xs">{Object.entries(ROLE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-                            <label className="flex gap-1 items-center text-xs"><input type="checkbox" name="all_branches" defaultChecked={m.all_branches} />Tüm şubeler</label>
-                            {(m.role === "owner" || m.role === "accountant") && <label className="flex gap-1 items-center text-xs" title="Mobilde patron ekranı: maaş yükü, SGK, devamsızlık, giren-çıkan"><input type="checkbox" name="is_boss" defaultChecked={(m as { is_boss?: boolean }).is_boss === true} />Patron ekranı</label>}
-                            {m.role !== "owner" && m.role !== "site_editor" && <label className="flex gap-1 items-center text-xs" title="Aynı kullanıcı adı ve şifreyle mbdentaire.com yönetim paneline de girebilir"><input type="checkbox" name="site_access" defaultChecked={(m as { site_access?: boolean }).site_access === true} />Web sitesi yönetimi</label>}
-                            {!["owner", "accountant", "hr", "branch_manager"].includes(m.role) && <label className="flex gap-1 items-center text-xs" title="İş kayıt, hekim/ürün kartları, kargo, gümrük ve kurye modüllerini kullanır (ör. kabul personeli, kurye)"><input type="checkbox" name="logistics_access" defaultChecked={(m as { logistics_access?: boolean }).logistics_access === true} />Laboratuvar / kargo</label>}
-                            {(branches ?? []).length > 1 && (branches ?? []).map((b) => (
-                              <label key={b.id} className="flex gap-1 items-center text-xs"><input type="checkbox" name="branch_id" value={b.id} defaultChecked={myBranches.has(b.id)} />{b.name}</label>
-                            ))}
-                            {m.role === "branch_manager" && (
-                              <details className="w-full" open={myDepts.size > 0}>
-                                <summary className="text-xs font-semibold text-brand-700 cursor-pointer">Sorumlu olduğu bölümler {myDepts.size ? `(${myDepts.size})` : "(hepsi)"}</summary>
-                                <div className="flex flex-wrap gap-2 mt-1">
-                                  {(departments ?? []).map((dp) => (
-                                    <label key={dp.id} className="flex gap-1 items-center text-xs"><input type="checkbox" name="department_id" value={dp.id} defaultChecked={myDepts.has(dp.id)} />{dp.name}</label>
-                                  ))}
-                                </div>
-                                <span className="text-[11px] text-muted">Hiçbiri seçili değilse şubesindeki tüm bölümleri görür. Seçiliyse yalnız o bölümlerin personelini görür, izin/mesai/talep onaylar.</span>
-                              </details>
-                            )}
-                            <button className="h-9 px-3 rounded-md border border-[#D5DEE8] text-xs font-semibold text-brand-700">Kaydet</button>
-                          </form>
-                        ) : (
-                          <span>{ROLE[m.role]}{m.all_branches ? " · tüm şubeler" : ""}{myDepts.size ? ` · ${[...myDepts].map((x) => (departments ?? []).find((dp) => dp.id === x)?.name).filter(Boolean).join(", ")}` : ""}</span>
-                        )}
-                      </td>
-                      <td className={`${td} text-right`}>
-                        {isOwner && m.user_id !== s.userId && (
-                          <form action={removeMember}><input type="hidden" name="userId" value={m.user_id} /><ConfirmSubmit label="Erişimi kaldır" question="Kullanıcının erişimi kaldırılsın mı?" /></form>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <p className="text-xs text-muted p-3">Roller: <b>Şirket sahibi</b> her şey · <b>Muhasebe</b> ücret, ödeme, bordro · <b>İK</b> personel, puantaj, izin · <b>Şube / bölüm şefi</b> kendi şubesinin ya da bölümlerinin personeli: puantaj, vardiya, izin, talep onayı, belgeler, mesai yemeği (ücret bilgisi hariç) · <b>İSG uzmanı</b> eğitim ve sağlık · <b>Personel</b> sadece kendi bilgileri (mobil).</p>
-          </section>
+          <>
+            <form className="flex flex-wrap gap-2">
+              <input type="hidden" name="sekme" value="kullanicilar" />
+              <input name="ara" defaultValue={sp.ara} placeholder="Ad, kullanıcı adı, bölüm ara…" className="h-11 flex-1 min-w-56 rounded-[12px] border border-[#D5DEE8] bg-white px-4" />
+              {sp.tur && <input type="hidden" name="tur" value={sp.tur} />}
+              <button className="h-11 px-4 rounded-[12px] border border-[#D5DEE8] bg-white font-semibold">Ara</button>
+            </form>
+            <div className="flex flex-wrap gap-1.5">
+              <Link href="/yonetim?sekme=kullanicilar" className={`rounded-full px-3 py-1 text-xs font-semibold border ${!sp.tur ? "bg-ink text-white border-ink" : "bg-white border-line"}`}>Hepsi {users.length}</Link>
+              {types.filter((t) => t.members).map((t) => (
+                <Link key={t.id} href={`/yonetim?sekme=kullanicilar&tur=${t.id}`} className={`rounded-full px-3 py-1 text-xs font-semibold border ${sp.tur === t.id ? "text-white border-transparent" : "bg-white border-line"}`} style={sp.tur === t.id ? { background: t.color } : undefined}>{t.name} {t.members}</Link>
+              ))}
+              {users.some((u) => !u.user_type_id && u.role !== "owner") && <Link href="/yonetim?sekme=kullanicilar&tur=yok" className={`rounded-full px-3 py-1 text-xs font-semibold border border-dashed ${sp.tur === "yok" ? "bg-ink text-white" : "bg-white border-[#C5D0DB]"}`}>Türsüz {users.filter((u) => !u.user_type_id && u.role !== "owner").length}</Link>}
+            </div>
+            <section className="bg-white border border-line rounded-[18px] divide-y divide-[#EEF2F6]">
+              {shown.map((u) => {
+                const owner = u.role === "owner";
+                const me = u.user_id === s.userId;
+                return (
+                  <div key={u.user_id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center">
+                    <Link href={`/yonetim/kullanici/${u.user_id}`} className="flex items-center gap-3 min-w-0 lg:w-[300px] shrink-0 group">
+                      <Avatar name={u.display_name} color={owner ? "#0F172A" : u.type_color} />
+                      <span className="min-w-0">
+                        <span className="block font-semibold truncate group-hover:text-brand-700">{u.display_name}{me && <span className="text-xs font-normal text-muted"> (siz)</span>}</span>
+                        <span className="block text-xs text-muted truncate">{loginLabel(u.email)} · {ago(u.last_sign_in_at)}</span>
+                      </span>
+                    </Link>
+                    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        {owner ? <span className="inline-flex rounded-full bg-ink px-2.5 py-0.5 text-xs font-semibold text-white">Şirket sahibi · tüm yetkiler</span> : <TypeBadge name={u.user_type} color={u.type_color} />}
+                        {u.flow_role && <span className="text-xs text-muted">· {FLOW_LABEL[u.flow_role]}</span>}
+                        {u.department && <span className="text-xs text-muted">· {u.department}</span>}
+                        {!owner && u.user_type_id && Object.keys(u.explicit).some((k) => (u.type_levels?.[k] ?? 0) !== u.explicit[k]) && <span className="text-[11px] font-semibold text-warn">· kişiye özel ayar</span>}
+                      </span>
+                      {!owner && <ModulePills levels={u.levels} />}
+                    </div>
+                    {!owner && !me && lvl >= 2 && (
+                      <form action={assignUserType} className="flex gap-1.5 shrink-0">
+                        <input type="hidden" name="user_id" value={u.user_id} />
+                        <select name="type_id" defaultValue={u.user_type_id ?? ""} aria-label="Kullanıcı türü" className="h-10 w-48 rounded-[10px] border border-[#D5DEE8] bg-white px-2 text-sm">
+                          {!u.user_type_id && <option value="">Tür seçin…</option>}
+                          {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                        <PendingSubmit className="h-10 px-3 rounded-[10px] bg-brand-700 text-white text-sm font-semibold">Uygula</PendingSubmit>
+                      </form>
+                    )}
+                    <Link href={`/yonetim/kullanici/${u.user_id}`} className="text-sm font-semibold text-brand-700 shrink-0">Ayrıntı →</Link>
+                  </div>
+                );
+              })}
+              {shown.length === 0 && <p className="p-8 text-center text-muted">Kullanıcı yok.</p>}
+            </section>
+            {users.some((u) => !u.user_type_id && u.role !== "owner") && <p className="text-xs text-muted">Türsüz kullanıcılar eski rol sistemindeki yetkileriyle çalışmaya devam eder ({[...new Set(users.filter((u) => !u.user_type_id && u.role !== "owner").map((u) => ROLE_LABEL[u.role]))].join(", ")}). Bir tür atadığınızda yetkileri türden gelir.</p>}
+          </>
+        )}
+
+        {tab === "hesap-ac" && (lvl < 2 ? <Notice>Hesap açmak için Kullanıcı yönetiminde “Hesap açar” yetkisi gerekir.</Notice> : types.length === 0 ? <Notice>Önce bir kullanıcı türü oluşturun.</Notice> : (
+          <AccountCreator employees={noAccount} types={types.map((t) => ({ id: t.id, name: t.name, color: t.color, description: t.description }))} defaultType={defaultType} url={url} keyReady={keyReady} />
+        ))}
+
+        {tab === "turler" && (
+          <>
+            <p className="text-sm text-muted max-w-3xl">Her tür, bir görevin hangi modülleri hangi seviyede kullanacağını tanımlar. Türü düzenlediğinizde o türdeki herkesin yetkisi birlikte güncellenir. Bir kişiye istisna gerekirse kullanıcının sayfasından kişiye özel ayar yapılır.</p>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {types.map((t) => (
+                <Link key={t.id} href={`/yonetim/turler/${t.id}`} className="group rounded-[18px] border border-line bg-white overflow-hidden flex flex-col hover:shadow-md transition">
+                  <div className="h-1.5" style={{ background: t.color }} />
+                  <div className="p-4 flex flex-col gap-2 flex-1">
+                    <div className="flex items-start gap-2">
+                      <b className="font-display text-lg leading-tight flex-1 group-hover:text-brand-700">{t.name}</b>
+                      <span className="rounded-full bg-[#EEF2F6] px-2 py-0.5 text-xs font-semibold">{t.members} kişi</span>
+                    </div>
+                    {t.description && <p className="text-xs text-muted">{t.description}</p>}
+                    <ModulePills levels={t.levels} max={8} />
+                    <span className="mt-auto pt-2 text-[11px] text-muted">{ROLE_LABEL[t.base_role]}{t.flow_role ? ` · kutu akışı: ${FLOW_LABEL[t.flow_role]}` : ""}{t.scoped ? " · kendi bölümü" : ""}</span>
+                  </div>
+                </Link>
+              ))}
+              {lvl >= 3 && (
+                <Link href="/yonetim/turler/yeni" className="rounded-[18px] border-2 border-dashed border-[#C5D0DB] grid place-items-center p-8 text-center hover:border-brand-600 hover:bg-[#F7FAFD]">
+                  <span><span className="block text-3xl text-brand-700">+</span><b className="block">Yeni kullanıcı türü</b><span className="text-xs text-muted">ör. Satış temsilcisi, Kurye, Mali müşavir</span></span>
+                </Link>
+              )}
+            </div>
+            {lvl >= 3 && <form action={restoreUserTypes}><button className="text-xs font-semibold text-brand-700">Eksik hazır türleri geri ekle</button></form>}
+          </>
         )}
 
         {tab === "davetler" && (
-          <>
-            <Card title="Tek davet · şifre sıfırlama kodu"><InviteForm employees={(emps ?? []).map((e) => ({ id: e.id, name: `${e.first_name} ${e.last_name}${e.user_id ? " · hesabı var (şifre sıfırlama)" : ""}` }))} isOwner={isOwner} /></Card>
-            <Card title="Toplu davet (personel mobil uygulaması)">
-              <p className="text-sm text-muted">Her personele kişisel kod üretilir. Personel uygulamada &quot;Hesap oluştur&quot; deyip kodu ve kendi belirlediği şifreyi girer; giriş için PDKS numarasını (veya e-postasını) kullanır.</p>
-              <BulkInviteForm departments={departments ?? []} />
-            </Card>
-            <section className="bg-white border border-line rounded-[14px] overflow-x-auto">
-              <table className="w-full text-sm min-w-[820px]">
-                <thead><tr className="text-left text-xs text-muted"><th className={th}>Kod</th><th className={th}>Kişi</th><th className={th}>Rol</th><th className={th}>Giriş kimliği</th><th className={th}>Durum</th><th className={th}><span className="sr-only">Sil</span></th></tr></thead>
-                <tbody>
-                  {(invites.data ?? []).map((i) => (
-                    <tr key={i.id}>
-                      <td className={`${td} font-mono font-bold tracking-widest`}>{formatInviteCode(i.code)}</td>
-                      <td className={td}>{i.display_name ?? (i.employee_id ? empName.get(i.employee_id) : "—")}</td>
-                      <td className={td}>{ROLE[i.role]}</td>
-                      <td className={`${td} text-xs`}>{i.login_email}</td>
-                      <td className={td}>{i.used_at ? <span className="text-xs font-semibold text-ok">Kullanıldı {formatDate(i.used_at)}</span> : new Date(i.expires_at) < new Date() ? <span className="text-xs text-bad">Süresi doldu</span> : <span className="text-xs text-warn">Bekliyor · {formatDate(i.expires_at)}&apos;e kadar</span>}</td>
-                      <td className={`${td} text-right`}>{!i.used_at && <form action={deleteInvite}><input type="hidden" name="id" value={i.id} /><ConfirmSubmit label="Sil" /></form>}</td>
+          <section className="bg-white border border-line rounded-[18px] overflow-x-auto">
+            <div className="flex flex-wrap items-center gap-3 p-4 border-b border-line">
+              <p className="text-sm text-muted flex-1">Davet kodu verilen kişi uygulamada “Hesap oluştur” deyip kodu ve kendi şifresini girer. Kodlar 30 gün geçerlidir.</p>
+              {invites.length > 0 && <Link href="/yazdir/davetler" className="text-sm font-semibold text-brand-700">Listeyi yazdır</Link>}
+            </div>
+            <table className="w-full text-sm min-w-[760px]">
+              <thead><tr className="text-left text-xs text-muted"><th className="p-3">Kod</th><th className="p-3">Kişi</th><th className="p-3">Tür</th><th className="p-3">Kullanıcı adı</th><th className="p-3">Son gün</th><th className="p-3" /></tr></thead>
+              <tbody>
+                {invites.map((i) => {
+                  const t = i.user_type_id ? typeName.get(i.user_type_id) : null;
+                  return (
+                    <tr key={i.id} className="border-t border-[#EEF2F6]">
+                      <td className="p-3 font-mono font-bold tracking-widest">{formatInviteCode(i.code)}</td>
+                      <td className="p-3">{i.display_name ?? "—"}</td>
+                      <td className="p-3">{t ? <TypeBadge name={t.name} color={t.color} /> : <span className="text-xs text-muted">{ROLE_LABEL[i.role]}</span>}</td>
+                      <td className="p-3 text-xs">{loginLabel(i.login_email)}</td>
+                      <td className="p-3 text-xs">{formatDate(i.expires_at)}</td>
+                      <td className="p-3 text-right">{lvl >= 2 && <form action={deleteInvite}><input type="hidden" name="id" value={i.id} /><ConfirmSubmit label="Sil" /></form>}</td>
                     </tr>
-                  ))}
-                  {(invites.data ?? []).length === 0 && <tr><td colSpan={6} className="py-6 text-center text-muted">Davet yok.</td></tr>}
-                </tbody>
-              </table>
-            </section>
-          </>
-        )}
-
-        {tab === "sirket" && (() => {
-          const c = (company.data ?? {}) as Record<string, string | null>;
-          const inp = "h-11 rounded-[10px] border border-[#D5DEE8] bg-white px-3.5 w-full";
-          const fields: Array<[string, string, string?]> = [
-            ["name", "Şirket unvanı"], ["sgk_registration_no", "SGK işyeri sicil no", "Muayene formu ve bankaya verilen dosyalarda kullanılır"], ["tax_office", "Vergi dairesi"], ["tax_no", "Vergi numarası"],
-            ["phone", "Telefon"], ["email", "KVKK başvuru e-postası", "Aydınlatma metninde personelin başvuracağı adres"],
-          ];
-          return (
-            <Card title="Şirket bilgileri" action={<span className="text-xs text-muted">İş sözleşmesi, gizlilik sözleşmesi, KVKK ve muayene formuna yazılır</span>}>
-              <form action={saveCompanyInfo} className="grid gap-4 md:grid-cols-2">
-                {fields.map(([k, label, hint]) => (
-                  <label key={k} className="flex flex-col gap-1.5 text-sm text-muted">
-                    {label}
-                    <input name={k} defaultValue={c[k] ?? ""} disabled={!isOwner} className={inp} />
-                    {hint && <span className="text-xs">{hint}</span>}
-                  </label>
-                ))}
-                <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">
-                  Adres
-                  <textarea name="address" rows={2} defaultValue={c.address ?? ""} disabled={!isOwner} className={`${inp} h-auto py-2`} />
-                </label>
-                {isOwner && <div className="md:col-span-2"><PendingSubmit className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold">Kaydet</PendingSubmit></div>}
-              </form>
-            </Card>
-          );
-        })()}
-
-        {tab === "subeler" && (
-          <>
-            {(branches ?? []).map((b) => (
-              <Card key={b.id} title={b.name} action={<a href={`/kiosk/${b.id}`} target="_blank" className="text-[13px] font-semibold text-brand-700">QR kiosk ekranını aç</a>}>
-                <BranchForm branch={b} />
-                <p className="text-xs text-muted">{b.lat ? `Konum tanımlı · personel ${b.radius_m} m içindeyken telefondan giriş-çıkış yapabilir.` : "Konum tanımlı değil: mobil girişte sadece QR kod çalışır."} QR kiosk ekranını girişteki tablette açık bırakın; kod her saat değişir, fotoğrafı başka yerden okutulamaz.</p>
-              </Card>
-            ))}
-            {isOwner && <Card title="Yeni şube"><BranchForm /></Card>}
-          </>
-        )}
-
-        {tab === "bolumler" && (
-          <Card title="Bölümler">
-            {(departments ?? []).map((d) => (
-              <div key={d.id} className="flex gap-2 items-center">
-                <form action={saveDepartment} className="flex gap-2 items-center flex-1">
-                  <input type="hidden" name="id" value={d.id} />
-                  <input name="name" defaultValue={d.name} aria-label="Bölüm adı" className="h-10 rounded-lg border border-[#D5DEE8] px-3 flex-1 max-w-sm" />
-                  <span className="text-xs text-muted w-20">{deptCount.get(d.id) ?? 0} kişi</span>
-                  <button className="h-10 px-3 rounded-lg border border-[#D5DEE8] text-xs font-semibold text-brand-700">Kaydet</button>
-                </form>
-                {!deptCount.get(d.id) && <form action={deleteDepartment}><input type="hidden" name="id" value={d.id} /><ConfirmSubmit label="Sil" /></form>}
-              </div>
-            ))}
-            <form action={saveDepartment} className="flex gap-2 items-center pt-2 border-t border-line">
-              <input name="name" required placeholder="Yeni bölüm adı" className="h-10 rounded-lg border border-[#D5DEE8] px-3 flex-1 max-w-sm" />
-              <button className="h-10 px-4 rounded-lg bg-brand-700 text-white text-sm font-semibold">Ekle</button>
-            </form>
-          </Card>
-        )}
-
-        {tab === "cihazlar" && (
-          <Card title="PDKS cihazları">
-            <p className="text-sm text-muted">Cihaz dosyasındaki ilk sütun (001, 002) hangi yönü gösteriyor. Varsayılan: 002 giriş, 001 çıkış.</p>
-            {(devices.data ?? []).map((d) => (
-              <div key={d.id} className="flex gap-2 items-center flex-wrap">
-                <form action={saveDevice} className="flex gap-2 items-center flex-wrap">
-                  <input type="hidden" name="id" value={d.id} />
-                  <input name="code" defaultValue={d.code} aria-label="Cihaz kodu" className="h-10 w-20 rounded-lg border border-[#D5DEE8] px-3 font-mono" />
-                  <select name="direction" defaultValue={d.direction} aria-label="Yön" className="h-10 rounded-lg border border-[#D5DEE8] px-2"><option value="IN">Giriş</option><option value="OUT">Çıkış</option></select>
-                  <select name="branch_id" defaultValue={d.branch_id} aria-label="Şube" className="h-10 rounded-lg border border-[#D5DEE8] px-2">{(branches ?? []).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
-                  <input name="name" defaultValue={d.name ?? ""} placeholder="Ad" aria-label="Cihaz adı" className="h-10 rounded-lg border border-[#D5DEE8] px-3" />
-                  {isOwner && <button className="h-10 px-3 rounded-lg border border-[#D5DEE8] text-xs font-semibold text-brand-700">Kaydet</button>}
-                </form>
-                {isOwner && <form action={deleteDevice}><input type="hidden" name="id" value={d.id} /><ConfirmSubmit label="Sil" /></form>}
-              </div>
-            ))}
-            {isOwner && (
-              <form action={saveDevice} className="flex gap-2 items-center flex-wrap pt-2 border-t border-line">
-                <input name="code" required placeholder="003" className="h-10 w-20 rounded-lg border border-[#D5DEE8] px-3 font-mono" />
-                <select name="direction" className="h-10 rounded-lg border border-[#D5DEE8] px-2"><option value="IN">Giriş</option><option value="OUT">Çıkış</option></select>
-                <select name="branch_id" className="h-10 rounded-lg border border-[#D5DEE8] px-2">{(branches ?? []).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
-                <input name="name" placeholder="Ad" className="h-10 rounded-lg border border-[#D5DEE8] px-3" />
-                <button className="h-10 px-4 rounded-lg bg-brand-700 text-white text-sm font-semibold">Cihaz ekle</button>
-              </form>
-            )}
-          </Card>
-        )}
-
-        {tab === "denetim" && isOwner && (
-          <>
-            <form className="flex gap-2">
-              <input type="hidden" name="sekme" value="denetim" />
-              <select name="tablo" defaultValue={sp.tablo ?? ""} aria-label="Kayıt türü" className="h-11 rounded-[10px] border border-[#D5DEE8] bg-white px-3">
-                <option value="">Tüm kayıtlar</option>{Object.entries(TABLE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-              </select>
-              <button className="h-11 px-4 rounded-[10px] bg-brand-700 text-white font-semibold">Filtrele</button>
-            </form>
-            <section className="bg-white border border-line rounded-[14px] overflow-x-auto">
-              <table className="w-full text-xs min-w-[900px]">
-                <thead><tr className="text-left text-muted"><th className={th}>Zaman</th><th className={th}>Kim</th><th className={th}>Kayıt</th><th className={th}>İşlem</th><th className={th}>Değişen alanlar</th></tr></thead>
-                <tbody>
-                  {(audit.data ?? []).map((a) => {
-                    const oldD = (a.old_data ?? {}) as Record<string, unknown>;
-                    const newD = (a.new_data ?? {}) as Record<string, unknown>;
-                    const changed = a.action === "UPDATE" ? Object.keys(newD).filter((k) => JSON.stringify(newD[k]) !== JSON.stringify(oldD[k]) && !["updated_at"].includes(k)) : [];
-                    return (
-                      <tr key={a.id}>
-                        <td className={`num ${td} whitespace-nowrap`}>{new Date(a.at).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}</td>
-                        <td className={td}>{a.actor ? dirByUser.get(a.actor)?.display_name ?? "—" : "sistem"}</td>
-                        <td className={td}>{TABLE[a.table_name] ?? a.table_name}</td>
-                        <td className={td}>{a.action === "INSERT" ? "Ekleme" : a.action === "UPDATE" ? "Değişiklik" : "Silme"}</td>
-                        <td className={`${td} font-mono`}>{changed.slice(0, 6).map((k) => `${k}: ${JSON.stringify(oldD[k])} → ${JSON.stringify(newD[k])}`).join(" · ")}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </section>
-          </>
+                  );
+                })}
+                {invites.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-muted">Bekleyen davet yok. Yeni hesaplar <Link href="/yonetim?sekme=hesap-ac" className="font-semibold text-brand-700">Hesap aç</Link> sekmesinden açılır.</td></tr>}
+              </tbody>
+            </table>
+          </section>
         )}
       </div>
     </>

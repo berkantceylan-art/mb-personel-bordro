@@ -17,7 +17,7 @@ export const NAV: Group[] = [
       { label: "Bildirimler", href: "/bildirimler" },
       { label: "Duyurular", href: "/duyurular" },
       { label: "Mesajlar", href: "/mesajlar" },
-      { label: "Talepler", href: "/talepler", roles: [...new Set([...PAY, ...HR])] },
+      { label: "Talepler", href: "/talepler", module: ["hr", "attendance", "payroll"], roles: [...new Set([...PAY, ...HR])] },
       { label: "İK asistanı", href: "/asistan" },
     ],
   },
@@ -53,36 +53,36 @@ export const NAV: Group[] = [
   {
     group: "İnsan kaynakları", slug: "insan-kaynaklari",
     items: [
-      { label: "Personel", href: "/personel", roles: MANAGERS },
-      { label: "İşe alım ve ilanlar", href: "/ise-alim", roles: HRM },
-      { label: "Uyum süreci", href: "/uyum", roles: HRM },
-      { label: "Performans", href: "/performans", roles: HRM },
-      { label: "Yetkinlik ve hedefler", href: "/yetkinlik", roles: HRM },
-      { label: "Organizasyon", href: "/organizasyon", roles: MANAGERS },
+      { label: "Personel", href: "/personel", module: "hr", roles: MANAGERS },
+      { label: "İşe alım ve ilanlar", href: "/ise-alim", module: "hr", roles: HRM },
+      { label: "Uyum süreci", href: "/uyum", module: "hr", roles: HRM },
+      { label: "Performans", href: "/performans", module: "hr", roles: HRM },
+      { label: "Yetkinlik ve hedefler", href: "/yetkinlik", module: "hr", roles: HRM },
+      { label: "Organizasyon", href: "/organizasyon", module: "hr", roles: MANAGERS },
     ],
   },
   {
     group: "Puantaj ve izin", slug: "puantaj-izin",
     items: [
-      { label: "Puantaj", href: "/puantaj", roles: MANAGERS },
-      { label: "Vardiyalar", href: "/vardiyalar", roles: MANAGERS },
-      { label: "Yıllık izin", href: "/yillik-izin", roles: HRM },
-      { label: "İzin kayıtları", href: "/izin", roles: MANAGERS },
-      { label: "Fazla mesai", href: "/fazla-mesai", roles: MANAGERS },
-      { label: "Mesai yemeği", href: "/yemek", roles: HRM },
+      { label: "Puantaj", href: "/puantaj", module: "attendance", roles: MANAGERS },
+      { label: "Vardiyalar", href: "/vardiyalar", module: "attendance", roles: MANAGERS },
+      { label: "Yıllık izin", href: "/yillik-izin", module: "attendance", roles: HRM },
+      { label: "İzin kayıtları", href: "/izin", module: "attendance", roles: MANAGERS },
+      { label: "Fazla mesai", href: "/fazla-mesai", module: "attendance", roles: MANAGERS },
+      { label: "Mesai yemeği", href: "/yemek", module: "attendance", roles: HRM },
     ],
   },
   {
     group: "Muhasebe ve bordro", slug: "muhasebe-bordro",
     items: [
-      { label: "Ay sonu", href: "/ay-sonu", roles: PAY },
-      { label: "Bordro", href: "/bordro", roles: PAY },
-      { label: "Dönemler", href: "/donemler", roles: PAY },
-      { label: "Avans ve ödemeler", href: "/odemeler/yeni", roles: PAY },
-      { label: "Zamlar", href: "/zamlar", roles: PAY },
-      { label: "BES", href: "/bes", roles: PAY },
-      { label: "İcra ve nafaka", href: "/icra", roles: PAY },
-      { label: "SGK işlemleri", href: "/sgk", roles: ["owner", "accountant", "hr"] },
+      { label: "Ay sonu", href: "/ay-sonu", module: "payroll", roles: PAY },
+      { label: "Bordro", href: "/bordro", module: "payroll", roles: PAY },
+      { label: "Dönemler", href: "/donemler", module: "payroll", roles: PAY },
+      { label: "Avans ve ödemeler", href: "/odemeler/yeni", module: "payroll", roles: PAY },
+      { label: "Zamlar", href: "/zamlar", module: "payroll", roles: PAY },
+      { label: "BES", href: "/bes", module: "payroll", roles: PAY },
+      { label: "İcra ve nafaka", href: "/icra", module: "payroll", roles: PAY },
+      { label: "SGK işlemleri", href: "/sgk", module: ["payroll", "hr"], roles: ["owner", "accountant", "hr"] },
     ],
   },
   {
@@ -107,8 +107,8 @@ export const NAV: Group[] = [
     group: "Cari", slug: "cari",
     items: [
       { label: "Cari kartlar (tedarikçi / müşteri)", href: "/finans/cariler", module: ["finance", "sales", "purchases"], desc: "Tüm cariler, para birimi, açılış bakiyesi, ekstre" },
-      { label: "Hekim cari hesapları", href: "/isler/cari", logistics: true, desc: "Hekim bakiyeleri, tahsilat ve ekstre" },
-      { label: "Hekim / hastane kartları", href: "/isler/hekimler", logistics: true },
+      { label: "Hekim cari hesapları", href: "/isler/cari", module: "lab", desc: "Hekim bakiyeleri, tahsilat ve ekstre" },
+      { label: "Hekim / hastane kartları", href: "/isler/hekimler", module: "lab" },
     ],
   },
   {
@@ -140,9 +140,9 @@ export const NAV: Group[] = [
   {
     group: "Laboratuvar / üretim", slug: "laboratuvar",
     items: [
-      { label: "İş kayıt", href: "/isler/yeni", logistics: true, desc: "Yeni iş: hekim, hasta, diş şeması, ürünler, prova ve teslim" },
-      { label: "İş listesi", href: "/isler", logistics: true, desc: "Tüm işler; duruma, hekime ve tarihe göre ara" },
-      { label: "Prova / teslim listesi", href: "/isler/prova", logistics: true, desc: "Bugün ve önümüzdeki günlerde çıkacak prova ve teslimler" },
+      { label: "İş kayıt", href: "/isler/yeni", module: "lab", desc: "Yeni iş: hekim, hasta, diş şeması, ürünler, prova ve teslim" },
+      { label: "İş listesi", href: "/isler", module: "lab", desc: "Tüm işler; duruma, hekime ve tarihe göre ara" },
+      { label: "Prova / teslim listesi", href: "/isler/prova", module: "lab", desc: "Bugün ve önümüzdeki günlerde çıkacak prova ve teslimler" },
       { label: "Kutu okut", href: "/uretim/okut", module: "production", desc: "Kutuyu okut: aldım / bitirdim, şef ve kalite onayı, çıkış" },
       { label: "İş nerede?", href: "/uretim/nerede", module: "production", desc: "Her iş hangi aşamada, kimin elinde, ne zamandır" },
       { label: "Personel performansı", href: "/uretim/performans", module: "production", desc: "Kim kaç birim yaptı, birim başı süre, geri dönüş oranı" },
@@ -150,24 +150,24 @@ export const NAV: Group[] = [
       { label: "Üretim panosu", href: "/uretim", module: "production", desc: "İstasyon istasyon işler, okutarak başla / bitir, gecikenler" },
       { label: "Üretim raporu", href: "/uretim/rapor", module: "production", desc: "Teknisyen verimi, yeniden yapım analizi, lot geri izleme" },
       { label: "İstasyon ve rotalar", href: "/uretim/ayarlar", module: "production", desc: "Ürün başına istasyon sırası, süre, malzeme düşüm adımı" },
-      { label: "Hekim / hastane kaydı", href: "/isler/hekimler", logistics: true, desc: "Hekim ve klinik kartları, yeni hekim ekleme, özel fiyatlar" },
-      { label: "Protez / ürün ve fiyatlar", href: "/isler/urunler", logistics: true, desc: "Ürün listesi, TL / € fiyatlar, fiyat listesinden aktarma" },
-      { label: "Laboratuvar listeleri", href: "/isler/ayarlar", logistics: true, desc: "Teslim şekilleri, prova türleri, banka bilgileri" },
+      { label: "Hekim / hastane kaydı", href: "/isler/hekimler", module: "lab", desc: "Hekim ve klinik kartları, yeni hekim ekleme, özel fiyatlar" },
+      { label: "Protez / ürün ve fiyatlar", href: "/isler/urunler", module: "lab", desc: "Ürün listesi, TL / € fiyatlar, fiyat listesinden aktarma" },
+      { label: "Laboratuvar listeleri", href: "/isler/ayarlar", module: "lab", desc: "Teslim şekilleri, prova türleri, banka bilgileri" },
     ],
   },
   {
     group: "Lojistik", slug: "lojistik",
     items: [
-      { label: "Kargo, gümrük, kurye", href: "/kargo", logistics: true, desc: "Gelen ve giden paketler, DHL / UPS / gümrük takibi" },
-      { label: "Paket okut", href: "/kargo/okut", logistics: true, desc: "Telefon kamerasıyla barkod okutup teslim al" },
-      { label: "Kurye rotası", href: "/kargo/kurye", logistics: true, desc: "Kuryenin bugünkü alım ve teslimleri" },
+      { label: "Kargo, gümrük, kurye", href: "/kargo", module: "lab", desc: "Gelen ve giden paketler, DHL / UPS / gümrük takibi" },
+      { label: "Paket okut", href: "/kargo/okut", module: "lab", desc: "Telefon kamerasıyla barkod okutup teslim al" },
+      { label: "Kurye rotası", href: "/kargo/kurye", module: "lab", desc: "Kuryenin bugünkü alım ve teslimleri" },
     ],
   },
   {
     group: "Demirbaş ve zimmet", slug: "demirbas",
     items: [
       { label: "Demirbaş listesi", href: "/demirbas", module: "assets", desc: "Değer, amortisman, net defter değeri, bakım ve garanti" },
-      { label: "Zimmet", href: "/zimmet", roles: HRM, desc: "Demirbaş ekle, personele zimmetle, iade al" },
+      { label: "Zimmet", href: "/zimmet", module: ["hr", "assets"], roles: HRM, desc: "Demirbaş ekle, personele zimmetle, iade al" },
       { label: "Amortisman", href: "/demirbas/amortisman", module: "assets", desc: "Aylık amortismanı tek tuşla işle" },
     ],
   },
@@ -181,16 +181,16 @@ export const NAV: Group[] = [
   {
     group: "İSG ve yasal uyum", slug: "isg-uyum",
     items: [
-      { label: "İş güvenliği", href: "/isg", roles: MANAGERS },
-      { label: "Sağlık", href: "/saglik", roles: ["owner", "hr", "safety"] },
-      { label: "İş Kanunu uyumu", href: "/is-hukuku", roles: ["owner", "accountant", "hr"] },
-      { label: "KVKK", href: "/kvkk", roles: ["owner", "hr"] },
-      { label: "Mevzuat", href: "/mevzuat", roles: ["owner", "accountant", "hr"] },
+      { label: "İş güvenliği", href: "/isg", module: "safety", roles: MANAGERS },
+      { label: "Sağlık", href: "/saglik", module: "safety", roles: ["owner", "hr", "safety"] },
+      { label: "İş Kanunu uyumu", href: "/is-hukuku", module: "safety", roles: ["owner", "accountant", "hr"] },
+      { label: "KVKK", href: "/kvkk", module: "safety", roles: ["owner", "hr"] },
+      { label: "Mevzuat", href: "/mevzuat", module: "safety", roles: ["owner", "accountant", "hr"] },
     ],
   },
-  { group: "Raporlar", slug: "raporlar", items: [{ label: "Raporlar", href: "/raporlar", roles: MANAGERS }, { label: "Excel'den aktar", href: "/ice-aktar", roles: PAY }] },
+  { group: "Raporlar", slug: "raporlar", items: [{ label: "Raporlar", href: "/raporlar", module: ["hr", "attendance", "payroll", "safety"], roles: MANAGERS }, { label: "Excel'den aktar", href: "/ice-aktar", module: "payroll", roles: PAY }] },
   { group: "Web sitesi", slug: "web-sitesi", items: [{ label: "Site yönetimi (mbdentaire.com)", href: "/site-gecis", site: true, raw: true }] },
-  { group: "Sistem", slug: "sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", roles: ["owner", "hr", "branch_manager"] }, { label: "Yönetim ve yetkiler", href: "/yonetim", roles: ["owner", "hr"] }, { label: "Modül yetkileri", href: "/yonetim/yetkiler", module: "users", desc: "Kişi bazında finans, satış, stok, üretim… yetkileri; şablonlar" }, { label: "İşlem geçmişi", href: "/yonetim/hareketler", module: "users", level: 2, desc: "Kim, ne zaman, neyi değiştirdi (denetim kaydı)" }] },
+  { group: "Sistem", slug: "sistem", items: [{ label: "Kiosk ekranı", href: "/kiosk", module: "attendance", roles: ["owner", "hr", "branch_manager"] }, { label: "Kullanıcılar ve hesaplar", href: "/yonetim", module: "users", desc: "Kullanıcılar, personele hesap açma, kullanıcı türleri" }, { label: "Yetki haritası", href: "/yonetim/yetkiler", module: "users", desc: "Kim hangi modülde ne yapabilir: tek bakışta" }, { label: "Şirket ayarları", href: "/yonetim/sirket", module: "users", level: 2, desc: "Şirket bilgileri, şubeler, bölümler, PDKS cihazları" }, { label: "İşlem geçmişi", href: "/yonetim/hareketler", module: "users", level: 2, desc: "Kim, ne zaman, neyi değiştirdi (denetim kaydı)" }] },
 ];
 
 const ALL_HREFS = () => NAV.flatMap((g) => g.items.map((i) => i.href));
@@ -204,12 +204,30 @@ export function activeHref(path: string): string | null {
   return best;
 }
 
+/** Menü öğesi bu kullanıcıya açık mı: modül seviyesi VE (varsa) rol — rol, verinin korunduğu temel erişimdir */
+export function itemAllowed(role: string, siteAccess = false, logistics = false, modules: Record<string, number> = {}) {
+  return (i: Item) => {
+    if (role !== "owner" && i.module && !(Array.isArray(i.module) ? i.module : [i.module]).some((m) => (modules[m] ?? 0) >= (i.level ?? 1))) return false;
+    if (i.site) return siteAccess;
+    if (i.logistics) return logistics;
+    return !i.roles || i.roles.includes(role);
+  };
+}
+
+/** Sayfa koruması: yol bir menü öğesine düşüyorsa ve öğe kapalıysa false */
+export function pathAllowed(path: string, role: string, siteAccess: boolean, logistics: boolean, modules: Record<string, number>): boolean {
+  const href = activeHref(path);
+  if (!href) return true;
+  const items = NAV.flatMap((g) => g.items).filter((i) => i.href === href);
+  // Yalnız modüle bağlı sayfalar korunur; diğerleri kendi sayfa kontrolünü yapar
+  if (!items.some((i) => i.module)) return true;
+  const ok = itemAllowed(role, siteAccess, logistics, modules);
+  return items.some(ok);
+}
+
 /** Kullanıcının yetkili olduğu modüller: rol + web sitesi erişimi */
 export function visibleNav(role: string, siteAccess = false, logistics = false, modules: Record<string, number> = {}) {
-  const ok = (i: Item) => {
-    if (i.module) return (Array.isArray(i.module) ? i.module : [i.module]).some((m) => (modules[m] ?? 0) >= (i.level ?? 1));
-    return i.site ? siteAccess : i.logistics ? logistics : !i.roles || i.roles.includes(role);
-  };
+  const ok = itemAllowed(role, siteAccess, logistics, modules);
   return NAV.map((g) => ({ ...g, items: g.items.filter(ok) })).filter((g) => g.items.length);
 }
 
