@@ -1,5 +1,5 @@
 {
-  "last_checked": "2026-10-10",
+  "last_checked": "2026-10-12",
   "params": [
     { "key": "minWageGross", "label": "Brüt asgari ücret (aylık)", "value": 33030, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret", "system": true },
     { "key": "minWageNet", "label": "Net asgari ücret (aylık)", "value": 28075.5, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret", "system": false },
@@ -19,6 +19,16 @@
     { "key": "probationMonths", "label": "Deneme süresi üst sınırı", "value": 2, "unit": "ay", "valid_from": "2003-06-10", "valid_to": null, "source": "4857 sayılı İş Kanunu md. 15 (toplu sözleşmeyle 4 ay)", "system": true }
   ],
   "bulletin": [
+    {
+      "id": "2026-10-vuk-596-e-tebligat",
+      "date": "2026-10-11",
+      "title": "VUK Genel Tebliği (Sıra No: 596): elektronik tebligat zorunluluğu",
+      "summary": "7587 sayılı Kanunla değişen VUK 107/A uyarınca kurumlar vergisi mükellefleri, ticari/serbest meslek kazancı nedeniyle gerçek usulde gelir vergisi mükellefleri ve adi/kollektif/komandit şirketler e-tebligat sistemine dahil olmak zorunda. Henüz dahil olmayanlar için son gün 30.11.2026; yeni mükellefler işe başlamadan itibaren 15 gün içinde başvurur. Tebligat sisteme ulaştığı günü izleyen 5. gün tebliğ edilmiş sayılır; SMS/e-posta uyarısının gelmemesi geçerliliği etkilemez. 456 sıra no.lu tebliğ yürürlükten kaldırıldı (RG 11.10.2026, sayı 33397).",
+      "impact": "Bordro hesabına etkisi yok. İşveren olarak e-tebligat hesabınızın açık olduğunu 30.11.2026'ya kadar mali müşavirinizle kontrol edin ve e-tebligat kutusunu düzenli takip edin (5. gün tebliğ sayılır).",
+      "category": "Vergi",
+      "status": "bilgi",
+      "source": "https://www.muhasebetr.com/guncelmevzuat/mevzuat_oku.php?mevzuat_id=7246"
+    },
     {
       "id": "2026-07-kidem-tavani",
       "date": "2026-07-01",
