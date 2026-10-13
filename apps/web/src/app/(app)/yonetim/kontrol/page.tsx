@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { MIGRATION_MANIFEST } from "@/lib/migration-manifest";
+import { TaskAssign, TaskList, type Person, type Task } from "@/components/admin/Tasks";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Kontrol Merkezi" };
@@ -26,10 +27,14 @@ export default async function ControlCenter() {
   const s = await getSession();
   if (!(s.role === "owner" || (s.modules.users ?? 0) >= 3)) redirect("/yonetim");
   const supabase = await createClient();
-  const [{ data, error }, { data: miss, error: missErr }] = await Promise.all([
+  const [{ data, error }, { data: miss, error: missErr }, { data: tk, error: tkErr }, { data: ppl }] = await Promise.all([
     supabase.rpc("admin_checks"),
     supabase.rpc("admin_schema_missing", { p_objects: MIGRATION_MANIFEST.map(([, o]) => o) }),
+    supabase.rpc("admin_tasks_list"),
+    supabase.rpc("audit_actor_names"),
   ]);
+  const tasks = (tkErr ? [] : (tk as Task[] | null)) ?? [];
+  const people = ((ppl ?? []) as Person[]).sort((a, b) => a.name.localeCompare(b.name, "tr"));
   if (error) {
     return (
       <>
@@ -63,7 +68,7 @@ export default async function ControlCenter() {
   const prev = hist.length > 1 ? hist[hist.length - 2]!.score : null;
   const byArea = (a: string) => r.checks.filter((c) => c.area === a);
   const tools: Array<[string, string, string]> = [
-    ["/yonetim/is-akisi", "İş akışı denetimi", "🦷"], ["/yonetim", "Kullanıcılar ve hesaplar", "👤"], ["/yonetim/yetkiler", "Yetki haritası", "🗺"], ["/yonetim/hareketler", "İşlem geçmişi", "📜"],
+    ["/yonetim/nabiz", "Sistem nabzı", "💓"], ["/yonetim/is-akisi", "İş akışı denetimi", "🦷"], ["/yonetim", "Kullanıcılar ve hesaplar", "👤"], ["/yonetim/yetkiler", "Yetki haritası", "🗺"], ["/yonetim/hareketler", "İşlem geçmişi", "📜"],
     ["/yonetim/goruntule", "Kullanıcı olarak görüntüle", "👁"], ["/yonetim/onay-akislari", "Onay akışları", "✅"], ["/yonetim/sirket", "Şirket ayarları", "🏢"], ["/yonetim/temizle", "Sistemi temizle", "🧹"],
   ];
 
@@ -138,7 +143,10 @@ export default async function ControlCenter() {
                                 {(c.sample ?? []).map((x) => <li key={x.id}><Link href={x.link} className="text-sm text-brand-700 hover:underline">{x.label}</Link></li>)}
                               </ul>
                               {n > (c.sample?.length ?? 0) && <span className="text-xs text-muted">+{n - (c.sample?.length ?? 0)} kayıt daha</span>}
-                              <Link href={c.fix} className="self-start mt-1 h-9 px-4 inline-flex items-center rounded-lg bg-brand-700 text-white text-sm font-semibold">Düzelt →</Link>
+                              <div className="flex flex-wrap items-start gap-2 mt-1">
+                                <Link href={c.fix} className="h-9 px-4 inline-flex items-center rounded-lg bg-brand-700 text-white text-sm font-semibold">Düzelt →</Link>
+                                {!tkErr && <TaskAssign title={`${c.title} (${n})`} link={c.fix} rule={c.key} people={people} />}
+                              </div>
                             </div>
                           </details>
                         </li>
@@ -151,6 +159,10 @@ export default async function ControlCenter() {
           </div>
 
           <aside className="flex flex-col gap-5">
+            <section className="bg-white border border-line rounded-[18px] px-4 pt-4 pb-1">
+              <h2 className="font-display font-semibold text-brand-800 flex">📌 Görevler<span className="ml-auto text-xs font-normal text-muted">{tasks.filter((t) => t.status === "open").length} açık · {tasks.filter((t) => t.overdue).length} gecikmiş</span></h2>
+              {tkErr ? <p className="text-xs text-muted py-3">Görev atama için 20270127000000_admin_pulse.sql çalıştırılmalı.</p> : <TaskList tasks={tasks} admin empty="Açık görev yok. Bir bulgudaki “Görev ata” ile sorumlusuna gönderin." />}
+            </section>
             <section id="kurulum" className="bg-white border border-line rounded-[18px] p-4 flex flex-col gap-3 scroll-mt-20">
               <h2 className="font-display font-semibold text-brand-800">⚙️ Kurulum ve bağlantılar</h2>
               <div className={`rounded-xl p-3 text-sm ${missingFiles.length ? "bg-[#FEF3C7] text-[#92400E]" : "bg-ok-bg text-ok"}`}>
@@ -179,7 +191,7 @@ export default async function ControlCenter() {
               </div>
             </section>
             <section className="rounded-[18px] p-4 bg-[#F5F3FF] border border-[#DDD6FE] text-sm text-[#4C1D95]">
-              <b>🌅 Sabah kontrol raporu açık:</b> her sabah 07:30&apos;da sağlık skoru, dünden farkı ve yeni çıkan sorunlar size ve yönetim yetkililerine telefon bildirimi olarak gelir.
+              <b>🌅 Sabah kontrol raporu açık:</b> her sabah 07:30&apos;da sağlık skoru, dünden farkı ve yeni çıkan sorunlar size ve yönetim yetkililerine telefon bildirimi olarak gelir; gece görülen kritik anomaliler ve gecikmiş görevler de rapora eklenir, gecikmiş görevin sorumlusuna hatırlatma gider.
             </section>
           </aside>
         </div>
