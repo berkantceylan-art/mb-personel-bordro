@@ -28,6 +28,10 @@ export interface PayrollInput {
   garnishmentAfterAlimony?: boolean;
   /** İcra 1/4'ü BES sonrası netten */
   garnishmentAfterBes?: boolean;
+  /** Engellilik indirimi derecesi (1-3) */
+  disabilityDegree?: 0 | 1 | 2 | 3;
+  /** Engelli sigortalı işveren teşviki */
+  disabledIncentive?: boolean;
   params?: LegalParams;
 }
 
@@ -82,6 +86,8 @@ export function runPayroll(i: PayrollInput): PayrollResult {
           employerDiscount: i.employerDiscount ?? true,
           employerRate:
             i.sgkIncentivePoints === undefined ? undefined : employerRateFor(params.sgkEmployerRate, i.employerDiscount ?? true, i.sgkIncentivePoints),
+          disabilityDegree: i.disabilityDegree,
+          disabledIncentive: i.disabledIncentive,
           params,
         })
       : grossToNet({ gross: 0, month: i.month, cumulativeTaxBaseBefore: i.cumulativeTaxBaseBefore, days: 0, params });

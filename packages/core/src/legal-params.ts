@@ -22,6 +22,8 @@ export interface LegalParams {
   incomeTaxBrackets: Array<[upTo: Kurus, rate: number]>;
   /** Otomatik katılım BES varsayılan kesinti oranı */
   besDefaultRate: number;
+  /** GVK md. 31 aylık engellilik indirimi [1. derece (%80+), 2. derece (%60-79), 3. derece (%40-59)] */
+  disabilityDeduction?: [Kurus, Kurus, Kurus];
 }
 
 export const PARAMS_2026: LegalParams = {
@@ -43,7 +45,21 @@ export const PARAMS_2026: LegalParams = {
     [Number.POSITIVE_INFINITY, 0.4],
   ],
   besDefaultRate: 0.03,
+  disabilityDeduction: [tl(12000), tl(7000), tl(3000)],
 };
+
+/** Engellilik oranı (%) → vergi indirimi derecesi: 1 (%80+), 2 (%60-79), 3 (%40-59), 0 (indirim yok) */
+export function disabilityTaxDegree(percent: number | null | undefined): 0 | 1 | 2 | 3 {
+  const p = Number(percent ?? 0);
+  return p >= 80 ? 1 : p >= 60 ? 2 : p >= 40 ? 3 : 0;
+}
+
+/** Yılın aylık engellilik indirimi (parametrede yoksa 2026 tutarları) */
+export function disabilityDeductionFor(params: LegalParams, degree: 0 | 1 | 2 | 3 | undefined): Kurus {
+  if (!degree) return 0;
+  const t = params.disabilityDeduction ?? PARAMS_2026.disabilityDeduction!;
+  return t[degree - 1] ?? 0;
+}
 
 export const PARAMS_BY_YEAR: Record<number, LegalParams> = {
   2026: PARAMS_2026,
@@ -105,6 +121,9 @@ export function paramsFromJson(year: number, data: unknown): LegalParams | null 
     stampTaxRate: num("stampTaxRate"),
     incomeTaxBrackets: brackets,
     besDefaultRate: Number.isFinite(num("besDefaultRate")) ? num("besDefaultRate") : 0.03,
+    ...(Array.isArray(d.disabilityDeduction) && (d.disabilityDeduction as unknown[]).length === 3 && (d.disabilityDeduction as unknown[]).every((x) => typeof x === "number" && x >= 0)
+      ? { disabilityDeduction: d.disabilityDeduction as [number, number, number] }
+      : {}),
   };
   const ok =
     [p.minWageGross, p.sgkFloor, p.sgkCeiling, p.sgkEmployeeRate, p.unemploymentEmployeeRate, p.sgkEmployerRate, p.sgkEmployerRateDiscounted, p.unemploymentEmployerRate, p.stampTaxRate].every(
