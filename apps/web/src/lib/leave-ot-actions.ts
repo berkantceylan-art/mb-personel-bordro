@@ -69,6 +69,7 @@ export async function createLeave(_: { ok: boolean; message: string } | null, f:
   if (error) return { ok: false, message: error.message };
   revalidatePath("/izin");
   revalidatePath("/puantaj");
+  revalidatePath("/bordro/sihirbaz");
   return { ok: true, message: `${hours !== null ? `${hours} saatlik` : `${days} günlük`} izin ${approve ? "onaylandı" : "onaya gönderildi"}.` };
 }
 
@@ -91,6 +92,7 @@ export async function decideLeave(f: FormData) {
   revalidatePath("/izin");
   revalidatePath("/talepler");
   revalidatePath("/puantaj");
+  revalidatePath("/bordro/sihirbaz");
 }
 
 /** Seçilen bekleyen izin taleplerini toplu onaylar / reddeder */
@@ -196,6 +198,7 @@ export async function approveOvertime(f: FormData) {
     if (error) await fail(error.message);
   }
   revalidatePath("/fazla-mesai");
+  revalidatePath("/bordro/sihirbaz");
   revalidatePath("/ay-sonu");
   if (!f.get("manual")) await done(`${items.length} fazla mesai ${decision === "approved" ? "onaylandı" : "reddedildi"}.`);
 }
@@ -235,5 +238,6 @@ export async function cancelOvertime(f: FormData) {
   }
   await must(supabase.from("overtime_records").delete().eq("id", id));
   revalidatePath("/fazla-mesai");
+  revalidatePath("/bordro/sihirbaz");
   revalidatePath("/ay-sonu");
 }

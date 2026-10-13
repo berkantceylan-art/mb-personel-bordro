@@ -9,12 +9,12 @@ type Emp = { id: string; name: string };
 const Msg = ({ s }: { s: { ok: boolean; message: string } | null }) =>
   s ? <span role="status" className={`text-sm rounded-lg px-3 py-1.5 ${s.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{s.message}</span> : null;
 
-export function BesForm({ employees }: { employees: Emp[] }) {
+export function BesForm({ employees, defaultEmployee }: { employees: Emp[]; defaultEmployee?: string }) {
   const { state, pending, formProps: actionProps } = useActionForm(saveBes);
   return (
     <form {...actionProps} className="grid gap-4 md:grid-cols-5 items-end">
       <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Personel
-        <select name="employeeId" required className={input}><option value="">Seçin</option>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
+        <select name="employeeId" required defaultValue={defaultEmployee ?? ""} className={input}><option value="">Seçin</option>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
       </label>
       <label className="flex flex-col gap-1.5 text-sm text-muted">Giriş tarihi<input type="date" name="enrolled_on" required className={input} /></label>
       <label className="flex flex-col gap-1.5 text-sm text-muted">Oran (%)<input name="rate" defaultValue="3" inputMode="decimal" className={input} /></label>
@@ -27,7 +27,7 @@ export function BesForm({ employees }: { employees: Emp[] }) {
   );
 }
 
-export function GarnishmentForm({ employees }: { employees: Emp[] }) {
+export function GarnishmentForm({ employees, defaultEmployee }: { employees: Emp[]; defaultEmployee?: string }) {
   const { state, pending, formProps: actionProps } = useActionForm(saveGarnishment);
   const [kind, setKind] = useState("ENFORCEMENT");
   return (
@@ -39,7 +39,7 @@ export function GarnishmentForm({ employees }: { employees: Emp[] }) {
         </select>
       </label>
       <label className="flex flex-col gap-1.5 text-sm text-muted">Personel
-        <select name="employeeId" required className={input}><option value="">Seçin</option>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
+        <select name="employeeId" required defaultValue={defaultEmployee ?? ""} className={input}><option value="">Seçin</option>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
       </label>
       <label className="flex flex-col gap-1.5 text-sm text-muted">İcra dairesi<input name="office" required placeholder="İzmir 12. İcra Dairesi" className={input} /></label>
       <label className="flex flex-col gap-1.5 text-sm text-muted">Dosya no<input name="file_no" required placeholder="2025/4471 E." className={input} /></label>

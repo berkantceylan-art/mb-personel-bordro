@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
-import { computePayroll } from "@/lib/payroll";
+import { persistPayroll } from "@/lib/payroll-save";
 import { done, fail } from "@/lib/flash";
 
 export interface RunResult {
@@ -15,40 +15,11 @@ export async function savePayroll(_: RunResult | null, f: FormData): Promise<Run
   if (!canManagePay(s.role)) return { ok: false, message: "Yetkiniz yok." };
   const period = String(f.get("period"));
   const supabase = await createClient();
-  const rows = await computePayroll(supabase, period);
-  const posted = rows.filter((r) => r.saved?.posted);
-  const toSave = rows.filter((r) => !r.saved?.posted);
-  if (toSave.length) {
-    const { error } = await supabase.from("payroll_lines").upsert(
-      toSave.map((r) => {
-        const b = r.result.breakdown;
-        return {
-          company_id: s.companyId,
-          employee_id: r.employeeId,
-          period,
-          days: r.result.days,
-          official_gross: b.gross,
-          sgk_employee: b.sgkEmployee,
-          unemployment_employee: b.unemploymentEmployee,
-          income_tax: b.incomeTax,
-          stamp_tax: b.stampTax,
-          official_net: b.net,
-          bes: b.bes,
-          garnishment: r.result.garnishmentTotal,
-          net_to_bank: r.result.netToBank,
-          employer_cost: b.employerCost,
-          cumulative_tax_base_after: b.cumulativeTaxBaseAfter,
-          data: { result: r.result, cumulativeBefore: r.cumulativeBefore, cumulativeEstimated: r.cumulativeEstimated, insurance: r.insurance, totalNet: r.totalNet },
-          posted: false,
-        };
-      }),
-      { onConflict: "employee_id,period" },
-    );
-    if (error) return { ok: false, message: error.message };
-  }
+  const r = await persistPayroll(supabase, s.companyId, period);
+  if (r.error) return { ok: false, message: r.error };
   revalidatePath("/bordro");
   revalidatePath("/ay-sonu");
-  return { ok: true, message: `${toSave.length} bordro kaydedildi.${posted.length ? ` ${posted.length} bordronun kesintileri cariye yazıldığı için değiştirilmedi.` : ""}` };
+  return { ok: true, message: `${r.saved} bordro kaydedildi.${r.posted ? ` ${r.posted} bordronun kesintileri cariye yazıldığı için değiştirilmedi.` : ""}` };
 }
 
 /** BES ve icra/nafaka kesintilerini dönem cari hesabına yazar — tek işlem (ya hepsi ya hiçbiri) */

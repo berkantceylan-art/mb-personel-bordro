@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { absenceSides, overtimeSides, runPayroll, settlement, sideLines, tl } from "../src";
+import { absenceSides, officialBonusGross as _obg, overtimeSides, runPayroll, settlement, sideLines, tl } from "../src";
 
 const minWage100k = { totalNet: tl(100000), insuranceType: "MIN_WAGE" as const };
 const fixed30k = { totalNet: tl(150000), insuranceType: "FIXED_NET" as const, fixedOfficialNet: tl(30000) };
@@ -62,5 +62,15 @@ describe("bordro", () => {
     expect(settlement(tl(6924.5), tl(20065.72), tl(20065.72))).toEqual({ bank: 0, cash: tl(6924.5) });
     // henüz banka maaşı ödenmemiş: kalan 61.990,22, banka avansı 15.000
     expect(settlement(tl(61990.22), tl(20065.72), tl(15000))).toEqual({ bank: tl(5065.72), cash: tl(56924.5) });
+  });
+});
+
+describe("resmi prim", () => {
+  it("istenen neti veren ek brütü bulur", () => {
+    const ctx = { contract: { totalNet: 4_500_000, insuranceType: "MIN_WAGE" as const }, month: 9, cumulativeTaxBaseBefore: 0 };
+    const a = _obg(ctx, 500_000);
+    expect(a.officialNet).toBeGreaterThanOrEqual(500_000);
+    expect(a.officialNet - 500_000).toBeLessThan(5);
+    expect(a.officialGross).toBeGreaterThan(500_000);
   });
 });
