@@ -37,3 +37,9 @@ export function waCourierText(lang: string | null | undefined, customer: string,
   if (l === "en") return `Hello ${customer}, our courier is on the way to you. ${company}`;
   return `Merhaba ${customer}, kuryemiz size doğru yola çıktı. ${company}`;
 }
+
+/** WhatsApp Cloud API için numara (ülke kodlu, yalnız rakam); geçersizse null */
+export function waNumber(phone: string | null | undefined): string | null {
+  const link = waLink(phone, "");
+  return link ? link.slice("https://wa.me/".length).split("?")[0]! : null;
+}
