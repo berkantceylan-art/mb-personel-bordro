@@ -57,7 +57,12 @@ export const getSession = cache(async (): Promise<Session> => {
     m = r.data ? { ...r.data, is_boss: false } : null;
   }
 
-  if (!m) redirect("/kurulum");
+  if (!m) {
+    // Tedarikçi portal kullanıcısı: ERP'ye değil tedarikçi ekranına
+    const { data: sup } = await supabase.from("sup_portal_users").select("id").eq("user_id", user.id).eq("is_active", true).limit(1);
+    if (sup?.length) redirect("/tedarikci");
+    redirect("/kurulum");
+  }
   // site_access sütunu henüz yoksa (20261123000000_single_sign_on.sql çalıştırılmamış) hata yok sayılır
   const flags = await supabase.from("memberships").select("site_access, logistics_access").eq("user_id", user.id).eq("company_id", m.company_id).maybeSingle();
   const sa = (flags.error ? (await supabase.from("memberships").select("site_access").eq("user_id", user.id).eq("company_id", m.company_id).maybeSingle()).data : flags.data) as { site_access?: boolean; logistics_access?: boolean } | null;

@@ -1,5 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { sendQueuedPOs } from "@/lib/po-send";
 import { createClient } from "@/lib/supabase/server";
 import { done, fail } from "@/lib/flash";
 import { parseAmount } from "@/lib/fin";
@@ -21,6 +23,8 @@ export async function decideApproval(f: FormData) {
   const decision = str(f, "decision", 10) === "reject" ? "reject" : "approve";
   const { data, error } = await supabase.rpc("apr_decide", { p_request: str(f, "id", 40), p_decision: decision, p_note: str(f, "note", 500) || null });
   if (error) await fail(err(error.message));
+  // Akış tamamlanıp satın alma siparişi onaylandıysa tedarikçiye gönder
+  if (data === "approved") after(() => sendQueuedPOs().then(() => undefined, () => undefined));
   revalidatePath("/onaylar");
   revalidatePath("/masraf");
   revalidatePath("/alis/siparisler", "layout");

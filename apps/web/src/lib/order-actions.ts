@@ -1,5 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { sendQueuedPOs } from "@/lib/po-send";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { done, fail } from "@/lib/flash";
@@ -8,6 +10,11 @@ import { orderError } from "@/lib/orders";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const UUID = /^[0-9a-f-]{36}$/i;
+
+/** Onaylanan siparişler yanıt döndükten sonra arka planda tedarikçiye gönderilir */
+function kickSend() {
+  after(() => sendQueuedPOs().then(() => undefined, (e) => console.error("[po-send]", (e as Error).message)));
+}
 
 // ---------------- Klinik siparişi ----------------
 
@@ -51,6 +58,7 @@ export async function savePurchaseOrder(f: FormData) {
   if (f.get("submit") === "1") {
     const { data: st, error: e2 } = await supabase.rpc("pur_order_submit", { p_id: data });
     if (e2) await fail(orderError(e2.message));
+    if (st === "approved") kickSend();
     revalidatePath("/alis/siparisler");
     redirect(`/alis/siparisler/${data}?tamam=${encodeURIComponent(st === "pending" ? "Sipariş onaya gönderildi." : "Sipariş onaylandı.")}`);
   }
@@ -70,10 +78,11 @@ export async function submitPO(f: FormData) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("pur_order_submit", { p_id: str(f, "id") });
   if (error) await fail(orderError(error.message));
+  if (data === "approved") kickSend();
   revalidatePath("/alis/siparisler");
   await done(data === "pending" ? "Onay limitini aştığı için yöneticinin onayına gönderildi." : "Sipariş onaylandı.");
 }
-export async function decidePO(f: FormData) { await po("pur_order_decide", { p_id: str(f, "id"), p_ok: str(f, "ok") === "1", p_reason: str(f, "reason") || null }, str(f, "ok") === "1" ? "Sipariş onaylandı." : "Sipariş reddedildi, taslağa döndü."); }
+export async function decidePO(f: FormData) { if (str(f, "ok") === "1") kickSend(); await po("pur_order_decide", { p_id: str(f, "id"), p_ok: str(f, "ok") === "1", p_reason: str(f, "reason") || null }, str(f, "ok") === "1" ? "Sipariş onaylandı." : "Sipariş reddedildi, taslağa döndü."); }
 export async function sentPO(f: FormData) { await po("pur_order_sent", { p_id: str(f, "id") }, "Tedarikçiye gönderildi olarak işaretlendi."); }
 export async function cancelPO(f: FormData) { await po("pur_order_cancel", { p_id: str(f, "id") }, "Sipariş iptal edildi."); }
 export async function receivePO(f: FormData) {
@@ -88,7 +97,28 @@ export async function invoicePO(f: FormData) {
   revalidatePath("/alis/siparisler");
   redirect(`/fatura/${data}?tamam=${encodeURIComponent("Alış faturası taslağı hazır: belge numarasını girip işleyin.")}`);
 }
-export async function savePOSettings(f: FormData) { await po("pur_settings_save", { p_limit: parseMoney(str(f, "limit")) ?? 0 }, "Onay limiti kaydedildi."); }
+export async function savePOSettings(f: FormData) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("pur_settings_save", { p_limit: parseMoney(str(f, "limit")) ?? 0 });
+  if (error) await fail(orderError(error.message));
+  const { error: e2 } = await supabase.rpc("pur_settings_send_save", { p: { auto_send: f.get("auto_send") === "1", send_whatsapp: f.get("send_whatsapp") === "1", mail_account_id: str(f, "mail_account_id") || null, cc_email: str(f, "cc_email") || null } });
+  if (e2 && !/pur_settings_send_save/.test(e2.message)) await fail(orderError(e2.message));
+  revalidatePath("/alis/siparisler");
+  await done(e2 ? "Onay limiti kaydedildi (gönderim ayarları için Supabase güncellemesi gerekli)." : "Satın alma ayarları kaydedildi.");
+}
+
+/** Tedarikçiye yeniden gönder (e-posta + WhatsApp) */
+export async function resendPO(f: FormData) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("pur_order_send_mark", { p_id: str(f, "id"), p_state: "queued" });
+  if (error) await fail(orderError(error.message));
+  kickSend();
+  revalidatePath("/alis/siparisler");
+  await done("Sipariş tedarikçiye gönderiliyor; birkaç saniye sonra sayfayı yenileyin.");
+}
+
+/** Telefonla / elden iletildi: gönderildi olarak işaretle */
+export async function manualSentPO(f: FormData) { await po("pur_order_send_mark", { p_id: str(f, "id"), p_state: "manual" }, "Tedarikçiye iletildi olarak işaretlendi."); }
 
 /** Stok önerisinden tedarikçi başına taslak */
 export async function draftFromSuggestions(f: FormData) {
