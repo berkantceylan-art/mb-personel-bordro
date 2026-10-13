@@ -52,6 +52,11 @@ export default async function PortalNotifications() {
     const upd = a.kind === "update";
     items.push({ key: `a${a.id}`, at: a.starts_at ?? a.created_at, title: `${upd ? "✨" : "📣"} ${title}`, body: t(a.body, locale), href: a.link_href ?? (upd ? `/${locale}/yardim#yenilikler` : "/portal/bildirimler") });
   }
+  // Hesaba özel bildirimler (ör. laboratuvar yöneticisinin hesabı görüntülemesi)
+  const { data: own } = await supabase.from("notifications").select("id, title, body, link, created_at").eq("user_id", ctx!.user.id).order("created_at", { ascending: false }).limit(20);
+  for (const n of (own ?? []) as { id: string; title: string; body: string | null; link: string | null; created_at: string }[]) {
+    items.push({ key: `n${n.id}`, at: n.created_at, title: `🔔 ${n.title}`, body: n.body ?? "", href: n.link ?? "/portal/bildirimler" });
+  }
   items.sort((a, b) => b.at.localeCompare(a.at));
 
   return (

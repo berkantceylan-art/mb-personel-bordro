@@ -22,9 +22,23 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Supabase yavaş / erişilemezse istek 25 sn asılı kalmasın: 8 sn sonra oturum doğrulamasını sayfaya / eyleme bırak
+  const auth = await Promise.race([
+    supabase.auth.getUser().then((r) => ({ user: r.data.user, timedOut: false })),
+    new Promise<{ user: null; timedOut: true }>((res) => setTimeout(() => res({ user: null, timedOut: true }), 8000)),
+  ]);
+  if (auth.timedOut) {
+    console.error("[middleware] getUser 8 sn içinde yanıt vermedi:", request.method, request.nextUrl.pathname);
+    return response;
+  }
+  const user = auth.user;
+
+  // Kullanıcı olarak görüntüleme oturumu: hiçbir değişiklik isteği (form, sunucu eylemi) kabul edilmez
+  const m = request.method;
+  if (user && m !== "GET" && m !== "HEAD" && m !== "OPTIONS" && !request.nextUrl.pathname.startsWith("/auth/goruntule")) {
+    const { data: ro } = await supabase.rpc("imp_readonly");
+    if (ro === true) return new NextResponse("Görüntüleme modundasınız: değişiklik yapılamaz.", { status: 403, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
 
   const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
   if (!user && !isPublic) {

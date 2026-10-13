@@ -59,6 +59,13 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // ERP'den yalnız görüntüleme modunda açılan oturum: hiçbir değişiklik isteği kabul edilmez
+  const m = request.method;
+  if (user && m !== "GET" && m !== "HEAD" && m !== "OPTIONS" && !pathname.startsWith("/auth/goruntule")) {
+    const { data: ro } = await supabase.rpc("imp_readonly");
+    if (ro === true) return new NextResponse("Görüntüleme modundasınız: değişiklik yapılamaz.", { status: 403, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+
   const portalPublic = pathname === "/portal/kayit";
   if ((first === "admin" || (first === "portal" && !portalPublic)) && !user) {
     const url = request.nextUrl.clone();
