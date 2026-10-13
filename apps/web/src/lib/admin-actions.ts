@@ -18,3 +18,27 @@ export async function jobFix(_: FixState | null, f: FormData): Promise<FixState>
   revalidatePath("/yonetim/kontrol");
   return { ok: true, message: action === "assign" ? "Sorumlu atandı, kişiye bildirim gitti." : action === "stage" ? "Aşama değişti." : "Not eklendi." };
 }
+
+const terr = (m: string) => (/not_allowed/.test(m) ? "Yetkiniz yok." : /bad_assignee/.test(m) ? "Sorumlu seçin." : /title_required/.test(m) ? "Görev başlığı yazın." : /admin_task|does not exist/.test(m) ? "Supabase'de 20270127000000_admin_pulse.sql çalıştırılmalı." : m);
+
+/** Kontrol Merkezi bulgusunu bir kullanıcıya görev olarak ata (kişiye bildirim gider) */
+export async function taskCreate(_: FixState | null, f: FormData): Promise<FixState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_task_create", {
+    p_title: String(f.get("title") ?? ""), p_assignee: String(f.get("assignee") ?? "") || null, p_due: String(f.get("due") ?? "") || null,
+    p_note: String(f.get("note") ?? "") || null, p_link: String(f.get("link") ?? "") || null, p_rule: String(f.get("rule") ?? "") || null,
+  });
+  if (error) return { ok: false, message: terr(error.message) };
+  revalidatePath("/yonetim/kontrol");
+  return { ok: true, message: "Görev atandı, kişiye bildirim gitti." };
+}
+
+/** Görevi tamamla / yeniden aç / kapat */
+export async function taskSet(_: FixState | null, f: FormData): Promise<FixState> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_task_set", { p_id: String(f.get("id") ?? ""), p_status: String(f.get("status") ?? ""), p_note: String(f.get("note") ?? "") || null });
+  if (error) return { ok: false, message: terr(error.message) };
+  revalidatePath("/yonetim/kontrol");
+  revalidatePath("/benim/gorevler");
+  return { ok: true, message: "Güncellendi." };
+}

@@ -1,138 +1,122 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui";
-import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
+import { TaskAssign, type Person } from "@/components/admin/Tasks";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, getSession } from "@/lib/session";
-import { FLOW_LABEL, LEVEL_CLS, MOD_GROUPS, MOD_INFO, ROLE_LABEL } from "@/lib/users";
-import { assignUserType, removeUser, saveUserLevels, saveUserScope } from "@/lib/users-actions";
-import { ResetPassword } from "../../AccountCreator";
-import { Avatar, ModulePills, TypeBadge, ago, loginLabel, type TypeRow, type UserRow } from "../../_ui";
+import { getSession } from "@/lib/session";
+import { ACTION, LINK, ROLE, ago, clock } from "@/lib/admin-labels";
 
 export const dynamic = "force-dynamic";
-const LV = ["Yok", "Görür", "Düzenler", "Yönetir"];
+export const metadata = { title: "Kullanıcı 360°" };
 
-/** Kullanıcı ayrıntısı: tür, kişiye özel yetki, kapsam, şifre, erişim */
-export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
+type U360 = {
+  user: string; name: string; role: string; is_boss: boolean; all_branches: boolean; site_access: boolean; logistics_access: boolean; member_since: string;
+  user_type: string | null; email: string | null; last_sign_in: string | null; banned: boolean | null;
+  employee: { id: string; name: string; status: string; title: string | null } | null;
+  modules: Record<string, number>; n7: number; n30: number;
+  by_group: Array<{ group: string; ins: number; upd: number; del: number }>;
+  days: number[]; hours: number[];
+  recent: Array<{ at: string; table: string; label: string; action: string; row: string | null; title: string | null }>;
+  tasks: Array<{ id: string; title: string; due: string | null }>;
+};
+const MOD: Record<string, string> = { hr: "İK / personel", attendance: "Puantaj", payroll: "Bordro", safety: "İSG", lab: "Laboratuvar", finance: "Finans", sales: "Satış", purchases: "Satın alma", stock: "Stok", production: "Üretim", assets: "Demirbaş", expenses: "Masraf", users: "Kullanıcılar" };
+const LVL = ["—", "Görür", "Kayıt girer", "Yönetir"];
+
+/** Kullanıcı 360°: kimlik, yetkiler, etkinlik, son işlemler, açık görevler */
+export default async function User360({ params }: { params: Promise<{ id: string }> }) {
   const s = await getSession();
-  const lvl = s.role === "owner" ? 3 : (s.modules.users ?? 0);
-  if (lvl < 1) redirect("/");
+  if (!(s.role === "owner" || (s.modules.users ?? 0) >= 3)) redirect("/yonetim");
   const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const supabase = await createClient();
-  const [{ data: ud }, { data: td }, { data: branches }, { data: departments }, { data: mb }, { data: md }] = await Promise.all([
-    supabase.rpc("users_overview"),
-    supabase.rpc("user_types_list"),
-    supabase.from("branches").select("id, name").order("name"),
-    supabase.from("departments").select("id, name").order("name"),
-    supabase.from("membership_branches").select("branch_id").eq("user_id", id),
-    supabase.from("membership_departments").select("department_id").eq("user_id", id),
-  ]);
-  const u = ((ud ?? []) as UserRow[]).find((x) => x.user_id === id);
-  if (!u) notFound();
-  const types = (td ?? []) as TypeRow[];
-  const owner = u.role === "owner";
-  const me = u.user_id === s.userId;
-  const canEdit = !owner && !me && lvl >= 2;
-  const myB = new Set((mb ?? []).map((x) => x.branch_id as string));
-  const myD = new Set((md ?? []).map((x) => x.department_id as string));
-  const tl = u.type_levels ?? {};
-  const url = (await headers()).get("host") ?? "";
+  const [{ data, error }, { data: ppl }] = await Promise.all([supabase.rpc("admin_user_360", { p_user: id }), supabase.rpc("audit_actor_names")]);
+  if (error) {
+    if (/not_member/.test(error.message)) notFound();
+    return (<><PageHeader title="Kullanıcı 360°" /><div className="p-4 md:p-8"><p className="text-sm rounded-[12px] px-4 py-3 bg-warn-bg text-warn">{/admin_user_360|does not exist/.test(error.message) ? "Supabase'de 20270127000000_admin_pulse.sql çalıştırılmalı." : error.message}</p></div></>);
+  }
+  const u = data as U360;
+  const dmax = Math.max(1, ...u.days);
+  const hmax = Math.max(1, ...u.hours);
+  const night = u.hours.slice(0, 6).reduce((a, b) => a + b, 0) + u.hours.slice(22).reduce((a, b) => a + b, 0);
+  const total = u.by_group.reduce((a, g) => a + g.ins + g.upd + g.del, 0);
+  const del = u.by_group.reduce((a, g) => a + g.del, 0);
+  const initials = u.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toLocaleUpperCase("tr");
 
   return (
     <>
-      <PageHeader title={u.display_name} subtitle={`${loginLabel(u.email)} · son giriş ${ago(u.last_sign_in_at)} · ${formatDate(u.created_at)} tarihinden beri`} actions={<Link href="/yonetim" className="text-sm font-semibold text-brand-700">← Kullanıcılar</Link>} />
-      <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1100px]">
-        <section className="rounded-[18px] border border-line bg-white p-5 flex flex-wrap items-center gap-4">
-          <Avatar name={u.display_name} color={owner ? "#0F172A" : u.type_color} />
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">{owner ? <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-semibold text-white">Şirket sahibi · tüm yetkiler</span> : <TypeBadge name={u.user_type} color={u.type_color} />}<span className="text-xs text-muted">{ROLE_LABEL[u.role]}</span></div>
-            <div className="text-sm mt-1">{u.employee_id ? <Link href={`/personel/${u.employee_id}`} className="font-semibold text-brand-700">{u.employee_name}</Link> : <span className="text-muted">Personel kaydına bağlı değil</span>}{u.department ? <span className="text-muted"> · {u.department}</span> : null}{u.flow_role ? <span className="text-muted"> · kutu akışı: {FLOW_LABEL[u.flow_role]}</span> : null}</div>
+      <PageHeader title="Kullanıcı 360°" actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/yonetim/nabiz" className="text-brand-700">← Sistem nabzı</Link><Link href={`/yonetim/hareketler?kim=${u.user}`} className="text-brand-700">İşlem geçmişi</Link></span>} />
+      <div className="p-4 md:p-6 flex flex-col gap-5 max-w-[1200px]">
+        <section className="rounded-[20px] p-5 md:p-6 text-white bg-[radial-gradient(circle_at_100%_0%,rgba(59,130,246,.4),transparent_45%),linear-gradient(135deg,#0B1222,#16213E)] flex flex-wrap gap-5 items-center">
+          <span className="w-16 h-16 rounded-2xl bg-white/10 grid place-items-center font-display text-2xl font-bold">{initials}</span>
+          <div className="flex-1 min-w-[220px]">
+            <b className="font-display text-2xl">{u.name}</b>
+            <p className="text-sm text-white/70">{u.email} · {ROLE[u.role] ?? u.role}{u.user_type ? ` · ${u.user_type}` : ""}{u.is_boss ? " · Patron ekranı" : ""}</p>
+            <p className="text-xs text-white/50 mt-1">Son giriş {ago(u.last_sign_in)} · üye {clock(u.member_since).slice(0, 5)}{u.employee ? ` · personel: ${u.employee.name}${u.employee.title ? ` (${u.employee.title})` : ""}` : ""}{u.banned ? " · 🔒 erişimi kapalı" : ""}</p>
           </div>
-          {!owner && <ModulePills levels={u.levels} />}
+          {[["7 gün", u.n7], ["30 gün", u.n30], ["Silme", del], ["Mesai dışı", night]].map(([l, v]) => <div key={String(l)} className="text-center"><b className="font-display text-3xl num">{v}</b><span className="block text-[11px] text-white/60">{l}</span></div>)}
         </section>
 
-        {canEdit && (
-          <section className="rounded-[18px] border border-line bg-white p-5 flex flex-col gap-3">
-            <h2 className="font-display text-lg font-bold">Kullanıcı türü</h2>
-            <form action={assignUserType} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              <input type="hidden" name="user_id" value={u.user_id} />
-              {types.map((t) => (
-                <button key={t.id} name="type_id" value={t.id} className={`text-left rounded-[14px] border-2 p-3 transition ${u.user_type_id === t.id ? "border-current" : "border-line hover:border-[#B7C4D1]"}`} style={u.user_type_id === t.id ? { color: t.color } : undefined}>
-                  <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: t.color }} /><b className="text-ink">{t.name}</b>{u.user_type_id === t.id && <span className="ml-auto text-xs font-bold">✓ şu an</span>}</span>
-                  {t.description && <span className="block text-xs text-muted mt-1 line-clamp-2">{t.description}</span>}
-                </button>
-              ))}
-            </form>
-            <p className="text-xs text-muted">Bir türe dokunmak onu hemen atar; kişinin menüsü ve yetkileri türden yazılır.</p>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <section className="bg-white border border-line rounded-[18px] p-4 flex flex-col gap-3">
+            <h2 className="font-display font-semibold text-brand-800">Son 30 gün etkinlik</h2>
+            <div className="flex items-end gap-[3px] h-20">{u.days.map((v, i) => <span key={i} title={`${v} işlem`} className="flex-1 rounded-t bg-brand-600/80" style={{ height: `${Math.max(3, (v / dmax) * 100)}%`, opacity: v ? 1 : 0.15 }} />)}</div>
+            <h3 className="text-xs text-muted">Saatlere göre (İstanbul)</h3>
+            <div className="flex items-end gap-[2px] h-12">{u.hours.map((v, h) => <span key={h} title={`${h}:00 · ${v}`} className="flex-1 rounded-t" style={{ height: `${Math.max(4, (v / hmax) * 100)}%`, background: h < 6 || h >= 22 ? "#F59E0B" : "#6366F1", opacity: v ? 1 : 0.15 }} />)}</div>
+            <div className="flex justify-between text-[10px] text-muted"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
           </section>
-        )}
-
-        <section className="rounded-[18px] border border-line bg-white overflow-hidden">
-          <header className="px-5 py-4 border-b border-line flex flex-wrap items-baseline gap-2">
-            <h2 className="font-display text-lg font-bold mr-auto">Modül yetkileri</h2>
-            <span className="text-xs text-muted">{owner ? "Sahibin yetkileri değiştirilemez." : u.user_type ? "“Türden” seçili olanlar türle birlikte güncellenir. Farklı seçim kişiye özel istisnadır." : "Tür atanmamış: değerler eski rol varsayılanından gelir."}</span>
-          </header>
-          <form action={saveUserLevels}>
-            <input type="hidden" name="user_id" value={u.user_id} />
-            {MOD_GROUPS.map((g) => (
-              <div key={g}>
-                <div className="px-5 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-muted">{g}</div>
-                {MOD_INFO.filter((m) => m.group === g).map((m) => {
-                  const eff = u.levels[m.key] ?? 0;
-                  const exp = u.explicit[m.key];
-                  const custom = u.user_type_id ? exp !== undefined && exp !== (tl[m.key] ?? 0) : exp !== undefined;
-                  return (
-                    <div key={m.key} className="flex flex-wrap items-center gap-3 px-5 py-2.5 border-t border-[#F0F3F7]">
-                      <span className="flex-1 min-w-48"><b className="text-sm">{m.label}</b><span className="block text-xs text-muted">{eff ? m.levels[eff - 1] : "Kullanmaz"}{custom && <span className="text-warn font-semibold"> · kişiye özel</span>}</span></span>
-                      <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${LEVEL_CLS[eff]}`}>{LV[eff]}</span>
-                      {canEdit && (
-                        <select name={`lv_${m.key}`} defaultValue={custom ? String(exp) : "t"} aria-label={m.label} className="h-9 w-40 rounded-md border border-[#D5DEE8] bg-white px-2 text-xs">
-                          <option value="t">{u.user_type ? `Türden (${LV[tl[m.key] ?? 0]})` : "Rol varsayılanı"}</option>
-                          {LV.map((l, i) => <option key={l} value={i}>{l}{i ? ` — ${m.levels[i - 1]}` : ""}</option>)}
-                        </select>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-            {canEdit && <div className="px-5 py-4 border-t border-line"><PendingSubmit className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold">Yetkileri kaydet</PendingSubmit></div>}
-          </form>
-        </section>
-
-        {(canEdit || (owner && me)) && (
-          <section className="rounded-[18px] border border-line bg-white p-5 flex flex-col gap-3">
-            <h2 className="font-display text-lg font-bold">Ad ve kapsam</h2>
-            <form action={saveUserScope} className="flex flex-col gap-3">
-              <input type="hidden" name="user_id" value={u.user_id} />
-              <label className="flex flex-col gap-1 text-sm font-semibold max-w-sm">Görünen ad<input name="display_name" defaultValue={u.display_name} className="h-11 rounded-[10px] border border-[#D5DEE8] px-3 font-normal" /></label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="all_branches" defaultChecked={u.all_branches} className="w-4 h-4" />Tüm şubeler</label>
-              {(branches ?? []).length > 1 && <div className="flex flex-wrap gap-3 text-sm">{(branches ?? []).map((b) => <label key={b.id} className="flex items-center gap-1.5"><input type="checkbox" name="branch_id" value={b.id} defaultChecked={myB.has(b.id)} />{b.name}</label>)}</div>}
-              {u.role === "branch_manager" && (
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-sm font-semibold">Sorumlu olduğu bölümler <span className="font-normal text-muted">(hiçbiri seçili değilse şubesindeki tüm bölümler)</span></span>
-                  <div className="flex flex-wrap gap-3 text-sm">{(departments ?? []).map((d) => <label key={d.id} className="flex items-center gap-1.5"><input type="checkbox" name="department_id" value={d.id} defaultChecked={myD.has(d.id)} />{d.name}</label>)}</div>
+          <section className="bg-white border border-line rounded-[18px] p-4 flex flex-col gap-2">
+            <h2 className="font-display font-semibold text-brand-800">Modüllere göre işlem <span className="text-xs font-normal text-muted">· {total}</span></h2>
+            {u.by_group.map((g) => {
+              const t = g.ins + g.upd + g.del;
+              return (
+                <div key={g.group} className="text-sm">
+                  <div className="flex justify-between"><span>{g.group}</span><span className="text-xs text-muted">+{g.ins} · ✎{g.upd} · <span className={g.del ? "text-bad" : ""}>✕{g.del}</span></span></div>
+                  <div className="h-2 rounded-full bg-[#EEF2F6] overflow-hidden flex" style={{ width: `${Math.max(8, (t / Math.max(1, total)) * 100)}%` }}>
+                    <span className="bg-[#10B981]" style={{ width: `${(g.ins / t) * 100}%` }} /><span className="bg-[#3B82F6]" style={{ width: `${(g.upd / t) * 100}%` }} /><span className="bg-[#EF4444]" style={{ width: `${(g.del / t) * 100}%` }} />
+                  </div>
                 </div>
-              )}
-              <div><PendingSubmit className="h-11 px-5 rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">Kaydet</PendingSubmit></div>
-            </form>
+              );
+            })}
+            {!u.by_group.length && <p className="text-sm text-muted">Son 30 günde işlem yok.</p>}
           </section>
-        )}
+        </div>
 
-        {canEdit && (
-          <section className="rounded-[18px] border border-line bg-white p-5 flex flex-col gap-4">
-            <h2 className="font-display text-lg font-bold">Hesap</h2>
-            <ResetPassword userId={u.user_id} url={url} />
-            {lvl >= 3 && (
-              <form action={removeUser} className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
-                <input type="hidden" name="user_id" value={u.user_id} />
-                <span className="text-sm text-muted flex-1">Erişimi kaldırınca kişi sisteme giremez; personel kaydı ve geçmişi silinmez.</span>
-                <ConfirmSubmit label="Erişimi kaldır" question="Bu kullanıcının erişimi kaldırılsın mı?" className="h-10 px-4 rounded-[10px] border border-bad text-sm font-semibold text-bad" />
-              </form>
-            )}
+        <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+          <section className="bg-white border border-line rounded-[18px] overflow-hidden">
+            <h2 className="px-4 py-3 border-b border-line font-display font-semibold text-brand-800">Son işlemler</h2>
+            <ul className="divide-y divide-[#F1F5F9]">
+              {u.recent.map((r, i) => {
+                const [verb, col] = ACTION[r.action] ?? [r.action, "#94A3B8"];
+                const href = r.row && r.action !== "DELETE" ? LINK[r.table]?.(r.row) : undefined;
+                return (
+                  <li key={i} className="px-4 py-2 flex items-center gap-3 text-sm">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: col }} />
+                    <span className="flex-1 min-w-0 truncate"><span className="text-muted">{r.label} {verb}</span> {r.title && (href ? <Link href={href} className="text-brand-700 hover:underline">{r.title}</Link> : r.title)}</span>
+                    <span className="text-xs text-muted shrink-0">{clock(r.at)}</span>
+                  </li>
+                );
+              })}
+              {!u.recent.length && <li className="px-4 py-8 text-center text-muted">Kayıtlı işlem yok.</li>}
+            </ul>
           </section>
-        )}
+          <aside className="flex flex-col gap-5">
+            <section className="bg-white border border-line rounded-[18px] p-4 flex flex-col gap-2">
+              <h2 className="font-display font-semibold text-brand-800">Yetkiler</h2>
+              {u.role === "owner" ? <p className="text-sm text-muted">Şirket sahibi: tüm modüllerde tam yetki.</p> : (
+                <ul className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+                  {Object.entries(MOD).map(([k, l]) => { const v = u.modules[k] ?? 0; return <li key={k} className="flex justify-between"><span className={v ? "" : "text-muted"}>{l}</span><span className={`text-xs ${v >= 3 ? "text-brand-700 font-bold" : v ? "" : "text-muted"}`}>{LVL[v] ?? v}</span></li>; })}
+                </ul>
+              )}
+              <p className="text-xs text-muted">{u.all_branches ? "Tüm şubeler" : "Kendi şubesi"}{u.site_access ? " · Site yönetimi" : ""}{u.logistics_access ? " · Lojistik" : ""}</p>
+              <span className="flex gap-3 text-sm font-semibold"><Link href="/yonetim" className="text-brand-700">Yetkileri düzenle →</Link><Link href="/yonetim/goruntule" className="text-brand-700">👁 Onun gözünden</Link></span>
+            </section>
+            <section className="bg-white border border-line rounded-[18px] p-4 flex flex-col gap-2">
+              <h2 className="font-display font-semibold text-brand-800">Açık görevleri ({u.tasks.length})</h2>
+              <ul className="text-sm flex flex-col gap-1">{u.tasks.map((t) => <li key={t.id}>📌 {t.title}{t.due ? <span className="text-xs text-muted"> · {t.due.split("-").reverse().join(".")}</span> : null}</li>)}</ul>
+              <TaskAssign title="" people={((ppl ?? []) as Person[]).filter((p) => p.user_id === u.user)} />
+            </section>
+          </aside>
+        </div>
       </div>
     </>
   );
