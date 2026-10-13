@@ -95,3 +95,44 @@ export async function remitUndo(f: FormData): Promise<void> {
   await supabase.rpc("payroll_remit_undo", { p_id: String(f.get("id") ?? "") });
   touch(String(f.get("period") ?? ""));
 }
+
+/** Ekstre satırını personel ödemesi olarak işle: items = JSON [{ employee_id, amount (yazıldığı gibi), type }] */
+export async function bankPostPayroll(_: PlanResult | null, f: FormData): Promise<PlanResult> {
+  const s = await getSession();
+  if (!canManagePay(s.role)) return { ok: false, message: "Yetkiniz yok." };
+  const period = String(f.get("period") ?? "");
+  let raw: Array<{ employee_id: string; amount: string; type: string }>;
+  try { raw = JSON.parse(String(f.get("items") ?? "[]")); } catch { return { ok: false, message: "Seçim okunamadı." }; }
+  let items: Array<{ employee_id: string; amount: number; type: string }>;
+  try { items = raw.map((r) => ({ employee_id: r.employee_id, amount: parseTL(r.amount), type: r.type === "ADVANCE" ? "ADVANCE" : "SALARY" })).filter((r) => r.amount > 0); } catch (e) { return { ok: false, message: (e as Error).message }; }
+  if (!items.length) return { ok: false, message: "Personel seçin." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fin_bank_post_payroll", { p_line: String(f.get("line") ?? ""), p_period: period, p_items: items });
+  if (error) {
+    const m = error.message;
+    return { ok: false, message: /sum_mismatch/.test(m) ? "Dağıtılan toplam, bankadaki tutara eşit olmalı." : /already_done/.test(m) ? "Bu banka satırı zaten işlenmiş." : /fin_bank_post_payroll|does not exist/.test(m) ? "Supabase'de 20270116000000_bank_payroll.sql çalıştırılmalı." : planError(m) };
+  }
+  touch(period);
+  revalidatePath(`/donemler/${period}/banka`);
+  revalidatePath("/finans/banka-aktar");
+  return { ok: true, message: `${data} personelin ödemesi banka satırıyla eşleştirildi.` };
+}
+
+export async function bankUnpost(f: FormData): Promise<void> {
+  const s = await getSession();
+  if (!canManagePay(s.role)) return;
+  const period = String(f.get("period") ?? "");
+  const supabase = await createClient();
+  await supabase.rpc("fin_bank_unpost_payroll", { p_line: String(f.get("line") ?? "") });
+  touch(period);
+  revalidatePath(`/donemler/${period}/banka`);
+}
+
+/** Maaş planından yapılmış ve bankada otomatik bulunmuş ödemeyi onayla */
+export async function bankConfirm(f: FormData): Promise<void> {
+  const s = await getSession();
+  if (!canManagePay(s.role)) return;
+  const supabase = await createClient();
+  await supabase.rpc("fin_bank_mark", { p_line: String(f.get("line") ?? ""), p_action: "confirm" });
+  revalidatePath(`/donemler/${String(f.get("period") ?? "")}/banka`);
+}

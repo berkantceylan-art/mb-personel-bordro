@@ -72,6 +72,7 @@ export default async function BankImportPage({ searchParams }: { searchParams: P
                       <div className="flex gap-2 items-baseline"><span className="text-xs text-muted whitespace-nowrap">{formatDate(l.txn_date)}</span><b className={`num whitespace-nowrap ${l.amount < 0 ? "text-bad" : "text-ok"}`}>{fmt(l.amount, cur, { sign: true })}</b></div>
                       <div className="text-sm break-words">{l.description || "—"}</div>
                       {l.suggest_reason && <div className="text-[11px] text-brand-700">{l.suggest_reason}{l.suggested_party_id ? `: ${pname.get(l.suggested_party_id)}` : l.suggested_category_id ? `: ${cname.get(l.suggested_category_id)}` : ""}</div>}
+                      {l.suggest_reason?.startsWith("Personel:") && <Link href={`/donemler/${new Date(Date.parse(l.txn_date) - 15 * 86_400_000).toISOString().slice(0, 7)}/banka`} className="text-[11px] font-semibold text-brand-700 underline">Maaş planında personelle eşleştir →</Link>}
                     </div>
                     {tab === "bekleyen" && (
                       <form action={postBankLine} className="flex flex-wrap gap-2 items-center flex-1">
