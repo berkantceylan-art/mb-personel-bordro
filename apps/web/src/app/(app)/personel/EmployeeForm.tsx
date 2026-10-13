@@ -136,7 +136,7 @@ export function EmployeeForm({
           <legend className="font-display font-semibold text-brand-800 px-1">Ücret</legend>
           <label className="flex flex-col gap-1.5 text-sm text-muted">Aylık toplam net ücret<input name="total_net" inputMode="decimal" placeholder="ör. 65.000" className={`${input} num`} /></label>
           <label className="flex flex-col gap-1.5 text-sm text-muted">Sigorta
-            <select name="insurance_type" className={input}><option value="MIN_WAGE">Asgari ücretten</option><option value="FIXED_NET">Belirli net üzerinden</option></select>
+            <select name="insurance_type" className={input}><option value="MIN_WAGE">Asgari ücretten</option><option value="FIXED_NET">Belirli net üzerinden</option><option value="NONE">Sigortasız (resmi bordro yok, tamamı elden)</option></select>
           </label>
           <label className="flex flex-col gap-1.5 text-sm text-muted">Resmi net (belirli net ise)<input name="fixed_official_net" inputMode="decimal" placeholder="ör. 30.000" className={`${input} num`} /></label>
           <label className="flex gap-2.5 items-center text-sm"><input type="checkbox" name="bes" className="w-5 h-5" />Otomatik katılım BES (%3)</label>

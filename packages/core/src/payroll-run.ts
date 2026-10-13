@@ -56,6 +56,15 @@ export function runPayroll(i: PayrollInput): PayrollResult {
     segs.length > 1 && segDays > 0
       ? roundKurus(segs.reduce((a, x) => a + splitContract(x.contract, i.month, i.cumulativeTaxBaseBefore, params).official.gross * x.days, 0) / segDays)
       : split.official.gross;
+  const uninsured = i.contract.insuranceType === "NONE" && segs.every((x) => x.contract.insuranceType === "NONE");
+  if (uninsured) {
+    // Sigortasız personel: resmi bordro sıfır; hakedişin tamamı (fazla mesai / prim dahil) elden ödenir
+    return {
+      days: 0, baseGross: 0, dayGross: 0, overtimeGross: 0, bonusGross: 0,
+      breakdown: grossToNet({ gross: 0, month: i.month, cumulativeTaxBaseBefore: i.cumulativeTaxBaseBefore, days: 0, params }),
+      garnishments: [], garnishmentTotal: 0, netToBank: 0, cashPart: split.cashPart,
+    };
+  }
   const days = Math.max(0, Math.min(30, (i.employedDays ?? 30) - (i.officialMissingDays ?? 0)));
   const dayGross = roundKurus((baseGross * days) / 30);
   const overtimeGross = i.officialOvertimeGross ?? 0;

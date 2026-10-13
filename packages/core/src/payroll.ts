@@ -162,7 +162,8 @@ export function netToGross(input: NetToGrossInput): PayrollBreakdown {
 /* Sözleşme: toplam ücret = resmi net + elden                          */
 /* ------------------------------------------------------------------ */
 
-export type InsuranceType = "MIN_WAGE" | "FIXED_NET";
+/** MIN_WAGE: resmi asgari ücret · FIXED_NET: belirli resmi net · NONE: sigortasız (resmi bordro yok, tamamı elden) */
+export type InsuranceType = "MIN_WAGE" | "FIXED_NET" | "NONE";
 
 export interface PayContract {
   /** Personelle anlaşılan aylık toplam net ücret */
@@ -186,6 +187,10 @@ export function splitContract(
   params: LegalParams = PARAMS_2026,
 ): OfficialSplit {
   const besRate = contract.besRate ?? 0;
+  if (contract.insuranceType === "NONE") {
+    // Sigortasız: SGK / vergi / BES yok; ücretin tamamı elden
+    return { official: grossToNet({ gross: 0, month, cumulativeTaxBaseBefore, days: 0, params }), cashPart: contract.totalNet };
+  }
   const official =
     contract.insuranceType === "MIN_WAGE"
       ? grossToNet({

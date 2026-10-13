@@ -357,7 +357,7 @@ export const REPORTS: ReportDef[] = [
         led.set(e.employee_id, g);
       }
       const params = paramsFor(y);
-      const GROUPS = ["Asgari ücretliler", "Emekliler", "Farklı olanlar"] as const;
+      const GROUPS = ["Asgari ücretliler", "Emekliler", "Farklı olanlar", "Sigortasızlar"] as const;
       const rows: Array<Record<string, string | number | null>> = [];
       const warnings: string[] = [];
       for (const e of list) {
@@ -365,7 +365,7 @@ export const REPORTS: ReportDef[] = [
         const bolum = (e.departments as unknown as { name: string } | null)?.name ?? "Bölümsüz";
         if (p.department && bolum !== p.department) continue;
         if (!c) continue;
-        const grup = retired.has(e.id) ? GROUPS[1] : c.insuranceType === "FIXED_NET" ? GROUPS[2] : GROUPS[0];
+        const grup = c.insuranceType === "NONE" ? GROUPS[3] : retired.has(e.id) ? GROUPS[1] : c.insuranceType === "FIXED_NET" ? GROUPS[2] : GROUPS[0];
         const sigortali = splitContract({ ...c, besRate: 0 }, mo, 0, params).official.net;
         const l = led.get(e.id) ?? { hak: 0, banka: 0, elden: 0, kalan: 0 };
         rows.push({
@@ -386,7 +386,7 @@ export const REPORTS: ReportDef[] = [
       const count = (g: string) => rows.filter((r) => r.grup === g).length;
       return {
         title: "Maaş grupları",
-        subtitle: `${periodLabel(p.period)}${p.department ? ` · ${p.department}` : ""} · asgari ücretli ${count(GROUPS[0])} · emekli ${count(GROUPS[1])} · farklı ${count(GROUPS[2])} kişi`,
+        subtitle: `${periodLabel(p.period)}${p.department ? ` · ${p.department}` : ""} · asgari ücretli ${count(GROUPS[0])} · emekli ${count(GROUPS[1])} · farklı ${count(GROUPS[2])} · sigortasız ${count(GROUPS[3])} kişi`,
         columns: [
           { key: "grup", label: "Grup", width: 18 }, { key: "bolum", label: "Bölüm", width: 16 }, { key: "ad", label: "Personel", width: 26 }, { key: "durum", label: "Durum", width: 9 },
           { key: "maas", label: "Maaş (toplam net)", type: "money" }, { key: "sigortali", label: "Sigortalı net (banka)", type: "money" }, { key: "elden_kisim", label: "Elden kısım", type: "money" },
@@ -715,7 +715,7 @@ export const REPORTS: ReportDef[] = [
             bolum: (e.departments as unknown as { name: string } | null)?.name ?? "Bölümsüz", ad: e.first_name, soyad: e.last_name, pdks: e.card_no ?? "", gorev: e.position_title ?? "",
             sube: (e.branches as unknown as { name: string } | null)?.name ?? "", giris: e.hire_date, tckn: x?.national_id ?? "", sgk: x?.sgk_no ?? "", dogum: x?.birth_date ?? null,
             telefon: x?.phone ?? "", eposta: x?.email ?? "", il: x?.city ?? "", ogrenim: x?.education_level ?? "", ehliyet: x?.license_class ?? "", iban: x?.iban ?? "",
-            ucret: c?.totalNet ?? null, sigorta: c ? (c.insuranceType === "MIN_WAGE" ? "Asgari" : `Net ${formatTL(c.fixedOfficialNet ?? 0)}`) : "",
+            ucret: c?.totalNet ?? null, sigorta: c ? (c.insuranceType === "NONE" ? "Sigortasız" : c.insuranceType === "MIN_WAGE" ? "Asgari" : `Net ${formatTL(c.fixedOfficialNet ?? 0)}`) : "",
           };
         })
         .filter((r) => !p.department || r.bolum === p.department)

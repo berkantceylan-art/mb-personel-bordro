@@ -50,6 +50,7 @@ export function EmployeeRaiseForm(props: {
           <select name="insurance_type" value={insurance} onChange={(e) => setInsurance(e.target.value)} className={input}>
             <option value="MIN_WAGE">Asgari ücretten</option>
             <option value="FIXED_NET">Belirli net üzerinden</option>
+            <option value="NONE">Sigortasız (resmi bordro yok, tamamı elden)</option>
           </select>
         </label>
         {insurance === "FIXED_NET" && (

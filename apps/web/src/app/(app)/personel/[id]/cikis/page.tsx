@@ -62,7 +62,7 @@ export default async function ExitWizard({ params, searchParams }: { params: Pro
     const unused = Math.max(0, ent.earned + adj - used);
     const c = contracts.get(id);
     const p = paramsFor(Number(endDate.slice(0, 4)));
-    const officialGross = c ? (c.insuranceType === "MIN_WAGE" ? p.minWageGross : netToGross({ targetNet: c.fixedOfficialNet ?? 0, month: Number(endDate.slice(5, 7)), cumulativeTaxBaseBefore: 0, besRate: 0, params: p }).gross) : p.minWageGross;
+    const officialGross = c ? (c.insuranceType === "NONE" ? netToGross({ targetNet: c.totalNet, month: Number(endDate.slice(5, 7)), cumulativeTaxBaseBefore: 0, besRate: 0, params: p }).gross : c.insuranceType === "MIN_WAGE" ? p.minWageGross : netToGross({ targetNet: c.fixedOfficialNet ?? 0, month: Number(endDate.slice(5, 7)), cumulativeTaxBaseBefore: 0, besRate: 0, params: p }).gross) : p.minWageGross;
     const brutParam = sp.brut ? Math.round(Number(String(sp.brut).replace(/\./g, "").replace(",", ".")) * 100) : null;
     const monthlyGross = brutParam && brutParam > 0 ? brutParam : officialGross;
     const cap = sp.tavan ? Math.round(Number(String(sp.tavan).replace(/\./g, "").replace(",", ".")) * 100) : null;
@@ -73,7 +73,7 @@ export default async function ExitWizard({ params, searchParams }: { params: Pro
     const ihbar = weeks * 7 * dailyGross;
     const izin = Math.round(unused * dailyGross);
     void grossToNet;
-    calc = { bal, openAdv: 0, years, days, earned: ent.earned + adj, used, unused, weeks, monthlyGross, dailyGross, kidem, kidemCapped: kidem, ihbar, izin, cap, total: kidem + ihbar + izin + Math.max(0, bal), basis: c ? (c.insuranceType === "MIN_WAGE" ? "asgari ücret brütü" : "belirli net brütü") : "asgari ücret brütü" };
+    calc = { bal, openAdv: 0, years, days, earned: ent.earned + adj, used, unused, weeks, monthlyGross, dailyGross, kidem, kidemCapped: kidem, ihbar, izin, cap, total: kidem + ihbar + izin + Math.max(0, bal), basis: c ? (c.insuranceType === "NONE" ? "sigortasız: anlaşılan ücretin brüt karşılığı" : c.insuranceType === "MIN_WAGE" ? "asgari ücret brütü" : "belirli net brütü") : "asgari ücret brütü" };
   }
   const tl = (k: number) => formatTL(k);
   const fmtQ = (k: number) => (k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

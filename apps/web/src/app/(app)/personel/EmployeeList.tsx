@@ -12,6 +12,7 @@ export interface EmployeeRow {
   hire: string;
   status: string;
   balance: string | null;
+  uninsured?: boolean;
 }
 
 type Durum = "aktif" | "ayrilan" | "tumu";
@@ -120,7 +121,7 @@ export function EmployeeList({
               <tr key={e.id} className="hover:bg-[#F7F9FB]">
                 <td className="num py-3 px-3 border-b border-[#EEF2F6] text-right text-muted">{i + 1}</td>
                 <td className="py-3 px-4 border-b border-[#EEF2F6]">
-                  <Link href={`/personel/${e.id}`} className="font-semibold text-brand-700">{e.name}</Link>
+                  <Link href={`/personel/${e.id}`} className="font-semibold text-brand-700">{e.name}</Link>{e.uninsured && <span className="ml-2 rounded-md bg-bad-bg px-1.5 py-0.5 text-[11px] font-semibold text-bad">Sigortasız</span>}
                   {e.status !== "active" && <span className="ml-2 text-xs text-muted">({e.status === "terminated" ? "ayrıldı" : "izinde"})</span>}
                 </td>
                 <td className="num py-3 px-4 border-b border-[#EEF2F6] text-muted">{e.card ?? "—"}</td>

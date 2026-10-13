@@ -180,12 +180,12 @@ const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz"
 export const periodName = (p: string) => MONTHS[Number(p.slice(5, 7)) - 1] ?? p;
 
 /* ------------------------------------------------------------------ Kıdem / ihbar */
-type ContractLite = { totalNet: number; insuranceType: "MIN_WAGE" | "FIXED_NET"; fixedOfficialNet?: number };
+type ContractLite = { totalNet: number; insuranceType: "MIN_WAGE" | "FIXED_NET" | "NONE"; fixedOfficialNet?: number };
 /** Resmi brüt (bordrodaki) ve gerçek brüt (elden dâhil anlaşılan net üzerinden) */
 export function grossOf(c: ContractLite, date: string) {
   const prm = params(date);
   const month = Number(date.slice(5, 7));
-  const official = c.insuranceType === "MIN_WAGE" ? prm.minWageGross : netToGross({ targetNet: c.fixedOfficialNet ?? 0, month, cumulativeTaxBaseBefore: 0, besRate: 0, params: prm }).gross;
+  const official = c.insuranceType === "NONE" ? 0 : c.insuranceType === "MIN_WAGE" ? prm.minWageGross : netToGross({ targetNet: c.fixedOfficialNet ?? 0, month, cumulativeTaxBaseBefore: 0, besRate: 0, params: prm }).gross;
   const real = Math.max(official, netToGross({ targetNet: c.totalNet, month, cumulativeTaxBaseBefore: 0, besRate: 0, params: prm }).gross);
   return { official, real };
 }

@@ -175,13 +175,14 @@ export default async function PrintPayroll({ params, searchParams }: { params: P
       </div>
       <div className="py-6 print:py-0">
         {rows.map((r) =>
-          kind === "resmi" ? (
+          kind === "resmi" && r.insurance === "NONE" ? null : kind === "resmi" ? (
             <Official key={r.employeeId} r={r} period={period} company={s.companyName} priv={priv.get(r.employeeId)} position={pos.get(r.employeeId)} />
           ) : (
             <Internal key={r.employeeId} r={r} period={period} company={s.companyName} entries={((entries ?? []) as Entry[]).filter((e) => e.employee_id === r.employeeId)} />
           ),
         )}
         {rows.length === 0 && <p className="text-center text-[#5A6878]">Bu dönemde bordro yok.</p>}
+        {kind === "resmi" && rows.some((r) => r.insurance === "NONE") && <p className="text-center text-sm text-[#5A6878] print:hidden">Sigortasız personel ({rows.filter((r) => r.insurance === "NONE").map((r) => r.name).join(", ")}) için resmi bordro düzenlenmez; iç döküm / elden ödeme makbuzunu kullanın.</p>}
       </div>
     </main>
   );

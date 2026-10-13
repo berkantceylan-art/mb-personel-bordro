@@ -32,7 +32,7 @@ export default async function MyProfilePage() {
     const used = (usedRows ?? []).reduce((a, l) => a + Number(l.days), 0);
     const adj = (adjRows ?? []).reduce((a, l) => a + Number(l.days), 0);
     const prm = paramsFor(Number(today.slice(0, 4)));
-    const gross = contract ? (contract.insurance_type === "MIN_WAGE" ? prm.minWageGross : netToGross({ targetNet: Number(contract.fixed_official_net ?? 0), month: Number(today.slice(5, 7)), cumulativeTaxBaseBefore: 0, besRate: 0, params: prm }).gross) : prm.minWageGross;
+    const gross = contract ? (contract.insurance_type === "NONE" ? 0 : contract.insurance_type === "MIN_WAGE" ? prm.minWageGross : netToGross({ targetNet: Number(contract.fixed_official_net ?? 0), month: Number(today.slice(5, 7)), cumulativeTaxBaseBefore: 0, besRate: 0, params: prm }).gross) : prm.minWageGross;
     const weeks = years < 0.5 ? 2 : years < 1.5 ? 4 : years < 3 ? 6 : 8;
     return { years, days, earned: ent.earned + adj, used, left: Math.max(0, ent.earned + adj - used), nextDays: ent.nextYearDays, next: ent.nextAnniversary, gross, kidem: years >= 1 ? Math.round(Math.min(gross, severanceCapAt(today) ?? gross) * years) : 0, ihbar: weeks * 7 * Math.round(gross / 30), weeks };
   })();
