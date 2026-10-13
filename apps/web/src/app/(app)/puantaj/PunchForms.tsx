@@ -51,11 +51,12 @@ export function MissingDaysButton({ period }: { period: string }) {
     <form {...actionProps} className="flex flex-col gap-2 items-start">
       <input type="hidden" name="period" value={period} />
       <div className="flex gap-2 items-end flex-wrap">
-        <PaySideSelect label="Eksik gün nereden kesilsin" />
+        <PaySideSelect label="Devamsızlık / ücretsiz izin nereden kesilsin" />
         <button disabled={pending} className="h-11 px-4 rounded-[10px] border border-[#D5DEE8] bg-white text-brand-700 font-semibold disabled:opacity-60">
           {pending ? "Yazılıyor…" : "Eksik günleri hakedişe yansıt"}
         </button>
       </div>
+      <p className="text-xs text-muted">Rapor günleri her zaman hem resmi hem elden kısımdan günlük ücret kadar kesilir (rapor parasını SGK personele öder). Puantaj değişirse tekrar basın; kesintiler son hale göre güncellenir.</p>
       {state && <p role="status" className={`text-sm rounded-lg px-3 py-1.5 ${state.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{state.message}</p>}
     </form>
   );

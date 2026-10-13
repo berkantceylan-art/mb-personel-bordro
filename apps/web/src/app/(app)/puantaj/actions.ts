@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { absenceSides, pairPunches, parseDeviceFile, periodBounds, sideLines, type PaySide } from "@mb/core";
+import { legalParams } from "@/lib/legal";
+import { absenceSides, pairPunches, parseDeviceFile, periodBounds, type PaySide } from "@mb/core";
 import { contractsAt, SIDE_LABEL } from "@/lib/contracts";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
@@ -121,7 +122,13 @@ export async function deletePunch(f: FormData) {
   revalidatePath("/puantaj");
 }
 
-/** Puantajdaki devamsızlık + ücretsiz izin + rapor günlerini dönem cari hesabına kesinti olarak yazar (resmi / elden ayrı) */
+/**
+ * Puantajdaki devamsızlık + ücretsiz izin + rapor günlerini dönem cari hesabına kesinti olarak yazar (resmi / elden ayrı).
+ * Şirket kuralı: RAPOR günleri her zaman hem resmi hem elden kısımdan günlük ücret kadar kesilir
+ * (rapor parasını SGK personele ayrıca öder). Devamsızlık / ücretsiz izin seçilen tarafa göre kesilir.
+ * Tekrar çalıştırılabilir: bordro kesintileri cariye yazılmamış personelin önceki "Eksik gün" kesintisi
+ * iptal edilip puantajın son haliyle yeniden yazılır (sonradan girilen rapor da yansır).
+ */
 export async function applyMissingDays(_: { ok: boolean; message: string } | null, f: FormData): Promise<{ ok: boolean; message: string }> {
   const s = await getSession();
   if (!canManagePay(s.role)) return { ok: false, message: "Yetkiniz yok." };
@@ -133,18 +140,26 @@ export async function applyMissingDays(_: { ok: boolean; message: string } | nul
   const { end } = periodBounds(period);
 
   const ids = month.employees.map((e) => e.id);
-  const [contracts, existing] = await Promise.all([
+  const [contracts, existing, postedLines, legal] = await Promise.all([
     contractsAt(supabase, ids, end),
-    supabase.from("ledger_entries").select("employee_id").eq("period", period).eq("type", "DEDUCTION").like("note", "Eksik gün%").is("voided_at", null),
+    supabase.from("ledger_entries").select("id, employee_id, amount, pay_side, days").eq("period", period).eq("type", "DEDUCTION").like("note", "Eksik gün%").is("voided_at", null),
+    supabase.from("payroll_lines").select("employee_id").eq("period", period).eq("posted", true),
+    legalParams(supabase, Number(period.slice(0, 4))),
   ]);
-  const done = new Set((existing.data ?? []).map((r) => r.employee_id));
+  const posted = new Set((postedLines.data ?? []).map((r) => r.employee_id));
+  const oldByEmp = new Map<string, Array<{ id: string; amount: number; pay_side: string | null; days: number | null }>>();
+  for (const r of existing.data ?? []) oldByEmp.set(r.employee_id, [...(oldByEmp.get(r.employee_id) ?? []), { id: r.id, amount: Number(r.amount), pay_side: r.pay_side, days: r.days }]);
   const cum = await cumulativeBases(supabase, period, month.employees.map((e) => ({ id: e.id, hire_date: e.hireDate })), contracts);
+  const monthNo = Number(period.slice(5, 7));
+  const takesOfficial = side === "OFFICIAL" || side === "BOTH";
+  const takesCash = side === "CASH" || side === "BOTH";
 
   const rows: Record<string, unknown>[] = [];
-  let people = 0;
+  const toVoid: string[] = [];
+  let people = 0, changed = 0, skippedPosted = 0;
   for (const e of month.employees) {
     const c = contracts.get(e.id);
-    if (done.has(e.id) || !c) continue;
+    if (!c) continue;
     let absent = 0, unpaid = 0, sick = 0;
     for (const cell of month.cells.get(e.id)!.values()) {
       if (!cell.employed) continue;
@@ -152,13 +167,28 @@ export async function applyMissingDays(_: { ok: boolean; message: string } | nul
       else if (cell.leaveCode === "UCRETSIZ") unpaid++;
       else if (cell.leaveCode === "RAPOR") sick++;
     }
-    const days = Math.min(30, absent + unpaid + sick);
-    if (!days) continue;
+    const other = absent + unpaid;
+    const officialDays = Math.min(30, sick + (takesOfficial ? other : 0));
+    const cashDays = Math.min(30, sick + (takesCash ? other : 0));
     const parts = [absent && `devamsızlık ${absent}`, unpaid && `ücretsiz izin ${unpaid}`, sick && `rapor ${sick}`].filter(Boolean).join(", ");
-    const lines = sideLines(absenceSides({ contract: c, month: Number(period.slice(5, 7)), cumulativeTaxBaseBefore: cum.get(e.id) ?? 0 }, days), side);
-    if (!lines.length) continue;
+    const ctx = { contract: c, month: monthNo, cumulativeTaxBaseBefore: cum.get(e.id) ?? 0, params: legal.params };
+    const want: Array<{ side: "OFFICIAL" | "CASH"; amount: number; grossAmount: number | null; days: number }> = [];
+    if (officialDays) {
+      const a = absenceSides(ctx, officialDays);
+      if (a.officialNet > 0) want.push({ side: "OFFICIAL", amount: a.officialNet, grossAmount: a.officialGross, days: officialDays });
+    }
+    if (cashDays) {
+      const a = absenceSides(ctx, cashDays);
+      if (a.cash > 0) want.push({ side: "CASH", amount: a.cash, grossAmount: null, days: cashDays });
+    }
+    const old = oldByEmp.get(e.id) ?? [];
+    const same = old.length === want.length && want.every((w) => old.some((o) => o.pay_side === w.side && o.amount === w.amount && Number(o.days ?? 0) === w.days));
+    if (same) continue;
+    if (posted.has(e.id)) { skippedPosted++; continue; }
+    if (old.length) { toVoid.push(...old.map((o) => o.id)); changed++; }
+    if (!want.length) continue;
     people++;
-    for (const l of lines) {
+    for (const l of want) {
       rows.push({
         company_id: s.companyId,
         employee_id: e.id,
@@ -169,10 +199,14 @@ export async function applyMissingDays(_: { ok: boolean; message: string } | nul
         amount: l.amount,
         pay_side: l.side,
         gross_amount: l.grossAmount,
-        days,
-        note: `Eksik gün: ${days} (${parts}) · ${l.side === "OFFICIAL" ? "resmi" : "elden"}`,
+        days: l.days,
+        note: `Eksik gün: ${l.days} (${parts}) · ${l.side === "OFFICIAL" ? "resmi" : "elden"}`,
       });
     }
+  }
+  for (const id of toVoid) {
+    const { error } = await supabase.rpc("void_ledger_entry", { p_id: id, p_reason: "Puantaj değişti; eksik gün yeniden hesaplandı" });
+    if (error) return { ok: false, message: error.message };
   }
   if (rows.length) {
     const { error } = await supabase.from("ledger_entries").insert(rows);
@@ -181,5 +215,10 @@ export async function applyMissingDays(_: { ok: boolean; message: string } | nul
   revalidatePath("/puantaj");
   revalidatePath("/donemler");
   revalidatePath("/ay-sonu");
-  return { ok: true, message: people ? `${people} personele eksik gün kesintisi yazıldı (${SIDE_LABEL[side]}).` : "Yazılacak eksik gün yok (daha önce yazılanlar atlanır)." };
+  revalidatePath("/bordro");
+  const msg = people || changed
+    ? `${people} personele eksik gün kesintisi yazıldı${changed ? ` (${changed} kişinin önceki kesintisi güncellendi)` : ""}. Rapor günleri resmi + elden kesildi; diğer eksik günler: ${SIDE_LABEL[side]}.`
+    : "Değişen eksik gün yok.";
+  return { ok: true, message: msg + (skippedPosted ? ` ${skippedPosted} kişinin bordro kesintileri cariye yazıldığı için değiştirilmedi (önce Bordro'da geri alın).` : "") };
 }
+

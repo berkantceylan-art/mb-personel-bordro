@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { legalParams } from "@/lib/legal";
 import { formatTL, nextPeriod, overtimeSides, previousPeriod } from "@mb/core";
 import { PaySideSelect } from "@/components/PaySideSelect";
 import { contractsAt, SIDE_LABEL } from "@/lib/contracts";
@@ -25,6 +26,7 @@ export default async function OvertimePage({ searchParams }: { searchParams: Pro
   const period = sp.donem && /^\d{4}-\d{2}$/.test(sp.donem) ? sp.donem : currentPeriod();
   const supabase = await createClient();
   const year = period.slice(0, 4);
+  const { params: legal } = await legalParams(supabase, Number(year));
   const [m, { data: records }, { data: yearRecs }, { data: shiftRows }] = await Promise.all([
     loadMonth(supabase, period),
     supabase.from("overtime_records").select("id, employee_id, work_date, minutes, rate, amount, status, source, pay_side, official_gross, official_net, cash_amount").eq("period", period).order("work_date"),
@@ -89,7 +91,7 @@ export default async function OvertimePage({ searchParams }: { searchParams: Pro
                         <td className={td}>×{x.rate}</td>
                         {pay && (() => {
                           const c = contracts.get(x.employeeId);
-                          const a = c ? overtimeSides({ contract: c, month, cumulativeTaxBaseBefore: cum.get(x.employeeId) ?? 0 }, x.minutes, x.rate) : null;
+                          const a = c ? overtimeSides({ contract: c, month, cumulativeTaxBaseBefore: cum.get(x.employeeId) ?? 0, params: legal }, x.minutes, x.rate) : null;
                           return a ? (
                             <><td className={`num ${td} text-right`}>{formatTL(a.officialGross)}</td><td className={`num ${td} text-right`}>{formatTL(a.officialNet)}</td><td className={`num ${td} text-right`}>{formatTL(a.cash)}</td></>
                           ) : <td className={`${td} text-muted`} colSpan={3}>Ücret kaydı yok</td>;

@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { legalParams } from "@/lib/legal";
 import { countLeaveDays, overtimeSides, roundKurus, sideLines, type PaySide } from "@mb/core";
 import { contractsAt } from "@/lib/contracts";
 import { cumulativeBases } from "@/lib/payroll";
@@ -152,10 +153,12 @@ export async function approveOvertime(f: FormData) {
   const cumByPeriod = new Map<string, Map<string, number>>();
   for (const p of new Set(items.map((i) => i.date.slice(0, 7)))) cumByPeriod.set(p, await cumulativeBases(supabase, p, emps ?? [], contracts));
 
+  const paramsByYear = new Map<number, Awaited<ReturnType<typeof legalParams>>["params"]>();
+  for (const y of new Set(items.map((i) => Number(i.date.slice(0, 4))))) paramsByYear.set(y, (await legalParams(supabase, y)).params);
   for (const it of items) {
     const c = contracts.get(it.employeeId);
     const cum = cumByPeriod.get(it.date.slice(0, 7))?.get(it.employeeId) ?? 0;
-    const a = c ? overtimeSides({ contract: c, month: Number(it.date.slice(5, 7)), cumulativeTaxBaseBefore: cum }, it.minutes, it.rate) : null;
+    const a = c ? overtimeSides({ contract: c, month: Number(it.date.slice(5, 7)), cumulativeTaxBaseBefore: cum, params: paramsByYear.get(Number(it.date.slice(0, 4))) }, it.minutes, it.rate) : null;
     const lines = a && decision === "approved" ? sideLines(a, side) : [];
     const { data: rec } = await supabase
       .from("overtime_records")

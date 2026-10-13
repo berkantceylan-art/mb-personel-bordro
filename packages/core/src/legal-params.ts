@@ -49,8 +49,70 @@ export const PARAMS_BY_YEAR: Record<number, LegalParams> = {
   2026: PARAMS_2026,
 };
 
+/**
+ * Koddaki tablodan yılın parametresi. Yıl tanımlı değilse en yakın önceki yıl döner (hata vermez);
+ * uyarı göstermek ya da veritabanı değerlerini katmak için `resolveParams` / web'deki `legalParams` kullanın.
+ */
 export function paramsFor(year: number): LegalParams {
-  const p = PARAMS_BY_YEAR[year];
-  if (!p) throw new Error(`${year} yılı için yasal parametre tanımlı değil`);
-  return p;
+  return resolveParams(year).params;
+}
+
+export interface ResolvedParams {
+  params: LegalParams;
+  /** İstenen yılın kendi değerleri mi (false = en yakın önceki yıl kullanıldı) */
+  exact: boolean;
+  /** Fiilen kullanılan yıl */
+  usedYear: number;
+}
+
+/**
+ * Yıla göre parametre: önce `extra` (veritabanındaki legal_params), sonra koddaki tablo.
+ * O yıl tanımlı değilse en yakın önceki yıl kullanılır ve `exact: false` döner (ekranda uyarı için).
+ * Hiç önceki yıl yoksa en eski tanımlı yıl.
+ */
+export function resolveParams(year: number, extra: Record<number, LegalParams> = {}): ResolvedParams {
+  const all: Record<number, LegalParams> = { ...PARAMS_BY_YEAR, ...extra };
+  if (all[year]) return { params: all[year]!, exact: true, usedYear: year };
+  const years = Object.keys(all).map(Number).sort((a, b) => a - b);
+  const prior = years.filter((y) => y < year).at(-1) ?? years[0]!;
+  return { params: all[prior]!, exact: false, usedYear: prior };
+}
+
+/**
+ * Veritabanı `legal_params.data` (jsonb) → LegalParams. Tutarlar kuruş; son dilimin üst sınırı null = sınırsız.
+ * Eksik ya da hatalı kayıtta null döner (kod tablosu kullanılır).
+ */
+export function paramsFromJson(year: number, data: unknown): LegalParams | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as Record<string, unknown>;
+  const num = (k: string) => (typeof d[k] === "number" && Number.isFinite(d[k]) ? (d[k] as number) : NaN);
+  const brackets = Array.isArray(d.incomeTaxBrackets)
+    ? (d.incomeTaxBrackets as unknown[]).map((b) => {
+        const [up, rate] = Array.isArray(b) ? b : [];
+        return [up === null || up === undefined ? Number.POSITIVE_INFINITY : Number(up), Number(rate)] as [number, number];
+      })
+    : [];
+  const p: LegalParams = {
+    year,
+    minWageGross: num("minWageGross"),
+    sgkFloor: num("sgkFloor"),
+    sgkCeiling: num("sgkCeiling"),
+    sgkEmployeeRate: num("sgkEmployeeRate"),
+    unemploymentEmployeeRate: num("unemploymentEmployeeRate"),
+    sgkEmployerRate: num("sgkEmployerRate"),
+    sgkEmployerRateDiscounted: num("sgkEmployerRateDiscounted"),
+    unemploymentEmployerRate: num("unemploymentEmployerRate"),
+    stampTaxRate: num("stampTaxRate"),
+    incomeTaxBrackets: brackets,
+    besDefaultRate: Number.isFinite(num("besDefaultRate")) ? num("besDefaultRate") : 0.03,
+  };
+  const ok =
+    [p.minWageGross, p.sgkFloor, p.sgkCeiling, p.sgkEmployeeRate, p.unemploymentEmployeeRate, p.sgkEmployerRate, p.sgkEmployerRateDiscounted, p.unemploymentEmployerRate, p.stampTaxRate].every(
+      (v) => Number.isFinite(v) && v >= 0,
+    ) &&
+    p.minWageGross > 0 &&
+    brackets.length > 0 &&
+    brackets.every(([u, r]) => u > 0 && r >= 0 && r < 1) &&
+    brackets.at(-1)![0] === Number.POSITIVE_INFINITY;
+  return ok ? p : null;
 }

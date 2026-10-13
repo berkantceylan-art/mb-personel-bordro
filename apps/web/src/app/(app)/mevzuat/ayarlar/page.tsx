@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { formatTL, PARAMS_2026, tl } from "@mb/core";
+import { legalParams } from "@/lib/legal";
+import { formatTL, tl } from "@mb/core";
 import { Card, PageHeader } from "@/components/ui";
 import { PendingSubmit } from "@/components/ConfirmSubmit";
 import { getCompanySettings } from "@/lib/settings";
@@ -37,13 +38,14 @@ export default async function SettingsPage() {
     supabase.from("employees").select("id", { count: "exact", head: true }).eq("status", "active"),
   ]);
 
-  // Örnek hesaplar: asgari ücret üzerinden
-  const hourly = PARAMS_2026.minWageGross / 225;
+  // Örnek hesaplar: bu yılın asgari ücreti üzerinden
+  const { params: legal } = await legalParams(supabase, new Date().getFullYear());
+  const hourly = legal.minWageGross / 225;
   const holiday1 = Math.round(hourly * 7.5);
   const sicil = (process.env.SGK_ISYERI_SICIL ?? "").replace(/\D/g, "");
   const isKolu = sicil.length >= 5 ? sicil.slice(1, 5) : null;
   const manufacturing = isKolu ? Number(isKolu.slice(0, 2)) >= 10 && Number(isKolu.slice(0, 2)) <= 33 : null;
-  const perPoint = Math.round(PARAMS_2026.minWageGross * 0.01);
+  const perPoint = Math.round(legal.minWageGross * 0.01);
 
   return (
     <>

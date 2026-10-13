@@ -20,7 +20,7 @@ const addMonths = (iso: string, n: number) => {
   const last = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate();
   return new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), Math.min(d, last))).toISOString().slice(0, 10);
 };
-const params = (date: string) => { try { return paramsFor(Number(date.slice(0, 4))); } catch { return paramsFor(2026); } };
+const params = (date: string) => paramsFor(Number(date.slice(0, 4)));
 
 /* ------------------------------------------------------------------ Bugün */
 export interface TodayPerson { id: string; name: string; dept: string; note?: string }
