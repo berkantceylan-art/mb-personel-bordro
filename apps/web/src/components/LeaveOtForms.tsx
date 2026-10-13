@@ -44,12 +44,12 @@ export function LeaveForm({ employees, types, defaultEmployee }: { employees: Ar
   );
 }
 
-export function ManualOvertimeForm({ employees }: { employees: Array<{ id: string; name: string }> }) {
+export function ManualOvertimeForm({ employees, defaultEmployee }: { employees: Array<{ id: string; name: string }>; defaultEmployee?: string }) {
   const { state, pending, formProps: actionProps } = useActionForm(addManualOvertime);
   return (
     <form {...actionProps} className="flex flex-wrap gap-3 items-end">
       <label className="flex flex-col gap-1.5 text-sm text-muted min-w-56">Personel
-        <select name="employeeId" required className={input}><option value="">Seçin</option>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
+        <select name="employeeId" required defaultValue={defaultEmployee ?? ""} className={input}><option value="">Seçin</option>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select>
       </label>
       <label className="flex flex-col gap-1.5 text-sm text-muted">Tarih<input type="date" name="date" required className={input} /></label>
       <label className="flex flex-col gap-1.5 text-sm text-muted w-28">Saat<input name="hours" required inputMode="decimal" placeholder="2,5" className={input} /></label>

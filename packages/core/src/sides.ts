@@ -57,3 +57,22 @@ export function sideLines(a: SideAmounts, side: PaySide): Array<{ side: "OFFICIA
   if ((side === "CASH" || side === "BOTH") && a.cash > 0) out.push({ side: "CASH", amount: a.cash, grossAmount: null });
   return out;
 }
+
+/**
+ * Resmi prim: personelin eline geçecek net prim için gereken ek resmi brüt (aynı ay, aynı kümülatif matrahla).
+ * Elden prim için brüt yoktur, net tutar doğrudan elden kısma eklenir.
+ */
+export function officialBonusGross(ctx: SideContext, netBonus: Kurus): SideAmounts {
+  const { params, gross, net } = base(ctx);
+  if (netBonus <= 0) return { officialGross: 0, officialNet: 0, cash: 0 };
+  const netWith = (g: Kurus) => grossToNet({ gross: gross + g, month: ctx.month, cumulativeTaxBaseBefore: ctx.cumulativeTaxBaseBefore ?? 0, params }).net - net;
+  let lo = 0;
+  let hi = Math.max(netBonus * 2, 100_00);
+  while (netWith(hi) < netBonus) hi *= 2;
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (netWith(mid) >= netBonus) hi = mid;
+    else lo = mid;
+  }
+  return { officialGross: hi, officialNet: netWith(hi), cash: 0 };
+}

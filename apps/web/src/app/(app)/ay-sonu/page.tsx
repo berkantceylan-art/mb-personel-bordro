@@ -141,7 +141,7 @@ export default async function MonthEndPage({ searchParams }: { searchParams: Pro
 
           <Step n={6} title="Bordroyu hesapla, kesintileri yaz" state={st.payroll} status={!opened ? "Önce dönemi açın." : `${saved}/${rows.length} bordro kayıtlı${deductionsDue ? ` · ${posted}/${rows.length} kesinti cariye yazılı` : " · BES/icra kesintisi yok"}.`}>
             {opened && !closed && <PayrollButtons period={period} canPost={saved > 0 && posted < rows.length} canUnpost={false} />}
-            {opened && <Link href={`/bordro?donem=${period}`} className="text-sm font-semibold text-brand-700">Bordroyu ayrıntılı gör →</Link>}
+            {opened && <div className="flex gap-4 flex-wrap"><Link href={`/bordro/sihirbaz?donem=${period}`} className="text-sm font-semibold text-brand-700">Personel personel sihirbazla hazırla →</Link><Link href={`/bordro?donem=${period}`} className="text-sm font-semibold text-brand-700">Bordroyu ayrıntılı gör →</Link></div>}
           </Step>
 
           <Step n={7} title="Banka dosyalarını indir" state={st.files} status={saved < rows.length || !opened ? "Bordro kaydedildikten sonra indirin." : `Bankaya kalan: ${formatTL(bankLeft)}. Dosyaları Garanti BBVA internet şubesine yükleyin.`}>

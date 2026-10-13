@@ -50,6 +50,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
           <div className="flex gap-2 flex-wrap">
             <Link href={q({ donem: previousPeriod(period) })} className="h-11 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">←</Link>
             <Link href={q({ donem: nextPeriod(period) })} className="h-11 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">→</Link>
+            <Link href={`/bordro/sihirbaz?donem=${period}`} className="h-11 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white font-semibold">Sihirbazla hazırla</Link>
             <a href={`/yazdir/bordro/${period}?tur=resmi${sp.bolum ? `&bolum=${encodeURIComponent(sp.bolum)}` : ""}`} target="_blank" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">Resmi bordrolar (PDF)</a>
             <a href={`/yazdir/bordro/${period}?tur=ic${sp.bolum ? `&bolum=${encodeURIComponent(sp.bolum)}` : ""}`} target="_blank" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">İç hakediş fişleri (PDF)</a>
           </div>

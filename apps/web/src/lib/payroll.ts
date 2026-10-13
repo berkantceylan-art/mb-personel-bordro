@@ -92,6 +92,7 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
     const sum = (f: (x: (typeof mine)[number]) => boolean, k: "amount" | "gross_amount" | "days" = "amount") => mine.filter(f).reduce((a, x) => a + Number(x[k] ?? 0), 0);
     const officialMissingDays = sum((x) => x.type === "DEDUCTION" && x.pay_side === "OFFICIAL", "days");
     const officialOvertimeGross = sum((x) => x.type === "OVERTIME" && x.pay_side === "OFFICIAL", "gross_amount");
+    const officialBonusGross = sum((x) => x.type === "BONUS" && x.pay_side === "OFFICIAL", "gross_amount");
     const acc = accrualForPeriod({ period, contracts: contractSlices.get(e.id) ?? [], hireDate: e.hire_date, terminationDate: e.termination_date });
     const employed = acc.days;
     // Ay ortası ücret değişikliği: her dilimin sözleşmesi, resmi brüt güne bölünür
@@ -122,6 +123,7 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
       officialMissingDays,
       employedDays: employed,
       officialOvertimeGross,
+      officialBonusGross,
       garnishments: garnByEmp.get(e.id) ?? [],
       employerDiscount: c.employerDiscount,
       sgkIncentivePoints: settings.sgkIncentivePoints,

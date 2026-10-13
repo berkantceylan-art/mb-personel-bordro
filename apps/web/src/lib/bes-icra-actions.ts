@@ -22,6 +22,7 @@ export async function saveBes(_: { ok: boolean; message: string } | null, f: For
   });
   if (error) return { ok: false, message: error.message };
   revalidatePath("/bes");
+  revalidatePath("/bordro/sihirbaz");
   return { ok: true, message: "BES kaydı eklendi." };
 }
 
@@ -33,6 +34,7 @@ export async function setBesStatus(f: FormData) {
   const supabase = await createClient();
   await supabase.from("bes_enrollments").update({ status, status_date: str(f, "status_date") || new Date().toISOString().slice(0, 10) }).eq("id", str(f, "id"));
   revalidatePath("/bes");
+  revalidatePath("/bordro/sihirbaz");
 }
 
 export async function saveGarnishment(_: { ok: boolean; message: string } | null, f: FormData): Promise<{ ok: boolean; message: string }> {
@@ -58,6 +60,7 @@ export async function saveGarnishment(_: { ok: boolean; message: string } | null
   });
   if (error) return { ok: false, message: error.message };
   revalidatePath("/icra");
+  revalidatePath("/bordro/sihirbaz");
   return { ok: true, message: "Dosya eklendi; bir sonraki bordroda kesinti sırasına girer." };
 }
 
@@ -69,4 +72,5 @@ export async function setGarnishmentStatus(f: FormData) {
   const supabase = await createClient();
   await supabase.from("garnishment_files").update({ status, closed_at: status === "closed" ? new Date().toISOString().slice(0, 10) : null }).eq("id", str(f, "id"));
   revalidatePath("/icra");
+  revalidatePath("/bordro/sihirbaz");
 }

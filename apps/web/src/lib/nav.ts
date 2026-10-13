@@ -87,6 +87,7 @@ export const NAV: Group[] = [
     items: [
       { label: "Ay sonu", href: "/ay-sonu", module: "payroll", roles: PAY },
       { label: "Bordro", href: "/bordro", module: "payroll", roles: PAY },
+      { label: "Bordro sihirbazı", href: "/bordro/sihirbaz", module: "payroll", roles: PAY, desc: "Personel personel: puantaj, rapor, fazla mesai, prim, BES, icra, avans, özet ve onay" },
       { label: "Maaş planı ve ödeme", href: "/maas-plani", module: "payroll", roles: PAY, desc: "Bu ay kime ne kadar resmi / elden, BES, icra; ödendi işaretle, kasa / bankadan düşsün" },
       { label: "Dönemler", href: "/donemler", module: "payroll", roles: PAY },
       { label: "Avans ve ödemeler", href: "/odemeler/yeni", module: "payroll", roles: PAY },

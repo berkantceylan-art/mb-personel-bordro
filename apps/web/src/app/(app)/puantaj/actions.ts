@@ -135,14 +135,15 @@ export async function applyMissingDays(_: { ok: boolean; message: string } | nul
   const period = String(f.get("period"));
   const sideRaw = f.get("pay_side");
   const side: PaySide = sideRaw === "OFFICIAL" || sideRaw === "CASH" ? sideRaw : "BOTH";
+  const only = String(f.get("employeeId") ?? "");
   const supabase = await createClient();
-  const month = await loadMonth(supabase, period);
+  const month = await loadMonth(supabase, period, only ? { employeeId: only } : {});
   const { end } = periodBounds(period);
 
   const ids = month.employees.map((e) => e.id);
   const [contracts, existing, postedLines, legal] = await Promise.all([
     contractsAt(supabase, ids, end),
-    supabase.from("ledger_entries").select("id, employee_id, amount, pay_side, days").eq("period", period).eq("type", "DEDUCTION").like("note", "Eksik gün%").is("voided_at", null),
+    supabase.from("ledger_entries").select("id, employee_id, amount, pay_side, days").eq("period", period).eq("type", "DEDUCTION").like("note", "Eksik gün%").is("voided_at", null).in("employee_id", ids),
     supabase.from("payroll_lines").select("employee_id").eq("period", period).eq("posted", true),
     legalParams(supabase, Number(period.slice(0, 4))),
   ]);
@@ -216,6 +217,7 @@ export async function applyMissingDays(_: { ok: boolean; message: string } | nul
   revalidatePath("/donemler");
   revalidatePath("/ay-sonu");
   revalidatePath("/bordro");
+  revalidatePath("/bordro/sihirbaz");
   const msg = people || changed
     ? `${people} personele eksik gün kesintisi yazıldı${changed ? ` (${changed} kişinin önceki kesintisi güncellendi)` : ""}. Rapor günleri resmi + elden kesildi; diğer eksik günler: ${SIDE_LABEL[side]}.`
     : "Değişen eksik gün yok.";
