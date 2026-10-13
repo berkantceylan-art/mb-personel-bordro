@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/siparis",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/kontrol",
+      "schedule": "30 4 * * *"
     }
   ]
 }
