@@ -45,7 +45,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader title="Kullanıcılar ve hesaplar" subtitle="Kim sisteme girebilir, hangi modülleri kullanır. Türü değiştirin, yetki anında güncellensin."
-        actions={<span className="flex flex-wrap gap-4 text-sm font-semibold"><Link href="/yonetim/yetkiler" className="text-brand-700">Yetki haritası</Link><Link href="/yonetim/sirket" className="text-brand-700">Şirket ayarları</Link>{lvl >= 2 && <Link href="/yonetim/hareketler" className="text-brand-700">İşlem geçmişi</Link>}</span>} />
+        actions={<span className="flex flex-wrap gap-4 text-sm font-semibold">{lvl >= 3 && <Link href="/yonetim/kontrol" className="text-brand-700">🛰 Kontrol Merkezi</Link>}<Link href="/yonetim/yetkiler" className="text-brand-700">Yetki haritası</Link><Link href="/yonetim/sirket" className="text-brand-700">Şirket ayarları</Link>{lvl >= 2 && <Link href="/yonetim/hareketler" className="text-brand-700">İşlem geçmişi</Link>}</span>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1320px]">
         {uErr && <Notice tone="bad">{usersError(uErr.message)}</Notice>}
 
