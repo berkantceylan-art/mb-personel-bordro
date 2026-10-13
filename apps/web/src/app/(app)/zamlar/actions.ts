@@ -14,7 +14,7 @@ export interface RaiseResult {
 type Current = {
   employee_id: string;
   total_net: number;
-  insurance_type: "MIN_WAGE" | "FIXED_NET";
+  insurance_type: "MIN_WAGE" | "FIXED_NET" | "NONE";
   fixed_official_net: number | null;
   bes_rate: number;
   employer_discount: boolean;
@@ -137,7 +137,7 @@ export async function applyEmployeeRaise(_: RaiseResult | null, f: FormData): Pr
   if (typeof rule === "string") return { ok: false, message: rule };
 
   const current = (await currentContracts([employeeId], effective)).get(employeeId);
-  const insurance = String(f.get("insurance_type")) === "FIXED_NET" ? "FIXED_NET" : "MIN_WAGE";
+  const insurance = String(f.get("insurance_type")) === "FIXED_NET" ? "FIXED_NET" : String(f.get("insurance_type")) === "NONE" ? "NONE" : "MIN_WAGE";
   const fixedRaw = String(f.get("fixed_official_net") ?? "").trim();
   if (insurance === "FIXED_NET" && !fixedRaw) return { ok: false, message: "Belirli net sigortada resmi net tutarını girin." };
   const next = applyRaise(current?.total_net ?? 0, rule);

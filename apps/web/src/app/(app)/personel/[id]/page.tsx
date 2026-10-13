@@ -195,7 +195,7 @@ export default async function EmployeeProfile({
           <div className="flex flex-wrap gap-4 text-[13px] text-[#33414F]">
             <span>PDKS no <b className="num">{e.card_no ?? "—"}</b></span>
             <span>İşe giriş <b className="num">{formatDate(e.hire_date)}</b> ({yearsSince(e.hire_date)} yıl)</span>
-            {pay && contract && <span>Ücret <b className="num">{formatTL(Number(contract.total_net))}</b> · {contract.insurance_type === "MIN_WAGE" ? "asgari ücretli" : `${formatTL(Number(contract.fixed_official_net))} net sigortalı`}</span>}
+            {pay && contract && <span>Ücret <b className="num">{formatTL(Number(contract.total_net))}</b> · {contract.insurance_type === "NONE" ? <b className="text-bad">sigortasız (tamamı elden)</b> : contract.insurance_type === "MIN_WAGE" ? "asgari ücretli" : `${formatTL(Number(contract.fixed_official_net))} net sigortalı`}</span>}
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -381,7 +381,7 @@ export default async function EmployeeProfile({
                           <td className="num py-2.5 px-1.5 border-b border-[#EEF2F6]">{formatDate(c.valid_from)}{c.valid_to ? ` – ${formatDate(c.valid_to)}` : " →"}</td>
                           <td className="num py-2.5 px-1.5 border-b border-[#EEF2F6] text-right font-semibold">{formatTL(Number(c.total_net))}</td>
                           <td className="num py-2.5 px-1.5 border-b border-[#EEF2F6] text-right text-ok">{inc !== null && prev ? `+${formatTL(inc)} (%${Math.round((inc / prev) * 1000) / 10})` : "—"}</td>
-                          <td className="py-2.5 px-1.5 border-b border-[#EEF2F6]">{c.insurance_type === "MIN_WAGE" ? "Asgari ücret" : `Net ${formatTL(Number(c.fixed_official_net))}`}{Number(c.bes_rate) > 0 ? " · BES" : ""}</td>
+                          <td className="py-2.5 px-1.5 border-b border-[#EEF2F6]">{c.insurance_type === "NONE" ? "Sigortasız" : c.insurance_type === "MIN_WAGE" ? "Asgari ücret" : `Net ${formatTL(Number(c.fixed_official_net))}`}{Number(c.bes_rate) > 0 ? " · BES" : ""}</td>
                           <td className="py-2.5 px-1.5 border-b border-[#EEF2F6] text-muted">{c.change_reason ?? ""}</td>
                           <td className="py-2.5 px-1.5 border-b border-[#EEF2F6] text-right">
                             {i === 0 && (

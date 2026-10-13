@@ -59,7 +59,7 @@ export async function saveEmployee(_: EmployeeSaveResult | null, f: FormData): P
   // Tutarları kayıttan ÖNCE doğrula (yarım kayıt kalmasın)
   let totalNet: number | null = null;
   let fixedNet: number | null = null;
-  const insurance = str(f, "insurance_type") === "FIXED_NET" ? "FIXED_NET" : "MIN_WAGE";
+  const insurance = str(f, "insurance_type") === "FIXED_NET" ? "FIXED_NET" : str(f, "insurance_type") === "NONE" ? "NONE" : "MIN_WAGE";
   if (!id && str(f, "total_net")) {
     try {
       totalNet = parseTL(str(f, "total_net")!);

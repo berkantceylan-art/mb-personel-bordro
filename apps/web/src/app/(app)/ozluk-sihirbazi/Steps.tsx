@@ -94,7 +94,7 @@ export function HireStep({ employeeId, companyId, initial, departments, hasContr
           <fieldset className="md:col-span-2 grid gap-3 md:grid-cols-4 rounded-[12px] border border-line p-3">
             <legend className="text-xs font-semibold text-brand-800 px-1">Ücret (ilk kayıt)</legend>
             <Lbl t="Anlaşılan aylık toplam net"><input name="total_net" inputMode="decimal" placeholder="45.000" className={`${input} num`} /></Lbl>
-            <Lbl t="Sigorta"><select name="insurance_type" defaultValue="MIN_WAGE" className={input}><option value="MIN_WAGE">Asgari ücret üzerinden</option><option value="FIXED_NET">Belirli resmi net</option></select></Lbl>
+            <Lbl t="Sigorta"><select name="insurance_type" defaultValue="MIN_WAGE" className={input}><option value="MIN_WAGE">Asgari ücret üzerinden</option><option value="FIXED_NET">Belirli resmi net</option><option value="NONE">Sigortasız (resmi bordro yok, tamamı elden)</option></select></Lbl>
             <Lbl t="Resmi net (belirliyse)"><input name="fixed_official_net" inputMode="decimal" className={`${input} num`} /></Lbl>
             <Lbl t="Geçerlilik başlangıcı"><input type="date" name="contract_from" defaultValue={f.v.hire_date ?? ""} className={input} /></Lbl>
           </fieldset>

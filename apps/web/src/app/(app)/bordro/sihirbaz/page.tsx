@@ -133,7 +133,7 @@ export default async function PayrollWizardPage({ searchParams }: { searchParams
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex-1 min-w-0">
                 <h2 className="font-display text-xl font-bold text-brand-800">{emp.name}</h2>
-                <p className="text-sm text-muted">{emp.dept} · {idx + 1}/{list.length}{row ? ` · ${row.insurance === "MIN_WAGE" ? "asgari ücretli" : "belirli resmi net"} · anlaşılan ${formatTL(row.totalNet)}` : " · ücret kaydı yok"}{posted ? " · kesintiler cariye yazılı (kilitli)" : ""}</p>
+                <p className="text-sm text-muted">{emp.dept} · {idx + 1}/{list.length}{row ? ` · ${row.insurance === "NONE" ? "SİGORTASIZ (tamamı elden)" : row.insurance === "MIN_WAGE" ? "asgari ücretli" : "belirli resmi net"} · anlaşılan ${formatTL(row.totalNet)}` : " · ücret kaydı yok"}{posted ? " · kesintiler cariye yazılı (kilitli)" : ""}</p>
               </div>
               <div className="flex gap-2">
                 {prevEmp && <Link href={`/bordro/sihirbaz?donem=${period}&p=${prevEmp.id}&adim=${step}`} className={btn} aria-label="Önceki personel">← {prevEmp.name.split(" ")[0]}</Link>}

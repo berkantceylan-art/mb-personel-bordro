@@ -74,3 +74,23 @@ describe("resmi prim", () => {
     expect(a.officialGross).toBeGreaterThan(500_000);
   });
 });
+
+describe("sigortasız personel", () => {
+  it("resmi bordro sıfır, ücretin tamamı elden", () => {
+    const r = runPayroll({
+      contract: { totalNet: 4_000_000, insuranceType: "NONE", besRate: 0.03 },
+      month: 3,
+      cumulativeTaxBaseBefore: 0,
+      officialMissingDays: 2,
+      officialOvertimeGross: 100_000,
+      garnishments: [{ id: "g1", kind: "DEBT", amount: 500_000, priority: 1 } as never],
+    });
+    expect(r.breakdown.gross).toBe(0);
+    expect(r.breakdown.net).toBe(0);
+    expect(r.breakdown.employerCost).toBe(0);
+    expect(r.breakdown.bes).toBe(0);
+    expect(r.netToBank).toBe(0);
+    expect(r.garnishmentTotal).toBe(0);
+    expect(r.cashPart).toBe(4_000_000);
+  });
+});

@@ -16,7 +16,7 @@ export default async function EmployeesPage({
   const period = currentPeriod();
   const pay = canManagePay(s.role);
 
-  const [{ data: employees }, { data: departments }, { data: balances }] = await Promise.all([
+  const [{ data: employees }, { data: departments }, { data: balances }, { data: kons }] = await Promise.all([
     supabase
       .from("employees")
       .select("id, card_no, first_name, last_name, hire_date, status, department_id, departments(name), branches(name)")
@@ -25,7 +25,12 @@ export default async function EmployeesPage({
     pay
       ? supabase.from("ledger_period_summary").select("employee_id, balance").eq("period", period)
       : Promise.resolve({ data: [] as Array<{ employee_id: string; balance: number }> }),
+    pay
+      ? supabase.from("pay_contracts").select("employee_id, valid_from, insurance_type").order("valid_from", { ascending: false }).limit(5000)
+      : Promise.resolve({ data: [] as Array<{ employee_id: string; valid_from: string; insurance_type: string }> }),
   ]);
+  const lastIns = new Map<string, string>();
+  for (const k of kons ?? []) if (!lastIns.has(k.employee_id)) lastIns.set(k.employee_id, k.insurance_type as string);
   const bal = new Map((balances ?? []).map((b) => [b.employee_id, Number(b.balance ?? 0)]));
   const rows = (employees ?? []).map((e) => ({
     id: e.id,
@@ -37,6 +42,7 @@ export default async function EmployeesPage({
     hire: formatDate(e.hire_date),
     status: e.status,
     balance: bal.has(e.id) ? formatTL(bal.get(e.id)!) : null,
+    uninsured: lastIns.get(e.id) === "NONE",
   }));
   const active = rows.filter((r) => r.status !== "terminated").length;
 

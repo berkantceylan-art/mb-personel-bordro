@@ -119,7 +119,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                     <tr key={r.employeeId}>
                       <td className="py-2 px-2 border-b border-[#EEF2F6]">
                         <Link href={`/yazdir/bordro/${period}?tur=resmi&personel=${r.employeeId}`} target="_blank" className="font-semibold text-brand-700">{r.name}</Link>
-                        <span className="block text-xs text-muted">{r.dept} · {r.insurance === "MIN_WAGE" ? "asgari" : "belirli net"}{r.cumulativeEstimated ? " · kümülatif tahmini" : ""}</span>
+                        <span className="block text-xs text-muted">{r.dept} · {r.insurance === "NONE" ? <b className="text-bad">sigortasız · tamamı elden</b> : r.insurance === "MIN_WAGE" ? "asgari" : "belirli net"}{r.cumulativeEstimated ? " · kümülatif tahmini" : ""}</span>
                       </td>
                       <td className={td}>{r.result.days}</td>
                       <td className={td}>{formatTL(b.gross)}</td>

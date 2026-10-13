@@ -39,12 +39,17 @@ export async function girisRows(sb: AnySB, ids: string[]): Promise<GirisRow[]> {
     companySgk(sb),
   ]);
   const pv = new Map(((privs ?? []) as Array<Record<string, unknown>>).map((p) => [p.employee_id as string, p]));
+  // Sigortasız işaretli personel için SGK bildirimi gönderilmez (önce sözleşmeyi sigortalıya çevirin)
+  const { data: kons } = await sb.from("pay_contracts").select("employee_id, valid_from, insurance_type").in("employee_id", ids).order("valid_from", { ascending: false });
+  const lastIns = new Map<string, string>();
+  for (const k of (kons ?? []) as Array<{ employee_id: string; insurance_type: string }>) if (!lastIns.has(k.employee_id)) lastIns.set(k.employee_id, k.insurance_type);
   return ((emps ?? []) as Array<Record<string, unknown>>).map((e) => {
     const p = pv.get(e.id as string) ?? {};
     const tc = String(p.national_id ?? "").trim();
     const problems: string[] = [];
     if (!validTc(tc)) problems.push("TC kimlik no geçersiz veya eksik");
     if (!e.hire_date) problems.push("İşe giriş tarihi yok");
+    if (lastIns.get(e.id as string) === "NONE") problems.push("Sigortasız olarak işaretli: önce ücret kartında sigorta türünü değiştirin");
     if (!e.sgk_occupation_code) problems.push("SGK meslek kodu yok (ör. 3258.02)");
     if (comp?.csgb_iskolu === null || comp?.csgb_iskolu === undefined) problems.push("Şirketin ÇSGB iş kolu seçilmemiş (SGK ayarları)");
     const kol = Number(e.sgk_insurance_branch ?? 0) || (e.is_retired ? 8 : 0);

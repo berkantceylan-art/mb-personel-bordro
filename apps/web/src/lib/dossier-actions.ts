@@ -227,7 +227,7 @@ export async function dossSaveHire(_: DossResult | null, f: FormData): Promise<D
     const { parseTL } = await import("@mb/core");
     let totalNet: number, fixed: number | null = null;
     try { totalNet = parseTL(total); fixed = String(f.get("fixed_official_net") ?? "").trim() ? parseTL(String(f.get("fixed_official_net"))) : null; } catch { return { ok: false, message: "Ücret tutarı okunamadı." }; }
-    const ins = f.get("insurance_type") === "FIXED_NET" ? "FIXED_NET" : "MIN_WAGE";
+    const ins = f.get("insurance_type") === "FIXED_NET" ? "FIXED_NET" : f.get("insurance_type") === "NONE" ? "NONE" : "MIN_WAGE";
     if (ins === "FIXED_NET" && !fixed) return { ok: false, message: "Belirli resmi net için tutar girin." };
     const { count } = await sb.from("pay_contracts").select("id", { count: "exact", head: true }).eq("employee_id", id);
     if (!count) {

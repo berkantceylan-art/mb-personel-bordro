@@ -24,7 +24,7 @@ export interface PayrollRow {
   dept: string;
   cardNo: string | null;
   hireDate: string;
-  insurance: "MIN_WAGE" | "FIXED_NET";
+  insurance: "MIN_WAGE" | "FIXED_NET" | "NONE";
   totalNet: number;
   result: PayrollResult;
   cumulativeBefore: number;
@@ -52,7 +52,7 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
 
   const [contracts, allContracts, entries, prevLines, bes, garn, saved, settings, legal, history] = await Promise.all([
     contractsAt(supabase, ids, end),
-    fetchAll<{ employee_id: string; valid_from: string; valid_to: string | null; total_net: number; insurance_type: "MIN_WAGE" | "FIXED_NET"; fixed_official_net: number | null; bes_rate: number }>((a, b) =>
+    fetchAll<{ employee_id: string; valid_from: string; valid_to: string | null; total_net: number; insurance_type: "MIN_WAGE" | "FIXED_NET" | "NONE"; fixed_official_net: number | null; bes_rate: number }>((a, b) =>
       supabase.from("pay_contracts").select("employee_id, valid_from, valid_to, total_net, insurance_type, fixed_official_net, bes_rate").in("employee_id", ids).lte("valid_from", end).range(a, b),
     ),
     fetchAll<{ employee_id: string; type: string; channel: string; amount: number; pay_side: string | null; gross_amount: number | null; days: number | null }>((a, b) =>
