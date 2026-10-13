@@ -14,6 +14,7 @@ export const NAV: Group[] = [
     items: [
       { label: "Gösterge Paneli", href: "/", module: ["hr", "attendance", "payroll", "safety", "lab", "finance", "sales", "purchases", "stock", "production", "assets", "expenses", "users"] },
       { label: "Patron ekranı", href: "/patron", roles: ["owner", "accountant"] },
+      { label: "Müşteri ciroları", href: "/ciro", module: "revenue", desc: "Hekim, klinik, aracı kurum: günlük, aylık ya da iki tarih arası ciro, değişim, tahsilat" },
       { label: "Bildirimler", href: "/bildirimler" },
       { label: "Duyurular", href: "/duyurular" },
       { label: "Mesajlar", href: "/mesajlar" },
