@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { legalParams } from "@/lib/legal";
 import { logAccess, maskIban, maskTc } from "@/lib/kvkk";
 import { notFound } from "next/navigation";
 import { formatTL, splitContract, summarize, withRunningBalance, type LedgerEntry } from "@mb/core";
@@ -111,6 +112,7 @@ export default async function EmployeeProfile({
   const voided = (entries ?? []).filter((r) => r.voided_at);
 
   const contract = contracts?.[0];
+  const { params: legal } = await legalParams(supabase, Number(period.slice(0, 4)));
   const split = contract
     ? splitContract(
         {
@@ -121,6 +123,7 @@ export default async function EmployeeProfile({
         },
         Number(period.slice(5, 7)),
         0,
+        legal,
       )
     : null;
 

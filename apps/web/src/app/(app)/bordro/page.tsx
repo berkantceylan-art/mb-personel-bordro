@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { formatTL, nextPeriod, previousPeriod } from "@mb/core";
 import { PageHeader, Stat } from "@/components/ui";
 import { computePayroll } from "@/lib/payroll";
+import { legalParams, paramsWarning } from "@/lib/legal";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, currentPeriod, getSession, periodLabel } from "@/lib/session";
 import { PayrollButtons } from "./PayrollButtons";
@@ -16,7 +17,9 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
   const period = sp.donem && /^\d{4}-\d{2}$/.test(sp.donem) ? sp.donem : currentPeriod();
   const view = sp.gorunum === "ic" ? "ic" : "resmi";
   const supabase = await createClient();
-  const all = await computePayroll(supabase, period);
+  const [all, legal] = await Promise.all([computePayroll(supabase, period), legalParams(supabase, Number(period.slice(0, 4)))]);
+  const legalWarn = paramsWarning(legal, Number(period.slice(0, 4)));
+  const estimatedCount = all.filter((r) => r.cumulativeEstimated).length;
   // İmzalı bordrolar (personel mobilden indirir)
   const { data: signedRows } = await supabase.from("employee_documents").select("employee_id, file_name, document_types!inner(name)").eq("period", period).eq("document_types.name", "İmzalı bordro");
   const signedBy = new Map((signedRows ?? []).map((r) => [r.employee_id, r.file_name as string | null]));
@@ -53,6 +56,12 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
         }
       />
       <div className="p-4 md:p-6 flex flex-col gap-4">
+        {legalWarn && <p role="alert" className="text-sm rounded-[12px] px-4 py-3 bg-bad-bg text-bad font-semibold">{legalWarn}</p>}
+        {estimatedCount > 0 && (
+          <p className="text-sm rounded-[12px] px-4 py-3 bg-warn-bg text-warn">
+            {estimatedCount} personelin vergi matrahı tahmini: bu yıl için sistemde kaydedilmiş bordrosu olmayan aylar var, o aylar aynı ücretle çalışılmış sayıldı. Sisteme yıl ortasında geçildiyse bu normaldir; atlanmış bir ay varsa o ayın bordrosunu kaydedin.
+          </p>
+        )}
         <div className="flex flex-wrap gap-4 items-start justify-between">
           <PayrollButtons period={period} canPost={savedCount > postedCount} canUnpost={postedCount > 0} />
         </div>
