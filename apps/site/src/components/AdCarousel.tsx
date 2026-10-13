@@ -17,17 +17,20 @@ export type AdSlide = {
 
 const INTERVAL = 7000;
 
-const HOUSE: Record<Locale, Record<"promo" | "tracking", { kicker: string; title: string; sub: string; cta: string; more: string; steps: string[] }>> = {
+const HOUSE: Record<Locale, Record<"promo" | "tracking" | "visit", { kicker: string; title: string; sub: string; cta: string; more: string; steps: string[] }>> = {
   tr: {
     promo: { kicker: "Hekim portalı", title: "Vakanızı telefonla değil, 2 dakikada portaldan gönderin", sub: "Taramayı yükleyin, dişi ve rengi seçin, gönderin. Bilgi kaybolmaz, hata olmaz.", cta: "Ücretsiz hesap aç", more: "Nasıl çalışır?", steps: ["Taramayı yükle", "Diş ve rengi seç", "Gönder"] },
+    visit: { kicker: "Ziyaretçi randevusu", title: "Bize gelmeden randevu alın, kapıda QR ile girin", sub: "Gün ve saati seçin, ziyaret edeceğiniz kişi onaylasın; QR davetiyeniz telefonunuza gelsin. Bekleme yok, form doldurma yok.", cta: "Randevu al", more: "İletişim", steps: ["Randevu iste", "Onaylansın", "QR ile gir"] },
     tracking: { kicker: "Canlı takip", title: "İşiniz nerede? Sormanıza gerek yok.", sub: "Tasarımdan teslime her aşama anında ekranınızda; teknisyenle vaka içinden yazışın.", cta: "Hemen başla", more: "Yardım merkezi", steps: ["Alındı", "Tasarım", "Üretim", "Kalite", "Kargoda", "Teslim"] },
   },
   en: {
     promo: { kicker: "Doctor portal", title: "Send your case in 2 minutes — no phone calls", sub: "Upload the scan, pick the teeth and shade, send. Nothing gets lost, nothing gets misread.", cta: "Open a free account", more: "How it works", steps: ["Upload the scan", "Pick teeth & shade", "Send"] },
+    visit: { kicker: "Visitor booking", title: "Book before you visit, enter with a QR code", sub: "Pick a day and time, the person you visit approves, and your QR invitation lands on your phone. No waiting, no forms at the gate.", cta: "Book a visit", more: "Contact", steps: ["Request a slot", "Get approved", "Enter with QR"] },
     tracking: { kicker: "Live tracking", title: "Where's my case? No need to ask.", sub: "Every stage from design to delivery shows up instantly; message the technician inside the case.", cta: "Get started", more: "Help centre", steps: ["Received", "Design", "Production", "Quality", "Shipped", "Delivered"] },
   },
   fr: {
     promo: { kicker: "Portail praticien", title: "Envoyez votre cas en 2 minutes, sans téléphone", sub: "Téléversez le scan, choisissez dents et teinte, envoyez. Rien ne se perd, aucune erreur.", cta: "Ouvrir un compte gratuit", more: "Comment ça marche ?", steps: ["Téléversez le scan", "Dents et teinte", "Envoyez"] },
+    visit: { kicker: "Rendez-vous visiteur", title: "Réservez avant de venir, entrez avec un QR code", sub: "Choisissez jour et heure, la personne concernée valide et votre invitation QR arrive sur votre téléphone. Sans attente ni formulaire à l’accueil.", cta: "Prendre rendez-vous", more: "Contact", steps: ["Demandez un créneau", "Validation", "Entrée par QR"] },
     tracking: { kicker: "Suivi en direct", title: "Où en est mon cas ? Plus besoin de demander.", sub: "Chaque étape, de la conception à la livraison, s’affiche aussitôt ; échangez avec le technicien dans le cas.", cta: "Commencer", more: "Centre d’aide", steps: ["Reçu", "Conception", "Fabrication", "Qualité", "Expédié", "Livré"] },
   },
 };
@@ -68,7 +71,7 @@ export function AdCarousel({ slides, locale }: { slides: AdSlide[]; locale: Loca
             {slides.map((s, k) => (
               <div key={s.id} role="group" aria-roledescription="slide" aria-label={`${k + 1} / ${n}`} aria-hidden={k !== i}
                 className={`absolute inset-0 transition-opacity duration-700 ${k === i ? "opacity-100" : "pointer-events-none opacity-0"}`}>
-                {s.builtin ? <House kind={s.builtin === "portal-tracking" ? "tracking" : "promo"} s={s} locale={locale} active={k === i} /> : <ImageSlide s={s} active={k === i} />}
+                {s.builtin ? <House kind={s.builtin === "portal-tracking" ? "tracking" : s.builtin === "visit-booking" ? "visit" : "promo"} s={s} locale={locale} active={k === i} /> : <ImageSlide s={s} active={k === i} />}
               </div>
             ))}
           </div>
@@ -118,12 +121,13 @@ function ImageSlide({ s, active }: { s: AdSlide; active: boolean }) {
   return s.href ? <a href={s.href} className="absolute inset-0 block" tabIndex={active ? 0 : -1}>{content}</a> : <div className="absolute inset-0">{content}</div>;
 }
 
-function House({ kind, s, locale, active }: { kind: "promo" | "tracking"; s: AdSlide; locale: Locale; active: boolean }) {
+function House({ kind, s, locale, active }: { kind: "promo" | "tracking" | "visit"; s: AdSlide; locale: Locale; active: boolean }) {
   const h = HOUSE[locale][kind];
   const title = s.title || h.title;
   const sub = s.sub || h.sub;
   const cta = s.label || h.cta;
-  const href = s.href && s.href !== "/portal/kayit" ? s.href : `/portal/kayit?dil=${locale}`;
+  const href = kind === "visit" ? `/${locale}/ziyaret` : s.href && s.href !== "/portal/kayit" ? s.href : `/portal/kayit?dil=${locale}`;
+  const moreHref = kind === "visit" ? `/${locale}/iletisim` : `/${locale}/yardim`;
   return (
     <div className="absolute inset-0 grid overflow-hidden bg-[radial-gradient(circle_at_80%_20%,rgba(0,180,216,.35),transparent_45%),linear-gradient(135deg,#0b2545,#13315c)] sm:grid-cols-[1.1fr_1fr]">
       <div className={`relative z-10 flex flex-col justify-center p-6 text-white sm:p-12 ${active ? "ad-rise" : ""}`}>
@@ -132,21 +136,21 @@ function House({ kind, s, locale, active }: { kind: "promo" | "tracking"; s: AdS
         <p className="mt-3 text-white/75 sm:text-lg">{sub}</p>
         <div className="mt-5 flex flex-wrap gap-2">
           <a href={href} tabIndex={active ? 0 : -1} className="rounded-full bg-smile px-5 py-2.5 font-semibold text-navy hover:bg-white">{cta} →</a>
-          <a href={`/${locale}/yardim`} tabIndex={active ? 0 : -1} className="rounded-full border border-white/30 px-5 py-2.5 font-semibold text-white hover:border-white">{h.more}</a>
+          <a href={moreHref} tabIndex={active ? 0 : -1} className="rounded-full border border-white/30 px-5 py-2.5 font-semibold text-white hover:border-white">{h.more}</a>
         </div>
       </div>
       <div className="relative hidden items-center justify-center p-8 sm:flex" aria-hidden>
-        {kind === "promo" ? (
+        {kind !== "tracking" ? (
           <div key={String(active)} className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
             {h.steps.map((st, k) => (
               <div key={st} className={`flex items-center gap-3 rounded-xl p-3 ${active ? "ad-step" : ""}`} style={{ animationDelay: `${0.4 + k * 0.9}s` }}>
                 <span className="ad-check grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gypsum text-white" style={{ animationDelay: `${0.8 + k * 0.9}s` }}>✓</span>
                 <span className="font-semibold text-navy">{st}</span>
-                <span className="ml-auto text-2xl">{["📎", "🦷", "🚀"][k]}</span>
+                <span className="ml-auto text-2xl">{(kind === "visit" ? ["📅", "✅", "📱"] : ["📎", "🦷", "🚀"])[k]}</span>
               </div>
             ))}
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-gypsum"><div className={`h-full bg-smile ${active ? "ad-fill" : ""}`} /></div>
-            <p className="mt-2 text-right text-xs font-semibold text-slate">⏱ 2 dk</p>
+            <p className="mt-2 text-right text-xs font-semibold text-slate">{kind === "visit" ? "🚪 QR" : "⏱ 2 dk"}</p>
           </div>
         ) : (
           <div key={String(active)} className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">

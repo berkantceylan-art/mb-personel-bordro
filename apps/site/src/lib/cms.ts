@@ -11,7 +11,7 @@ export type Slide = {
   image_path: string | null;
   image_mobile_path: string | null;
   video_path: string | null;
-  /** Kodla çizilen hazır reklam ("portal-promo" | "portal-tracking"); görsel gerekmez */
+  /** Kodla çizilen hazır reklam ("portal-promo" | "portal-tracking" | "visit-booking"); görsel gerekmez */
   builtin?: string | null;
   /** Gösterileceği diller (boş = hepsi) */
   locales?: string[];

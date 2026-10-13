@@ -106,6 +106,7 @@ export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; 
               { href: "/giris", label: d.nav.login },
               { href: "/giris?kim=personel", label: x.staff },
               { href: `/${locale}/teslim-suresi`, label: LEAD_UI[locale].nav },
+              { href: `/${locale}/ziyaret`, label: { tr: "Ziyaret randevusu", en: "Book a visit", fr: "Rendez-vous visite" }[locale] },
             ]}
             labels={{ menu: x.menu, close: x.close }}
           />
