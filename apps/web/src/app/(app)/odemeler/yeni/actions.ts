@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { parseTL } from "@mb/core";
 import { createClient } from "@/lib/supabase/server";
 import { canManagePay, getSession } from "@/lib/session";
+import { planError } from "@/lib/salary-plan";
 
 const TYPES = ["ADVANCE", "SALARY", "BONUS", "DEDUCTION"] as const;
 const CHANNELS = ["CASH", "BANK"] as const;
@@ -55,6 +56,20 @@ export async function savePayment(_: SaveResult | null, formData: FormData): Pro
     if (error) return { ok: false, message: `İmza kaydedilemedi: ${error.message}` };
   }
 
+  // Kasa / banka seçildiyse: personel carisi + finans (kasa / banka bakiyesi) tek işlemde
+  const accountId = String(formData.get("account_id") ?? "");
+  if ((type === "ADVANCE" || type === "SALARY") && accountId) {
+    const items = employeeIds.map((employee_id) => ({ employee_id, channel, amount, account_id: accountId, type, note, signature_path: signaturePath }));
+    const { error } = await supabase.rpc("payroll_pay", { p: { period, date, items } });
+    if (error) return { ok: false, message: planError(error.message) };
+    const { data: ins } = await supabase.from("ledger_entries").select("id").in("employee_id", employeeIds).eq("period", period).eq("type", type).eq("entry_date", date).eq("account_id", accountId).is("voided_at", null).order("created_at", { ascending: false }).limit(employeeIds.length);
+    revalidatePath("/");
+    revalidatePath("/odemeler/yeni");
+    revalidatePath(`/donemler/${period}`);
+    employeeIds.forEach((id) => revalidatePath(`/personel/${id}`));
+    return { ok: true, message: `${employeeIds.length} kişiye ${type === "ADVANCE" ? "avans" : "maaş ödemesi"} kaydedildi; kasa / banka bakiyesine de düştü.`, printIds: (ins ?? []).map((r) => r.id as string) };
+  }
+
   const rows = employeeIds.map((employee_id) => ({
     company_id: s.companyId,
     employee_id,
@@ -70,6 +85,7 @@ export async function savePayment(_: SaveResult | null, formData: FormData): Pro
   if (error) return { ok: false, message: `Kaydedilemedi: ${error.message}` };
 
   revalidatePath("/");
+  revalidatePath("/odemeler/yeni");
   employeeIds.forEach((id) => revalidatePath(`/personel/${id}`));
   const printable = type === "ADVANCE" || type === "SALARY";
   return { ok: true, message: `${rows.length} kişiye hareket kaydedildi.`, printIds: printable ? (inserted ?? []).map((r) => r.id as string) : undefined };
