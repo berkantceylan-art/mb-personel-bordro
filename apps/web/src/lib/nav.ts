@@ -64,6 +64,7 @@ export const NAV: Group[] = [
     items: [
       { label: "İK özeti", href: "/ik-ozet", module: "hr", roles: MANAGERS, desc: "Personel sayısı, maaş yükü, ödemeler, İSG uyarıları, bölümler" },
       { label: "Personel", href: "/personel", module: "hr", roles: MANAGERS },
+      { label: "Özlük dijitalleştirme", href: "/ozluk-sihirbazi", module: "hr", roles: ["owner", "accountant", "hr"], desc: "Kâğıt özlük klasörlerini kamera / tarayıcıyla aktar: kimlik, işe giriş, evraklar, eski bordrolar, izinler" },
       { label: "İşe alım ve ilanlar", href: "/ise-alim", module: "hr", roles: HRM },
       { label: "Uyum süreci", href: "/uyum", module: "hr", roles: HRM },
       { label: "Performans", href: "/performans", module: "hr", roles: HRM },

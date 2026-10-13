@@ -50,7 +50,7 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
   const ids = (emps ?? []).map((e) => e.id);
   if (!ids.length) return [];
 
-  const [contracts, allContracts, entries, prevLines, bes, garn, saved, settings, legal] = await Promise.all([
+  const [contracts, allContracts, entries, prevLines, bes, garn, saved, settings, legal, history] = await Promise.all([
     contractsAt(supabase, ids, end),
     fetchAll<{ employee_id: string; valid_from: string; valid_to: string | null; total_net: number; insurance_type: "MIN_WAGE" | "FIXED_NET"; fixed_official_net: number | null; bes_rate: number }>((a, b) =>
       supabase.from("pay_contracts").select("employee_id, valid_from, valid_to, total_net, insurance_type, fixed_official_net, bes_rate").in("employee_id", ids).lte("valid_from", end).range(a, b),
@@ -64,10 +64,11 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
     supabase.from("payroll_lines").select("employee_id, posted, data").eq("period", period).in("employee_id", ids),
     getCompanySettings(supabase),
     legalParams(supabase, Number(year)),
+    supabase.from("payroll_history").select("employee_id, period, gross, sgk_employee, unemployment_employee, cumulative_tax_base_after").in("employee_id", ids).gte("period", `${year}-01`).lt("period", period),
   ]);
   const params = legal.params;
 
-  const cum = latestCumulative(prevLines.data ?? []);
+  const cum = latestCumulative([...historyCumulative(history.data ?? []), ...(prevLines.data ?? [])]);
   const besRate = new Map<string, number>();
   for (const b of bes.data ?? []) {
     const on = b.enrolled_on <= end && (b.status === "active" || (b.status_date && b.status_date > end));
@@ -171,11 +172,28 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
 
 function latestCumulative(lines: Array<{ employee_id: string; period: string; cumulative_tax_base_after: number }>) {
   const cum = new Map<string, { period: string; v: number }>();
+  // Aynı dönemde hem arşiv hem sistem bordrosu varsa sonra gelen (sistem) geçerli
   for (const l of lines) {
     const cur = cum.get(l.employee_id);
-    if (!cur || l.period > cur.period) cum.set(l.employee_id, { period: l.period, v: Number(l.cumulative_tax_base_after) });
+    if (!cur || l.period >= cur.period) cum.set(l.employee_id, { period: l.period, v: Number(l.cumulative_tax_base_after) });
   }
   return cum;
+}
+
+/**
+ * Arşivden okutulan eski bordrolar (payroll_history): kümülatif matrah okunduysa o, okunmadıysa
+ * yıl içinde (brüt − SGK − işsizlik) toplanarak bulunur.
+ */
+function historyCumulative(rows: Array<{ employee_id: string; period: string; gross: number; sgk_employee: number; unemployment_employee: number; cumulative_tax_base_after: number | null }>) {
+  const out: Array<{ employee_id: string; period: string; cumulative_tax_base_after: number }> = [];
+  const run = new Map<string, number>();
+  for (const r of [...rows].sort((a, b) => a.employee_id.localeCompare(b.employee_id) || a.period.localeCompare(b.period))) {
+    const base = Math.max(0, Number(r.gross) - Number(r.sgk_employee) - Number(r.unemployment_employee));
+    const v = r.cumulative_tax_base_after !== null && Number(r.cumulative_tax_base_after) > 0 ? Number(r.cumulative_tax_base_after) : (run.get(r.employee_id) ?? 0) + base;
+    run.set(r.employee_id, v);
+    out.push({ employee_id: r.employee_id, period: r.period, cumulative_tax_base_after: v });
+  }
+  return out;
 }
 
 /**
@@ -209,13 +227,11 @@ export async function cumulativeBases(
   const ids = employees.map((e) => e.id);
   const out = new Map<string, number>();
   if (!ids.length) return out;
-  const { data } = await supabase
-    .from("payroll_lines")
-    .select("employee_id, period, cumulative_tax_base_after")
-    .in("employee_id", ids)
-    .gte("period", `${period.slice(0, 4)}-01`)
-    .lt("period", period);
-  const cum = latestCumulative(data ?? []);
+  const [{ data }, { data: hist }] = await Promise.all([
+    supabase.from("payroll_lines").select("employee_id, period, cumulative_tax_base_after").in("employee_id", ids).gte("period", `${period.slice(0, 4)}-01`).lt("period", period),
+    supabase.from("payroll_history").select("employee_id, period, gross, sgk_employee, unemployment_employee, cumulative_tax_base_after").in("employee_id", ids).gte("period", `${period.slice(0, 4)}-01`).lt("period", period),
+  ]);
+  const cum = latestCumulative([...historyCumulative(hist ?? []), ...(data ?? [])]);
   const { params } = await legalParams(supabase, Number(period.slice(0, 4)));
   for (const e of employees) {
     const c = contracts.get(e.id);
