@@ -7,7 +7,6 @@ import { CreatePeriodButton } from "../donemler/CreatePeriodButton";
 import { setPeriodStatus } from "../donemler/actions";
 import { MissingDaysButton } from "../puantaj/PunchForms";
 import { PayrollButtons } from "../bordro/PayrollButtons";
-import { SalaryButton } from "./SalaryButton";
 import { computePayroll } from "@/lib/payroll";
 import { overtimeSuggestions } from "@/lib/overtime";
 import { createClient } from "@/lib/supabase/server";
@@ -155,18 +154,11 @@ export default async function MonthEndPage({ searchParams }: { searchParams: Pro
             )}
           </Step>
 
-          <Step n={8} title="Ödemeleri cariye işle" state={st.pay} status={!opened ? "Önce dönemi açın." : bankLeft + cashLeft === 0 ? "Kalan ödeme yok." : `Banka ${formatTL(bankLeft)} · elden ${formatTL(cashLeft)} ödenecek.`}>
-            {opened && !closed && (
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-xs text-muted">Banka transferi yapıldıktan sonra:</p>
-                  <SalaryButton period={period} channel="BANK" label="Banka ödemelerini işle" defaultDate={payDate} disabled={bankLeft === 0} />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-xs text-muted">Elden ödemeler dağıtılırken:</p>
-                  <SalaryButton period={period} channel="CASH" label="Elden ödemeleri işle" defaultDate={payDate} disabled={cashLeft === 0} />
-                  <a href={`/yazdir/avans?bas=${start}&bit=${nextPeriod(period)}-15&tur=SALARY&kanal=CASH`} target="_blank" className="text-sm font-semibold text-brand-700">Elden ödeme makbuzlarını yazdır →</a>
-                </div>
+          <Step n={8} title="Maaşları ve kurum ödemelerini öde" state={st.pay} status={!opened ? "Önce dönemi açın." : bankLeft + cashLeft === 0 ? "Kalan ödeme yok." : `Banka ${formatTL(bankLeft)} · elden ${formatTL(cashLeft)} ödenecek.`}>
+            {opened && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <Link href={`/donemler/${period}`} className="h-11 px-5 inline-flex items-center rounded-[10px] bg-brand-700 text-white font-semibold">Maaş planında öde</Link>
+                <span className="text-xs text-muted">Kişi kişi ya da toplu; kasa / bankayı seçin, ödeme finans bakiyesine de düşer. BES, icra, SGK ve vergi ödemeleri de orada.</span>
               </div>
             )}
           </Step>
