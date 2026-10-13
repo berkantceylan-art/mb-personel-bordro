@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { absenceSides, officialBonusGross as _obg, overtimeSides, runPayroll, settlement, sideLines, tl } from "../src";
+import { disabilityTaxDegree, absenceSides, officialBonusGross as _obg, overtimeSides, runPayroll, settlement, sideLines, tl } from "../src";
 
 const minWage100k = { totalNet: tl(100000), insuranceType: "MIN_WAGE" as const };
 const fixed30k = { totalNet: tl(150000), insuranceType: "FIXED_NET" as const, fixedOfficialNet: tl(30000) };
@@ -92,5 +92,31 @@ describe("sigortasız personel", () => {
     expect(r.netToBank).toBe(0);
     expect(r.garnishmentTotal).toBe(0);
     expect(r.cashPart).toBe(4_000_000);
+  });
+});
+
+describe("engelli personel", () => {
+  it("engellilik indirimi vergi matrahını düşürür, net artar; asgari ücretlide etkisiz", () => {
+    const base = { contract: { totalNet: tl(80000), insuranceType: "FIXED_NET" as const, fixedOfficialNet: tl(50000) }, month: 1, cumulativeTaxBaseBefore: 0 };
+    const normal = runPayroll(base);
+    const d1 = runPayroll({ ...base, disabilityDegree: 1 });
+    expect(d1.breakdown.disabilityDeduction).toBe(tl(12000));
+    expect(d1.breakdown.gross).toBe(normal.breakdown.gross);
+    expect(d1.breakdown.incomeTax).toBe(normal.breakdown.incomeTax - tl(1800));
+    expect(d1.netToBank).toBe(normal.netToBank + tl(1800));
+    const mw = runPayroll({ contract: minWage100k, month: 1, cumulativeTaxBaseBefore: 0 });
+    const mwD = runPayroll({ contract: minWage100k, month: 1, cumulativeTaxBaseBefore: 0, disabilityDegree: 1 });
+    expect(mwD.breakdown.net).toBe(mw.breakdown.net);
+  });
+  it("engelli teşviki asgari ücret matrahındaki işveren hissesini düşer", () => {
+    const r = runPayroll({ contract: minWage100k, month: 1, cumulativeTaxBaseBefore: 0, disabledIncentive: true });
+    expect(r.breakdown.sgkEmployer).toBe(0);
+    expect(r.breakdown.employerIncentive).toBeGreaterThan(0);
+  });
+  it("derece eşikleri", () => {
+    expect(disabilityTaxDegree(85)).toBe(1);
+    expect(disabilityTaxDegree(60)).toBe(2);
+    expect(disabilityTaxDegree(40)).toBe(3);
+    expect(disabilityTaxDegree(39)).toBe(0);
   });
 });

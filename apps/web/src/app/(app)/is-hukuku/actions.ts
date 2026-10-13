@@ -181,7 +181,7 @@ export async function saveContract(f: FormData) {
 export async function saveDisability(f: FormData) {
   const { s, supabase } = await hr();
   const deg = str(f, "disability_degree");
-  const { error } = await supabase.from("employee_private").upsert({ employee_id: str(f, "employee_id"), company_id: s.companyId, disabled: f.get("disabled") === "on", disability_degree: deg ? Number(deg) : null, updated_at: new Date().toISOString() }, { onConflict: "employee_id" });
+  const { error } = await supabase.from("employee_private").upsert({ employee_id: str(f, "employee_id"), company_id: s.companyId, disabled: f.get("disabled") === "on", disability_degree: deg ? Number(deg) : null, disability_report_until: str(f, "report_until") || null, disability_incentive: f.getAll("incentive").length ? f.getAll("incentive").includes("on") : true, updated_at: new Date().toISOString() }, { onConflict: "employee_id" });
   if (error) await fail(missing(error.message));
   back("engelli");
   await done("Kaydedildi.");

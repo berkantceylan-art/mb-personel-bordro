@@ -49,6 +49,7 @@ function Official({ r, period, company, priv, position }: { r: PayrollRow; perio
           <h3 className="font-bold text-[#0A3D73] border-b border-[#C5D0DC] mt-3 mb-1">Matrahlar</h3>
           <table className="w-full"><tbody>
             <Row l="SGK prime esas kazanç" v={formatTL(b.sgkBase)} />
+            {b.disabilityDeduction ? <Row l={`Engellilik indirimi${r.disability?.degree ? ` (${r.disability.degree}. derece)` : ""}`} v={`−${formatTL(b.disabilityDeduction)}`} /> : null}
             <Row l="Gelir vergisi matrahı" v={formatTL(b.taxBase)} />
             <Row l="Kümülatif GV matrahı" v={formatTL(b.cumulativeTaxBaseAfter)} />
           </tbody></table>

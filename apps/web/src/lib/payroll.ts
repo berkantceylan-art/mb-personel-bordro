@@ -25,6 +25,8 @@ export interface PayrollRow {
   cardNo: string | null;
   hireDate: string;
   insurance: "MIN_WAGE" | "FIXED_NET" | "NONE";
+  /** Engellilik indirimi derecesi (0 = yok) ve işveren teşviki */
+  disability: { degree: 0 | 1 | 2 | 3; incentive: boolean } | null;
   totalNet: number;
   result: PayrollResult;
   cumulativeBefore: number;
@@ -50,7 +52,7 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
   const ids = (emps ?? []).map((e) => e.id);
   if (!ids.length) return [];
 
-  const [contracts, allContracts, entries, prevLines, bes, garn, saved, settings, legal, history] = await Promise.all([
+  const [contracts, allContracts, entries, prevLines, bes, garn, saved, settings, legal, history, disab] = await Promise.all([
     contractsAt(supabase, ids, end),
     fetchAll<{ employee_id: string; valid_from: string; valid_to: string | null; total_net: number; insurance_type: "MIN_WAGE" | "FIXED_NET" | "NONE"; fixed_official_net: number | null; bes_rate: number }>((a, b) =>
       supabase.from("pay_contracts").select("employee_id, valid_from, valid_to, total_net, insurance_type, fixed_official_net, bes_rate").in("employee_id", ids).lte("valid_from", end).range(a, b),
@@ -65,7 +67,14 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
     getCompanySettings(supabase),
     legalParams(supabase, Number(year)),
     supabase.from("payroll_history").select("employee_id, period, gross, sgk_employee, unemployment_employee, cumulative_tax_base_after").in("employee_id", ids).gte("period", `${year}-01`).lt("period", period),
+    supabase.rpc("pay_disability"),
   ]);
+  // Engelli personel (20270122000000_disabled_payroll.sql yoksa boş)
+  const disability = new Map<string, { degree: 0 | 1 | 2 | 3; incentive: boolean }>();
+  for (const d of ((disab.error ? [] : disab.data) ?? []) as Array<{ employee_id: string; tax_degree: number; incentive: boolean; report_until: string | null }>) {
+    const valid = !d.report_until || d.report_until >= start;
+    disability.set(d.employee_id, { degree: (valid ? Math.max(0, Math.min(3, d.tax_degree)) : 0) as 0 | 1 | 2 | 3, incentive: valid && d.incentive });
+  }
   const params = legal.params;
 
   const cum = latestCumulative([...historyCumulative(history.data ?? []), ...(prevLines.data ?? [])]);
@@ -131,6 +140,8 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
       contractSegments,
       garnishmentAfterAlimony: settings.garnishmentAfterAlimony,
       garnishmentAfterBes: settings.garnishmentAfterBes,
+      disabilityDegree: disability.get(e.id)?.degree ?? 0,
+      disabledIncentive: disability.get(e.id)?.incentive ?? false,
       params,
     });
 
@@ -157,6 +168,7 @@ export async function computePayroll(supabase: SB, period: string, opts: { emplo
       cardNo: e.card_no,
       hireDate: e.hire_date,
       insurance: c.insuranceType,
+      disability: disability.get(e.id) ?? null,
       totalNet: c.totalNet,
       result,
       cumulativeBefore,

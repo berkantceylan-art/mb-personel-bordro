@@ -1,4 +1,4 @@
-import { type LegalParams, PARAMS_2026 } from "./legal-params";
+import { type LegalParams, PARAMS_2026, disabilityDeductionFor } from "./legal-params";
 import { roundKurus, type Kurus } from "./money";
 
 /** Kümülatif matrah üzerinden artan oranlı gelir vergisi. */
@@ -39,6 +39,10 @@ export interface GrossToNetInput {
   employerDiscount?: boolean;
   /** İşveren SGK oranı (verilirse employerDiscount yerine kullanılır; şirket teşvik ayarı) */
   employerRate?: number;
+  /** Engellilik indirimi derecesi (GVK md. 31): 1, 2, 3; 0 / boş = yok */
+  disabilityDegree?: 0 | 1 | 2 | 3;
+  /** Engelli sigortalı işveren teşviki (4857 md. 30, kanun 14857): asgari ücret matrahına isabet eden işveren hissesi Hazine'den */
+  disabledIncentive?: boolean;
   params?: LegalParams;
 }
 
@@ -62,6 +66,10 @@ export interface PayrollBreakdown {
   unemploymentEmployer: Kurus;
   employerCost: Kurus;
   cumulativeTaxBaseAfter: Kurus;
+  /** Gelir vergisi matrahından düşülen engellilik indirimi */
+  disabilityDeduction?: Kurus;
+  /** Engelli teşviki ile Hazine'nin karşıladığı işveren SGK hissesi */
+  employerIncentive?: Kurus;
 }
 
 /**
@@ -80,7 +88,8 @@ export function grossToNet(input: GrossToNetInput): PayrollBreakdown {
   const sgkEmployee = roundKurus(sgkBase * p.sgkEmployeeRate);
   const unemploymentEmployee = roundKurus(sgkBase * p.unemploymentEmployeeRate);
 
-  const taxBase = Math.max(0, gross - sgkEmployee - unemploymentEmployee);
+  const disabilityDeduction = Math.min(Math.max(0, gross - sgkEmployee - unemploymentEmployee), disabilityDeductionFor(p, input.disabilityDegree));
+  const taxBase = Math.max(0, gross - sgkEmployee - unemploymentEmployee - disabilityDeduction);
   const incomeTaxGross = incomeTax(input.cumulativeTaxBaseBefore, taxBase, p);
 
   // Asgari ücret istisnası: asgari ücretin kendi kümülatif matrahı üzerinden
@@ -111,7 +120,9 @@ export function grossToNet(input: GrossToNetInput): PayrollBreakdown {
 
   const employerRate =
     input.employerRate ?? (input.employerDiscount ? p.sgkEmployerRateDiscounted : p.sgkEmployerRate);
-  const sgkEmployer = roundKurus(sgkBase * employerRate);
+  // Engelli teşviki: asgari ücret matrahına isabet eden işveren hissesini Hazine öder; işveren yalnız üstünü öder
+  const employerIncentive = input.disabledIncentive ? roundKurus(Math.min(sgkBase, minGross) * employerRate) : 0;
+  const sgkEmployer = roundKurus(sgkBase * employerRate) - employerIncentive;
   const unemploymentEmployer = roundKurus(sgkBase * p.unemploymentEmployerRate);
 
   return {
@@ -133,6 +144,8 @@ export function grossToNet(input: GrossToNetInput): PayrollBreakdown {
     unemploymentEmployer,
     employerCost: gross + sgkEmployer + unemploymentEmployer,
     cumulativeTaxBaseAfter: input.cumulativeTaxBaseBefore + taxBase,
+    ...(disabilityDeduction ? { disabilityDeduction } : {}),
+    ...(employerIncentive ? { employerIncentive } : {}),
   };
 }
 
