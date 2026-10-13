@@ -9,6 +9,7 @@ import { joinPortalAccount, registerCurrentUser } from "@/lib/portal-team-action
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { Popup } from "@/components/Popup";
+import { ImpersonationBar } from "@/components/ImpersonationBar";
 import { mediaUrl } from "@/lib/cms";
 import { t } from "@/lib/i18n";
 
@@ -63,6 +64,8 @@ export default async function PortalAppLayout({ children }: { children: React.Re
   );
 
   return (
+    <>
+    <ImpersonationBar />
     <div className="min-h-dvh bg-porcelain lg:flex">
       {acc?.status === "active" ? (
         <div className="contents print:hidden">
@@ -170,5 +173,6 @@ export default async function PortalAppLayout({ children }: { children: React.Re
       </main>
       </div>
     </div>
+    </>
   );
 }

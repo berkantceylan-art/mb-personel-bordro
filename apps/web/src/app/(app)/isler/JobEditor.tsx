@@ -191,7 +191,19 @@ export function JobEditor({
       portal_case_id: job ? null : prefill?.portal_case_id ?? null,
       order_id: job ? null : prefill?.order_id ?? null,
     };
-    const r = await saveJob(payload);
+    // Sunucu yanıt vermezse ya da bağlantı koparsa ekran "bekliyor"da kalmasın: 40 sn sonra hata göster, tekrar denenebilsin
+    let r: Awaited<ReturnType<typeof saveJob>>;
+    try {
+      r = await Promise.race([
+        saveJob(payload),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 40_000)),
+      ]);
+    } catch (e) {
+      setBusy(false);
+      const m = (e as Error).message;
+      setMsg({ ok: false, text: m === "timeout" ? "Sunucu 40 saniyedir yanıt vermedi; kayıt yapılmamış olabilir. İş listesinden kontrol edip tekrar deneyin." : /403|Görüntüleme/.test(m) ? "Görüntüleme modundasınız: kayıt yapılamaz." : "Bağlantı hatası: kaydedilemedi. Sayfayı yenileyip tekrar deneyin." });
+      return;
+    }
     setBusy(false);
     setMsg({ ok: r.ok, text: r.message });
     if (!r.ok || !r.id) return;

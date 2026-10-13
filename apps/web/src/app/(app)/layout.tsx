@@ -3,6 +3,7 @@ import { ReminderPoller } from "@/components/ReminderPoller";
 import { VoiceGreeter } from "@/components/VoiceGreeter";
 import { redirect } from "next/navigation";
 import { FlashMessage } from "@/components/FlashMessage";
+import { ImpersonationBar } from "@/components/ImpersonationBar";
 import { MobileNav } from "@/components/MobileNav";
 import { InstallHint } from "@/components/Pwa";
 import { LiveUpdates } from "@/components/LiveUpdates";
@@ -58,6 +59,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Sidebar companyName={s.companyName} role={s.role} siteAccess={s.siteAccess} logistics={s.logistics} modules={s.modules} badges={badges} />
       <MobileNav companyName={s.companyName} role={s.role} badges={badges} boss={s.boss || s.role === "owner"} siteAccess={s.siteAccess} logistics={s.logistics} modules={s.modules} />
       <main className="flex-1 min-w-0 flex flex-col pb-[calc(72px+env(safe-area-inset-bottom))] md:pb-0">
+        <ImpersonationBar />
         <FlashMessage />
         <LiveUpdates userId={s.userId} />
         <InstallHint />
