@@ -70,6 +70,9 @@ export const getSession = cache(async (): Promise<Session> => {
   const { data: lv, error: lvErr } = await supabase.rpc("my_module_levels");
   const modules: Record<string, number> = {};
   for (const k of MODULES) modules[k] = !lvErr && lv && typeof (lv as Record<string, number>)[k] === "number" ? (lv as Record<string, number>)[k]! : defaultModuleLevel(m.role as string, sa?.logistics_access === true, k);
+  // Müşteri ciroları: sahip, patron ya da sahibin yetki verdiği kişi (menüde "revenue" sözde modülü)
+  const { data: rev } = await supabase.rpc("rev_can");
+  modules.revenue = rev === true || m.role === "owner" ? 1 : 0;
   // Laboratuvar / kargo: kullanıcı türünde "lab" modülü (eski kurulumda rol + bayrak)
   const logistics = (modules.lab ?? 0) >= 1;
   return {

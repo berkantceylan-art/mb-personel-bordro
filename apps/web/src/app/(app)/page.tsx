@@ -58,7 +58,7 @@ export default async function Home() {
     supabase.from("user_dashboard").select("hidden, card_order").eq("user_id", s.userId).maybeSingle(),
     supabase.from("memberships").select("display_name").eq("user_id", s.userId).maybeSingle(),
   ]);
-  if (s.role === "employee" && !Object.values(s.modules).some((v) => v > 0)) redirect("/benim");
+  if (s.role === "employee" && !Object.entries(s.modules).some(([k, v]) => k !== "revenue" && v > 0)) redirect("/benim");
   const d = (data ?? { today: "" }) as D;
   const { data: rk } = d.lab ? await supabase.rpc("prd_delay_risk") : { data: [] };
   const riskHigh = ((rk ?? []) as { risk: string }[]).filter((r) => r.risk === "high").length;

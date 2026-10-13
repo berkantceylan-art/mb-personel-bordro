@@ -25,8 +25,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const big = (pref as { big_text?: boolean } | null)?.big_text === true;
   const path = (await headers()).get("x-pathname") ?? "/";
   // Laboratuvar / kargo yetkisi olan personel: kargo, iş kayıt ve modül sayfaları
-  const anyModule = Object.values(s.modules).some((v) => v > 0);
-  const allowKargo = (anyModule && path === "/") || (s.logistics && ["/kargo", "/isler", "/kurye"].some((p) => path.startsWith(p))) || path.startsWith("/modul/") || ((s.modules.users ?? 0) >= 1 && path.startsWith("/yonetim")) || (anyModule && ["/finans", "/stok", "/satis", "/alis", "/fatura", "/uretim", "/demirbas", "/masraf", "/kpi", "/kalite", "/crm", "/rapor-tasarla"].some((p) => path.startsWith(p)));
+  const anyModule = Object.entries(s.modules).some(([k, v]) => k !== "revenue" && v > 0);
+  const allowKargo = (anyModule && path === "/") || (s.logistics && ["/kargo", "/isler", "/kurye"].some((p) => path.startsWith(p))) || path.startsWith("/modul/") || ((s.modules.revenue ?? 0) >= 1 && path.startsWith("/ciro")) || ((s.modules.users ?? 0) >= 1 && path.startsWith("/yonetim")) || (anyModule && ["/finans", "/stok", "/satis", "/alis", "/fatura", "/uretim", "/demirbas", "/masraf", "/kpi", "/kalite", "/crm", "/rapor-tasarla"].some((p) => path.startsWith(p)));
   if (s.role === "employee" && !allowKargo && !EMPLOYEE_PATHS.some((p) => path.startsWith(p))) redirect("/benim");
   // Yalnız web sitesi editörü: ERP'de iletişim modülleri ve site yönetimi bağlantısı
   if (s.role === "site_editor" && !allowKargo && !EDITOR_PATHS.some((p) => path.startsWith(p))) redirect("/duyurular");
