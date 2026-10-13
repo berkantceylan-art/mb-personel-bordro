@@ -38,6 +38,7 @@ export default async function SalaryPlanPage({ params }: { params: Promise<{ per
           <div className="flex gap-2 flex-wrap">
             <Link href={`/donemler/${previousPeriod(period)}`} className={btn} aria-label="Önceki ay">←</Link>
             <Link href={`/donemler/${nextPeriod(period)}`} className={btn} aria-label="Sonraki ay">→</Link>
+            <Link href={`/donemler/${period}/banka`} className={btn}>🏦 Banka ekstresiyle eşleştir</Link>
             <Link href={`/ay-sonu?donem=${period}`} className={btn}>Ay sonu adımları</Link>
             <Link href={`/bordro?donem=${period}`} className={btn}>Bordro</Link>
             <Link href="/donemler" className={btn}>Dönemler</Link>
