@@ -20,7 +20,7 @@ export async function glSaveSettings(f: FormData) {
   await need(3);
   const supabase = await createClient();
   const codes = str(f, "exclude_codes", 500).split(/[,\s]+/).map((x) => x.trim()).filter((x) => /^[a-z0-9_]{2,40}$/.test(x));
-  const { error } = await supabase.rpc("gl_settings_save", { p: { enabled: f.get("enabled") === "on", start_date: str(f, "start_date", 10) || null, export_format: str(f, "export_format", 20) || null, exclude_codes: codes } });
+  const { error } = await supabase.rpc("gl_settings_save", { p: { enabled: f.get("enabled") === "on", start_date: str(f, "start_date", 10) || null, export_format: str(f, "export_format", 20) || null, exclude_codes: codes, exclude_cash_salary: f.get("exclude_cash_salary") === "on", babs_limit: parseAmount(str(f, "babs_limit", 20)) } });
   if (error) await fail(glError(error.message));
   again();
   await done("Muhasebe ayarları kaydedildi.");
@@ -136,4 +136,37 @@ export async function glRenumber(f: FormData) {
   if (error) await fail(glError(error.message));
   again();
   await done(`${y} yılı yevmiye maddeleri numaralandı (${data ?? 0} madde).`);
+}
+
+async function rpcDone(fn: string, args: Record<string, unknown>, ok: (d: unknown) => string, level = 2) {
+  await need(level);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) await fail(glError(error.message));
+  again();
+  await done(ok(data));
+}
+
+export async function glVatClose(f: FormData) {
+  const m = str(f, "month", 7);
+  await rpcDone("gl_vat_close", { p_month: m }, () => `${m} KDV mahsup fişi oluştu.`);
+}
+export async function glPayrollAccrual(f: FormData) {
+  const p = str(f, "period", 7);
+  await rpcDone("gl_payroll_accrual", { p_period: p, p_expense: str(f, "expense", 30) || "770" }, () => `${p} bordro tahakkuk fişi oluştu.`);
+}
+export async function glFxRevalue(f: FormData) {
+  await rpcDone("gl_fx_revalue", { p_date: str(f, "date", 10) }, (d) => { const x = d as { gain?: number; loss?: number; empty?: boolean }; return x.empty ? "Değerlenecek döviz bakiyesi yok." : `Kur değerleme fişi oluştu (kâr ${((x.gain ?? 0) / 100).toLocaleString("tr-TR")} TL, zarar ${((x.loss ?? 0) / 100).toLocaleString("tr-TR")} TL).`; });
+}
+export async function glCloseYear(f: FormData) {
+  const y = Number(str(f, "year", 4));
+  await rpcDone("gl_close_year", { p_year: y }, (d) => { const x = d as { net_profit?: number }; return `${y} yılı kapandı; ${y + 1} açılış fişi oluştu. Dönem net ${Number(x.net_profit ?? 0) >= 0 ? "kârı" : "zararı"}: ${(Math.abs(Number(x.net_profit ?? 0)) / 100).toLocaleString("tr-TR")} TL.`; }, 3);
+}
+export async function glUndoClose(f: FormData) {
+  const y = Number(str(f, "year", 4));
+  await rpcDone("gl_undo_close", { p_year: y }, (d) => `${y} kapanışı geri alındı (${d} fiş iptal).`, 3);
+}
+export async function glSetLock(f: FormData) {
+  const d = str(f, "date", 10) || null;
+  await rpcDone("gl_set_lock", { p_date: d }, () => (d ? `Dönem ${d.split("-").reverse().join(".")} tarihine kadar kilitlendi.` : "Dönem kilidi kaldırıldı."), 3);
 }
