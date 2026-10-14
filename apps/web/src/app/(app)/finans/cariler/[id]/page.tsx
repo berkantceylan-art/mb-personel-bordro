@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { partyLedger } from "@/lib/fin-data";
 import { PARTY_KIND, dateOk, fmt, type Party } from "@/lib/fin";
 import { PartyForm } from "../../_parts/PartyForm";
+import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
+import { deleteParty, setPartyActive } from "@/lib/fin-actions";
 import { DateFilter } from "../../_parts/DateFilter";
 import { LedgerTable } from "../../_parts/LedgerTable";
 
@@ -26,10 +28,14 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
   const to = dateOk(sp.bit);
   const led = await partyLedger(p, from, to);
   const canPost = (s.modules.finance ?? 0) >= 2;
+  const canEdit = ["finance", "sales", "purchases"].some((m) => (s.modules[m] ?? 0) >= 2);
+  const { data: usage, error: usageErr } = canEdit ? await supabase.rpc("fin_party_usage", { p_id: p.id }) : { data: null, error: null };
+  const uses = Object.entries((usage ?? {}) as Record<string, number>);
+  const deletable = !usageErr && !uses.length && !p.lab_customer_id;
   const overLimit = p.credit_limit && led.balance > Number(p.credit_limit);
   return (
     <>
-      <PageHeader title={p.name} subtitle={`${PARTY_KIND[p.kind]} · ${p.currency}${p.tax_no ? ` · ${p.tax_no}` : ""}`} actions={<Link href="/finans/cariler" className="text-sm font-semibold text-brand-700">← Cariler</Link>} />
+      <PageHeader title={p.name} subtitle={`${PARTY_KIND[p.kind]} · ${p.currency}${p.tax_no ? ` · ${p.tax_no}` : ""}`} actions={<span className="flex gap-4 text-sm font-semibold">{canEdit && <a href="#duzenle" className="text-brand-700">✎ Düzenle</a>}{canEdit && <a href="#sil" className="text-bad">Sil</a>}<Link href="/finans/cariler" className="text-brand-700">← Cariler</Link></span>} />
       <div className={page}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KPI label="Bakiye" value={fmt(Math.abs(led.balance), p.currency)} sub={led.balance > 0 ? "bize borçlu" : led.balance < 0 ? "biz borçluyuz" : "kapalı"} tone={led.balance < 0 ? "bad" : undefined} />
@@ -48,8 +54,32 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
         </div>
         <DateFilter from={from ?? undefined} to={to ?? undefined} />
         <LedgerTable rows={led.rows} currency={p.currency} canVoid={canPost} total={led} />
-        {["finance", "sales", "purchases"].some((m) => (s.modules[m] ?? 0) >= 2) && (
-          <Card title="Cari bilgileri"><PartyForm party={p} /></Card>
+        {!p.is_active && <p className="text-sm rounded-[12px] px-4 py-3 bg-[#F1F5F9] text-muted">Bu cari kart pasif: yeni işlemlerde önerilmez, geçmiş kayıtları korunur.</p>}
+        {canEdit && (
+          <div id="duzenle" className="scroll-mt-20"><Card title="Cari bilgilerini düzenle"><PartyForm party={p} /></Card></div>
+        )}
+        {canEdit && (
+          <div id="sil" className="scroll-mt-20">
+            <Card title="Kartı sil / pasife al">
+              <div className="flex flex-col gap-3 text-sm">
+                {deletable ? (
+                  <>
+                    <p className="text-muted">Bu cariye bağlı fatura, finans işlemi, çek, sipariş ya da stok kaydı yok; kart kalıcı olarak silinebilir.</p>
+                    <form action={deleteParty}><input type="hidden" name="id" value={p.id} /><ConfirmSubmit label="🗑 Cari kartı sil" question={`"${p.name}" kalıcı olarak silinsin mi?`} yes="Evet, sil" className="h-9 px-4 rounded-lg border border-bad text-bad font-semibold" /></form>
+                  </>
+                ) : (
+                  <p className="text-muted">
+                    {p.lab_customer_id ? "Bu cari bir hekim / klinik kartına bağlı; silme hekim kartından yapılır." : usageErr ? "Silme kontrolü için Supabase'de 20270128000000_party_delete.sql çalıştırılmalı." : <>Bu cari silinemez, bağlı kayıtları var: <b className="text-ink">{uses.map(([k, n]) => `${k} (${n})`).join(", ")}</b>. Kayıtlar bozulmasın diye kartı pasife alın.</>}
+                  </p>
+                )}
+                <form action={setPartyActive} className="flex items-center gap-2">
+                  <input type="hidden" name="id" value={p.id} /><input type="hidden" name="on" value={p.is_active ? "0" : "1"} />
+                  <PendingSubmit className="h-9 px-4 rounded-lg border border-[#D5DEE8] font-semibold">{p.is_active ? "⏸ Pasife al" : "▶ Yeniden aktifleştir"}</PendingSubmit>
+                  <span className="text-xs text-muted">{p.is_active ? "Kart gizlenir, geçmiş ekstresi ve faturaları korunur." : ""}</span>
+                </form>
+              </div>
+            </Card>
+          </div>
         )}
       </div>
     </>
