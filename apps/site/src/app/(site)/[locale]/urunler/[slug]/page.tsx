@@ -5,7 +5,9 @@ import { CaseCard } from "@/components/CaseCard";
 import { RichText } from "@/components/RichText";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import { breadcrumbJsonLd, ldScript } from "@/lib/seo";
-import { mediaUrl, publicCases, publicProduct, publicProducts } from "@/lib/cms";
+import { mediaUrl, publicCases, publicProduct, publicProducts, scopedFaqs } from "@/lib/cms";
+import { FaqBlock } from "@/components/FaqBlock";
+import { faqJsonLd } from "@/lib/faq-ld";
 import { CASE_UI, DICTS, LOCALES, PRODUCT_UI, isLocale, t } from "@/lib/i18n";
 
 export const revalidate = 60;
@@ -51,7 +53,7 @@ export default async function ProductPage({ params }: { params: Params }) {
     .filter(Boolean);
   const img = mediaUrl(p.image_path);
   const gallery = p.gallery.map((g) => mediaUrl(g)).filter((u): u is string => !!u);
-  const [allProducts, cases] = await Promise.all([publicProducts(), publicCases({ product: p.slug })]);
+  const [allProducts, cases, faqs] = await Promise.all([publicProducts(), publicCases({ product: p.slug }), scopedFaqs({ product: p.slug })]);
   const siblings = allProducts.filter((x) => x.category === p.category && x.id !== p.id).slice(0, 3);
   const caseHref = `/${locale}/vaka-gonder?urun=${p.slug}`;
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
@@ -176,6 +178,8 @@ export default async function ProductPage({ params }: { params: Params }) {
           </section>
         )}
 
+        <FaqBlock faqs={faqs} locale={locale} />
+
         {siblings.length > 0 && (
           <section aria-labelledby="ayni-grup" className="border-t border-gypsum bg-white">
             <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -202,7 +206,7 @@ export default async function ProductPage({ params }: { params: Params }) {
         )}
       </main>
       <SiteFooter locale={locale} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldScript([jsonLd, crumbs]) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldScript([jsonLd, crumbs, ...(faqs.length ? [faqJsonLd(faqs, locale)] : [])]) }} />
     </>
   );
 }

@@ -10,6 +10,7 @@ export const ADMIN_NAV: AdminGroup[] = [
     items: [
       { href: "/admin", label: "Pano", desc: "Bugünün özeti: mesajlar, vakalar, bekleyen işler" },
       { href: "/admin/kontrol", label: "Site kontrol merkezi", desc: "Ziyaretçi, il / şehir, kaynak, giriş yapanlar, Google ve yapay zekâ görünürlüğü" },
+      { href: "/admin/yapay-zeka", label: "Yapay zekâ görünürlüğü", desc: "ChatGPT, Perplexity, Gemini'de MB Dental geçiyor mu: aylık test" },
       { href: "/admin/istatistik", label: "Portal istatistikleri", desc: "Mesaj, canlı destek, portal hesap ve vaka sayıları" },
       { href: "/admin/canli-destek", label: "Canlı destek", desc: "Sitedeki ziyaretçilerle anlık yazışma" },
       { href: "/admin/gelen-kutusu", label: "Gelen kutusu", desc: "İletişim formu ve vaka talepleri" },
@@ -37,6 +38,7 @@ export const ADMIN_NAV: AdminGroup[] = [
       { href: "/admin/vakalar", label: "Vaka galerisi", desc: "Önce / sonra vaka görselleri" },
       { href: "/admin/sayfalar", label: "Sayfalar", desc: "Hakkımızda, KVKK ve diğer sayfalar" },
       { href: "/admin/sss", label: "Sıkça sorulanlar", desc: "SSS soruları ve cevapları" },
+      { href: "/admin/bolgeler", label: "Şehir ve ülke sayfaları", desc: "Bölge aramaları için hizmet sayfaları" },
       { href: "/admin/blog", label: "Blog", desc: "Blog yazıları, zamanlanmış yayın" },
       { href: "/admin/gorusler", label: "Hekim görüşleri", desc: "İzinli hekim görüşleri" },
     ],
