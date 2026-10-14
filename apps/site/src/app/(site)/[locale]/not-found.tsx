@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { NotFoundTracker } from "@/components/NotFoundTracker";
 
 export default function NotFound() {
   return (
     <main className="grid min-h-dvh place-items-center bg-navy px-6 text-white">
+      <NotFoundTracker />
       <div className="max-w-md text-center">
         <p className="display text-7xl font-semibold text-smile">404</p>
         <h1 className="display mt-4 text-3xl font-semibold">Bu sayfa bulunamadı</h1>
