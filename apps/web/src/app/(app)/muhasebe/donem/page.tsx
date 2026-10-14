@@ -81,7 +81,7 @@ export default async function PeriodPage({ searchParams }: { searchParams: Promi
                 <li>Gelir tablosu hesapları 690&apos;a, 690 / 691 692&apos;ye, sonuç 590 Dönem Net Kârı ya da 591 Dönem Net Zararı&apos;na aktarılır.</li>
                 <li>Bilanço hesapları kapanış fişiyle kapanır, {year + 1} açılış fişi oluşur.</li>
               </ol>
-              <p className="text-xs text-muted">Önce kur değerleme, amortisman, KDV mahsubu ve bordro tahakkukunu tamamlayın; vergi karşılığını (691 / 370) elle fişle girin. Raporlar kapanış öncesi bakiyeyi gösterir.</p>
+              <p className="text-xs text-muted">Önce kur değerleme, amortisman, KDV mahsubu ve bordro tahakkukunu tamamlayın; vergi karşılığını (691 / 370) elle fişle girin. Raporlar kapanış öncesi bakiyeyi gösterir. Kapanıştan sonra yılı kilitleyin; kilitlenmeyen yıla sonradan kayıt düşerse Kontrol Merkezi uyarır.</p>
               {st.closed ? (
                 <form action={glUndoClose} className="flex items-center gap-3"><span className="text-ok font-semibold text-sm">✓ {year} kapandı</span><input type="hidden" name="year" value={year} /><PendingSubmit className="text-sm font-semibold text-bad">Kapanışı geri al</PendingSubmit></form>
               ) : (
