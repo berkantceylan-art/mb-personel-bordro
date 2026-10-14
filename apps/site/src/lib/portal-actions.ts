@@ -1,4 +1,5 @@
 "use server";
+import { siteEvent } from "@/lib/track-server";
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
@@ -72,6 +73,7 @@ export async function portalSignUp(_prev: SignUpState, form: FormData): Promise<
   }
   // Var olan e-posta ile kayıt denemesinde Supabase hata vermeyip boş kimlikli kullanıcı döndürebilir
   if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return { error: "exists" };
+  await siteEvent("portal_signup");
   return { sent: true };
 }
 

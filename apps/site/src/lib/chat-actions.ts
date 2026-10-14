@@ -1,4 +1,5 @@
 "use server";
+import { siteEvent } from "@/lib/track-server";
 
 import { createHash, randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
@@ -76,6 +77,7 @@ export async function chatStart(input: ChatStartInput): Promise<ChatSnapshot> {
       p_ip_hash: await ipHash(),
     });
     if (error) return { chat: null, error: error.message.includes("rate_limited") ? "rate" : "server" };
+    await siteEvent("chat_start");
     const id = String(data);
     (await cookies()).set(COOKIE, `${id}.${token}`, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: MAX_AGE });
   } catch {

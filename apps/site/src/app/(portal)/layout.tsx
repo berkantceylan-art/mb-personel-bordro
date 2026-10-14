@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "../globals.css";
+import { Suspense } from "react";
 import { portalContext, portalLocale } from "@/lib/portal";
+import { SiteTracker } from "@/components/SiteTracker";
 
 export const metadata: Metadata = {
   title: { default: "MB Dental — Portal", template: "%s — MB Dental" },
@@ -22,7 +24,7 @@ export default async function PortalRoot({ children }: { children: React.ReactNo
         />
         <meta name="theme-color" content="#072A50" />
       </head>
-      <body>{children}</body>
+      <body>{children}<Suspense fallback={null}><SiteTracker /></Suspense></body>
     </html>
   );
 }

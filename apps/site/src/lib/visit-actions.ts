@@ -1,6 +1,7 @@
 "use server";
 import { createClient } from "@/lib/supabase/server";
 import { ERP_URL } from "@/lib/handoff";
+import { siteEvent } from "@/lib/track-server";
 
 export type VisitState = { ok: boolean; error?: string; link?: string; no?: string; at?: number };
 
@@ -32,5 +33,6 @@ export async function requestVisit(_: VisitState, f: FormData): Promise<VisitSta
   const r = data as { token: string; no: string };
   const vt = String(f.get("visitor_type") ?? "");
   if (vt) await supabase.rpc("vis_set_type", { p_token: r.token, p_type: vt });
+  await siteEvent("visit_request");
   return { ok: true, no: r.no, link: `${ERP_URL || ""}/z/${r.token}`, at: Date.now() };
 }
