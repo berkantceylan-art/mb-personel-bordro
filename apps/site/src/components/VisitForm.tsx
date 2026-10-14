@@ -11,6 +11,11 @@ const UI: Record<Locale, Record<string, string>> = {
   fr: { who: "Qui venez-vous voir ?", pick: "Choisir", day: "Jour", time: "Heure", name: "Nom et prénom", company: "Société / cabinet (facultatif)", phone: "Téléphone (WhatsApp)", email: "E-mail (facultatif)", count: "Nombre de personnes", purpose: "Objet de la visite", kvkk: "J’ai lu la notice sur le traitement de mes données à des fins de visite et de sécurité.", kvkkLink: "Notice de confidentialité", send: "Demander un rendez-vous", sending: "Envoi…", okTitle: "Demande reçue", okText: "Dès que la personne concernée valide, votre invitation QR s’ouvre ; montrez-la à l’accueil sécurité. Suivez l’état avec le lien ci-dessous et conservez-le.", track: "Suivre mon rendez-vous", noDay: "Pas de visite ce jour-là." },
 };
 
+const TYPES: Record<string, string[]> = {
+  tr: ["Ziyaretçi türü", "Tedarikçi", "Müşteri", "Hekim / klinik", "Diğer"],
+  en: ["Visitor type", "Supplier", "Customer", "Dentist / clinic", "Other"],
+  fr: ["Type de visiteur", "Fournisseur", "Client", "Dentiste / cabinet", "Autre"],
+};
 const iso = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 const inp = "h-12 w-full rounded-xl border border-gypsum bg-white px-4 text-ink focus:border-smile focus:outline-none";
 
@@ -68,6 +73,12 @@ export function VisitForm({ locale, hosts, kvkkHref }: { locale: Locale; hosts: 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1.5 text-sm font-semibold text-navy">{u.name}<input name="name" required minLength={2} maxLength={120} autoComplete="name" className={inp} /></label>
         <label className="grid gap-1.5 text-sm font-semibold text-navy">{u.company}<input name="company" maxLength={120} autoComplete="organization" className={inp} /></label>
+        <label className="grid gap-1.5 text-sm font-semibold text-navy">{TYPES[locale === "en" || locale === "fr" ? locale : "tr"]![0]}
+          <select name="visitor_type" defaultValue="" className={inp}>
+            <option value="">—</option>
+            {TYPES[locale === "en" || locale === "fr" ? locale : "tr"]!.slice(1).map((l, i) => <option key={i} value={["supplier", "customer", "doctor", "other"][i]}>{l}</option>)}
+          </select>
+        </label>
         <label className="grid gap-1.5 text-sm font-semibold text-navy">{u.phone}<input name="phone" required inputMode="tel" autoComplete="tel" maxLength={40} className={inp} /></label>
         <label className="grid gap-1.5 text-sm font-semibold text-navy">{u.email}<input name="email" type="email" autoComplete="email" maxLength={200} className={inp} /></label>
       </div>

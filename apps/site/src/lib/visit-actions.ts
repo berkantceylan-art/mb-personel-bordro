@@ -30,5 +30,7 @@ export async function requestVisit(_: VisitState, f: FormData): Promise<VisitSta
     return { ok: false, error: /host_required/.test(m) ? e.host : /name_required/.test(m) ? e.name : /phone_required/.test(m) ? e.phone : /kvkk_required/.test(m) ? e.kvkk : /bad_time/.test(m) ? e.time : /outside_hours/.test(m) ? e.hours : /too_many/.test(m) ? e.many : e.other };
   }
   const r = data as { token: string; no: string };
+  const vt = String(f.get("visitor_type") ?? "");
+  if (vt) await supabase.rpc("vis_set_type", { p_token: r.token, p_type: vt });
   return { ok: true, no: r.no, link: `${ERP_URL || ""}/z/${r.token}`, at: Date.now() };
 }
