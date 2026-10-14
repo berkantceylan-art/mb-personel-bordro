@@ -9,7 +9,8 @@ export const ADMIN_NAV: AdminGroup[] = [
     short: "Genel",
     items: [
       { href: "/admin", label: "Pano", desc: "Bugünün özeti: mesajlar, vakalar, bekleyen işler" },
-      { href: "/admin/istatistik", label: "İstatistik", desc: "Ziyaretçi, sayfa ve form sayıları" },
+      { href: "/admin/kontrol", label: "Site kontrol merkezi", desc: "Ziyaretçi, il / şehir, kaynak, giriş yapanlar, Google ve yapay zekâ görünürlüğü" },
+      { href: "/admin/istatistik", label: "Portal istatistikleri", desc: "Mesaj, canlı destek, portal hesap ve vaka sayıları" },
       { href: "/admin/canli-destek", label: "Canlı destek", desc: "Sitedeki ziyaretçilerle anlık yazışma" },
       { href: "/admin/gelen-kutusu", label: "Gelen kutusu", desc: "İletişim formu ve vaka talepleri" },
     ],

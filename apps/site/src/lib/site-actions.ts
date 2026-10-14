@@ -1,4 +1,5 @@
 "use server";
+import { siteEvent } from "@/lib/track-server";
 
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
@@ -68,5 +69,6 @@ async function send(form: FormData): Promise<ContactState> {
   } catch {
     return { error: "server", at: Date.now() };
   }
+  await siteEvent("contact_form");
   return { ok: true, at: Date.now() };
 }

@@ -4,6 +4,7 @@ import { createClient as createStatelessClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { canManageSite, currentUser, homeFor, isPortalUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { siteEvent } from "@/lib/track-server";
 
 /** handoff: personel ekranına (bordro uygulaması) geçiş adresi; tarayıcı oraya gider */
 export type LoginState = { error?: string; handoff?: string };
@@ -22,7 +23,7 @@ export async function signIn(_: LoginState, form: FormData): Promise<LoginState>
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: "E-posta / personel no ya da şifre hatalı." };
+  if (error) { await siteEvent("login_failed", "/giris"); return { error: "E-posta / personel no ya da şifre hatalı." }; }
 
   const u = await currentUser();
   const roles = u?.roles ?? [];
@@ -30,6 +31,7 @@ export async function signIn(_: LoginState, form: FormData): Promise<LoginState>
   const portal = !editor && (await isPortalUser());
   const erp = process.env.NEXT_PUBLIC_ERP_URL?.replace(/\/+$/, "");
   const staff = (u?.erpRoles ?? []).length > 0;
+  await siteEvent(editor ? "login_admin" : portal ? "login_portal" : "login_staff", "/giris");
 
   // Personel ekranı: açıkça istendiyse ya da hesabın sitede başka paneli yoksa
   if (erp && staff && (toStaff || (!editor && !portal))) {
