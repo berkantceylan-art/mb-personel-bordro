@@ -19,6 +19,7 @@ export default async function LabCase({ params, searchParams }: { params: Promis
   const { data } = await supabase.from("portal_cases").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const c = data as PortalCase;
+  const { data: rating } = await supabase.from("portal_case_ratings").select("fit, shade, service, comment, created_at").eq("case_id", c.id).maybeSingle();
   const [{ data: acc }, { data: f }, { data: ev }, products] = await Promise.all([
     supabase.from("portal_accounts").select("*").eq("id", c.account_id).maybeSingle(),
     supabase.from("portal_case_files").select("*").eq("case_id", id).order("created_at"),
@@ -89,6 +90,11 @@ export default async function LabCase({ params, searchParams }: { params: Promis
         </div>
         <section className="rounded-2xl border border-gypsum bg-white p-5">
           <h2 className="display mb-4 text-lg font-semibold text-navy">Vaka geçmişi</h2>
+          {rating && (
+            <div className="mb-4 rounded-xl bg-amber-50 p-3 text-sm">
+              <b className="text-navy">⭐ Hekim değerlendirmesi:</b> uyum {rating.fit}/5 · renk {rating.shade}/5 · hizmet {rating.service}/5{rating.comment ? <span className="block text-slate">“{rating.comment}”</span> : null}
+            </div>
+          )}
           <CaseTimeline events={events} locale="tr" viewer="lab" />
         </section>
       </div>

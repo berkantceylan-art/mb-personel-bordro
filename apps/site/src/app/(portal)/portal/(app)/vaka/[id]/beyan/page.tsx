@@ -9,6 +9,7 @@ import { TEAM_UI } from "@/lib/portal-team-ui";
 import { PORTAL_BUCKET } from "@/lib/portal";
 import { getSettings } from "@/lib/settings";
 import { createClient } from "@/lib/supabase/server";
+import { PLUS_UI } from "@/lib/portal-plus-ui";
 
 export const metadata = { title: "Declaration" };
 
@@ -30,6 +31,9 @@ export default async function DeclarationPage({ params }: { params: Promise<{ id
   const client = c.client_id ? (await supabase.from("portal_clients").select("name, city, country").eq("id", c.client_id).maybeSingle()).data : null;
   const logo = acc?.logo_path ? (await supabase.storage.from(PORTAL_BUCKET).createSignedUrl(acc.logo_path, 3600)).data?.signedUrl : null;
   const row = "grid grid-cols-[11rem_1fr] gap-3 border-b border-gypsum py-2.5";
+  const { data: lotData } = await supabase.rpc("portal_case_lots", { p_case: c.id });
+  const lots = ((lotData ?? []) as Array<{ item: string; lot: string | null; expiry: string | null; brand: string | null }>);
+  const pu = PLUS_UI[locale];
 
   return (
     <>
@@ -62,6 +66,15 @@ export default async function DeclarationPage({ params }: { params: Promise<{ id
           {c.teeth?.length ? <div className={row}><span className="font-semibold">{d.teeth}</span><span className="num">{c.teeth.join(", ")}</span></div> : null}
           {c.shade && <div className={row}><span className="font-semibold">{d.materials}</span><span>{c.shade}</span></div>}
         </section>
+        {lots.length > 0 && (
+          <section className="mt-5 text-sm">
+            <h2 className="mb-2 font-semibold text-navy">{pu.lots}</h2>
+            <table className="w-full border-collapse text-left">
+              <thead><tr className="border-b-2 border-gypsum text-xs text-slate"><th className="py-1.5">{pu.lotItem}</th><th className="py-1.5">{pu.lot}</th><th className="py-1.5">{pu.expiry}</th></tr></thead>
+              <tbody>{lots.map((l, i) => <tr key={i} className="border-b border-gypsum"><td className="py-1.5">{l.item}{l.brand ? ` · ${l.brand}` : ""}</td><td className="py-1.5 font-mono">{l.lot ?? "—"}</td><td className="py-1.5">{l.expiry ? formatDate(l.expiry, locale) : "—"}</td></tr>)}</tbody>
+            </table>
+          </section>
+        )}
         <p className="mt-6 text-sm leading-relaxed">{d.statement}</p>
         <p className="mt-2 text-sm leading-relaxed text-slate">{d.statement2}</p>
         <footer className="mt-12 grid grid-cols-2 gap-8 text-sm">
