@@ -6,6 +6,8 @@ import { getSession } from "@/lib/session";
 import { latestRates, loadParties } from "@/lib/fin-data";
 import { PARTY_KIND, fmt } from "@/lib/fin";
 import { PartyForm } from "../_parts/PartyForm";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
+import { deleteParty } from "@/lib/fin-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +49,7 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
             <button className={btnPrimary}>Ara</button>
           </form>
         </div>
-        <Table head={["Cari", "Tür", "VKN / TCKN", "Telefon", "Para", "Bakiye", "Durum"]} min={900}>
+        <Table head={canEdit ? ["Cari", "Tür", "VKN / TCKN", "Telefon", "Para", "Bakiye", "Durum", ""] : ["Cari", "Tür", "VKN / TCKN", "Telefon", "Para", "Bakiye", "Durum"]} min={980}>
           {shown.map((p) => (
             <tr key={p.id} className={p.is_active ? "" : "opacity-60"}>
               <td className={td}><Link href={`/finans/cariler/${p.id}`} className="font-semibold text-brand-700">{p.name}</Link>{p.city && <span className="block text-xs text-muted">{p.city}</span>}</td>
@@ -56,10 +58,18 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
               <td className={td}>{p.phone ?? "—"}</td>
               <td className={td}>{p.currency}</td>
               <td className={tdNum}><Money v={p.balance} cur={p.currency} strong /></td>
-              <td className={td}>{p.balance > 0 ? <Chip tone="amber">alacak</Chip> : p.balance < 0 ? <Chip tone="red">borç</Chip> : <Chip>kapalı</Chip>}</td>
+              <td className={td}>{p.balance > 0 ? <Chip tone="amber">alacak</Chip> : p.balance < 0 ? <Chip tone="red">borç</Chip> : <Chip>kapalı</Chip>}{!p.is_active && <span className="ml-1.5"><Chip>pasif</Chip></span>}</td>
+              {canEdit && (
+                <td className={`${td} whitespace-nowrap`}>
+                  <span className="flex items-center gap-3">
+                    <Link href={`/finans/cariler/${p.id}#duzenle`} className="text-xs font-semibold text-brand-700">✎ Düzenle</Link>
+                    {!p.lab_customer_id && <form action={deleteParty}><input type="hidden" name="id" value={p.id} /><ConfirmSubmit label="Sil" question="Silinsin mi?" /></form>}
+                  </span>
+                </td>
+              )}
             </tr>
           ))}
-          {shown.length === 0 && <EmptyRow cols={7} />}
+          {shown.length === 0 && <EmptyRow cols={canEdit ? 8 : 7} />}
         </Table>
         {canEdit && (
           <div id="yeni"><Card title="Yeni cari kart"><PartyForm defaultKind={tur === "customer" ? "customer" : "supplier"} /></Card></div>

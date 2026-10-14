@@ -65,6 +65,36 @@ export async function saveParty(form: FormData) {
   await done("Cari kart kaydedildi.");
 }
 
+/** Cari kartı sil: hareketi olan cari silinmez (pasife alınması önerilir) */
+export async function deleteParty(form: FormData) {
+  const s = await getSession();
+  if (!["finance", "sales", "purchases"].some((m) => (s.modules[m] ?? 0) >= 2)) await fail("Cari kartı silmek için yetkiniz yok.");
+  const id = str(form, "id", 40);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("fin_party_delete", { p_id: id });
+  if (error) {
+    const m = error.message;
+    if (/in_use:/.test(m)) await fail(`Bu cari silinemez, bağlı kayıtları var (${m.split("in_use:")[1]!.trim()}). Kayıtlar bozulmasın diye kartı "Pasife al" ile kapatın.`);
+    if (/lab_linked/.test(m)) await fail("Bu cari bir hekim / klinik kartına bağlı: hekim kartından yönetin ya da pasife alın.");
+    if (/fin_party_delete|does not exist/.test(m)) await fail("Supabase'de 20270128000000_party_delete.sql çalıştırılmalı.");
+    await fail(finError(m));
+  }
+  revalidatePath("/finans/cariler");
+  redirect(`/finans/cariler?tamam=${encodeURIComponent("Cari kart silindi.")}`);
+}
+
+/** Cari kartı pasife al / yeniden aktifleştir */
+export async function setPartyActive(form: FormData) {
+  const s = await getSession();
+  if (!["finance", "sales", "purchases"].some((m) => (s.modules[m] ?? 0) >= 2)) await fail("Yetkiniz yok.");
+  const on = str(form, "on") === "1";
+  const supabase = await createClient();
+  const { error } = await supabase.from("fin_parties").update({ is_active: on }).eq("id", str(form, "id", 40));
+  if (error) await fail(finError(error.message));
+  revalidatePath("/finans/cariler");
+  await done(on ? "Cari kart yeniden aktif." : "Cari kart pasife alındı; listelerde ve seçimlerde soluk görünür, geçmiş kayıtlar korunur.");
+}
+
 // ---------------------------------------------------------------------
 // Hesap: kasa, banka, kart, kredi, ortak, avans
 // ---------------------------------------------------------------------
