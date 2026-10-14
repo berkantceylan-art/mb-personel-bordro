@@ -1,12 +1,12 @@
 import type { MetadataRoute } from "next";
-import { publicAreas, publicPages, publicPosts, publicProducts } from "@/lib/cms";
+import { publicAreas, publicEvents, publicMaterials, publicPages, publicPosts, publicProducts } from "@/lib/cms";
 import { LOCALES } from "@/lib/i18n";
 
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
-  const [products, sitePages, posts, areas] = await Promise.all([publicProducts(), publicPages(), publicPosts(500), publicAreas()]);
+  const [products, sitePages, posts, areas, mats, evs] = await Promise.all([publicProducts(), publicPages(), publicPosts(500), publicAreas(), publicMaterials(), publicEvents()]);
   const pages: { path: string; priority: number }[] = [
     { path: "", priority: 1 },
     { path: "/urunler", priority: 0.8 },
@@ -22,6 +22,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...sitePages.map((p) => ({ path: `/${p.slug}`, priority: 0.6 })),
     ...products.map((p) => ({ path: `/urunler/${p.slug}`, priority: 0.7 })),
     { path: "/bolge", priority: 0.6 },
+    { path: "/malzemeler", priority: 0.7 },
+    { path: "/egitim", priority: 0.5 },
+    { path: "/belgeler", priority: 0.5 },
+    ...mats.map((m) => ({ path: `/malzemeler/${m.slug}`, priority: 0.6 })),
+    ...evs.map((e) => ({ path: `/egitim/${e.slug}`, priority: 0.4 })),
     ...areas.map((a) => ({ path: `/bolge/${a.slug}`, priority: 0.6 })),
   ];
   const postEntries = posts.flatMap((p) => {

@@ -18,12 +18,15 @@ function addWorkdays(start: Date, n: number, closed: Set<number>): Date {
   return d;
 }
 
-export function LeadCalculator({ locale, products, closedDays }: { locale: Locale; products: P[]; closedDays: number[] }) {
+export function LeadCalculator({ locale, products, closedDays, areas = [] }: { locale: Locale; products: P[]; closedDays: number[]; areas?: Array<{ slug: string; name: string; days: number }> }) {
   const u = LEAD_UI[locale];
   const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
   const [slug, setSlug] = useState(products[0]?.slug ?? "");
   const [start, setStart] = useState(today);
   const [dest, setDest] = useState(locale === "tr" ? "local" : "eu");
+  const [area, setArea] = useState("");
+  const ar = areas.find((a) => a.slug === area);
+  const transit = ar ? ar.days : TRANSIT_DAYS[dest] ?? 2;
   const closed = useMemo(() => new Set(closedDays), [closedDays]);
   const p = products.find((x) => x.slug === slug);
   const fmt = new Intl.DateTimeFormat(locale === "tr" ? "tr-TR" : locale === "fr" ? "fr-FR" : "en-GB", { weekday: "long", day: "numeric", month: "long" });
@@ -32,9 +35,9 @@ export function LeadCalculator({ locale, products, closedDays }: { locale: Local
     const s = new Date(`${start}T12:00:00Z`);
     const ship = addWorkdays(s, p.days, closed);
     // Taşıma: hafta sonu dağıtım yok
-    const arrive = addWorkdays(ship, TRANSIT_DAYS[dest] ?? 2, new Set([0, 6]));
-    return { ship, arrive: (TRANSIT_DAYS[dest] ?? 0) === 0 ? ship : arrive };
-  }, [p, start, dest, closed]);
+    const arrive = addWorkdays(ship, transit, new Set([0, 6]));
+    return { ship, arrive: transit === 0 ? ship : arrive };
+  }, [p, start, transit, closed]);
 
   if (!products.length) return <p className="rounded-3xl bg-white p-8 text-slate">{u.none}</p>;
   return (
@@ -61,6 +64,15 @@ export function LeadCalculator({ locale, products, closedDays }: { locale: Local
             ))}
           </div>
         </fieldset>
+        {areas.length > 0 && (
+          <label className="grid gap-1.5 text-sm font-semibold text-navy">
+            {locale === "tr" ? "ya da şehir / ülke seçin" : locale === "fr" ? "ou choisissez une ville / un pays" : "or choose a city / country"}
+            <select value={area} onChange={(e) => setArea(e.target.value)} className="field font-normal">
+              <option value="">—</option>
+              {areas.map((a) => <option key={a.slug} value={a.slug}>{a.name} · {a.days === 0 ? (locale === "tr" ? "aynı gün" : locale === "fr" ? "jour même" : "same day") : `+${a.days}`}</option>)}
+            </select>
+          </label>
+        )}
       </div>
       <div className="rounded-3xl bg-navy p-7 text-white" aria-live="polite">
         <p className="text-sm font-semibold uppercase tracking-wider text-smile">{u.result}</p>
@@ -79,6 +91,7 @@ export function LeadCalculator({ locale, products, closedDays }: { locale: Local
             </div>
           </>
         )}
+        {p && <a href={`/${locale}/vaka-gonder?urun=${p.slug}`} className="mt-6 inline-block rounded-full bg-smile px-5 py-3 font-semibold text-navy hover:bg-white">{locale === "tr" ? "Bu ürün için vaka gönder" : locale === "fr" ? "Envoyer un cas pour ce produit" : "Send a case for this product"} →</a>}
         <p className="mt-8 text-xs text-white/60">{u.note}</p>
       </div>
     </div>

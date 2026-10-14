@@ -227,7 +227,7 @@ export const TOPIC_LABELS: Record<MessageTopic, string> = { general: "Genel", ca
 // ---------------------------------------------------------------------
 export const PAGE_GROUPS = ["kurumsal", "teknoloji", "kalite", "diger"] as const;
 export type PageGroup = (typeof PAGE_GROUPS)[number];
-export const RESERVED_SLUGS = ["urunler", "iletisim", "vaka-gonder", "vakalar", "sss", "ekibimiz", "blog", "kariyer", "teslim-suresi", "yurtdisi", "portal", "admin", "giris", "auth", "api", "sayfa"];
+export const RESERVED_SLUGS = ["bolge", "malzemeler", "egitim", "belgeler", "urunler", "iletisim", "vaka-gonder", "vakalar", "sss", "ekibimiz", "blog", "kariyer", "teslim-suresi", "yurtdisi", "portal", "admin", "giris", "auth", "api", "sayfa"];
 
 export type SitePage = {
   id: string;
@@ -527,3 +527,22 @@ export async function abTest(key: string): Promise<AbTest | null> {
     return null;
   }
 }
+
+export type Material = { id: string; slug: string; category: string; name: I18nText; summary: I18nText; body: I18nText; indications: I18nText; props: Array<{ k: I18nText; v: string }>; brands: string | null; product_slugs: string[]; image_path: string | null; is_active: boolean; sort: number; deleted_at: string | null; updated_at: string };
+export type SiteEvent = { id: string; slug: string; title: I18nText; summary: I18nText; body: I18nText; starts_at: string; duration_min: number; mode: "online" | "onsite" | "hybrid"; location: string | null; join_url: string | null; speaker: string | null; capacity: number | null; image_path: string | null; is_active: boolean; deleted_at: string | null; updated_at: string };
+export type Credential = { id: string; kind: "certificate" | "press" | "award" | "membership"; title: I18nText; summary: I18nText; issuer: string | null; issued_on: string | null; valid_until: string | null; url: string | null; image_path: string | null; is_active: boolean; sort: number; deleted_at: string | null };
+
+async function listActive<T>(table: string, order: string, asc = true): Promise<T[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from(table).select("*").is("deleted_at", null).eq("is_active", true).order(order, { ascending: asc });
+    return (data ?? []) as T[];
+  } catch {
+    return [];
+  }
+}
+export const publicMaterials = () => listActive<Material>("cms_materials", "sort");
+export const publicEvents = () => listActive<SiteEvent>("cms_events", "starts_at");
+export const publicCredentials = () => listActive<Credential>("cms_credentials", "sort");
+export const imgUrl = (p: string | null | undefined) => (p ? (/^https?:\/\//.test(p) ? p : mediaUrl(p)) : null);

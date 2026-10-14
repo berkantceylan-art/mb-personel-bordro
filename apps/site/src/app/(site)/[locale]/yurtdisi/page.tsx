@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
-import { publicProducts } from "@/lib/cms";
+import { publicAreas, publicFaqs, publicProducts } from "@/lib/cms";
+import { FaqBlock } from "@/components/FaqBlock";
+import { faqJsonLd } from "@/lib/faq-ld";
 import { LOCALES, isLocale, t, type Locale } from "@/lib/i18n";
 import { ldScript, siteUrl } from "@/lib/seo";
 
@@ -88,6 +90,11 @@ export default async function AbroadPage({ params }: { params: Params }) {
   if (!isLocale(locale)) notFound();
   const c = C[locale];
   const leads = (await publicProducts()).filter((p) => p.lead_days != null).slice(0, 8);
+  const [areaRows, allFaqs] = await Promise.all([publicAreas(), publicFaqs()]);
+  const countries = areaRows.filter((a) => a.kind === "country");
+  const shipFaqs = allFaqs.filter((f) => f.category === "teslimat" || f.category === "dosya").slice(0, 8);
+  const shipLd = faqJsonLd(shipFaqs, locale);
+  const AB = { tr: { title: "Ülkenize teslim süresi", lead: "Laboratuvardan çıkıştan kapınıza tahmini süre (iş günü). Ülkeye özel bilgiler için tıklayın.", days: "iş günü", calc: "Ürüne göre tarih hesapla", mats: "Kullandığımız malzemeler" }, en: { title: "Delivery time to your country", lead: "Estimated working days from our lab to your door. Click for country details.", days: "working days", calc: "Calculate a date for your product", mats: "Materials we use" }, fr: { title: "Délai de livraison vers votre pays", lead: "Jours ouvrés estimés du laboratoire à votre cabinet. Cliquez pour les détails par pays.", days: "jours ouvrés", calc: "Calculer une date pour votre produit", mats: "Nos matériaux" } }[locale];
   const faq = {
     "@context": "https://schema.org",
     "@type": "Service",
@@ -156,6 +163,17 @@ export default async function AbroadPage({ params }: { params: Params }) {
             <Link href={`/portal/kayit?dil=${locale}`} className="mt-5 inline-block rounded-full bg-navy px-6 py-3 font-semibold text-white hover:bg-blue">{c.cta}</Link>
           </div>
         </section>
+        {countries.length > 0 && (
+          <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+            <h2 className="display text-3xl font-semibold text-navy">{AB.title}</h2>
+            <p className="mt-2 text-slate">{AB.lead}</p>
+            <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {countries.map((a) => <li key={a.id}><Link href={`/${locale}/bolge/${a.slug}`} className="flex items-center justify-between rounded-2xl border border-gypsum bg-white p-4 hover:border-navy"><b className="text-ink">{t(a.name, locale)}</b><span className="text-sm text-slate">{a.shipping_days ?? "—"} {AB.days}</span></Link></li>)}
+            </ul>
+            <div className="mt-5 flex flex-wrap gap-4 text-sm font-semibold"><Link href={`/${locale}/teslim-suresi`} className="text-smile-ink hover:underline">{AB.calc} →</Link><Link href={`/${locale}/malzemeler`} className="text-smile-ink hover:underline">{AB.mats} →</Link></div>
+          </section>
+        )}
+        <FaqBlock faqs={shipFaqs} locale={locale} />
         <section className="bg-navy text-white">
           <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
             <h2 className="display text-3xl font-semibold">{c.finalTitle}</h2>
@@ -165,6 +183,7 @@ export default async function AbroadPage({ params }: { params: Params }) {
         </section>
       </main>
       <SiteFooter locale={locale} />
+      {shipLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ldScript(shipLd) }} />}
     </>
   );
 }
