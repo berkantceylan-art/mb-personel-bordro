@@ -11,7 +11,7 @@ import { glBackfill, glOpening, glRepost, glSaveSettings } from "@/lib/gl-action
 export const dynamic = "force-dynamic";
 
 type O = {
-  settings: { enabled: boolean; start_date: string; lock_date: string | null; exclude_codes: string[]; export_format: string } | null;
+  settings: { enabled: boolean; start_date: string; lock_date: string | null; exclude_codes: string[]; export_format: string; exclude_cash_salary?: boolean; babs_limit?: number } | null;
   posted: number; pending: number; excluded: number; unposted: number; accounts: number; month: { debit: number; vouchers: number };
 };
 
@@ -67,6 +67,8 @@ export default async function LedgerHome() {
                   <Field label="Başlangıç tarihi" hint="öncesi açılış fişiyle girilir"><input type="date" name="start_date" defaultValue={set?.start_date ?? ""} className={inputCls} /></Field>
                   <Field label="Aktarım biçimi"><select name="export_format" defaultValue={set?.export_format ?? "luca"} className={selectCls}><option value="luca">Luca</option><option value="zirve">Zirve</option><option value="generic">Genel Excel</option></select></Field>
                   <Field label="Muhasebe dışı kategori kodları" hint="virgülle; bu kategorideki kayıtlar fişe dönmez" className="md:col-span-2"><input name="exclude_codes" defaultValue={(set?.exclude_codes ?? []).join(", ")} className={inputCls} /></Field>
+                  <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" name="exclude_cash_salary" defaultChecked={set?.exclude_cash_salary} /> Elden maaş ödemeleri muhasebe dışı (yalnız banka ile ödenen maaş 335&apos;e işlenir)</label>
+                  <Field label="Ba-Bs bildirim sınırı (TL)" hint="KDV hariç"><input name="babs_limit" inputMode="decimal" defaultValue={String((set?.babs_limit ?? 500000) / 100)} className={inputCls} /></Field>
                   <p className="text-xs text-muted md:col-span-2">Dönem kilidi: {set?.lock_date ? formatDate(set.lock_date) : "yok"} (Dönem işlemleri). Fişli carilerin ve fişli-faturalı yansıtma kayıtlarının hepsi her zaman muhasebe dışıdır.</p>
                   <div className="md:col-span-2"><PendingSubmit className={btnPrimary}>Kaydet</PendingSubmit></div>
                 </form>

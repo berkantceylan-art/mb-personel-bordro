@@ -128,4 +128,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270205000000_uts.sql", "t:uts_notifications"],
   ["20270206000000_gl_core.sql", "t:gl_lines"],
   ["20270207000000_gl_reports.sql", "f:gl_export"],
+  ["20270208000000_gl_close.sql", "f:adm_extra_rules"],
 ];

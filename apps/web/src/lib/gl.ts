@@ -31,6 +31,9 @@ export function glError(m: string): string {
   if (/gl_disabled/.test(m)) return "Önce genel muhasebeyi açın (ayarlar).";
   if (/gl_opening_exists/.test(m)) return "Başlangıç tarihinde zaten bir açılış fişi var.";
   if (/duplicate key.*gl_accounts/.test(m)) return "Bu hesap kodu zaten var.";
+  if (/gl_no_payroll/.test(m)) return "Bu dönemin bordrosu hesaplanmamış.";
+  if (/gl_pending_before_lock/.test(m)) return "Kilitlenecek dönemde eşleştirme bekleyen kayıt var: önce onları tamamlayın.";
+  if (/bad_period/.test(m)) return "Dönem YYYY-AA biçiminde olmalı.";
   return m;
 }
 
