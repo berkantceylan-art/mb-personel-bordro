@@ -118,4 +118,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270126000000_admin_flow.sql", "f:adm_job_fix"],
   ["20270127000000_admin_pulse.sql", "t:admin_tasks"],
   ["20270128000000_party_delete.sql", "f:fin_party_delete"],
+  ["20270129000000_slip_party.sql", "f:sup_pairs"],
 ];

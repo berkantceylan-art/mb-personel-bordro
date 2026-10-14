@@ -6,7 +6,7 @@ import { Field, btnPrimary, inputCls, selectCls, textareaCls } from "@/component
 import { PendingSubmit } from "@/components/ConfirmSubmit";
 
 type Acc = { id: string; name: string; kind: string; currency: string; balance: number };
-type Party = { id: string; name: string; currency: string; kind: string; balance: number ; internalBook?: boolean; payBook?: string };
+type Party = { id: string; name: string; currency: string; kind: string; balance: number ; internalBook?: boolean; payBook?: string; twin?: string };
 type Cat = { id: string; name: string; kind: string };
 
 const KINDS: [string, string, string][] = [
@@ -83,6 +83,7 @@ export function TxnForm({ accounts, parties, categories, rates, initial, back, t
                 <option value="">Seçin</option>
                 {forKind.map((a) => <option key={a.id} value={a.id}>{ACCOUNT_KIND[a.kind]?.label} · {a.name} ({a.currency}) · {fmt(a.balance, a.currency)}</option>)}
               </select>
+              {party?.twin && (kind === "payment" || kind === "collection") && <span className="text-xs font-semibold text-[#B45309]">↔ Aynı tutar “{party.twin}” carisine de işlenir (fişli / faturalı cari).</span>}
               {party && <span className="text-xs font-normal text-muted">Cari bakiyesi: {fmt(party.balance, party.currency)} {party.balance > 0 ? "(bize borçlu)" : party.balance < 0 ? "(biz borçluyuz)" : ""}</span>}
             </Field>
           </>

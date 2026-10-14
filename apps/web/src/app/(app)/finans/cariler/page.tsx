@@ -53,7 +53,7 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
           {shown.map((p) => (
             <tr key={p.id} className={p.is_active ? "" : "opacity-60"}>
               <td className={td}><Link href={`/finans/cariler/${p.id}`} className="font-semibold text-brand-700">{p.name}</Link>{p.city && <span className="block text-xs text-muted">{p.city}</span>}</td>
-              <td className={td}>{PARTY_KIND[p.kind]}{p.lab_customer_id && <span className="ml-1.5"><Chip tone="blue">hekim</Chip></span>}{p.source === "einvoice" && <span className="ml-1.5"><Chip tone="green">e-fatura</Chip></span>}</td>
+              <td className={td}>{PARTY_KIND[p.kind]}{p.lab_customer_id && <span className="ml-1.5"><Chip tone="blue">hekim</Chip></span>}{p.slip_of && <span className="ml-1.5"><Chip tone="amber">fişli</Chip></span>}{p.source === "einvoice" && <span className="ml-1.5"><Chip tone="green">e-fatura</Chip></span>}</td>
               <td className={`${td} num`}>{p.tax_no ?? "—"}</td>
               <td className={td}>{p.phone ?? "—"}</td>
               <td className={td}>{p.currency}</td>

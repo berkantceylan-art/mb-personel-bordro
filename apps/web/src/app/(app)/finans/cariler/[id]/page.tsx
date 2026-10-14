@@ -32,6 +32,8 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
   const { data: usage, error: usageErr } = canEdit ? await supabase.rpc("fin_party_usage", { p_id: p.id }) : { data: null, error: null };
   const uses = Object.entries((usage ?? {}) as Record<string, number>);
   const deletable = !usageErr && !uses.length && !p.lab_customer_id;
+  const { data: twinRow } = await supabase.from("fin_parties").select("id, name").eq(p.slip_of ? "id" : "slip_of", p.slip_of ?? p.id).maybeSingle();
+  const pairMain = p.slip_of ?? (twinRow ? p.id : null);
   const overLimit = p.credit_limit && led.balance > Number(p.credit_limit);
   return (
     <>
@@ -43,6 +45,12 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
           <KPI label="Dönem alacak" value={fmt(led.credit, p.currency)} />
           <KPI label="Risk limiti" value={p.credit_limit ? fmt(p.credit_limit, p.currency) : "—"} sub={overLimit ? "limit aşıldı" : p.payment_term_days ? `${p.payment_term_days} gün vade` : undefined} tone={overLimit ? "bad" : undefined} />
         </div>
+        {twinRow && (
+          <Link href={`/finans/fis-cari/${pairMain}`} className={`rounded-[14px] border px-4 py-3 text-sm flex flex-wrap items-center gap-2 ${p.slip_of ? "border-[#FCD34D] bg-[#FFFBEB]" : "border-line bg-white"}`}>
+            <span>{p.slip_of ? "📄 Bu, fişli (faturasız) alım carisidir." : "🧾 Bu firmanın ayrıca fişli carisi var."} {p.slip_of ? "Faturalı cari" : "Fişli cari"}: <b>{twinRow.name as string}</b>. Ödeme ve çekler iki cariye de aynı tutarla düşer.</span>
+            <span className="ml-auto font-semibold text-brand-700">İki cariyi yan yana gör →</span>
+          </Link>
+        )}
         <div className="flex flex-wrap gap-2 text-sm">
           {canPost && [["collection", "Tahsilat"], ["payment", "Ödeme"]].map(([k, l]) => (
             <Link key={k} href={`/finans/islem?tur=${k}&cari=${p.id}&geri=/finans/cariler/${p.id}`} className="rounded-full border border-line bg-white px-3.5 py-1.5 font-semibold text-brand-700 hover:border-brand-600">+ {l}</Link>
