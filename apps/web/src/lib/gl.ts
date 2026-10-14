@@ -36,3 +36,12 @@ export function glError(m: string): string {
 
 /** Kuruş → "1.250,50" (para birimi işaretsiz) */
 export const amt = (v: number | string | null | undefined) => (Number(v ?? 0) === 0 ? "" : (Number(v) / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+const D = /^\d{4}-\d{2}-\d{2}$/;
+/** Rapor dönemi: ?bas=&bit= (varsayılan: bu yılın başı → bugün) */
+export function period(sp: { bas?: string; bit?: string }): { from: string; to: string } {
+  const today = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+  return { from: sp.bas && D.test(sp.bas) ? sp.bas : `${today.slice(0, 4)}-01-01`, to: sp.bit && D.test(sp.bit) ? sp.bit : today };
+}
+/** Bakiye: borç - alacak → "1.250,00 B" / "300,00 A" */
+export const bal = (v: number) => (v === 0 ? "0,00" : `${(Math.abs(v) / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${v > 0 ? "B" : "A"}`);

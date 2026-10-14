@@ -126,3 +126,14 @@ export async function glCancelVoucher(f: FormData) {
   again();
   await done("Fiş iptal edildi.");
 }
+
+export async function glRenumber(f: FormData) {
+  await need(3);
+  const y = Number(str(f, "year", 4));
+  if (!(y > 2000 && y < 2100)) await fail("Geçersiz yıl.");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("gl_renumber", { p_year: y });
+  if (error) await fail(glError(error.message));
+  again();
+  await done(`${y} yılı yevmiye maddeleri numaralandı (${data ?? 0} madde).`);
+}

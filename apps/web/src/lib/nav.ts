@@ -92,6 +92,12 @@ export const NAV: Group[] = [
       { label: "Muhasebe fişleri", href: "/muhasebe/fisler", module: "ledger", desc: "Mahsup, tahsil, tediye; eşleştirme bekleyenler; elle fiş" },
       { label: "Hesap planı", href: "/muhasebe/hesap-plani", module: "ledger", desc: "Tek Düzen Hesap Planı, alt hesaplar, Excel'den aktarma" },
       { label: "Eşleştirme", href: "/muhasebe/eslestirme", module: "ledger", level: 3, desc: "Kasa, banka, kart, cari, kategori → hesap kodu" },
+      { label: "Mizan", href: "/muhasebe/mizan", module: "ledger", desc: "Dönem mizanı, seviye, grup toplamları, Excel" },
+      { label: "Muavin / kebir", href: "/muhasebe/kebir", module: "ledger", desc: "Hesap ekstresi, devir ve yürüyen bakiye" },
+      { label: "Yevmiye defteri", href: "/muhasebe/yevmiye", module: "ledger", desc: "Madde madde, tarih sırasıyla; numaralandırma" },
+      { label: "Bilanço", href: "/muhasebe/bilanco", module: "ledger", desc: "Aktif / pasif, Tek Düzen biçimi" },
+      { label: "Gelir tablosu", href: "/muhasebe/gelir-tablosu", module: "ledger", desc: "Brüt satışlardan dönem net kârına" },
+      { label: "Aktarım", href: "/muhasebe/aktar", module: "ledger", desc: "Fişleri Luca / Zirve / Excel'e aktar" },
     ],
   },
   {
