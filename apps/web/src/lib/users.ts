@@ -1,5 +1,5 @@
 /** Modül kataloğu: kullanıcı türlerinde ve kişi ayarında kullanılan tüm modüller */
-export const MODS = ["hr", "attendance", "payroll", "safety", "lab", "finance", "sales", "purchases", "stock", "production", "assets", "expenses", "users"] as const;
+export const MODS = ["hr", "attendance", "payroll", "safety", "lab", "finance", "sales", "purchases", "stock", "production", "assets", "expenses", "users", "ledger"] as const;
 export type Mod = (typeof MODS)[number];
 
 export type ModInfo = { key: Mod; label: string; icon: string; desc: string; group: string; levels: [string, string, string] };
@@ -12,6 +12,7 @@ export const MOD_INFO: ModInfo[] = [
   { key: "safety", group: "İnsan kaynakları", label: "İSG ve yasal uyum", icon: "shield", desc: "İş güvenliği, sağlık muayeneleri, eğitim, İş Kanunu, KVKK", levels: ["Görür", "Kayıt girer", "Tam yönetir"] },
   { key: "lab", group: "Laboratuvar", label: "İş kayıt, hekim ve kargo", icon: "box", desc: "İş kayıt, iş listesi, prova / teslim, hekim kartları, fiyatlar, kargo ve kurye", levels: ["Görür", "İş kaydeder", "Tam yönetir"] },
   { key: "production", group: "Laboratuvar", label: "Üretim ve kutu akışı", icon: "target", desc: "Kutu okut, iş nerede, üretim panosu, performans, istasyonlar", levels: ["Görür", "Okutur / çalışır", "Tam yönetir"] },
+  { key: "ledger", group: "Finans ve ticaret", label: "Genel muhasebe", icon: "money", desc: "Hesap planı, muhasebe fişleri, mizan, bilanço, gelir tablosu, beyanname hazırlık, dönem sonu", levels: ["Raporları görür", "Fiş girer / düzeltir", "Ayar, eşleştirme, dönem kilidi"] },
   { key: "finance", group: "Finans ve ticaret", label: "Finans", icon: "piggy", desc: "Kasa, banka, cari, çek-senet, kredi kartı, kredi, veresiye", levels: ["Görür", "İşlem girer", "İptal ve ayar"] },
   { key: "sales", group: "Finans ve ticaret", label: "Satış ve fatura", icon: "doc", desc: "Satış faturası, e-fatura, faturalanmamış işler", levels: ["Görür", "Fatura keser", "İptal ve ayar"] },
   { key: "purchases", group: "Finans ve ticaret", label: "Alış", icon: "doc", desc: "Alış faturası, e-fatura içe aktarma, tedarikçiler", levels: ["Görür", "Fatura girer", "İptal ve ayar"] },

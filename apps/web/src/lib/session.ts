@@ -20,13 +20,13 @@ export interface Session {
   modules: Record<string, number>;
 }
 
-export const MODULES = ["hr", "attendance", "payroll", "safety", "lab", "finance", "sales", "purchases", "stock", "production", "assets", "expenses", "users"] as const;
+export const MODULES = ["hr", "attendance", "payroll", "safety", "lab", "finance", "sales", "purchases", "stock", "production", "assets", "expenses", "users", "ledger"] as const;
 export type ModuleKey = (typeof MODULES)[number];
 
 /** Veritabanındaki module_default_level ile aynı kural (fonksiyon henüz yoksa kullanılır) */
 export function defaultModuleLevel(role: string, logistics: boolean, m: string): number {
   const T: Record<string, Record<string, number>> = {
-    accountant: { finance: 3, sales: 3, purchases: 3, expenses: 3, assets: 3, payroll: 3, stock: 2, hr: 2, attendance: 2, lab: 2, production: 1, safety: 1 },
+    accountant: { finance: 3, sales: 3, purchases: 3, expenses: 3, assets: 3, payroll: 3, ledger: 3, stock: 2, hr: 2, attendance: 2, lab: 2, production: 1, safety: 1 },
     branch_manager: { stock: 2, production: 2, hr: 2, attendance: 2, lab: 2, sales: 1, purchases: 1, expenses: 1, assets: 1, safety: 1 },
     hr: { hr: 3, attendance: 3, safety: 3, lab: 2, users: 2, assets: 1, expenses: 1, payroll: 1 },
     safety: { safety: 3, hr: 1, attendance: 1 },

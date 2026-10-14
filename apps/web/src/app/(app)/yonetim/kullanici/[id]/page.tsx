@@ -19,7 +19,7 @@ type U360 = {
   recent: Array<{ at: string; table: string; label: string; action: string; row: string | null; title: string | null }>;
   tasks: Array<{ id: string; title: string; due: string | null }>;
 };
-const MOD: Record<string, string> = { hr: "İK / personel", attendance: "Puantaj", payroll: "Bordro", safety: "İSG", lab: "Laboratuvar", finance: "Finans", sales: "Satış", purchases: "Satın alma", stock: "Stok", production: "Üretim", assets: "Demirbaş", expenses: "Masraf", users: "Kullanıcılar" };
+const MOD: Record<string, string> = { hr: "İK / personel", attendance: "Puantaj", payroll: "Bordro", safety: "İSG", lab: "Laboratuvar", finance: "Finans", sales: "Satış", purchases: "Satın alma", stock: "Stok", production: "Üretim", assets: "Demirbaş", expenses: "Masraf", users: "Kullanıcılar", ledger: "Genel muhasebe" };
 const LVL = ["—", "Görür", "Kayıt girer", "Yönetir"];
 
 /** Kullanıcı 360°: kimlik, yetkiler, etkinlik, son işlemler, açık görevler */

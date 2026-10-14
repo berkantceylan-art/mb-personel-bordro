@@ -126,4 +126,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270203000000_site_admin_plus.sql", "t:cms_ab_tests"],
   ["20270204000000_site_pages_plus.sql", "t:cms_credentials"],
   ["20270205000000_uts.sql", "t:uts_notifications"],
+  ["20270206000000_gl_core.sql", "t:gl_lines"],
 ];

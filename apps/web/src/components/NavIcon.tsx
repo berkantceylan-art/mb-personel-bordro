@@ -4,6 +4,7 @@ const P: Record<string, React.ReactNode> = {
   benim: <path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM4 21a8 8 0 0 1 16 0" />,
   "insan-kaynaklari": <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-5-6" />,
   "puantaj-izin": <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2" />,
+  "genel-muhasebe": <path d="M4 4h16v16H4zM4 9h16M9 9v11M13 13h4M13 16h4" />,
   "muhasebe-bordro": <path d="M3 7h15a3 3 0 0 1 3 3v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 7l12-3v3M16 13.5h.01" />,
   finans: <path d="M12 3v18M16.5 6.5C15.5 5 13.9 4.5 12 4.5c-2.5 0-4.5 1.3-4.5 3.3 0 4.6 9 2.4 9 7 0 2-2 3.4-4.5 3.4-2.2 0-3.9-.7-4.9-2.2" />,
   stok: <path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M7.5 5l9 4" />,
