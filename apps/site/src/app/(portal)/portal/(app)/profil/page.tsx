@@ -1,3 +1,5 @@
+import { PLUS_UI } from "@/lib/portal-plus-ui";
+import { saveNotifyPrefs } from "@/lib/portal-plus-actions";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { portalContext, portalLocale } from "@/lib/portal";
@@ -26,7 +28,7 @@ function Section({ id, title, lead, children, ok, err, okText }: { id: string; t
 }
 
 /** Hekim portalı profil sayfası */
-export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ ok?: string; hata?: string }> }) {
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ ok?: string; hata?: string; bildirim?: string }> }) {
   const ctx = await portalContext();
   if (!ctx?.account) redirect("/portal");
   const acc = ctx.account;
@@ -201,6 +203,17 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
             ))}
           </ul>
         </section>
+        {admin && (
+          <section id="bildirim" className="rounded-2xl border border-gypsum bg-white p-6">
+            <h2 className="display text-xl font-semibold text-navy">🔔 {PLUS_UI[locale].notifyTitle}</h2>
+            {sp.bildirim === "ok" && <p className="mt-2 text-sm font-semibold text-emerald-700">✓</p>}
+            <form action={saveNotifyPrefs} className="mt-4 grid gap-3 text-sm">
+              <label className="flex items-center gap-3"><input type="checkbox" name="notify_email" defaultChecked={(acc as { notify_email?: boolean }).notify_email !== false} className="h-5 w-5 accent-navy" />{PLUS_UI[locale].notifyEmail}</label>
+              <label className="flex items-center gap-3"><input type="checkbox" name="notify_whatsapp" defaultChecked={(acc as { notify_whatsapp?: boolean }).notify_whatsapp !== false} className="h-5 w-5 accent-navy" />{PLUS_UI[locale].notifyWa}</label>
+              <div><button className="rounded-full bg-navy px-5 py-2.5 font-semibold text-white">{PLUS_UI[locale].save}</button></div>
+            </form>
+          </section>
+        )}
       </div>
     </>
   );

@@ -9,6 +9,7 @@ import { PORTAL_BUCKET, PORTAL_UI, portalContext, portalLocale, type CaseEvent, 
 import { createClient } from "@/lib/supabase/server";
 import { PX } from "@/lib/portal-extra-ui";
 import { reportCaseIssue } from "@/lib/survey-actions";
+import { RatingCard, SaveTemplate, StageLine } from "@/components/portal/CasePlus";
 
 const ISSUE = {
   tr: { title: "Sorun bildir", ph: "Ne oldu? (ör. kron oturmadı, renk farklı)", send: "Bildir", ok: "Bildiriminiz kalite ekibimize iletildi.", err: "Gönderilemedi, tekrar deneyin.", cats: { fit: "Uyum / oturma", shade: "Renk", fracture: "Kırık / çatlak", contact: "Kontakt", occlusion: "Kapanış", aesthetic: "Estetik / form", delay: "Gecikme", damage: "Hasarlı teslim", other: "Diğer" } },
@@ -18,9 +19,9 @@ const ISSUE = {
 
 export const metadata = { title: "Portal" };
 
-export default async function CasePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sorun?: string }> }) {
+export default async function CasePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sorun?: string; puan?: string; sablon?: string }> }) {
   const { id } = await params;
-  const sorun = (await searchParams).sorun;
+  const { sorun, puan, sablon } = await searchParams;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const ctx = await portalContext();
   const locale = await portalLocale(ctx?.account);
@@ -29,10 +30,11 @@ export default async function CasePage({ params, searchParams }: { params: Promi
   const { data } = await supabase.from("portal_cases").select("*").eq("id", id).maybeSingle();
   if (!data) notFound();
   const c = data as PortalCase;
-  const [{ data: f }, { data: ev }, products] = await Promise.all([
+  const [{ data: f }, { data: ev }, products, { data: rt }] = await Promise.all([
     supabase.from("portal_case_files").select("*").eq("case_id", id).order("created_at"),
     supabase.from("portal_case_events").select("*").eq("case_id", id).order("id"),
     publicProducts(),
+    supabase.from("portal_case_ratings").select("fit, shade, service, comment").eq("case_id", id).maybeSingle(),
   ]);
   const files = (f ?? []) as CaseFile[];
   const events = (ev ?? []) as CaseEvent[];
@@ -64,7 +66,9 @@ export default async function CasePage({ params, searchParams }: { params: Promi
       </div>
       <div className="mb-6 rounded-2xl border border-gypsum bg-white p-5">
         <CaseProgress c={c} locale={locale} />
+        <StageLine stage={(c as PortalCase & { stage?: string | null }).stage} locale={locale} />
       </div>
+      {(c.status === "shipped" || c.status === "delivered") && <div className="mb-6"><RatingCard caseId={c.id} rating={(rt as { fit: number; shade: number; service: number; comment: string | null } | null) ?? null} locale={locale} flash={puan} /></div>}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div className="grid content-start gap-6">
           <section className="rounded-2xl border border-gypsum bg-white p-5">
@@ -74,6 +78,7 @@ export default async function CasePage({ params, searchParams }: { params: Promi
           <section className="rounded-2xl border border-gypsum bg-white p-5">
             <h2 className="display mb-3 text-lg font-semibold text-navy">{ui.detail.files}</h2>
             <CaseFiles files={files} urls={urls} locale={locale} />
+            {ctx?.account && <div className="mt-4"><SaveTemplate caseId={c.id} locale={locale} flash={sablon} /></div>}
             {ctx?.account && (
               <div className="mt-4">
                 <CaseFileAdder caseId={c.id} accountId={c.account_id} label={ui.detail.addFiles} />

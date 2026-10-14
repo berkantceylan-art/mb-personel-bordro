@@ -20,6 +20,10 @@
     {
       "path": "/api/cron/kontrol",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/portal-durum",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
