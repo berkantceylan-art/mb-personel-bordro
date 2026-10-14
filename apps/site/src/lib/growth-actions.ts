@@ -189,3 +189,81 @@ export async function saveAb(f: FormData) {
   revalidatePath("/", "layout");
   go("/admin/ab-test", "ok", "Kaydedildi.");
 }
+
+const slugify = (v: string) => v.toLocaleLowerCase("tr").replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+const tableErr = (m: string, file = "20270204000000_site_pages_plus.sql") => (/cms_(materials|events|credentials)|relation/.test(m) ? `Supabase'de ${file} çalıştırılmalı.` : /duplicate|unique/.test(m) ? "Bu adres (slug) zaten kullanılıyor." : m);
+
+/** Malzeme kaydet */
+export async function saveMaterial(f: FormData) {
+  await requireSiteEditor();
+  const id = str(f, "id");
+  const name = i18n(f, "name");
+  const slug = slugify(str(f, "slug") || name.tr || "");
+  const back = id ? `/admin/malzemeler/${id}` : "/admin/malzemeler/yeni";
+  if (!name.tr || slug.length < 2) go(back, "hata", "Türkçe ad zorunlu.");
+  const props = str(f, "props").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((p) => p[0] && p[1]).map(([k, v]) => ({ k: { tr: k }, v: v! }));
+  const row = {
+    slug, category: ["ceramic", "zirconia", "metal", "polymer", "implant", "other"].includes(str(f, "category")) ? str(f, "category") : "other",
+    name, summary: i18n(f, "summary"), body: i18n(f, "body"), indications: i18n(f, "indications"), props,
+    brands: str(f, "brands").slice(0, 300) || null, product_slugs: f.getAll("product_slugs").map(String).filter((x) => /^[a-z0-9-]{1,60}$/.test(x)),
+    image_path: str(f, "image_path") || null, is_active: f.get("is_active") === "on", sort: Number(str(f, "sort")) || 0,
+  };
+  const supabase = await createClient();
+  const { error } = id ? await supabase.from("cms_materials").update(row).eq("id", id) : await supabase.from("cms_materials").insert(row);
+  if (error) go(back, "hata", tableErr(error.message));
+  revalidatePath("/", "layout");
+  go("/admin/malzemeler", "ok", "Malzeme kaydedildi.");
+}
+
+/** Eğitim / webinar kaydet */
+export async function saveEvent(f: FormData) {
+  await requireSiteEditor();
+  const id = str(f, "id");
+  const title = i18n(f, "title");
+  const back = id ? `/admin/egitimler/${id}` : "/admin/egitimler/yeni";
+  const at = str(f, "starts_at");
+  if (!title.tr || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(at)) go(back, "hata", "Türkçe başlık ve tarih / saat zorunlu.");
+  const row = {
+    slug: slugify(str(f, "slug") || `${title.tr}-${at.slice(0, 10)}`), title, summary: i18n(f, "summary"), body: i18n(f, "body"),
+    starts_at: `${at}:00+03:00`, duration_min: Math.min(1440, Math.max(15, Number(str(f, "duration_min")) || 60)),
+    mode: ["online", "onsite", "hybrid"].includes(str(f, "mode")) ? str(f, "mode") : "online", location: str(f, "location") || null, join_url: str(f, "join_url") || null,
+    speaker: str(f, "speaker") || null, capacity: Number(str(f, "capacity")) > 0 ? Number(str(f, "capacity")) : null, image_path: str(f, "image_path") || null, is_active: f.get("is_active") === "on",
+  };
+  const supabase = await createClient();
+  const { error } = id ? await supabase.from("cms_events").update(row).eq("id", id) : await supabase.from("cms_events").insert(row);
+  if (error) go(back, "hata", tableErr(error.message));
+  revalidatePath("/", "layout");
+  go("/admin/egitimler", "ok", "Eğitim kaydedildi.");
+}
+
+/** Belge / sertifika / basın kaydı */
+export async function saveCredential(f: FormData) {
+  await requireSiteEditor();
+  const id = str(f, "id");
+  const title = i18n(f, "title");
+  const back = id ? `/admin/belgeler/${id}` : "/admin/belgeler/yeni";
+  if (!title.tr) go(back, "hata", "Türkçe başlık zorunlu.");
+  const d = (k: string) => (/^\d{4}-\d{2}-\d{2}$/.test(str(f, k)) ? str(f, k) : null);
+  const row = {
+    kind: ["certificate", "press", "award", "membership"].includes(str(f, "kind")) ? str(f, "kind") : "certificate", title, summary: i18n(f, "summary"),
+    issuer: str(f, "issuer") || null, issued_on: d("issued_on"), valid_until: d("valid_until"), url: str(f, "url") || null, image_path: str(f, "image_path") || null,
+    is_active: f.get("is_active") === "on", sort: Number(str(f, "sort")) || 0,
+  };
+  const supabase = await createClient();
+  const { error } = id ? await supabase.from("cms_credentials").update(row).eq("id", id) : await supabase.from("cms_credentials").insert(row);
+  if (error) go(back, "hata", tableErr(error.message));
+  revalidatePath("/", "layout");
+  go("/admin/belgeler", "ok", "Kaydedildi.");
+}
+
+/** Kayıtlı içerik kaldır (çöp kutusuna) */
+export async function removeRow(f: FormData) {
+  await requireSiteEditor();
+  const table = str(f, "table");
+  const path = { cms_materials: "/admin/malzemeler", cms_events: "/admin/egitimler", cms_credentials: "/admin/belgeler" }[table];
+  if (!path) go("/admin", "hata", "Geçersiz.");
+  const supabase = await createClient();
+  await supabase.from(table).update({ deleted_at: new Date().toISOString(), is_active: false }).eq("id", str(f, "id"));
+  revalidatePath("/", "layout");
+  go(path!, "ok", "Kaldırıldı.");
+}

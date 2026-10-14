@@ -276,6 +276,9 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
               <Link href={`/${locale}/teslim-suresi`} className="hover:text-smile">{LEAD_UI[locale].nav}</Link>
               <Link href={`/${locale}/kariyer`} className="hover:text-smile">{CAREER_UI[locale].nav}</Link>
               <Link href={`/${locale}/yurtdisi`} className="hover:text-smile">{locale === "tr" ? "Yurt dışı hekimler" : locale === "fr" ? "Praticiens hors Turquie" : "Dentists abroad"}</Link>
+              <Link href={`/${locale}/malzemeler`} className="hover:text-smile">{locale === "tr" ? "Malzemeler" : locale === "fr" ? "Matériaux" : "Materials"}</Link>
+              <Link href={`/${locale}/egitim`} className="hover:text-smile">{locale === "tr" ? "Eğitimler" : locale === "fr" ? "Formations" : "Training"}</Link>
+              <Link href={`/${locale}/belgeler`} className="hover:text-smile">{locale === "tr" ? "Belgeler" : locale === "fr" ? "Certificats" : "Certificates"}</Link>
               <Link href={`/${locale}/bolge`} className="hover:text-smile">{locale === "tr" ? "Hizmet bölgeleri" : locale === "fr" ? "Zones desservies" : "Areas we serve"}</Link>
             </span>
             <Link href="/giris?kim=personel" className="float-right font-semibold text-white/70 hover:text-smile">

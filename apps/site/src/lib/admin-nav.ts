@@ -45,6 +45,9 @@ export const ADMIN_NAV: AdminGroup[] = [
       { href: "/admin/seo", label: "SEO denetimi", desc: "Eksik başlık, açıklama, çeviri, görsel; 404 sayfalar" },
       { href: "/admin/ab-test", label: "A/B testi", desc: "Hangi metin daha çok tıklanıyor" },
       { href: "/admin/gorusler", label: "Hekim görüşleri", desc: "İzinli hekim görüşleri" },
+      { href: "/admin/malzemeler", label: "Malzeme kütüphanesi", desc: "Zirkon, E.max, PMMA… teknik özellikler" },
+      { href: "/admin/egitimler", label: "Eğitimler / webinar", desc: "Hekim eğitimleri ve kayıtlar" },
+      { href: "/admin/belgeler", label: "Belgeler ve basın", desc: "Sertifikalar, üyelikler, ödüller, basında biz" },
     ],
   },
   {
