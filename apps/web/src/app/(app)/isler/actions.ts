@@ -207,6 +207,8 @@ export async function saveCustomer(f: FormData) {
     note: str(f, "note", 2000) || null,
     is_active: f.get("is_active") !== "off",
   };
+  const utsK = str(f, "uts_kurum_no", 30).replace(/\D/g, "");
+  if (utsK || f.get("uts_was") === "1") Object.assign(row, { uts_kurum_no: utsK || null });
   const supabase = await createClient();
   let cid = id;
   if (id) {

@@ -30,6 +30,7 @@ export function PartyForm({ party, defaultKind = "supplier" }: { party?: Party; 
       </Field>
       <Field label="Vergi dairesi"><input name="tax_office" maxLength={80} defaultValue={p?.tax_office ?? ""} className={inputCls} /></Field>
       <Field label="VKN / TCKN"><input name="tax_no" maxLength={11} inputMode="numeric" defaultValue={p?.tax_no ?? ""} className={`${inputCls} num`} /></Field>
+      <Field label="ÜTS kurum no" hint="ÜTS alma bildirimi için"><input name="uts_kurum_no" maxLength={20} inputMode="numeric" defaultValue={(p as { uts_kurum_no?: string | null } | undefined)?.uts_kurum_no ?? ""} className={`${inputCls} num`} /><input type="hidden" name="uts_was" value={(p as { uts_kurum_no?: string | null } | undefined)?.uts_kurum_no ? "1" : ""} /></Field>
       <Field label="Cari kodu" hint="isteğe bağlı"><input name="code" maxLength={30} defaultValue={p?.code ?? ""} className={inputCls} /></Field>
 
       <fieldset className="md:col-span-4 grid gap-4 md:grid-cols-4 rounded-[12px] border border-line p-4">

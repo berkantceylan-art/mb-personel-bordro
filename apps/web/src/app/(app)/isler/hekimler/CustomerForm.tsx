@@ -29,6 +29,7 @@ export function CustomerForm({ c, accounts }: { c?: Customer; accounts: { id: st
       <label className={`${lbl} md:col-span-2`}>Adres<input name="address" defaultValue={c?.address ?? ""} className={inp} /></label>
       <label className={lbl}>Vergi dairesi<input name="tax_office" defaultValue={c?.tax_office ?? ""} className={inp} /></label>
       <label className={lbl}>Vergi / TC no<input name="tax_no" defaultValue={c?.tax_no ?? ""} className={inp} /></label>
+      <label className={lbl}>ÜTS kurum no <span className="font-normal text-muted">(implant parçası vb. verme bildirimi için)</span><input name="uts_kurum_no" inputMode="numeric" maxLength={20} defaultValue={(c as { uts_kurum_no?: string | null } | undefined)?.uts_kurum_no ?? ""} className={inp} /><input type="hidden" name="uts_was" value={(c as { uts_kurum_no?: string | null } | undefined)?.uts_kurum_no ? "1" : ""} /></label>
       <label className={lbl}>İskonto %<input name="discount_pct" inputMode="decimal" defaultValue={c?.discount_pct ? String(c.discount_pct) : ""} className={inp} /></label>
       <label className={`${lbl} md:col-span-2`}>
         Portal hesabı (varsa)

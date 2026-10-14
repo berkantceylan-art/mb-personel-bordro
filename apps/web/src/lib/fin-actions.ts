@@ -57,6 +57,8 @@ export async function saveParty(form: FormData) {
     note: opt(form, "note", 2000),
     is_active: form.get("is_active") !== "off",
   };
+  const utsK = str(form, "uts_kurum_no", 30).replace(/\D/g, "");
+  if (utsK || form.get("uts_was") === "1") Object.assign(row, { uts_kurum_no: utsK || null });
   const supabase = await createClient();
   const res = id ? await supabase.from("fin_parties").update(row).eq("id", id).select("id").single() : await supabase.from("fin_parties").insert(row).select("id").single();
   if (res.error) await fail(finError(res.error.message));

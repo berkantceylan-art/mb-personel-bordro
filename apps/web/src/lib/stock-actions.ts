@@ -53,6 +53,13 @@ export async function saveItem(form: FormData) {
     note: opt(form, "note", 2000),
     is_active: form.get("is_active") !== "off",
   };
+  // ÜTS alanları (yalnız kullanılıyorsa gönderilir; 20270205000000_uts.sql çalışmadan da kart kaydedilebilsin)
+  const utsNo = str(form, "uts_product_no").replace(/\s/g, "");
+  if (form.get("uts_tracked") === "on" || utsNo || form.get("uts_was") === "1") {
+    if (utsNo && !/^[0-9A-Za-z]{1,25}$/.test(utsNo)) await fail("ÜTS ürün numarası yalnız harf ve rakam olmalı (karekoddaki (01) numarası).");
+    Object.assign(row, { uts_tracked: form.get("uts_tracked") === "on", uts_product_no: utsNo || null, uts_kind: str(form, "uts_kind") === "serial" ? "serial" : "lot", uts_flow: str(form, "uts_flow") === "transfer" ? "transfer" : "use" });
+    if (form.get("uts_tracked") === "on") Object.assign(row, { track_lot: true });
+  }
   const res = id ? await supabase.from("stk_items").update(row).eq("id", id).select("id").single() : await supabase.from("stk_items").insert(row).select("id").single();
   if (res.error) await fail(stockError(res.error.message));
   revalidatePath("/stok", "layout");

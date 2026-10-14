@@ -5,7 +5,8 @@ import { useActionForm } from "@/lib/use-action-form";
 import { ScanInput, scanFeedback } from "@/components/ScanInput";
 import { SignaturePad, type SignaturePadHandle } from "@/components/SignaturePad";
 import { Field, Notice, btnPrimary, btnSecondary, inputCls } from "@/components/erp";
-import { rcvConfirm, rcvFree, rcvLine, rcvRemove, rcvScan } from "@/lib/barcode-actions";
+import { rcvConfirm, rcvFree, rcvLine, rcvRemove, rcvScan, rcvScanUdi } from "@/lib/barcode-actions";
+import { parseGs1 } from "@/lib/gs1";
 
 export type RLine = { id: string; name: string; unit: string; expected: number; qty: number; damaged: number; lot_no: string | null; expiry_date: string | null; note: string | null; item_id: string | null; po_line_id: string | null; track_lot: boolean; track_expiry: boolean; code: string | null };
 const fmt = (n: number) => n.toLocaleString("tr-TR", { maximumFractionDigits: 3 });
@@ -25,10 +26,11 @@ export function ReceiveScreen({ id, lines: initial, signer }: { id: string; line
   if (initial !== prev) { setPrev(initial); setLines(initial); }
 
   const scan = (code: string) => start(async () => {
-    const r = await rcvScan(id, code, mult);
+    const udi = parseGs1(code);
+    const r = udi ? await rcvScanUdi(id, udi, mult) : await rcvScan(id, code, mult);
     scanFeedback(r.ok && !r.unexpected);
     if (!r.ok) { setLast({ ok: false, text: r.message ?? "Okunamadı" }); return; }
-    setLast({ ok: !r.unexpected, text: `${r.name}: ${fmt(r.qty ?? 0)}${r.expected ? ` / ${fmt(r.expected)}` : ""} ${r.unit}${r.unexpected ? " · siparişte yok (fazla)" : r.expected && (r.qty ?? 0) > r.expected ? " · beklenenden fazla!" : ""}` });
+    setLast({ ok: !r.unexpected, text: `${udi ? `[${[udi.lot && `lot ${udi.lot}`, udi.serial && `seri ${udi.serial}`, udi.expiry && `SKT ${udi.expiry.split("-").reverse().join(".")}`].filter(Boolean).join(" · ")}] ` : ""}${r.name}: ${fmt(r.qty ?? 0)}${r.expected ? ` / ${fmt(r.expected)}` : ""} ${r.unit}${r.unexpected ? " · siparişte yok (fazla)" : r.expected && (r.qty ?? 0) > r.expected ? " · beklenenden fazla!" : ""}` });
     setLines((x) => (x.some((l) => l.id === r.line) ? x.map((l) => (l.id === r.line ? { ...l, qty: r.qty ?? l.qty } : l)) : x));
     setMult(1);
     router.refresh();
@@ -50,7 +52,7 @@ export function ReceiveScreen({ id, lines: initial, signer }: { id: string; line
   return (
     <div className="flex flex-col gap-4">
       <section className="sticky top-0 z-10 flex flex-col gap-3 rounded-[16px] border border-line bg-white/95 p-4 shadow-sm backdrop-blur">
-        <ScanInput onCode={scan} busy={busy} placeholder="Ürün barkodunu okutun" />
+        <ScanInput onCode={scan} busy={busy} placeholder="Ürün barkodunu ya da ÜTS karekodunu okutun" />
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-muted">Okutma çarpanı:</span>
           {[1, 5, 10, 12, 24].map((m) => <button key={m} type="button" onClick={() => setMult(m)} className={`rounded-md px-2.5 py-1 font-semibold ${mult === m ? "bg-ink text-white" : "bg-[#EEF2F6]"}`}>×{m}</button>)}

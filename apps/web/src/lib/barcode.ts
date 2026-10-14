@@ -1,6 +1,8 @@
 // Barkod işlemleri: hata metinleri ve ortak sabitler (sunucu ve tarayıcıda ortak)
 export function bcErrorText(m: string): string {
   if (/stk_rcv|stk_receipts|ast_count|stk_issue|stk_item_lookup/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270107000000_barcode.sql çalıştırılmalı.";
+  if (/gtin_not_found:(\d+)/.test(m)) return `Bu karekoddaki ürün (GTIN ${m.match(/gtin_not_found:(\d+)/)?.[1] ?? ""}) hiçbir stok kartında yok. Kartın barkoduna ya da ÜTS ürün numarasına bu numarayı girin.`;
+  if (/serial_dup:(.*)/.test(m)) return `Bu seri numarası zaten okutuldu: ${m.match(/serial_dup:([^"\n]*)/)?.[1] ?? ""}`;
   if (/item_not_found/.test(m)) return "Bu barkod / kodla kayıtlı ürün yok. Stok kartına barkodu ekleyin ya da serbest kalem girin.";
   if (/asset_not_found/.test(m)) return "Bu kodla demirbaş bulunamadı.";
   if (/not_allowed/.test(m)) return "Bu işlem için yetkiniz yok.";
