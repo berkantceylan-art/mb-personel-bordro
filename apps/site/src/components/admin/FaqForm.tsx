@@ -4,7 +4,7 @@ import { FAQ_CATEGORIES, FAQ_CATEGORY_LABELS, type Faq } from "@/lib/cms";
 import { UploadForm } from "./UploadForm";
 import { I18nField } from "./ui";
 
-export function FaqForm({ faq }: { faq?: Faq }) {
+export function FaqForm({ faq, products = [], areas = [] }: { faq?: Faq; products?: Array<{ slug: string; name: string }>; areas?: Array<{ slug: string; name: string }> }) {
   return (
     <UploadForm
       action={saveFaq}
@@ -28,6 +28,20 @@ export function FaqForm({ faq }: { faq?: Faq }) {
                 {FAQ_CATEGORY_LABELS[k].tr}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm font-semibold text-navy">
+          Ürün sayfasında da göster
+          <select name="product_slug" defaultValue={faq?.product_slug ?? ""} className="field font-normal">
+            <option value="">— Yalnız SSS sayfası —</option>
+            {products.map((p) => <option key={p.slug} value={p.slug}>{p.name}</option>)}
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm font-semibold text-navy">
+          Şehir / ülke sayfasında da göster
+          <select name="area_slug" defaultValue={faq?.area_slug ?? ""} className="field font-normal">
+            <option value="">—</option>
+            {areas.map((a) => <option key={a.slug} value={a.slug}>{a.name}</option>)}
           </select>
         </label>
         <label className="flex items-center gap-3 self-end pb-2 text-sm font-semibold text-navy">

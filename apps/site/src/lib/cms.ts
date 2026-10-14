@@ -325,6 +325,8 @@ export type Faq = {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  product_slug?: string | null;
+  area_slug?: string | null;
 };
 
 export async function publicFaqs(): Promise<Faq[]> {
@@ -470,5 +472,46 @@ export async function publicJobPostings(): Promise<JobPosting[]> {
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
+  }
+}
+
+/** Ürün ya da bölge sayfasına bağlı soru-cevaplar */
+export async function scopedFaqs(scope: { product?: string; area?: string }): Promise<Faq[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    let q = supabase.from("cms_faqs").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
+    q = scope.product ? q.eq("product_slug", scope.product) : q.eq("area_slug", scope.area ?? "");
+    const { data } = await q;
+    return (data ?? []) as Faq[];
+  } catch {
+    return [];
+  }
+}
+
+export type Area = {
+  id: string; slug: string; kind: "city" | "country"; name: I18nText; title: I18nText; intro: I18nText; body: I18nText; delivery: I18nText;
+  shipping_days: number | null; is_active: boolean; sort: number; deleted_at: string | null; updated_at: string;
+};
+
+/** Şehir / ülke hizmet sayfaları */
+export async function publicAreas(): Promise<Area[]> {
+  if (!hasSupabase()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_areas").select("*").is("deleted_at", null).eq("is_active", true).order("sort");
+    return (data ?? []) as Area[];
+  } catch {
+    return [];
+  }
+}
+export async function publicArea(slug: string): Promise<Area | null> {
+  if (!hasSupabase() || !/^[a-z0-9-]{2,60}$/.test(slug)) return null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_areas").select("*").eq("slug", slug).is("deleted_at", null).eq("is_active", true).maybeSingle();
+    return (data as Area | null) ?? null;
+  } catch {
+    return null;
   }
 }

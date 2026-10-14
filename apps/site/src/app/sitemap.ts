@@ -1,12 +1,12 @@
 import type { MetadataRoute } from "next";
-import { publicPages, publicPosts, publicProducts } from "@/lib/cms";
+import { publicAreas, publicPages, publicPosts, publicProducts } from "@/lib/cms";
 import { LOCALES } from "@/lib/i18n";
 
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mbdentaire.com";
-  const [products, sitePages, posts] = await Promise.all([publicProducts(), publicPages(), publicPosts(500)]);
+  const [products, sitePages, posts, areas] = await Promise.all([publicProducts(), publicPages(), publicPosts(500), publicAreas()]);
   const pages: { path: string; priority: number }[] = [
     { path: "", priority: 1 },
     { path: "/urunler", priority: 0.8 },
@@ -21,6 +21,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/yurtdisi", priority: 0.8 },
     ...sitePages.map((p) => ({ path: `/${p.slug}`, priority: 0.6 })),
     ...products.map((p) => ({ path: `/urunler/${p.slug}`, priority: 0.7 })),
+    { path: "/bolge", priority: 0.6 },
+    ...areas.map((a) => ({ path: `/bolge/${a.slug}`, priority: 0.6 })),
   ];
   const postEntries = posts.flatMap((p) => {
     const langs = LOCALES.filter((l) => p.title?.[l]);

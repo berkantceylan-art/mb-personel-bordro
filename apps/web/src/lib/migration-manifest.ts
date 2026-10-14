@@ -121,4 +121,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270129000000_slip_party.sql", "f:sup_pairs"],
   ["20270130000000_visit_walkin.sql", "f:vis_set_type"],
   ["20270131000000_site_analytics.sql", "t:site_hits"],
+  ["20270201000000_site_growth_seo.sql", "t:cms_ai_checks"],
 ];

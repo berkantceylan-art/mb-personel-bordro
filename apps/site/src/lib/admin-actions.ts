@@ -742,6 +742,9 @@ export async function saveFaq(_prev: FormState, form: FormData): Promise<FormSta
     category: FAQ_CATEGORY_KEYS.includes(category) ? category : "genel",
     is_active: form.get("is_active") === "on",
   };
+  // ürün / bölge sayfası bağlantısı (sütun yoksa eklenmez)
+  if (form.has("product_slug")) row.product_slug = /^[a-z0-9-]{1,80}$/.test(str(form, "product_slug")) ? str(form, "product_slug") : null;
+  if (form.has("area_slug")) row.area_slug = /^[a-z0-9-]{1,80}$/.test(str(form, "area_slug")) ? str(form, "area_slug") : null;
   const supabase = await createClient();
   if (id) {
     const { error } = await supabase.from("cms_faqs").update(row).eq("id", id);
