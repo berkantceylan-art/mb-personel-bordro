@@ -28,6 +28,10 @@
     {
       "path": "/api/cron/site-hafta",
       "schedule": "45 5 * * 1"
+    },
+    {
+      "path": "/api/cron/uts",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

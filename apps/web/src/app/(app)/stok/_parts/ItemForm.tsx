@@ -46,6 +46,14 @@ export function ItemForm({ item, categories, warehouses, suppliers, products }: 
         <label className="flex items-center gap-2"><input type="checkbox" name="track_lot" defaultChecked={i?.track_lot} /> Lot / seri takibi (MDR izlenebilirlik)</label>
         <label className="flex items-center gap-2"><input type="checkbox" name="track_expiry" defaultChecked={i?.track_expiry} /> Son kullanma tarihi takibi</label>
       </div>
+      <fieldset className="grid gap-3 rounded-[12px] border border-line p-3 md:col-span-4 md:grid-cols-4">
+        <legend className="px-1 text-sm font-semibold">ÜTS (Ürün Takip Sistemi)</legend>
+        <input type="hidden" name="uts_was" value={i?.uts_tracked || i?.uts_product_no ? "1" : ""} />
+        <label className="flex items-center gap-2 text-sm md:col-span-4"><input type="checkbox" name="uts_tracked" defaultChecked={i?.uts_tracked} /> Bu ürün ÜTS&apos;de takip ediliyor (alma / kullanım / verme bildirimi otomatik hazırlanır)</label>
+        <Field label="ÜTS ürün numarası (UNO)" hint="karekoddaki (01) GTIN; ilk okutmada kendiliğinden dolar"><input name="uts_product_no" maxLength={25} defaultValue={i?.uts_product_no ?? ""} className={`${inputCls} num`} /></Field>
+        <Field label="Takip türü"><select name="uts_kind" defaultValue={i?.uts_kind ?? "lot"} className={selectCls}><option value="lot">Lot / parti</option><option value="serial">Seri no (tekil, ör. implant parçası)</option></select></Field>
+        <Field label="İşte ne olur?" className="md:col-span-2"><select name="uts_flow" defaultValue={i?.uts_flow ?? "use"} className={selectCls}><option value="use">Protezde kullanılır → kullanım bildirimi</option><option value="transfer">İşle birlikte kliniğe gider → teslimde verme bildirimi</option></select></Field>
+      </fieldset>
       {i && (
         <Field label="Durum"><select name="is_active" defaultValue={i.is_active ? "on" : "off"} className={selectCls}><option value="on">Aktif</option><option value="off">Pasif</option></select></Field>
       )}

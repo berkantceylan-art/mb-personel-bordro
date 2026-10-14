@@ -33,6 +33,15 @@ export async function rcvScan(id: string, code: string, qty = 1): Promise<ScanRe
   return { ok: true, ...d, qty: Number(d.qty), expected: Number(d.expected) };
 }
 
+/** GS1 / UDI karekod: GTIN + lot + SKT + seri; farklı lot / seri ayrı satıra düşer */
+export async function rcvScanUdi(id: string, c: { gtin: string; lot?: string; expiry?: string; serial?: string }, qty = 1): Promise<ScanResult & { lot_no?: string | null; uts?: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("stk_rcv_scan_udi", { p_id: id, p_gtin: c.gtin, p_lot: c.lot ?? null, p_expiry: c.expiry ?? null, p_serial: c.serial ?? null, p_qty: qty });
+  if (error) return { ok: false, message: /stk_rcv_scan_udi|does not exist|schema cache/.test(error.message) ? "Supabase'de 20270205000000_uts.sql çalıştırılmalı." : bcErrorText(error.message) };
+  const d = data as { name: string; qty: number; expected: number; unit: string; unexpected: boolean; line: string; track_lot: boolean; track_expiry: boolean; lot_no: string | null; uts: boolean };
+  return { ok: true, ...d, qty: Number(d.qty), expected: Number(d.expected) };
+}
+
 export async function rcvLine(line: string, patch: { qty?: number; damaged?: number; lot_no?: string; expiry_date?: string; note?: string }): Promise<BcState> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("stk_rcv_line", { p_line: line, p: patch });
