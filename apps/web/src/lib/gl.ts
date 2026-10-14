@@ -34,6 +34,8 @@ export function glError(m: string): string {
   if (/gl_no_payroll/.test(m)) return "Bu dönemin bordrosu hesaplanmamış.";
   if (/gl_pending_before_lock/.test(m)) return "Kilitlenecek dönemde eşleştirme bekleyen kayıt var: önce onları tamamlayın.";
   if (/bad_period/.test(m)) return "Dönem YYYY-AA biçiminde olmalı.";
+  if (/gl_pending_in_year/.test(m)) return "Bu yılda eşleştirme bekleyen fiş var: kapanıştan önce tamamlayın.";
+  if (/gl_vat_open/.test(m)) return "191 / 391 hesaplarında bakiye var: önce son ayların KDV mahsubunu yapın.";
   return m;
 }
 
