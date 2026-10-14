@@ -11,7 +11,8 @@ import { PRODUCT_CATEGORIES, mediaUrl, publicAnnouncements, publicCases, publicP
 import { mediaKind } from "@/lib/media";
 import { businessJsonLd } from "@/lib/seo";
 import { STORY_LABELS, instagramPosts, storyViews } from "@/lib/stories";
-import { publicPosts, publicTestimonials } from "@/lib/cms";
+import { abTest, publicPosts, publicTestimonials } from "@/lib/cms";
+import { AbText } from "@/components/AbText";
 import { BLOG_UI, TESTI_UI } from "@/lib/growth-ui";
 import { getSettings, telHref } from "@/lib/settings";
 import { CASE_UI, DICTS, PAGE_UI, PRODUCT_UI, isLocale, t, type Locale } from "@/lib/i18n";
@@ -37,7 +38,7 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const d = DICTS[locale];
-  const [banners, news, slides, products, pages, featuredCases, popups, departments, igPosts, testimonials, posts] = await Promise.all([
+  const [banners, news, slides, products, pages, featuredCases, popups, departments, igPosts, testimonials, posts, ab] = await Promise.all([
     publicAnnouncements("banner"),
     publicAnnouncements("news"),
     publicSlides("home", locale),
@@ -49,7 +50,9 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
     instagramPosts(8),
     publicTestimonials(),
     publicPosts(3),
+    abTest("home_cta"),
   ]);
+  const abCta = ab ? { key: ab.key, a: t(ab.variant_a, locale), b: t(ab.variant_b, locale), active: ab.is_active, winner: ab.winner } : null;
   const ads: AdSlide[] = slides
     .map((sl) => ({
       id: sl.id,
@@ -95,7 +98,7 @@ export default async function Home({ params }: { params: Promise<{ locale: strin
               <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-white/75">{d.hero.lead}</p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link href={`/${locale}/vaka-gonder`} className="rounded-full bg-smile px-6 py-3 font-semibold text-navy hover:bg-white">
-                  {d.hero.send}
+                  <AbText test={abCta} fallback={d.hero.send} />
                 </Link>
                 <Link href="/giris" className="rounded-full border border-white/30 px-6 py-3 font-semibold hover:border-white">
                   {d.hero.login}

@@ -515,3 +515,15 @@ export async function publicArea(slug: string): Promise<Area | null> {
     return null;
   }
 }
+
+export type AbTest = { key: string; label: string; variant_a: I18nText; variant_b: I18nText; is_active: boolean; started_at: string | null; winner: "A" | "B" | null };
+export async function abTest(key: string): Promise<AbTest | null> {
+  if (!hasSupabase()) return null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.from("cms_ab_tests").select("*").eq("key", key).maybeSingle();
+    return (data as AbTest | null) ?? null;
+  } catch {
+    return null;
+  }
+}

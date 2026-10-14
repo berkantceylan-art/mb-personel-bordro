@@ -24,6 +24,10 @@
     {
       "path": "/api/cron/portal-durum",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/site-hafta",
+      "schedule": "45 5 * * 1"
     }
   ]
 }

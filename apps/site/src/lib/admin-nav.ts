@@ -14,6 +14,7 @@ export const ADMIN_NAV: AdminGroup[] = [
       { href: "/admin/istatistik", label: "Portal istatistikleri", desc: "Mesaj, canlı destek, portal hesap ve vaka sayıları" },
       { href: "/admin/canli-destek", label: "Canlı destek", desc: "Sitedeki ziyaretçilerle anlık yazışma" },
       { href: "/admin/gelen-kutusu", label: "Gelen kutusu", desc: "İletişim formu ve vaka talepleri" },
+      { href: "/admin/adaylar", label: "Adaylar", desc: "Form, canlı destek, randevu ve portal kayıtları: takip, sorumlu, dönüşüm" },
     ],
   },
   {
@@ -40,6 +41,9 @@ export const ADMIN_NAV: AdminGroup[] = [
       { href: "/admin/sss", label: "Sıkça sorulanlar", desc: "SSS soruları ve cevapları" },
       { href: "/admin/bolgeler", label: "Şehir ve ülke sayfaları", desc: "Bölge aramaları için hizmet sayfaları" },
       { href: "/admin/blog", label: "Blog", desc: "Blog yazıları, zamanlanmış yayın" },
+      { href: "/admin/icerik-takvimi", label: "İçerik takvimi", desc: "Blog ve sosyal medya planı, yapay zekâ ile taslak" },
+      { href: "/admin/seo", label: "SEO denetimi", desc: "Eksik başlık, açıklama, çeviri, görsel; 404 sayfalar" },
+      { href: "/admin/ab-test", label: "A/B testi", desc: "Hangi metin daha çok tıklanıyor" },
       { href: "/admin/gorusler", label: "Hekim görüşleri", desc: "İzinli hekim görüşleri" },
     ],
   },
