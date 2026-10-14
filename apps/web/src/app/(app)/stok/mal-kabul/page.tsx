@@ -11,7 +11,7 @@ import { StartForm } from "./StartForm";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mal kabul" };
 
-type Rcv = { id: string; year: number; no: number; status: string; supplier_doc: string | null; add_to_stock: boolean | null; invoice_id: string | null; party_id: string | null; created_at: string; confirmed_at: string | null; fin_parties: { name: string } | null; stk_receipt_lines: { qty: number; expected: number; damaged: number }[] };
+type Rcv = { id: string; year: number; no: number; status: string; supplier_doc: string | null; add_to_stock: boolean | null; invoice_id: string | null; party_id: string | null; created_at: string; confirmed_at: string | null; fin_parties: { name: string; slip_of?: string | null } | null; stk_receipt_lines: { qty: number; expected: number; damaged: number }[] };
 type Inv = { id: string; doc_no: string | null; no: number; invoice_date: string; party_id: string; total: number; currency: string };
 
 /** Mal kabul: siparişten ya da fişle gelen malı okutarak teyit et; faturalılar e-faturayla eşleşir */
@@ -20,14 +20,14 @@ export default async function ReceivingPage() {
   if ((s.modules.stock ?? 0) < 1 && (s.modules.purchases ?? 0) < 1) redirect("/");
   const supabase = await createClient();
   const [{ data: rc, error }, { data: po }, { data: pt }, { data: wh }] = await Promise.all([
-    supabase.from("stk_receipts").select("id, year, no, status, supplier_doc, add_to_stock, invoice_id, party_id, created_at, confirmed_at, fin_parties(name), stk_receipt_lines(qty, expected, damaged)").neq("status", "cancelled").order("created_at", { ascending: false }).limit(150),
+    supabase.from("stk_receipts").select("id, year, no, status, supplier_doc, add_to_stock, invoice_id, party_id, created_at, confirmed_at, fin_parties(name, slip_of), stk_receipt_lines(qty, expected, damaged)").neq("status", "cancelled").order("created_at", { ascending: false }).limit(150),
     supabase.from("pur_orders").select("id, year, no, status, order_date, fin_parties(name)").in("status", ["approved", "sent", "partial"]).order("order_date", { ascending: false }).limit(200),
-    supabase.from("fin_parties").select("id, name").order("name").limit(1500),
+    supabase.from("fin_parties").select("id, name").is("slip_of", null).in("kind", ["supplier", "both"]).order("name").limit(1500),
     supabase.from("stk_warehouses").select("id, name, is_default").eq("is_active", true).order("name"),
   ]);
   const rows = (rc ?? []) as unknown as Rcv[];
   const open = rows.filter((r) => r.status === "open");
-  const waiting = rows.filter((r) => r.status === "confirmed" && r.add_to_stock === false && !r.invoice_id);
+  const waiting = rows.filter((r) => r.status === "confirmed" && r.add_to_stock === false && !r.invoice_id && !r.fin_parties?.slip_of);
   const done = rows.filter((r) => r.status === "confirmed" && !waiting.includes(r)).slice(0, 40);
   const parties = [...new Set(waiting.map((r) => r.party_id).filter(Boolean))] as string[];
   const { data: invs } = parties.length

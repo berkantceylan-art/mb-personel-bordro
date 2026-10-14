@@ -49,7 +49,7 @@ export const PARTY_KIND: Record<string, string> = { customer: "Müşteri", suppl
 
 export const TXN_KIND: Record<string, string> = {
   opening: "Açılış", collection: "Tahsilat", payment: "Ödeme", transfer: "Virman", income: "Gelir", expense: "Masraf", exchange: "Döviz alım / satım",
-  sale_invoice: "Satış faturası", purchase_invoice: "Alış faturası", sale_return: "Satış iadesi", purchase_return: "Alış iadesi",
+  sale_invoice: "Satış faturası", purchase_invoice: "Alış faturası", purchase_slip: "Fişli alım", sale_return: "Satış iadesi", purchase_return: "Alış iadesi",
   cheque_in: "Çek / senet alındı", cheque_out: "Çek / senet verildi", cheque_endorse: "Çek ciro", cheque_collect: "Çek tahsil", cheque_bounce: "Karşılıksız", cheque_pay: "Çek ödendi", cheque_deposit: "Çek bankaya verildi",
   card_spend: "Kart harcaması", card_payment: "Kart borcu ödemesi", loan_draw: "Kredi kullanımı", loan_payment: "Kredi taksiti",
   advance_give: "Avans verildi", advance_close: "Avans kapama", advance_return: "Avans iadesi", partner_in: "Ortaktan giriş", partner_out: "Ortağa çıkış",
@@ -62,7 +62,7 @@ export type Party = {
   id: string; code: string | null; name: string; kind: string; person_type: string; tax_office: string | null; tax_no: string | null;
   phone: string | null; email: string | null; website: string | null; contact_name: string | null; address: string | null; district: string | null; city: string | null; country: string;
   iban: string | null; currency: string; opening_balance: number; opening_date: string | null; payment_term_days: number; credit_limit: number | null;
-  credit_sales: boolean; is_einvoice: boolean; einvoice_alias: string | null; lab_customer_id: string | null; note: string | null; is_active: boolean; source: string;
+  credit_sales: boolean; is_einvoice: boolean; einvoice_alias: string | null; lab_customer_id: string | null; note: string | null; is_active: boolean; source: string; slip_of?: string | null;
 };
 
 export type Account = {

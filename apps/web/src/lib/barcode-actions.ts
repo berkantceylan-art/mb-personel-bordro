@@ -16,6 +16,10 @@ export async function rcvStart(_: BcState | null, f: FormData): Promise<BcState>
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("stk_rcv_start", { p: { po_id: s(f, "po_id") || null, party_id: s(f, "party_id") || null, warehouse_id: s(f, "warehouse_id") || null, supplier_doc: s(f, "supplier_doc"), note: s(f, "note") } });
   if (error) return { ok: false, message: bcErrorText(error.message) };
+  if (s(f, "slip") === "1") {
+    const { error: e2 } = await supabase.rpc("stk_rcv_use_slip", { p_id: data as string, p_on: true });
+    if (e2) return { ok: false, message: /party_required/.test(e2.message) ? "Fişli alım için tedarikçi seçin." : /stk_rcv_use_slip|does not exist/.test(e2.message) ? "Supabase'de 20270129000000_slip_party.sql çalıştırılmalı." : bcErrorText(e2.message) };
+  }
   back("/stok/mal-kabul");
   return { ok: true, message: "Mal kabul başladı.", id: data as string };
 }
