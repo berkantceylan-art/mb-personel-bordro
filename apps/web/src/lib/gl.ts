@@ -38,6 +38,11 @@ export function glError(m: string): string {
   if (/gl_vat_open/.test(m)) return "191 / 391 hesaplarında bakiye var: önce son ayların KDV mahsubunu yapın.";
   if (/(gl_cit_|gl_kkeg|gl_tax_adj|kkeg_pct)/.test(m) && /function|relation|does not exist|schema cache|column/.test(m)) return "Supabase'de 20270213000000_corporate_tax.sql çalıştırılmalı.";
   if (/(gl_stamp|gl_vat2|gl_vat_refund|gl_tax_calendar|gl_filing|inv_set_export_doc|gl_stamp_docs|gl_tax_filings)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270212000000_tax_center.sql çalıştırılmalı.";
+  if (/(gl_reflect|gl_reval|gl_deferral|gl_loan_accrual|gl_partner_reclass|gl_period_checklist|asset_revaluations|gl_deferrals)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270214000000_period_end.sql çalıştırılmalı.";
+  if (/reval_bad_date/.test(m)) return "Yeniden değerleme yalnız geçici vergi dönemi sonunda (31 Mart, 30 Haziran, 30 Eylül) ya da yıl sonunda (31 Aralık) yapılır.";
+  if (/reval_exists/.test(m)) return "Bu tarihte yeniden değerleme zaten yapılmış.";
+  if (/reval_has_later_depreciation/.test(m)) return "Yeniden değerlemeden sonra amortisman ayrılmış: önce o ayların amortismanını geri alın.";
+  if (/deferral_in_use/.test(m)) return "Bu kaydın payı aylık dönemsellik fişlerine girmiş: silmek yerine kalan süreyi düzeltmek için mali müşavirinizle elle fiş kesin.";
   if (/refund_exceeds/.test(m)) return "İade tutarı ay sonu devreden KDV'den (190) büyük olamaz: önce KDV mahsup fişini oluşturun.";
   if (/bad_amount/.test(m)) return "Tutar sıfırdan büyük olmalı.";
   if (/bad_account/.test(m)) return "Gider hesabı 6 ya da 7 ile başlayan bir hesap olmalı (ör. 770).";
