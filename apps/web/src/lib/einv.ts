@@ -5,35 +5,39 @@ import { parseDespatch, parseUbl, ublKind } from "@/lib/ubl";
 import { accessToken, getAttachment, getThread, gmailConfigured, listThreads } from "@/lib/gmail";
 
 export type EinvRow = {
-  ettn: string; doc_kind: "efatura" | "earsiv" | "eirsaliye"; doc_no: string; issue_date: string | null; profile: string; type_code: string; sender_vkn: string | null; sender_name: string;
+  ettn: string; doc_kind: "efatura" | "earsiv" | "eirsaliye"; direction?: "in" | "out"; doc_no: string; issue_date: string | null; profile: string; type_code: string; sender_vkn: string | null; sender_name: string;
   currency: string; payable: number; vat_total: number; line_count: number; xml: string; source_ref: string | null;
 };
 
 export const DEFAULT_MAIL_QUERY = "has:attachment (filename:xml OR filename:zip) newer_than:14d";
 
-/** XML'den gelen kutusu satırı (e-fatura, e-arşiv fatura, e-irsaliye); e-belge değilse ya da kendi kestiğimiz belgeyse null */
-export function rowFromXml(xml: string, ownVkn: string | null, ref: string | null): EinvRow | null {
+/** XML'den kutu satırı; yön satıcı VKN'sinden (kendi VKN'miz → giden). e-belge değilse null */
+export function rowFromXmlDir(xml: string, ownVkn: string | null, ref: string | null): EinvRow | null {
   const kind = ublKind(xml);
   if (!kind) return null;
-  if (kind === "despatch") {
-    const d = parseDespatch(xml);
-    if (!d.ettn || !/^[0-9a-f-]{36}$/i.test(d.ettn)) return null;
-    const vkn = (d.supplier.tax_no ?? "").replace(/\D/g, "") || null;
-    if (ownVkn && vkn === ownVkn) return null;
-    return {
-      ettn: d.ettn.toLowerCase(), doc_kind: "eirsaliye", doc_no: d.doc_no, issue_date: /^\d{4}-\d{2}-\d{2}$/.test(d.date) ? d.date : null, profile: d.profile, type_code: d.type_code,
-      sender_vkn: vkn, sender_name: d.supplier.name || "—", currency: "TRY", payable: 0, vat_total: 0, line_count: d.lines.length, xml, source_ref: ref,
-    };
-  }
-  const inv = parseUbl(xml);
-  if (!inv.ettn || !/^[0-9a-f-]{36}$/i.test(inv.ettn)) return null;
-  const vkn = (inv.supplier.tax_no ?? "").replace(/\D/g, "") || null;
-  if (ownVkn && vkn === ownVkn) return null; // giden (kendi) fatura
+  const d = kind === "despatch" ? parseDespatch(xml) : null;
+  const inv = kind === "invoice" ? parseUbl(xml) : null;
+  const ettn = (d?.ettn ?? inv?.ettn) || "";
+  if (!/^[0-9a-f-]{36}$/i.test(ettn)) return null;
+  const sup = (d?.supplier ?? inv!.supplier);
+  const cus = (d?.customer ?? inv!.customer);
+  const supVkn = (sup.tax_no ?? "").replace(/\D/g, "") || null;
+  const out = !!ownVkn && supVkn === ownVkn;
+  const other = out ? cus : sup;
+  const date = d?.date ?? inv!.date;
   return {
-    ettn: inv.ettn.toLowerCase(), doc_kind: inv.profile.toUpperCase() === "EARSIVFATURA" ? "earsiv" : "efatura",
-    doc_no: inv.doc_no, issue_date: /^\d{4}-\d{2}-\d{2}$/.test(inv.date) ? inv.date : null, profile: inv.profile, type_code: inv.type_code,
-    sender_vkn: vkn, sender_name: inv.supplier.name || "—", currency: inv.currency, payable: inv.payable, vat_total: inv.vat_total, line_count: inv.lines.length, xml, source_ref: ref,
+    ettn: ettn.toLowerCase(), direction: out ? "out" : "in",
+    doc_kind: d ? "eirsaliye" : inv!.profile.toUpperCase() === "EARSIVFATURA" ? "earsiv" : "efatura",
+    doc_no: d?.doc_no ?? inv!.doc_no, issue_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null, profile: d?.profile ?? inv!.profile, type_code: d?.type_code ?? inv!.type_code,
+    sender_vkn: (other.tax_no ?? "").replace(/\D/g, "") || null, sender_name: other.name || "—", currency: inv?.currency ?? "TRY", payable: inv?.payable ?? 0, vat_total: inv?.vat_total ?? 0,
+    line_count: (d?.lines ?? inv!.lines).length, xml, source_ref: ref,
   };
+}
+
+/** Yalnız gelen belge (yükleme / e-posta): kendi kestiğimiz belgeyse null */
+export function rowFromXml(xml: string, ownVkn: string | null, ref: string | null): EinvRow | null {
+  const r = rowFromXmlDir(xml, ownVkn, ref);
+  return r && r.direction === "in" ? r : null;
 }
 
 /** Dosyalardan (XML / ZIP) XML metinleri */

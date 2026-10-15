@@ -1,0 +1,205 @@
+import "server-only";
+import JSZip from "jszip";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { ownVkn, rowFromXmlDir, type EinvRow } from "@/lib/einv";
+
+/**
+ * eLogo PostBox web servisi istemcisi (SOAP).
+ *
+ * Kimlik bilgileri Vercel ortam değişkenlerindedir (kodda / veritabanında tutulmaz):
+ *   ELOGO_USER, ELOGO_PASS  — eLogo web servis kullanıcısı
+ *   ELOGO_URL               — isteğe bağlı servis adresi (varsayılan canlı PostBoxService); ELOGO_TEST=1 → demo
+ *
+ * Servisin WSDL'i çalışma anında okunur: metot adları, SOAPAction değerleri, parametre adları ve ad alanları
+ * WSDL'den çıkarılır. Bilinen akış (eLogo PostBoxService): Login → belge listesi → GetDocumentData (ETTN ile, UBL ZIP) → Logout.
+ */
+
+const URL_DEFAULT = process.env.ELOGO_TEST === "1" ? "https://pb-demo.elogo.com.tr/PostBoxService.svc" : "https://pb.elogo.com.tr/PostBoxService.svc";
+export const elogoUrl = () => (process.env.ELOGO_URL || URL_DEFAULT).replace(/\?.*$/, "");
+export const elogoConfigured = () => !!(process.env.ELOGO_USER && process.env.ELOGO_PASS);
+
+type Param = { name: string; ns: string; typeNs: string | null; isArray: boolean; members?: string[] };
+type Wsdl = { tns: string; endpoint: string; actions: Record<string, string>; params: Record<string, Param[]>; ops: string[]; raw: number };
+
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** WSDL (tek dosya) okuma ve çözümleme */
+async function loadWsdl(): Promise<Wsdl> {
+  let text = "";
+  for (const q of ["?singleWsdl", "?wsdl"]) {
+    try {
+      const r = await fetch(elogoUrl() + q, { signal: AbortSignal.timeout(20000) });
+      if (r.ok) { text = await r.text(); if (/definitions/.test(text)) break; }
+    } catch { /* sonraki */ }
+  }
+  if (!/definitions/.test(text)) throw new Error("eLogo servis tanımı (WSDL) okunamadı: adres yanlış ya da servise erişilemiyor.");
+  const tns = text.match(/<(?:wsdl:)?definitions[^>]*targetNamespace="([^"]+)"/)?.[1] ?? "http://tempuri.org/";
+  // SOAP 1.1 bağlaması (basicHttpBinding) tercih edilir
+  const endpoint = text.match(/<soap:address\s+location="([^"]+)"/)?.[1] ?? elogoUrl();
+  const actions: Record<string, string> = {};
+  const binding = text.match(/<(?:wsdl:)?binding[^>]*>[\s\S]*?<soap:binding[\s\S]*?<\/(?:wsdl:)?binding>/)?.[0] ?? text;
+  for (const m of binding.matchAll(/<(?:wsdl:)?operation\s+name="(\w+)"\s*>\s*<soap:operation\s+soapAction="([^"]*)"/g)) actions[m[1]!] = m[2]!;
+  // Şemalar: her şemanın ad alanı ve içindeki element / complexType tanımları
+  const params: Record<string, Param[]> = {};
+  const types: Record<string, { ns: string; members: string[]; isArray: boolean }> = {};
+  const schemas = [...text.matchAll(/<(?:xs|xsd):schema([^>]*)>([\s\S]*?)<\/(?:xs|xsd):schema>/g)];
+  for (const s of schemas) {
+    const ns = s[1]!.match(/targetNamespace="([^"]+)"/)?.[1] ?? "";
+    for (const ct of s[2]!.matchAll(/<(?:xs|xsd):complexType\s+name="(\w+)"[^>]*>([\s\S]*?)<\/(?:xs|xsd):complexType>/g)) {
+      const members = [...ct[2]!.matchAll(/<(?:xs|xsd):element[^>]*name="(\w+)"/g)].map((m) => m[1]!);
+      types[`${ns}#${ct[1]}`] = { ns, members, isArray: /maxOccurs="unbounded"/.test(ct[2]!) && members.length === 1 };
+    }
+  }
+  for (const s of schemas) {
+    const ns = s[1]!.match(/targetNamespace="([^"]+)"/)?.[1] ?? "";
+    if (ns !== tns) continue;
+    for (const el of s[2]!.matchAll(/<(?:xs|xsd):element\s+name="(\w+)"\s*>\s*<(?:xs|xsd):complexType>\s*<(?:xs|xsd):sequence>([\s\S]*?)<\/(?:xs|xsd):sequence>/g)) {
+      params[el[1]!] = [...el[2]!.matchAll(/<(?:xs|xsd):element([^>]*)\/?>/g)].map((m) => {
+        const a = m[1]!;
+        const name = a.match(/name="(\w+)"/)?.[1] ?? "";
+        const type = a.match(/type="(?:(\w+):)?(\w+)"/);
+        const prefix = type?.[1];
+        const typeNs = prefix ? (a.match(new RegExp(`xmlns:${prefix}="([^"]+)"`))?.[1] ?? text.match(new RegExp(`xmlns:${prefix}="([^"]+)"`))?.[1] ?? null) : null;
+        const t = typeNs && type ? types[`${typeNs}#${type[2]}`] : undefined;
+        return { name, ns, typeNs, isArray: !!t?.isArray, members: t?.members };
+      }).filter((p) => p.name);
+    }
+  }
+  return { tns, endpoint, actions, params, ops: Object.keys(actions), raw: text.length };
+}
+
+const idx = (order: string[], k: string) => { const i = order.findIndex((o) => o.toLowerCase() === k.toLowerCase()); return i < 0 ? 999 : i; };
+
+/** Değeri XML'e çevir: dizi → <string> öğeleri, nesne → üyeler (tür ad alanında) */
+function valueXml(p: Param, v: unknown): string {
+  const typeNs = p.typeNs ?? p.ns;
+  if (Array.isArray(v)) return v.map((x) => `<a:string xmlns:a="${p.typeNs ?? "http://schemas.microsoft.com/2003/10/Serialization/Arrays"}">${esc(String(x))}</a:string>`).join("");
+  if (v && typeof v === "object") {
+    const order = p.members ?? [];
+    const entries = Object.entries(v as Record<string, unknown>).sort(([a], [b]) => idx(order, a) - idx(order, b));
+    // WCF veri sözleşmesi üye sırasına duyarlıdır: WSDL'deki sıra kullanılır; adlar büyük/küçük harf farkıyla eşleştirilir
+    return entries.map(([k, x]) => [order.find((o) => o.toLowerCase() === k.toLowerCase()) ?? k, x] as const).map(([k, x]) => `<b:${k} xmlns:b="${typeNs}">${esc(String(x ?? ""))}</b:${k}>`).join("");
+  }
+  return esc(String(v ?? ""));
+}
+
+async function call(w: Wsdl, op: string, args: Record<string, unknown>): Promise<string> {
+  const ps = w.params[op] ?? Object.keys(args).map((name) => ({ name, ns: w.tns, typeNs: null, isArray: false }));
+  const inner = ps.filter((p) => args[p.name] !== undefined).map((p) => `<${p.name}>${valueXml(p, args[p.name])}</${p.name}>`).join("");
+  const body = `<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><${op} xmlns="${w.tns}">${inner}</${op}></s:Body></s:Envelope>`;
+  const r = await fetch(w.endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: `"${w.actions[op] ?? `${w.tns.replace(/\/?$/, "/")}IPostBoxService/${op}`}"` },
+    body, signal: AbortSignal.timeout(45000),
+  });
+  const text = await r.text();
+  if (!r.ok) {
+    const fault = text.match(/<(?:\w+:)?(?:faultstring|Text)[^>]*>([^<]+)</)?.[1];
+    throw new Error(`${op}: HTTP ${r.status}${fault ? ` · ${fault}` : ""}`);
+  }
+  return text;
+}
+
+const tag = (xml: string, name: string) => xml.match(new RegExp(`<(?:\\w+:)?${name}>([^<]*)</(?:\\w+:)?${name}>`))?.[1] ?? null;
+const resultOf = (xml: string) => ({ code: tag(xml, "resultCode"), msg: tag(xml, "resultMsg") });
+
+/** Bağlantı testi: WSDL metotları ve oturum açma */
+export async function elogoTest(): Promise<{ ok: boolean; message: string; ops?: string[]; login?: boolean }> {
+  if (!elogoConfigured()) return { ok: false, message: "Vercel'de ELOGO_USER ve ELOGO_PASS tanımlı değil." };
+  const w = await loadWsdl();
+  const login = await elogoLogin(w);
+  if (login.session) await call(w, "Logout", { sessionID: login.session }).catch(() => null);
+  return { ok: !!login.session, message: login.session ? `Bağlantı kuruldu. Servis metotları: ${w.ops.join(", ")}` : `Oturum açılamadı: ${login.error}`, ops: w.ops, login: !!login.session };
+}
+
+async function elogoLogin(w: Wsdl): Promise<{ session: string | null; error: string | null }> {
+  const p = w.params.Login?.[0];
+  const xml = await call(w, "Login", { [p?.name ?? "login"]: { userName: process.env.ELOGO_USER!, passWord: process.env.ELOGO_PASS! } });
+  const session = tag(xml, "sessionID");
+  const ok = /<(?:\w+:)?LoginResult>true</i.test(xml);
+  return { session: ok && session ? session : null, error: ok ? null : (resultOf(xml).msg ?? "kullanıcı adı / şifre reddedildi") };
+}
+
+const DOC_TYPES: Array<{ type: string; label: string }> = [
+  { type: "EINVOICE", label: "e-Fatura" },
+  { type: "EARCHIVE", label: "e-Arşiv" },
+  { type: "DESPATCHADVICE", label: "e-İrsaliye" },
+];
+const UUID_RE = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g;
+
+/** Belgenin UBL XML'i (ZIP içinden) */
+async function documentXml(w: Wsdl, session: string, uuid: string, type: string): Promise<string[]> {
+  const op = w.ops.includes("GetDocumentData") ? "GetDocumentData" : "GetDocument";
+  const xml = await call(w, op, { sessionID: session, uuid, paramList: [`DOCUMENTTYPE=${type}`, "DATAFORMAT=UBL", "ISCANCEL=0"] });
+  const b64 = [...xml.matchAll(/<(?:\w+:)?(?:Value|binaryData)>([A-Za-z0-9+/=\s]{200,})<\//g)].map((m) => m[1]!).sort((a, b) => b.length - a.length)[0];
+  if (!b64) { const r = resultOf(xml); throw new Error(r.msg ?? "belge içeriği boş"); }
+  const buf = Buffer.from(b64.replace(/\s/g, ""), "base64");
+  if (buf[0] === 0x50 && buf[1] === 0x4b) {
+    const zip = await JSZip.loadAsync(buf);
+    const out: string[] = [];
+    for (const e of Object.values(zip.files)) if (!e.dir && /\.xml$/i.test(e.name)) out.push(await e.async("string"));
+    return out;
+  }
+  return [buf.toString("utf8")];
+}
+
+/**
+ * Eşitleme: tarih aralığındaki gelen ve giden belgeleri listeler, kutuda olmayanların UBL'ini indirir, kutuya ekler.
+ * Yön (gelen / giden) XML'deki satıcı VKN'sinden belirlenir.
+ */
+export async function elogoSync(supabase: SupabaseClient, opts: { from: string; to: string; max?: number }): Promise<{ ok: boolean; message: string; log: Record<string, unknown> }> {
+  const log: Record<string, unknown> = { from: opts.from, to: opts.to, types: {} as Record<string, unknown> };
+  if (!elogoConfigured()) return { ok: false, message: "Vercel'de ELOGO_USER ve ELOGO_PASS tanımlı değil.", log };
+  const w = await loadWsdl();
+  log.ops = w.ops;
+  const listOp = w.ops.find((o) => /^GetDocumentList$/i.test(o)) ?? w.ops.find((o) => /^GetDocumentList/i.test(o)) ?? w.ops.find((o) => /List/i.test(o) && /Document/i.test(o));
+  if (!listOp) return { ok: false, message: `Serviste belge listeleme metodu bulunamadı (metotlar: ${w.ops.join(", ")}).`, log };
+  const login = await elogoLogin(w);
+  if (!login.session) return { ok: false, message: `eLogo oturumu açılamadı: ${login.error}`, log };
+  const session = login.session;
+  const vkn = await ownVkn(supabase);
+  const max = opts.max ?? 80;
+  let added = 0, fetched = 0, errors = 0;
+  try {
+    for (const t of DOC_TYPES) {
+      const tl: Record<string, unknown> = {};
+      (log.types as Record<string, unknown>)[t.type] = tl;
+      const uuids = new Set<string>();
+      for (const optype of ["1", "2"]) {
+        try {
+          const xml = await call(w, listOp, { sessionID: session, paramList: [`DOCUMENTTYPE=${t.type}`, `BEGINDATE=${opts.from}`, `ENDDATE=${opts.to}`, `OPTYPE=${optype}`, "DATEBY=0"] });
+          const found = [...new Set((xml.match(UUID_RE) ?? []).map((u) => u.toLowerCase()))].filter((u) => u !== session.toLowerCase());
+          found.forEach((u) => uuids.add(u));
+          tl[`optype${optype}`] = found.length;
+          if (!found.length) { const r = resultOf(xml); if (r.msg) tl[`msg${optype}`] = r.msg.slice(0, 200); }
+        } catch (e) { tl[`err${optype}`] = (e as Error).message.slice(0, 200); }
+      }
+      if (!uuids.size) continue;
+      const { data: have } = await supabase.from("einv_inbox").select("ettn").in("ettn", [...uuids]);
+      const known = new Set(((have ?? []) as Array<{ ettn: string }>).map((h) => h.ettn.toLowerCase()));
+      const todo = [...uuids].filter((u) => !known.has(u)).slice(0, Math.max(0, max - fetched));
+      tl.new = todo.length;
+      const rows: EinvRow[] = [];
+      for (const u of todo) {
+        fetched++;
+        try {
+          for (const x of await documentXml(w, session, u, t.type)) {
+            const r = rowFromXmlDir(x, vkn, `elogo:${t.type}`);
+            if (r) rows.push(r);
+          }
+        } catch (e) { errors++; if (!tl.firstError) tl.firstError = (e as Error).message.slice(0, 200); }
+      }
+      for (let i = 0; i < rows.length; i += 20) {
+        const { data, error } = await supabase.rpc("einv_inbox_add", { p_rows: rows.slice(i, i + 20), p_source: "api" });
+        if (error) throw new Error(error.message);
+        added += Number((data as { added: number }).added ?? 0);
+      }
+      if (fetched >= max) { log.limited = true; break; }
+    }
+  } finally {
+    await call(w, "Logout", { sessionID: session }).catch(() => null);
+  }
+  Object.assign(log, { added, fetched, errors });
+  await supabase.rpc("einv_elogo_log", { p_log: log });
+  return { ok: true, message: `eLogo: ${fetched} belge indirildi, ${added} tanesi kutuya eklendi${errors ? `, ${errors} belge alınamadı` : ""}${log.limited ? " (kalanlar bir sonraki eşitlemede)" : ""}.`, log };
+}
