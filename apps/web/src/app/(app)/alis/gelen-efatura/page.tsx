@@ -7,16 +7,17 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { fmt } from "@/lib/fin";
 import { DEFAULT_MAIL_QUERY } from "@/lib/einv";
-import { einvElogoSettings, einvElogoSync, einvElogoTest, einvScanMail, einvSetStatus, einvSettings, einvToReceipt } from "@/lib/einv-actions";
+import { einvElogoSettings, einvElogoSync, einvElogoTest, einvScanMail, einvSetStatus, einvSettings, einvToReceipt, einvUploadPdf } from "@/lib/einv-actions";
 import { elogoConfigured } from "@/lib/elogo";
 import { UploadBox } from "./_parts/UploadBox";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 type Row = {
   id: string; ettn: string; doc_kind: "efatura" | "earsiv" | "eirsaliye"; doc_no: string | null; issue_date: string | null; profile: string | null; type_code: string | null;
   sender_vkn: string | null; sender_name: string | null; currency: string; payable: number | null; vat_total: number | null; line_count: number | null; source: string;
-  direction?: "in" | "out"; received_at: string; note: string | null; status: "new" | "imported" | "ignored" | "rejected"; invoice_id: string | null; receipt_id: string | null; receipt_status: string | null;
+  direction?: "in" | "out"; ai?: boolean; has_pdf?: boolean; has_xml?: boolean; received_at: string; note: string | null; status: "new" | "imported" | "ignored" | "rejected"; invoice_id: string | null; receipt_id: string | null; receipt_status: string | null;
   party_id: string | null; response_due: string | null;
 };
 type Counts = { new: number; imported: number; ignored: number; due_soon: number; new_efatura: number; new_earsiv: number; new_eirsaliye: number; out_total: number; out_new: number };
@@ -44,7 +45,7 @@ export default async function Inbox({ searchParams }: { searchParams: Promise<{ 
   const rows = (data ?? []) as Row[];
   const c = (cnt ?? null) as Counts | null;
   const q = (o: Record<string, string | null>) => { const u = new URLSearchParams(); const v = { yon: dir === "out" ? "out" : null, durum: tab, tur: kind, ...o }; for (const [k, x] of Object.entries(v)) if (x) u.set(k, x); return `/alis/gelen-efatura?${u}`; };
-  const invoiceIds = rows.filter((r) => r.doc_kind !== "eirsaliye" && r.status === "new").map((r) => r.id);
+  const invoiceIds = rows.filter((r) => r.doc_kind !== "eirsaliye" && r.status === "new" && r.has_xml !== false).map((r) => r.id);
   const elogo = elogoConfigured();
   const elog = (set?.elogo_log ?? null) as { added?: number; fetched?: number; errors?: number; remaining?: number; error?: string; ops?: string[]; types?: Record<string, Record<string, unknown>> } | null;
   const today = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
@@ -102,10 +103,18 @@ export default async function Inbox({ searchParams }: { searchParams: Promise<{ 
 
         {can && (
           <div className="grid gap-3 lg:grid-cols-2">
-            <UploadBox />
+            <div className="flex flex-col gap-3">
+              <UploadBox />
+              <form action={einvUploadPdf} className="bg-white border border-line rounded-[14px] p-4 flex flex-col gap-2 text-sm">
+                <b>PDF e-Arşiv fatura yükle</b>
+                <p className="text-xs text-muted">XML&apos;i olmayan fatura (ör. WhatsApp&apos;tan gelen PDF): yapay zekâyla okunur, kutuya eklenir. En çok 5 dosya, toplam 4 MB.</p>
+                <input type="file" name="pdfs" accept="application/pdf,.pdf" multiple className="text-sm" />
+                <div><PendingSubmit className={btnSecondary}>Oku ve ekle</PendingSubmit></div>
+              </form>
+            </div>
             <section className="bg-white border border-line rounded-[14px] p-4 flex flex-col gap-2 text-sm">
               <b>E-postadan otomatik al</b>
-              <p className="text-muted text-xs">eLogo bildirim e-postalarındaki XML / ZIP ekleri her sabah taranır. İsterseniz şimdi de tarayabilirsiniz.</p>
+              <p className="text-muted text-xs">Seçilen hesaptaki e-postalar her saat taranır: XML / ZIP ekli e-faturalar doğrudan, yalnız PDF gelen e-Arşiv faturalar yapay zekâyla okunarak eklenir. e-Arşiv faturalar eLogo&apos;ya düşmez (GİB&apos;den geçmez, satıcı e-postayla gönderir); bu yüzden faturaların geldiği adres (ör. muhasebe@…) burada seçili olmalı.</p>
               <form action={einvSettings} className="flex flex-col gap-2">
                 <select name="account" defaultValue={set?.mail_account_id ?? ""} className={inputCls}>
                   <option value="">— Taranacak Gmail hesabı —</option>
@@ -144,7 +153,7 @@ export default async function Inbox({ searchParams }: { searchParams: Promise<{ 
                     <tr key={r.id}>
                       <td className={td}><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${KIND[r.doc_kind]![1]}`}>{KIND[r.doc_kind]![0]}</span><div className="text-[11px] text-muted mt-1">{r.profile}{r.type_code && r.type_code !== "SATIS" && r.type_code !== "SEVK" ? ` · ${r.type_code}` : ""}</div></td>
                       <td className={td}>{r.party_id ? <Link href={`/finans/cariler/${r.party_id}`} className="hover:text-brand-700">{r.sender_name}</Link> : r.sender_name}<div className="text-[11px] text-muted num">{r.sender_vkn ?? ""}{!r.party_id && " · yeni cari"}</div></td>
-                      <td className={`${td} num`}>{r.doc_no}<div className="text-[11px] text-muted">{SRC[r.source] ?? r.source}{r.line_count ? ` · ${r.line_count} kalem` : ""}</div></td>
+                      <td className={`${td} num`}>{r.doc_no}<div className="text-[11px] text-muted">{SRC[r.source] ?? r.source}{r.ai ? " · PDF'ten okundu" : ""}{r.line_count ? ` · ${r.line_count} kalem` : ""}</div></td>
                       <td className={`${td} whitespace-nowrap`}>{r.issue_date ? formatDate(r.issue_date) : "—"}{r.response_due && r.status === "new" && <div className={`text-[11px] ${late ? "text-bad font-semibold" : "text-muted"}`}>kabul/red: {formatDate(r.response_due)}</div>}</td>
                       <td className={tdNum}>{r.doc_kind === "eirsaliye" ? "—" : fmt(r.payable ?? 0, r.currency)}</td>
                       <td className={td}>
@@ -153,9 +162,12 @@ export default async function Inbox({ searchParams }: { searchParams: Promise<{ 
                       </td>
                       <td className={`${td} whitespace-nowrap`}>
                         <div className="flex flex-wrap gap-3 items-center text-xs font-semibold">
-                          {can && r.status === "new" && r.doc_kind !== "eirsaliye" && <Link href={`/alis/ice-aktar?gelen=${r.id}`} className="text-brand-700">{dir === "out" ? "Satışa aktar →" : "Alışa aktar →"}</Link>}
+                          {can && r.status === "new" && r.doc_kind !== "eirsaliye" && (r.ai && !r.has_xml
+                            ? <Link href={`/alis/yeni?gelen=${r.id}`} className="text-brand-700">Alışa aktar (kontrol et) →</Link>
+                            : <Link href={`/alis/ice-aktar?gelen=${r.id}`} className="text-brand-700">{dir === "out" ? "Satışa aktar →" : "Alışa aktar →"}</Link>)}
                           {r.status === "new" && r.doc_kind === "eirsaliye" && dir === "in" && (s.modules.stock ?? 0) >= 2 && <form action={einvToReceipt}><input type="hidden" name="id" value={r.id} /><PendingSubmit className="text-brand-700">Mal kabul aç →</PendingSubmit></form>}
-                          <a href={`/alis/gelen-efatura/xml?id=${r.id}`} className="text-muted">XML</a>
+                          {r.has_xml !== false && <a href={`/alis/gelen-efatura/xml?id=${r.id}`} className="text-muted">XML</a>}
+                          {r.has_pdf && <a href={`/alis/gelen-efatura/pdf?id=${r.id}`} target="_blank" rel="noreferrer" className="text-muted">PDF</a>}
                           {can && r.status === "new" && <form action={einvSetStatus}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="status" value="ignored" /><PendingSubmit className="text-muted">Yok say</PendingSubmit></form>}
                           {can && r.status === "new" && r.response_due && dir === "in" && <form action={einvSetStatus}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="status" value="rejected" /><PendingSubmit className="text-bad">Reddettim</PendingSubmit></form>}
                           {can && (r.status === "ignored" || r.status === "rejected") && <form action={einvSetStatus}><input type="hidden" name="id" value={r.id} /><input type="hidden" name="status" value="new" /><PendingSubmit className="text-brand-700">Geri al</PendingSubmit></form>}

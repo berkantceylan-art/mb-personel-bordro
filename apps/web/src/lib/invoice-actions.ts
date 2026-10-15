@@ -31,6 +31,7 @@ export type InvoicePayload = {
   doc_no?: string | null; invoice_date: string; due_date?: string | null; currency: string; rate?: string | null; warehouse_id?: string | null; profile?: string | null;
   note?: string | null; lines: LineInput[]; post?: boolean; return_of?: string | null;
   edoc?: Record<string, string | number | boolean | null> | null;
+  ettn?: string | null;
 };
 
 /** Fatura formu: taslak kaydet (+ isteğe bağlı işle). Cari yoksa VKN ile açar. */
@@ -61,6 +62,7 @@ export async function saveInvoice(p: InvoicePayload): Promise<{ ok: boolean; id?
     doc_no: p.doc_no?.trim() || null, invoice_date: dateOk(p.invoice_date) ?? undefined, due_date: dateOk(p.due_date) ?? null,
     currency, rate: currency === "TRY" ? 1 : parseRate(p.rate) ?? null, warehouse_id: p.warehouse_id || null, profile: p.profile || null,
     note: p.note?.slice(0, 1000) || null, return_of: p.return_of || null,
+    ettn: p.ettn && /^[0-9a-f-]{36}$/i.test(p.ettn) && !p.id ? p.ettn : null,
     lines: lines.map((l) => ({
       item_id: l.item_id || null, lab_product_id: l.lab_product_id || null, category_id: l.category_id || null, job_id: l.job_id || null,
       name: l.name.slice(0, 300), seller_code: l.seller_code || null, qty: Number(l.qty), unit: l.unit || "adet", unit_price: Number(l.unit_price) || 0,

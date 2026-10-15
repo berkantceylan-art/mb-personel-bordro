@@ -3,13 +3,15 @@ import JSZip from "jszip";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseDespatch, parseUbl, ublKind } from "@/lib/ubl";
 import { accessToken, getAttachment, getThread, gmailConfigured, listThreads } from "@/lib/gmail";
+import { pdfReaderConfigured, readEinvPdf, type PdfRow } from "@/lib/einv-pdf";
 
 export type EinvRow = {
   ettn: string; doc_kind: "efatura" | "earsiv" | "eirsaliye"; direction?: "in" | "out"; doc_no: string; issue_date: string | null; profile: string; type_code: string; sender_vkn: string | null; sender_name: string;
   currency: string; payable: number; vat_total: number; line_count: number; xml: string; source_ref: string | null;
 };
 
-export const DEFAULT_MAIL_QUERY = "has:attachment (filename:xml OR filename:zip) newer_than:14d";
+const OLD_MAIL_QUERY = "has:attachment (filename:xml OR filename:zip) newer_than:14d";
+export const DEFAULT_MAIL_QUERY = "has:attachment newer_than:14d (filename:xml OR filename:zip OR (filename:pdf (fatura OR arşiv OR arsiv OR e-arşiv OR earsiv OR invoice)))";
 
 /** XML'den kutu satırı; yön satıcı VKN'sinden (kendi VKN'miz → giden). e-belge değilse null */
 export function rowFromXmlDir(xml: string, ownVkn: string | null, ref: string | null): EinvRow | null {
@@ -71,20 +73,41 @@ export async function scanMailbox(supabase: SupabaseClient, admin: SupabaseClien
   const { token } = await accessToken(acc.id as string, acc.user_id as string);
   const vkn = await ownVkn(supabase);
   const rows: EinvRow[] = [];
+  const pdfRows: PdfRow[] = [];
   const errors: string[] = [];
+  const seenMarks: Array<{ ref: string; result: string }> = [];
+  let pdfRead = 0;
+  const PDF_MAX = 15;
+  const q = !set.mail_query || set.mail_query === OLD_MAIL_QUERY ? DEFAULT_MAIL_QUERY : (set.mail_query as string);
   let next: string | null = null;
   let pages = 0;
   do {
-    const r = await listThreads(token, { q: (set.mail_query as string) || DEFAULT_MAIL_QUERY, max: 25, ...(next ? { pageToken: next } : {}) });
+    const r = await listThreads(token, { q, max: 25, ...(next ? { pageToken: next } : {}) });
     for (const t of r.rows) {
       const th = await getThread(token, t.id);
       for (const m of th.messages) {
+        let gotXml = false;
         for (const a of m.attachments.filter((x) => /\.(xml|zip)$/i.test(x.name)).slice(0, 10)) {
           try {
             const buf = await getAttachment(token, m.id, a.id);
             for (const x of await xmlsFromFile(a.name, buf)) {
-              try { const row = rowFromXml(x.xml, vkn, `gmail:${m.id}`); if (row && !rows.some((y) => y.ettn === row.ettn)) rows.push(row); } catch { /* e-fatura değil */ }
+              try { const row = rowFromXml(x.xml, vkn, `gmail:${m.id}`); if (row) { gotXml = true; if (!rows.some((y) => y.ettn === row.ettn)) rows.push(row); } } catch { /* e-fatura değil */ }
             }
+          } catch (e) { errors.push(`${a.name}: ${(e as Error).message}`.slice(0, 120)); }
+        }
+        // XML'i olmayan e-postadaki PDF fatura (çoğu e-Arşiv): yapay zekâyla okunur
+        if (gotXml || !pdfReaderConfigured()) continue;
+        const pdfs = m.attachments.filter((x) => /\.pdf$/i.test(x.name)).slice(0, 3);
+        if (!pdfs.length) continue;
+        const refs = pdfs.map((a) => `gmail:${m.id}:${a.name}`.slice(0, 300));
+        const { data: seen } = await supabase.rpc("einv_mail_seen_check", { p_refs: refs });
+        for (const [i, a] of pdfs.entries()) {
+          if (((seen ?? []) as string[]).includes(refs[i]!) || pdfRead >= PDF_MAX) continue;
+          pdfRead++;
+          try {
+            const res = await readEinvPdf(admin, await getAttachment(token, m.id, a.id), vkn, refs[i]!);
+            if (res.row && !rows.some((y) => y.ettn === res.row!.ettn) && !pdfRows.some((y) => y.ettn === res.row!.ettn)) pdfRows.push(res.row);
+            seenMarks.push({ ref: refs[i]!, result: res.row ? `okundu ${res.row.doc_no}` : res.reason ?? "" });
           } catch (e) { errors.push(`${a.name}: ${(e as Error).message}`.slice(0, 120)); }
         }
       }
@@ -98,7 +121,14 @@ export async function scanMailbox(supabase: SupabaseClient, admin: SupabaseClien
     if (error) return { ok: false, message: error.message };
     added += Number((data as { added: number }).added ?? 0);
   }
-  const result = { found: rows.length, added, errors: errors.slice(0, 5) };
+  let pdfAdded = 0;
+  if (pdfRows.length) {
+    const { data, error } = await supabase.rpc("einv_inbox_add", { p_rows: pdfRows, p_source: "email" });
+    if (error) errors.push(`PDF kaydı: ${error.message}`.slice(0, 120));
+    else pdfAdded = Number((data as { added: number }).added ?? 0);
+  }
+  if (seenMarks.length) await supabase.rpc("einv_mail_seen_mark", { p_rows: seenMarks });
+  const result = { found: rows.length, added, pdf_read: pdfRead, pdf_added: pdfAdded, errors: errors.slice(0, 5) };
   await supabase.rpc("einv_scan_log", { p_result: result });
-  return { ok: true, message: `E-postada ${rows.length} e-fatura bulundu, ${added} tanesi yeni.${errors.length ? ` ${errors.length} ek okunamadı.` : ""}`, added, found: rows.length };
+  return { ok: true, message: `E-postada ${rows.length} XML e-belge bulundu, ${added} tanesi yeni.${pdfRead ? ` ${pdfRead} PDF okundu, ${pdfAdded} e-Arşiv fatura eklendi.` : ""}${errors.length ? ` ${errors.length} ek okunamadı.` : ""}`, added: added + pdfAdded, found: rows.length + pdfRows.length };
 }

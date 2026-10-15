@@ -116,6 +116,7 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
       doc_no: docNo, invoice_date: date, due_date: due || null, currency, rate: currency === "TRY" ? null : String(rate || r(currency)), warehouse_id: wh || null,
       profile: profile || null, note, post, return_of: type === "return" ? initial?.return_of ?? null : null,
       edoc: issuing ? { ...ed, online_sale: !!ed.online_sale } : null,
+      ettn: initial?.ettn ?? null,
       lines: rows.filter((x) => x.name.trim()).map((x) => { const l: Partial<Row> = { ...x }; delete l.key; delete l.open; return l as LineInput; }),
     });
     setBusy(false);
