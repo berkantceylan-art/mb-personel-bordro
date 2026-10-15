@@ -235,3 +235,48 @@ export function parseUbl(xml: string): ParsedInvoice {
     due_date: txt(obj(inv.PaymentMeans).PaymentDueDate) || null,
   };
 }
+
+export type ParsedDespatch = {
+  doc_no: string; ettn: string | null; date: string; profile: string; type_code: string; supplier: ParsedParty; customer: ParsedParty;
+  lines: Array<{ name: string; seller_code: string | null; qty: number; unit: string }>; notes: string[]; ship_date: string | null;
+};
+
+function findNode(node: unknown, key: string, depth = 0): X | null {
+  if (!node || typeof node !== "object" || depth > 8) return null;
+  const o = node as X;
+  if (o[key] && typeof o[key] === "object") return obj(o[key]);
+  for (const v of Object.values(o)) for (const c of Array.isArray(v) ? v : [v]) { const r = findNode(c, key, depth + 1); if (r) return r; }
+  return null;
+}
+
+/** UBL-TR e-İrsaliye (DespatchAdvice) ayrıştırıcısı */
+export function parseDespatch(xml: string): ParsedDespatch {
+  const d = findNode(parser.parse(xml), "DespatchAdvice");
+  if (!d) throw new Error("Bu dosya e-irsaliye değil (DespatchAdvice bulunamadı).");
+  const ship = obj(d.Shipment);
+  return {
+    doc_no: txt(d.ID),
+    ettn: txt(d.UUID) || null,
+    date: txt(d.IssueDate),
+    profile: txt(d.ProfileID) || "TEMELIRSALIYE",
+    type_code: txt(d.DespatchAdviceTypeCode) || "SEVK",
+    supplier: parseParty(obj(d.DespatchSupplierParty)),
+    customer: parseParty(obj(d.DeliveryCustomerParty)),
+    lines: arr(d.DespatchLine).map((raw) => {
+      const l = obj(raw);
+      const q = obj(l.DeliveredQuantity);
+      const item = obj(l.Item);
+      return {
+        name: (txt(item.Name) || txt(item.Description) || "Kalem").slice(0, 300),
+        seller_code: txt(obj(item.SellersItemIdentification).ID) || null,
+        qty: n(l.DeliveredQuantity) || 1,
+        unit: CODE_UNIT[String(q["@_unitCode"] ?? "")] ?? "adet",
+      };
+    }),
+    notes: arr(d.Note).map((x) => txt(x)).filter(Boolean),
+    ship_date: txt(obj(obj(ship.Delivery).Despatch).ActualDespatchDate) || null,
+  };
+}
+
+/** XML hangi e-belge: fatura mı irsaliye mi */
+export const ublKind = (xml: string): "invoice" | "despatch" | null => (/<(\w+:)?DespatchAdvice[\s>]/.test(xml) ? "despatch" : /<(\w+:)?Invoice[\s>]/.test(xml) ? "invoice" : null);
