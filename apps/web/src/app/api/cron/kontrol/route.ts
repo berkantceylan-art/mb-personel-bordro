@@ -12,5 +12,7 @@ export async function GET(req: Request) {
   try { admin = createAdminClient(); } catch { return NextResponse.json({ error: "ayarlı değil" }, { status: 501 }); }
   const { data, error } = await admin.rpc("admin_morning_report");
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, ...(data as object) });
+  // Muhasebe kokpiti sabah özeti (kurulmadıysa sessizce geçilir)
+  const gl = await admin.rpc("gl_morning_digest");
+  return NextResponse.json({ ok: true, ...(data as object), muhasebe: gl.error ? { error: gl.error.message } : gl.data });
 }

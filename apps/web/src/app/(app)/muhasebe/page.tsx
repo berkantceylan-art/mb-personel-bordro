@@ -16,6 +16,7 @@ type O = {
 };
 
 const LINKS: Array<[string, string, string]> = [
+  ["/muhasebe/kokpit", "Muhasebe kokpiti", "Ayın kapanışı 6 aşamada: sıradaki iş ve eksikler tek ekranda"],
   ["/muhasebe/gelen-kutusu", "Fiş onayı (gelen kutusu)", "ERP'den gelen fiş taslaklarını kontrol edip onaylayın"],
   ["/muhasebe/fisler", "Muhasebe fişleri", "Otomatik ve elle fişler, eşleştirme bekleyenler"],
   ["/muhasebe/hesap-plani", "Hesap planı", "Tek Düzen Hesap Planı, alt hesaplar, içe aktarma"],
@@ -41,7 +42,8 @@ export default async function LedgerHome() {
   const s = await getSession();
   if ((s.modules.ledger ?? 0) < 1) redirect("/");
   const supabase = await createClient();
-  const [{ data, error }, { count: drafts }] = await Promise.all([supabase.rpc("gl_overview"), supabase.from("gl_vouchers").select("id", { count: "exact", head: true }).eq("status", "draft")]);
+  const [{ data, error }, { count: drafts }, { data: wm }] = await Promise.all([supabase.rpc("gl_overview"), supabase.from("gl_vouchers").select("id", { count: "exact", head: true }).eq("status", "draft"), supabase.rpc("gl_working_month")]);
+  const ck = typeof wm === "string" ? ((await supabase.rpc("gl_cockpit", { p_month: wm })).data as { done: number; next: { label: string; link: string; stage: string } | null } | null) : null;
   const o = (data ?? null) as O | null;
   const set = o?.settings ?? null;
   const admin = (s.modules.ledger ?? 0) >= 3;
@@ -60,6 +62,13 @@ export default async function LedgerHome() {
             <KPI label="Muhasebe dışı" value={o.excluded.toLocaleString("tr-TR")} href="/muhasebe/fisler?durum=excluded" sub="fişli cari, iç hesap" />
             <KPI label="Bu ay" value={fmt(o.month.debit)} sub={`${o.month.vouchers} fiş · borç toplamı`} />
           </div>
+        )}
+        {ck && typeof wm === "string" && (
+          <Link href={`/muhasebe/kokpit?ay=${wm}`} className="rounded-[14px] border border-brand-600 bg-[#EEF3F9] p-4 flex flex-wrap items-center gap-3 hover:bg-[#E3ECF6]">
+            <b>Muhasebe kokpiti · {wm}</b><span className="text-sm">{ck.done} / 6 aşama tamam</span>
+            {ck.next ? <span className="text-sm text-muted">Sıradaki: {ck.next.label} ({ck.next.stage})</span> : <span className="text-sm text-[#1A7F52]">Ayın işleri tamam</span>}
+            <span className="ml-auto text-sm font-semibold text-brand-700">Aç →</span>
+          </Link>
         )}
         <div className="grid gap-3 md:grid-cols-3">
           {LINKS.map(([h, l, d]) => (

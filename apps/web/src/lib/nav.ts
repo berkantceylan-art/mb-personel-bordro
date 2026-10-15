@@ -89,6 +89,7 @@ export const NAV: Group[] = [
     group: "Genel muhasebe", slug: "genel-muhasebe",
     items: [
       { label: "Genel muhasebe", href: "/muhasebe", module: "ledger", desc: "ERP kayıtlarının otomatik muhasebe fişleri, ayarlar, kurulum" },
+      { label: "Muhasebe kokpiti", href: "/muhasebe/kokpit", module: "ledger", desc: "Ayın kapanışı 6 aşamada: sıradaki iş, eksikler, beyannameler, Luca" },
       { label: "Fiş onayı (gelen kutusu)", href: "/muhasebe/gelen-kutusu", module: "ledger", desc: "ERP işlemlerinden oluşan fiş taslakları: hesap kontrolü, onay, kural öğrenme" },
       { label: "Muhasebe fişleri", href: "/muhasebe/fisler", module: "ledger", desc: "Mahsup, tahsil, tediye; eşleştirme bekleyenler; elle fiş" },
       { label: "Hesap planı", href: "/muhasebe/hesap-plani", module: "ledger", desc: "Tek Düzen Hesap Planı, alt hesaplar, Excel'den aktarma" },
@@ -101,6 +102,7 @@ export const NAV: Group[] = [
       { label: "Beyanname hazırlık", href: "/muhasebe/beyanname", module: "ledger", desc: "KDV1, KDV2, muhtasar ve prim hizmet, damga vergisi, KDV iadesi" },
       { label: "Kontroller ve uyarılar", href: "/muhasebe/kontroller", module: "ledger", desc: "Eksik fiş, belgesiz ihracat, eksi kasa, işlenmemiş banka satırı ve diğer kontroller" },
       { label: "Luca aktarımı", href: "/muhasebe/luca", module: "ledger", desc: "Onaylı fişleri Luca Excel Veri Aktarımı dosyasına çevir; aktarılanları takip et" },
+      { label: "Luca hesap planı ve kategoriler", href: "/muhasebe/luca/hesap-plani", module: "ledger", desc: "Luca hesaplarını ERP'de aç, kategorileri ve ana hesapları Luca alt hesaplarına bağla" },
       { label: "Dönem sonu işlemleri", href: "/muhasebe/donem-sonu", module: "ledger", desc: "Amortisman, dönemsellik, faiz tahakkuku, yansıtma, yeniden değerleme, 131 / 331" },
       { label: "Şüpheli alacaklar", href: "/muhasebe/supheli-alacak", module: "ledger", desc: "Dava / icra safhasındaki alacaklar, karşılık ve tahsilat" },
       { label: "Geçici ve kurumlar vergisi", href: "/muhasebe/vergi", module: "ledger", desc: "Dönem kârı, KKEG, ihracat indirimi, asgari kurumlar vergisi, 193 / 370 fişleri" },
