@@ -47,6 +47,7 @@ export default async function Vouchers({ searchParams }: { searchParams: Promise
           <select name="kaynak" defaultValue={sp.kaynak ?? ""} className={`${inputCls} w-40`}><option value="">Tüm kaynaklar</option>{Object.entries(VOUCHER_SOURCE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
           <input name="q" defaultValue={sp.q ?? ""} placeholder="Fiş no, belge no, açıklama" className={`${inputCls} w-64`} />
           <button className={btnSecondary}>Süz</button>
+          {st === "posted" && <Link href={`/yazdir/muhasebe/fis?bas=${sp.bas ?? ""}&bit=${sp.bit ?? ""}`} target="_blank" className="ml-auto text-sm font-semibold text-brand-700 self-center">🖨 Dönemin fişlerini yazdır</Link>}
         </form>
         <section className="bg-white border border-line rounded-[14px] overflow-x-auto">
           <table className="w-full text-sm min-w-[900px]">

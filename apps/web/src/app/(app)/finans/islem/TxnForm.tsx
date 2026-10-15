@@ -32,6 +32,7 @@ export function TxnForm({ accounts, parties, categories, rates, initial, back, t
   const [rate, setRate] = useState("");
   const [counter, setCounter] = useState<"account" | "party">("account");
   const [vat, setVat] = useState("20");
+  const [stopaj, setStopaj] = useState("0");
 
   const acc = accounts.find((a) => a.id === accountId);
   const to = accounts.find((a) => a.id === toId);
@@ -148,6 +149,23 @@ export function TxnForm({ accounts, parties, categories, rates, initial, back, t
               {["0", "1", "10", "20"].map((v) => <option key={v} value={v}>%{v}</option>)}
             </select>
             {amt > 0 && Number(vat) > 0 && <span className="text-xs font-normal text-muted">KDV: {fmt(Math.round((amt * Number(vat)) / (100 + Number(vat))), acc?.currency ?? "TRY")}</span>}
+          </Field>
+        )}
+
+        {kind === "expense" && (
+          <Field label="Stopaj (gelir vergisi kesintisi)" hint="kira, serbest meslek: tutar brüt yazılır">
+            <select name="stopaj_rate" value={stopaj} onChange={(e) => setStopaj(e.target.value)} className={selectCls}>
+              <option value="0">Yok</option>
+              <option value="20">%20 · kira (şahıs ev sahibi)</option>
+              <option value="20s">%20 · serbest meslek</option>
+              <option value="15">%15</option>
+              <option value="10">%10</option>
+            </select>
+            {amt > 0 && parseInt(stopaj) > 0 && (() => {
+              const base = Number(vat) > 0 ? amt - Math.round((amt * Number(vat)) / (100 + Number(vat))) : amt;
+              const st = Math.round((base * parseInt(stopaj)) / 100);
+              return <span className="text-xs font-normal text-muted">Stopaj {fmt(st, acc?.currency ?? "TRY")} vergi dairesine (muhtasar) · ödenecek net {fmt(amt - st, acc?.currency ?? "TRY")}</span>;
+            })()}
           </Field>
         )}
 

@@ -30,7 +30,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
       <PageHeader title="Yevmiye defteri" subtitle={`${formatDate(from)} – ${formatDate(to)} · madde madde, tarih sırasıyla`} actions={<Link href="/muhasebe" className="text-sm font-semibold text-brand-700">Genel muhasebe</Link>} />
       <div className={page}>
         {error && <Notice tone="bad">{/function|does not exist|schema cache/.test(error.message) ? "Supabase'de 20270207000000_gl_reports.sql çalıştırılmalı." : glError(error.message)}</Notice>}
-        <PeriodForm from={from} to={to} excel={`/muhasebe/aktar/excel?tur=fis&bas=${from}&bit=${to}`} />
+        <PeriodForm from={from} to={to} print={`/yazdir/muhasebe/yevmiye?bas=${from}&bit=${to}`} excel={`/muhasebe/aktar/excel?tur=fis&bas=${from}&bit=${to}`} />
         {unnumbered > 0 && (s.modules.ledger ?? 0) >= 3 && (
           <Notice tone="warn">{unnumbered} fişe henüz yevmiye madde numarası verilmedi. <form action={glRenumber} className="inline"><input type="hidden" name="year" value={from.slice(0, 4)} /><PendingSubmit className="font-semibold underline">{from.slice(0, 4)} yılını numaralandır</PendingSubmit></form> (tarih sırasıyla 1&apos;den başlar; açılış fişi ilk sırada).</Notice>
         )}

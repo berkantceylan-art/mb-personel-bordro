@@ -1,7 +1,7 @@
 import { btnSecondary, inputCls } from "@/components/erp";
 
 /** Rapor dönemi seçimi (GET formu) + Excel bağlantısı */
-export function PeriodForm({ from, to, extra, excel, children }: { from: string; to: string; extra?: Record<string, string | null | undefined>; excel?: string; children?: React.ReactNode }) {
+export function PeriodForm({ from, to, extra, excel, print, children }: { from: string; to: string; extra?: Record<string, string | null | undefined>; excel?: string; print?: string; children?: React.ReactNode }) {
   const y = from.slice(0, 4);
   const quick: Array<[string, string, string]> = [
     [`${y}-01-01`, `${y}-12-31`, `${y} yılı`], [`${y}-01-01`, `${y}-03-31`, "1. çeyrek"], [`${y}-04-01`, `${y}-06-30`, "2. çeyrek"], [`${y}-07-01`, `${y}-09-30`, "3. çeyrek"], [`${y}-10-01`, `${y}-12-31`, "4. çeyrek"],
@@ -17,7 +17,10 @@ export function PeriodForm({ from, to, extra, excel, children }: { from: string;
         <button className={btnSecondary}>Göster</button>
       </form>
       <div className="flex flex-wrap gap-1.5 text-xs">{quick.map(([f, t, l]) => <a key={l} href={qs(f, t)} className="rounded-full border border-line bg-white px-2.5 py-1 font-semibold">{l}</a>)}</div>
-      {excel && <a href={excel} className="ml-auto text-sm font-semibold text-brand-700">Excel ↓</a>}
+      <div className="ml-auto flex gap-4 text-sm font-semibold">
+        {print && <a href={print} target="_blank" rel="noreferrer" className="text-brand-700">🖨 Yazdır / PDF</a>}
+        {excel && <a href={excel} className="text-brand-700">Excel ↓</a>}
+      </div>
     </div>
   );
 }

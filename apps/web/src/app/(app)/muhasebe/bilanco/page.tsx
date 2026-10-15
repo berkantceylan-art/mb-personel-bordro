@@ -66,7 +66,7 @@ export default async function BalanceSheet({ searchParams }: { searchParams: Pro
       <PageHeader title="Bilanço" subtitle={`${formatDate(date)} tarihli · kayıtlı fişlerden; kapatılmamış dönem sonucu 590 / 591'de`} actions={<Link href="/muhasebe/gelir-tablosu" className="text-sm font-semibold text-brand-700">Gelir tablosu</Link>} />
       <div className={page}>
         {error && <Notice tone="bad">{/function|does not exist|schema cache/.test(error.message) ? "Supabase'de 20270207000000_gl_reports.sql çalıştırılmalı." : glError(error.message)}</Notice>}
-        <form className="flex items-end gap-2 print:hidden"><label className="flex flex-col gap-1 text-xs font-semibold text-muted">Tarih<input type="date" name="tarih" defaultValue={date} className={`${inputCls} w-44`} /></label><button className={btnSecondary}>Göster</button></form>
+        <form className="flex items-end gap-2 print:hidden"><label className="flex flex-col gap-1 text-xs font-semibold text-muted">Tarih<input type="date" name="tarih" defaultValue={date} className={`${inputCls} w-44`} /></label><button className={btnSecondary}>Göster</button><a href={`/yazdir/muhasebe/bilanco?tarih=${date}`} target="_blank" rel="noreferrer" className="ml-auto text-sm font-semibold text-brand-700">🖨 Yazdır / PDF</a></form>
         {ta !== tp && rows.length > 0 && <Notice tone="bad">Aktif ({m(ta)}) ve pasif ({m(tp)}) toplamı tutmuyor: nazım hesaplar ya da dengesiz kayıt olabilir.</Notice>}
         {!rows.length && !error && <Notice tone="info">Bu tarihe kadar kayıtlı fiş yok.</Notice>}
         {rows.length > 0 && (

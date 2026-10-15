@@ -45,7 +45,7 @@ export default async function TrialBalance({ searchParams }: { searchParams: Pro
       <PageHeader title="Mizan" subtitle={`${formatDate(from)} – ${formatDate(to)} · kayıtlı fişler`} actions={<Link href="/muhasebe" className="text-sm font-semibold text-brand-700">Genel muhasebe</Link>} />
       <div className={page}>
         {error && <Notice tone="bad">{/function|does not exist|schema cache/.test(error.message) ? "Supabase'de 20270207000000_gl_reports.sql çalıştırılmalı." : glError(error.message)}</Notice>}
-        <PeriodForm from={from} to={to} extra={{ seviye: String(lvl), sifir: sp.sifir, grup: sp.grup }} excel={excel}>
+        <PeriodForm from={from} to={to} extra={{ seviye: String(lvl), sifir: sp.sifir, grup: sp.grup }} excel={excel} print={`/yazdir/muhasebe/mizan?bas=${from}&bit=${to}&seviye=${lvl}`}>
           <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Seviye<select name="seviye" defaultValue={String(lvl)} className="h-11 rounded-[10px] border border-line bg-white px-3 text-sm">{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n === 1 ? "1 · ana hesap" : `${n}. kırılım`}</option>)}</select></label>
           <label className="flex items-center gap-1 text-xs font-semibold text-muted h-11"><input type="checkbox" name="grup" value="1" defaultChecked={groups} /> Grup toplamları</label>
           <label className="flex items-center gap-1 text-xs font-semibold text-muted h-11"><input type="checkbox" name="sifir" value="1" defaultChecked={sp.sifir === "1"} /> Sıfır bakiyeler</label>
