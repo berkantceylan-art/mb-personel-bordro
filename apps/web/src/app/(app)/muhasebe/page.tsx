@@ -27,6 +27,7 @@ const LINKS: Array<[string, string, string]> = [
   ["/muhasebe/beyanname", "Beyanname hazırlık", "KDV1, KDV2, muhtasar, damga vergisi, KDV iadesi"],
   ["/muhasebe/donem-sonu", "Dönem sonu işlemleri", "Amortisman, dönemsellik, faiz, yansıtma, yeniden değerleme"],
   ["/muhasebe/vergi", "Geçici ve kurumlar vergisi", "KKEG, ihracat indirimi, asgari vergi, fişler"],
+  ["/mevzuat", "Mevzuat ve gelişmeler", "Muhasebe, vergi, SGK gelişmeleri ve yapılacaklar"],
   ["/muhasebe/vergi-takvimi", "Vergi takvimi", "Son günler ve beyanname durumları"],
   ["/muhasebe/donem", "Dönem işlemleri", "Kur değerleme, bordro tahakkuku, kapanış / açılış, kilit"],
   ["/muhasebe/aktar", "Aktarım", "Fişleri Luca / Zirve / Excel'e aktar"],

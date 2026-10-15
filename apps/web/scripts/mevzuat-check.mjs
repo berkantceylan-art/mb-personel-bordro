@@ -26,6 +26,10 @@ for (const b of d.bulletin ?? []) {
   if (!isDate(b.date) || !b.title || !b.summary || !b.impact || !b.category) errors.push(`eksik bülten alanı: ${b.id}`);
   if (!["uygulandi", "bilgi", "onay-bekliyor"].includes(b.status)) errors.push(`geçersiz durum: ${b.id}`);
   if (!/^https?:\/\//.test(b.source ?? "")) errors.push(`kaynak bağlantısı yok: ${b.id}`);
+  if (b.severity !== undefined && !["bilgi", "aksiyon", "kritik"].includes(b.severity)) errors.push(`geçersiz önem: ${b.id}`);
+  if (b.area !== undefined && !["muhasebe", "sgk", "dis-ticaret", "diger"].includes(b.area)) errors.push(`geçersiz alan: ${b.id}`);
+  if (b.due !== undefined && b.due !== null && !isDate(b.due)) errors.push(`son gün tarih değil: ${b.id}`);
+  if ((b.severity === "aksiyon" || b.severity === "kritik") && !b.action) errors.push(`aksiyon metni yok: ${b.id}`);
 }
 if (errors.length) { console.error("mevzuat.json HATALI:\n- " + errors.join("\n- ")); process.exit(1); }
 console.log(`mevzuat.json geçerli: ${d.params.length} değer, ${d.bulletin.length} bülten`);

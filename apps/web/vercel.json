@@ -32,6 +32,10 @@
     {
       "path": "/api/cron/uts",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/mevzuat",
+      "schedule": "10 6 * * *"
     }
   ]
 }
