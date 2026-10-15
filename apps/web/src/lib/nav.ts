@@ -90,6 +90,9 @@ export const NAV: Group[] = [
     items: [
       { label: "Genel muhasebe", href: "/muhasebe", module: "ledger", desc: "ERP kayıtlarının otomatik muhasebe fişleri, ayarlar, kurulum" },
       { label: "Muhasebe kokpiti", href: "/muhasebe/kokpit", module: "ledger", desc: "Ayın kapanışı 6 aşamada: sıradaki iş, eksikler, beyannameler, Luca" },
+      { label: "Mali müşavir paketi", href: "/muhasebe/paket", module: "ledger", desc: "Ayın raporları ve Luca dosyaları tek ZIP: indir veya e-postayla gönder" },
+      { label: "Karşılaştırmalı raporlar", href: "/muhasebe/karsilastirma", module: "ledger", desc: "Gelir tablosu: bu ay, önceki ay, geçen yıl, yıl başından" },
+      { label: "Nakit akış tablosu", href: "/muhasebe/nakit-akis", module: "ledger", desc: "Kasa ve bankadaki giriş-çıkışlar: işletme, yatırım, finansman" },
       { label: "Fiş onayı (gelen kutusu)", href: "/muhasebe/gelen-kutusu", module: "ledger", desc: "ERP işlemlerinden oluşan fiş taslakları: hesap kontrolü, onay, kural öğrenme" },
       { label: "Muhasebe fişleri", href: "/muhasebe/fisler", module: "ledger", desc: "Mahsup, tahsil, tediye; eşleştirme bekleyenler; elle fiş" },
       { label: "Hesap planı", href: "/muhasebe/hesap-plani", module: "ledger", desc: "Tek Düzen Hesap Planı, alt hesaplar, Excel'den aktarma" },
