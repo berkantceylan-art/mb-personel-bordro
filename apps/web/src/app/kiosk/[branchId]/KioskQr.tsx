@@ -9,6 +9,7 @@ type Feed = { feed: Array<{ name: string; direction: "IN" | "OUT"; at: string; s
 export function KioskQr({ branchId }: { branchId: string }) {
   const [img, setImg] = useState<string | null>(null);
   const [branch, setBranch] = useState("");
+  const [door, setDoor] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
   const [feed, setFeed] = useState<Feed | null>(null);
@@ -23,8 +24,9 @@ export function KioskQr({ branchId }: { branchId: string }) {
       const { data, error } = await supabase.rpc("kiosk_qr", { p_branch: branchId });
       if (!alive) return;
       if (error) return setErr(error.message);
-      const d = data as { token: string; branch: string };
+      const d = data as { token: string; branch: string; door?: boolean };
       setBranch(d.branch);
+      setDoor(!!d.door);
       setImg(await QRCode.toDataURL(d.token, { width: 640, margin: 1, color: { dark: "#072A50", light: "#FFFFFF" } }));
       setErr(null);
     };
@@ -41,7 +43,7 @@ export function KioskQr({ branchId }: { branchId: string }) {
       setFeed(f);
     };
     loadQr(); loadFeed();
-    const q = setInterval(loadQr, 60_000);
+    const q = setInterval(loadQr, 10_000); // kapı kodu 20 sn'de bir değişir
     const fd = setInterval(loadFeed, 8_000);
     const c = setInterval(() => setNow(new Date()), 1000);
     // Ekran kapanmasın
@@ -82,7 +84,7 @@ export function KioskQr({ branchId }: { branchId: string }) {
         <div className="text-center">
           <div className="font-display text-5xl font-bold tabular-nums">{now.toLocaleTimeString("tr-TR", { timeZone: "Europe/Istanbul" })}</div>
           <div className="text-[#A9BCD1] mt-1">{now.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Istanbul" })}</div>
-          <div className="text-[#A9BCD1] mt-1 text-sm">Uygulamada &quot;Giriş / Çıkış&quot;ı seçip &quot;QR okut&quot;a basın. Kod her saat yenilenir.</div>
+          <div className="text-[#A9BCD1] mt-1 text-sm">Uygulamada &quot;Giriş / Çıkış&quot;ı seçip &quot;QR okut&quot;a basın. {door ? "Girişte kapı otomatik açılır. Kod birkaç saniyede bir yenilenir." : "Kod her saat yenilenir."}</div>
         </div>
       </div>
 

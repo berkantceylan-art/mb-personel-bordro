@@ -6,6 +6,7 @@ import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { BranchForm } from "../AdminForms";
+import { doorConfigured } from "@/lib/door";
 import { deleteDepartment, deleteDevice, saveCompanyInfo, saveDepartment, saveDevice } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +19,20 @@ export default async function CompanySettings({ searchParams }: { searchParams: 
   const tab = ["bilgiler", "subeler", "bolumler", "cihazlar"].includes(sp.sekme ?? "") ? sp.sekme! : "bilgiler";
   const isOwner = s.role === "owner";
   const supabase = await createClient();
+  const loadBranches = async () => {
+    const r = await supabase.from("branches").select("id, name, address, lat, lng, radius_m, mobile_punch_enabled, door_enabled, door_device_id, door_channel, door_pulse_s, door_gps_m").order("name");
+    if (!r.error) return r;
+    return supabase.from("branches").select("id, name, address, lat, lng, radius_m, mobile_punch_enabled").order("name");
+  };
   const [{ data: branches }, { data: departments }, { data: emps }, devices, company] = await Promise.all([
-    supabase.from("branches").select("id, name, address, lat, lng, radius_m, mobile_punch_enabled").order("name"),
+    loadBranches(),
     supabase.from("departments").select("id, name").order("name"),
     supabase.from("employees").select("id, department_id").eq("status", "active"),
     tab === "cihazlar" ? supabase.from("devices").select("*").order("code") : Promise.resolve({ data: [] }),
     tab === "bilgiler" ? supabase.from("companies").select("*").eq("id", s.companyId).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  const { data: doorLog } = tab === "subeler" ? await supabase.rpc("door_log", { p_branch: null, p_limit: 30 }) : { data: null };
+  const doors = (doorLog ?? []) as Array<{ id: string; at: string; source: string; status: string; message: string | null; distance_m: number | null; branch: string; who: string }>;
   const deptCount = new Map<string, number>();
   for (const e of emps ?? []) if (e.department_id) deptCount.set(e.department_id, (deptCount.get(e.department_id) ?? 0) + 1);
 
@@ -66,11 +74,31 @@ export default async function CompanySettings({ searchParams }: { searchParams: 
           <>
             {(branches ?? []).map((b) => (
               <Card key={b.id} title={b.name} action={<a href={`/kiosk/${b.id}`} target="_blank" className="text-[13px] font-semibold text-brand-700">QR kiosk ekranını aç</a>}>
-                <BranchForm branch={b} />
+                <BranchForm branch={b} doorReady={doorConfigured()} />
                 <p className="text-xs text-muted">{b.lat ? `Konum tanımlı · personel ${b.radius_m} m içindeyken telefondan giriş-çıkış yapabilir.` : "Konum tanımlı değil: mobil girişte sadece QR kod çalışır."} QR kiosk ekranını girişteki tablette açık bırakın; kod her saat değişir, fotoğrafı başka yerden okutulamaz.</p>
               </Card>
             ))}
             {isOwner && <Card title="Yeni şube"><BranchForm /></Card>}
+            {doors.length > 0 && (
+              <Card title="Son kapı açılışları">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="text-left text-xs text-muted"><th className="py-1.5 pr-3">Zaman</th><th className="pr-3">Kişi</th><th className="pr-3">Şube</th><th className="pr-3">Yöntem</th><th className="pr-3">Sonuç</th></tr></thead>
+                    <tbody>
+                      {doors.map((d) => (
+                        <tr key={d.id} className="border-t border-line">
+                          <td className="py-1.5 pr-3 tabular-nums whitespace-nowrap">{d.at.slice(8, 10)}.{d.at.slice(5, 7)} {d.at.slice(11, 16)}</td>
+                          <td className="pr-3">{d.who}</td>
+                          <td className="pr-3">{d.branch}</td>
+                          <td className="pr-3">{d.source === "QR" ? "QR" : d.source === "GPS" ? `Konum${d.distance_m != null ? ` (${d.distance_m} m)` : ""}` : "Elle"}</td>
+                          <td className={`pr-3 ${d.status === "ok" ? "text-ok" : d.status === "error" ? "text-bad" : "text-muted"}`}>{d.status === "ok" ? "Açıldı" : d.status === "error" ? `Hata: ${d.message ?? ""}` : "Gönderilmedi"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </>
         )}
 

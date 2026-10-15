@@ -38,6 +38,18 @@ export async function saveBranch(_: R | null, f: FormData): Promise<R> {
     mobile_punch_enabled: f.get("mobile_punch_enabled") === "on",
   };
   if (!row.name) return { ok: false, message: "Şube adı zorunlu." };
+  if (id && f.get("door_section")) {
+    const dev = str(f, "door_device_id");
+    if (dev && !/^[A-Za-z0-9_-]{4,64}$/.test(dev)) return { ok: false, message: "Röle cihaz kimliği geçersiz (Shelly uygulaması › Cihaz › Ayarlar › Cihaz bilgisi › Device Id)." };
+    if (f.get("door_enabled") === "on" && !dev) return { ok: false, message: "Kapıyı açmak için röle cihaz kimliğini girin." };
+    Object.assign(row, {
+      door_enabled: f.get("door_enabled") === "on",
+      door_device_id: dev || null,
+      door_channel: Math.min(3, Math.max(0, Number(str(f, "door_channel")) || 0)),
+      door_pulse_s: Math.min(10, Math.max(1, Number(str(f, "door_pulse_s")) || 1)),
+      door_gps_m: Math.min(200, Math.max(0, Math.round(Number(str(f, "door_gps_m") || 30)))),
+    });
+  }
   const { error } = id ? await supabase.from("branches").update(row).eq("id", id) : await supabase.from("branches").insert(row);
   if (error) return { ok: false, message: error.message };
   if (!id) {

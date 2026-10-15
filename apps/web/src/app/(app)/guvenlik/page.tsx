@@ -9,6 +9,7 @@ import { saveGuard } from "@/lib/visitor-actions";
 import { GuardPanel, type V } from "./GuardPanel";
 import { DecideForm } from "../ziyaretci/DecideForm";
 import Link from "next/link";
+import { DoorButton } from "@/components/DoorButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Güvenlik paneli" };
@@ -36,6 +37,8 @@ export default async function GuardPage({ searchParams }: { searchParams: Promis
   const names = new Map(((dir ?? []) as { user_id: string; display_name: string }[]).map((d) => [d.user_id, d.display_name]));
   const visits: V[] = ((data ?? []) as (Omit<V, "no" | "host"> & { year: number; no: number; host_user: string | null })[]).map((v) => ({ ...v, no: visNo(v), host: v.host_user ? names.get(v.host_user) ?? null : null }));
   const isAdmin = ["owner", "hr"].includes(s.role);
+  const { data: db } = await supabase.rpc("door_branches");
+  const doorBranches = (db ?? []) as Array<{ id: string; name: string }>;
   return (
     <>
       <PageHeader title="Güvenlik paneli" subtitle="Ziyaretçi giriş-çıkışı · QR davetiye, ziyaretçi kartı, fotoğraf · ev sahibine anında bildirim" actions={<span className="flex items-center gap-3"><Link href="/ziyaretci/kapi-afisi" className="text-sm font-semibold text-brand-700 print:hidden">🖨 Kapı QR afişi</Link><Link href="/z/kapi" target="_blank" className="text-sm font-semibold text-brand-700 print:hidden">📝 Kapıda kayıt formu</Link><PrintButton /></span>} />
@@ -58,6 +61,13 @@ export default async function GuardPage({ searchParams }: { searchParams: Promis
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+        {doorBranches.length > 0 && (
+          <section className="rounded-[16px] border border-line bg-white p-4 flex flex-wrap items-center gap-3 print:hidden">
+            <b className="font-display text-base">🚪 Kapı</b>
+            {doorBranches.map((b) => <DoorButton key={b.id} branchId={b.id} big label={doorBranches.length > 1 ? `🔓 ${b.name} kapısını aç` : "🔓 Kapıyı aç"} />)}
+            <span className="text-xs text-muted">Ziyaretçi ya da kartını unutan personel için. Her açılış kayda geçer.</span>
           </section>
         )}
         <GuardPanel visits={visits} hosts={(dir ?? []) as { user_id: string; display_name: string }[]} />

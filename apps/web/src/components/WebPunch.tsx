@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type Result = { direction: string; at: string; branch: string };
+import { doorOpen } from "@/lib/door-actions";
+
+type Result = { direction: string; at: string; branch: string; door?: string | null; door_note?: string | null };
 
 /** Telefonun tarayıcısından konumla ya da QR kodla giriş/çıkış */
 export function WebPunch({ inside }: { inside?: boolean }) {
@@ -20,8 +22,14 @@ export function WebPunch({ inside }: { inside?: boolean }) {
     const { data, error } = res;
     if (error) return setMsg({ ok: false, text: error.message });
     const d = data as Result;
-    setMsg({ ok: true, text: `${d.direction === "IN" ? "Giriş" : "Çıkış"} kaydedildi · ${d.at.slice(11, 16)} · ${d.branch}` });
+    const head = `${d.direction === "IN" ? "Giriş" : "Çıkış"} kaydedildi · ${d.at.slice(11, 16)} · ${d.branch}`;
+    setMsg({ ok: true, text: d.door ? `${head} · kapı açılıyor…` : d.door_note ? `${head}. ${d.door_note}` : head });
     if ("vibrate" in navigator) navigator.vibrate(80);
+    if (d.door) {
+      const r = await doorOpen(d.door).catch(() => ({ ok: false, message: "Kapıya ulaşılamadı" }));
+      setMsg({ ok: r.ok, text: r.ok ? `${head} · 🔓 Kapı açıldı` : `${head} · Kapı açılamadı: ${r.message}` });
+      if (r.ok && "vibrate" in navigator) navigator.vibrate([60, 60, 60]);
+    }
     router.refresh();
   }
 
