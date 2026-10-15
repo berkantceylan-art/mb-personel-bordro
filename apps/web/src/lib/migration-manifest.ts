@@ -132,4 +132,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270209000000_gl_fixes.sql", "f:adm_extra_rules"],
   ["20270211000000_stopaj.sql", "f:gl_withholding_report"],
   ["20270212000000_tax_center.sql", "t:gl_tax_filings"],
+  ["20270213000000_corporate_tax.sql", "t:gl_tax_adjustments"],
 ];

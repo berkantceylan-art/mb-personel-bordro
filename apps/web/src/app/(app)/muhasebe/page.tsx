@@ -25,6 +25,7 @@ const LINKS: Array<[string, string, string]> = [
   ["/muhasebe/bilanco", "Bilanço", "Aktif / pasif, Tek Düzen biçimi"],
   ["/muhasebe/gelir-tablosu", "Gelir tablosu", "Brüt satıştan dönem net kârına"],
   ["/muhasebe/beyanname", "Beyanname hazırlık", "KDV1, KDV2, muhtasar, damga vergisi, KDV iadesi"],
+  ["/muhasebe/vergi", "Geçici ve kurumlar vergisi", "KKEG, ihracat indirimi, asgari vergi, fişler"],
   ["/muhasebe/vergi-takvimi", "Vergi takvimi", "Son günler ve beyanname durumları"],
   ["/muhasebe/donem", "Dönem işlemleri", "Kur değerleme, bordro tahakkuku, kapanış / açılış, kilit"],
   ["/muhasebe/aktar", "Aktarım", "Fişleri Luca / Zirve / Excel'e aktar"],
