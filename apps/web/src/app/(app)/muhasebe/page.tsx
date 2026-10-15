@@ -17,6 +17,9 @@ type O = {
 
 const LINKS: Array<[string, string, string]> = [
   ["/muhasebe/kokpit", "Muhasebe kokpiti", "Ayın kapanışı 6 aşamada: sıradaki iş ve eksikler tek ekranda"],
+  ["/muhasebe/paket", "Mali müşavir paketi", "Ayın raporları ve Luca dosyaları: ZIP indir veya e-postayla gönder"],
+  ["/muhasebe/karsilastirma", "Karşılaştırmalı raporlar", "Gelir tablosu beş dönem yan yana"],
+  ["/muhasebe/nakit-akis", "Nakit akış tablosu", "İşletme, yatırım ve finansman nakit akışları"],
   ["/muhasebe/gelen-kutusu", "Fiş onayı (gelen kutusu)", "ERP'den gelen fiş taslaklarını kontrol edip onaylayın"],
   ["/muhasebe/fisler", "Muhasebe fişleri", "Otomatik ve elle fişler, eşleştirme bekleyenler"],
   ["/muhasebe/hesap-plani", "Hesap planı", "Tek Düzen Hesap Planı, alt hesaplar, içe aktarma"],
