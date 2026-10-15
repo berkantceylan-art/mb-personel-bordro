@@ -33,6 +33,7 @@ export function glError(m: string): string {
   if (/duplicate key.*gl_accounts/.test(m)) return "Bu hesap kodu zaten var.";
   if (/gl_no_payroll/.test(m)) return "Bu dönemin bordrosu hesaplanmamış.";
   if (/gl_pending_before_lock/.test(m)) return "Kilitlenecek dönemde onay ya da eşleştirme bekleyen fiş var: önce gelen kutusunu boşaltın.";
+  if (/gl_stage_not_done/.test(m)) return "Aşama henüz tamamlanmadı: açık maddeler kapanınca onaylanabilir.";
   if (/luca_blocked:(\d+)/.test(m)) return `Seçilenlerden ${m.match(/luca_blocked:(\d+)/)?.[1]} fiş aktarılamaz (hesap kodu Luca'da yok, onaysız veya dengesiz). Önce düzeltin ya da seçimden çıkarın.`;
   if (/luca_bad_columns/.test(m)) return "Sütun düzeni geçersiz: fiş no ve hesap kodu sütunları olmalı.";
   if (/luca_plan_empty/.test(m)) return "Hesap planı dosyası boş.";

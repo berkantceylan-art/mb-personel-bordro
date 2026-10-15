@@ -396,3 +396,10 @@ export async function glCheckAck(f: FormData) {
   const on = str(f, "on", 1) !== "0";
   await rpcDone("gl_check_ack", { p_key: str(f, "key", 40), p_period: str(f, "period", 7), p_note: str(f, "note", 300) || null, p_on: on }, () => (on ? "Uyarı bilerek geçildi olarak işaretlendi." : "Uyarı yeniden açıldı."), 3);
 }
+
+/** Kokpit: aşamayı kontrol edip onayla / onayı geri al */
+export async function glStageSign(f: FormData) {
+  const p = str(f, "period", 7);
+  const on = f.get("on") !== "0";
+  await rpcDone("gl_stage_sign", { p_period: p, p_stage: str(f, "stage", 20), p_note: str(f, "note", 300) || null, p_on: on }, () => (on ? "Aşama onaylandı." : "Aşama onayı geri alındı."), 3);
+}

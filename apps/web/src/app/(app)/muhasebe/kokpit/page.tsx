@@ -5,6 +5,9 @@ import { Notice, btnSecondary, inputCls, page } from "@/components/erp";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { glError } from "@/lib/gl";
+import { MEVZUAT, areaOf, severityOf } from "@/lib/mevzuat";
+import { glStageSign } from "@/lib/gl-actions";
+import { PendingSubmit } from "@/components/ConfirmSubmit";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +21,7 @@ const STATUS: Record<Stage["status"], [string, string, string]> = {
   blocked: ["Önceki aşamayı bekliyor", "bg-[#F2F4F7] text-muted", "bg-[#D5DEE8] text-ink"],
   todo: ["Başlanmadı", "bg-[#EEF3F9] text-brand-700", "bg-brand-700 text-white"],
 };
+const OWNER: Record<string, string> = { kayit: "Muhasebe girişi yapan", onay: "Yönetici / mali müşavir", donem: "Mali müşavir", kontrol: "Yönetici", beyan: "Mali müşavir", kapanis: "Yönetici" };
 const FILING: Record<string, string> = { todo: "yapılacak", prepared: "hazırlandı", filed: "verildi", paid: "ödendi", none: "yok" };
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 const monthName = (m: string) => `${MONTHS[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
@@ -34,7 +38,18 @@ export default async function Cockpit({ searchParams }: { searchParams: Promise<
     const { data: wm } = await supabase.rpc("gl_working_month");
     month = typeof wm === "string" ? wm : new Date(Date.now() + 3 * 3600000 - 30 * 86400000).toISOString().slice(0, 7);
   }
-  const { data, error } = await supabase.rpc("gl_cockpit", { p_month: month });
+  const [{ data, error }, { data: rd }, { data: sg }] = await Promise.all([supabase.rpc("gl_cockpit", { p_month: month }), supabase.from("reg_reads").select("item_id, done_at"), supabase.rpc("gl_stage_signoffs_list", { p_period: month })]);
+  const signs = (sg ?? {}) as Record<string, { at: string; note: string | null; name: string }>;
+  const approver = (s.modules.ledger ?? 0) >= 3;
+  // Bu ay sizi etkileyen mevzuat: muhasebe / SGK alanında, yapılacak işi olan ve son günü bu ay ile izleyen 60 gün içinde (ya da bu ay yayımlanmış)
+  const doneIds = new Set(((rd ?? []) as Array<{ item_id: string; done_at: string | null }>).filter((r) => r.done_at).map((r) => r.item_id));
+  const mStart = `${month}-01`;
+  const mEnd = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)) + 2, 0)).toISOString().slice(0, 10);
+  const regs = MEVZUAT.bulletin
+    .filter((b) => ["muhasebe", "sgk"].includes(areaOf(b)) && severityOf(b) !== "bilgi" && !doneIds.has(b.id))
+    .filter((b) => (b.due ? b.due >= mStart && b.due <= mEnd : b.date.slice(0, 7) === month))
+    .sort((a, b) => (a.due ?? a.date).localeCompare(b.due ?? b.date))
+    .slice(0, 6);
   const c = data as Cockpit | null;
   const titleOf = (k: string) => c?.stages.find((x) => x.key === k)?.title ?? k;
 
@@ -68,6 +83,21 @@ export default async function Cockpit({ searchParams }: { searchParams: Promise<
               ) : <Notice tone="ok">Bu ayın bütün işleri tamam.</Notice>}
             </section>
 
+            {regs.length > 0 && (
+              <section className="bg-white border border-line rounded-[14px] p-4 flex flex-col gap-2">
+                <div className="flex items-baseline gap-2"><b>Bu ay sizi etkileyen mevzuat</b><Link href="/mevzuat" className="ml-auto text-sm font-semibold text-brand-700">Mevzuat ve gelişmeler →</Link></div>
+                <ul className="text-sm divide-y divide-[#EEF2F6]">
+                  {regs.map((b) => (
+                    <li key={b.id} className="py-2 flex flex-wrap items-center gap-2">
+                      <span className={`text-xs rounded-full px-2 py-0.5 font-semibold ${severityOf(b) === "kritik" ? "bg-[#FDECEC] text-bad" : "bg-[#FFF4E0] text-[#7A4F00]"}`}>{severityOf(b) === "kritik" ? "Kritik" : "Yapılacak"}</span>
+                      <Link href={`/mevzuat?id=${b.id}`} className="hover:text-brand-700">{b.title}</Link>
+                      {b.due && <span className="ml-auto text-xs text-muted">son gün {b.due.split("-").reverse().join(".")}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             <ol className="flex flex-col gap-3">
               {c.stages.map((x) => {
                 const [label, chip, num] = STATUS[x.status];
@@ -81,6 +111,18 @@ export default async function Cockpit({ searchParams }: { searchParams: Promise<
                       </div>
                       <span className={`ml-auto rounded-full px-2.5 py-1 text-xs font-semibold ${chip}`}>{label}{x.status !== "done" && x.total ? ` · ${x.total - x.open}/${x.total}` : ""}</span>
                       <Link href={x.link} className="text-sm font-semibold text-brand-700">Aç →</Link>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                      <span>Sorumlu: {OWNER[x.key]}</span>
+                      {signs[x.key] ? (
+                        <span className="text-[#1A7F52]">· Onaylayan: {signs[x.key]!.name} · {new Date(signs[x.key]!.at).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul", dateStyle: "short", timeStyle: "short" })}{signs[x.key]!.note ? ` · ${signs[x.key]!.note}` : ""}</span>
+                      ) : x.status === "done" ? <span className="text-[#7A4F00]">· Henüz onaylanmadı</span> : null}
+                      {approver && x.status === "done" && !signs[x.key] && (
+                        <form action={glStageSign} className="ml-auto flex items-center gap-2"><input type="hidden" name="period" value={month} /><input type="hidden" name="stage" value={x.key} /><input name="note" placeholder="not (isteğe bağlı)" className="h-8 rounded-[8px] border border-[#D5DEE8] px-2 text-xs w-48" /><PendingSubmit className="text-xs font-semibold text-brand-700">Kontrol ettim, onayla</PendingSubmit></form>
+                      )}
+                      {approver && signs[x.key] && (
+                        <form action={glStageSign} className="ml-auto"><input type="hidden" name="period" value={month} /><input type="hidden" name="stage" value={x.key} /><input type="hidden" name="on" value="0" /><PendingSubmit className="text-xs font-semibold text-brand-700">Onayı geri al</PendingSubmit></form>
+                      )}
                     </div>
                     {x.status === "blocked" && x.blocked_by.length > 0 && <p className="text-xs text-muted">Önce: {x.blocked_by.map(titleOf).join(", ")}. Bu aşamada iş yapılabilir ama sıra bozulursa rakamlar değişebilir.</p>}
                     <ul className="text-sm divide-y divide-[#EEF2F6]">
