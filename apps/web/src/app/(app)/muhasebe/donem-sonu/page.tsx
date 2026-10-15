@@ -49,7 +49,9 @@ export default async function PeriodEnd({ searchParams }: { searchParams: Promis
   const month = sp.ay && /^\d{4}-\d{2}$/.test(sp.ay) ? sp.ay : prev;
   const year = Number(month.slice(0, 4));
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("gl_period_checklist", { p_month: month });
+  const [{ data, error }, { data: chk }] = await Promise.all([supabase.rpc("gl_period_checklist", { p_month: month }), supabase.rpc("gl_checks", { p_month: month })]);
+  const openChecks = ((chk ?? []) as Array<{ severity: string; count: number; acked: boolean }>).filter((x) => x.count > 0 && !x.acked);
+  const openCrit = openChecks.filter((x) => x.severity === "critical").length;
   const c = (data ?? null) as Check | null;
   const canEdit = (s.modules.ledger ?? 0) >= 2 && !c?.locked;
   const rate = sp.oran && /^\d+([.,]\d+)?$/.test(sp.oran) ? Number(sp.oran.replace(",", ".")) : null;
@@ -76,6 +78,7 @@ export default async function PeriodEnd({ searchParams }: { searchParams: Promis
         <form className="flex flex-wrap gap-2"><input type="month" name="ay" defaultValue={month} className={`${inputCls} w-44`} /><button className={btnSecondary}>Göster</button></form>
         {error && <Notice tone="bad">{/function|does not exist|schema cache|relation/.test(error.message) ? "Supabase'de 20270214000000_period_end.sql çalıştırılmalı." : glError(error.message)}</Notice>}
         {c?.locked && <Notice tone="info">Bu dönem kilitli: fiş eklenemez.</Notice>}
+        {chk && openChecks.length > 0 && <Notice tone={openCrit ? "bad" : "warn"}>Kontrollerde {openCrit ? `${openCrit} kritik, ` : ""}{openChecks.length - openCrit} diğer açık uyarı var. <Link href={`/muhasebe/kontroller?ay=${month}`} className="font-semibold text-brand-700">Kontrolleri aç</Link>.</Notice>}
         {c && c.pending > 0 && <Notice tone="warn">Bu ay {c.pending} fiş onay ya da eşleştirme bekliyor; onaylanmayan fişler bakiyelere girmez. Dönem sonu işlemlerinden önce <Link href={`/muhasebe/gelen-kutusu?ay=${month}`} className="font-semibold text-brand-700">gelen kutusunu</Link> boşaltın.</Notice>}
         {c && (
           <>

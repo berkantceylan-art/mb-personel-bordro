@@ -388,3 +388,11 @@ export async function glSetApprovalMode(f: FormData) {
   const on = str(f, "on", 1) === "1";
   await rpcDone("gl_set_approval_mode", { p_on: on }, () => (on ? "Onaylı çalışma açıldı: yeni fişler onayınıza düşecek." : "Onaylı çalışma kapatıldı: fişler doğrudan kaydedilecek (bekleyen taslakları onaylamayı unutmayın)."), 3);
 }
+
+// ---------------------------------------------------------------------
+// Kontrol motoru
+// ---------------------------------------------------------------------
+export async function glCheckAck(f: FormData) {
+  const on = str(f, "on", 1) !== "0";
+  await rpcDone("gl_check_ack", { p_key: str(f, "key", 40), p_period: str(f, "period", 7), p_note: str(f, "note", 300) || null, p_on: on }, () => (on ? "Uyarı bilerek geçildi olarak işaretlendi." : "Uyarı yeniden açıldı."), 3);
+}

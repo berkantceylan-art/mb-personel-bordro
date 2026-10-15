@@ -99,6 +99,7 @@ export const NAV: Group[] = [
       { label: "Bilanço", href: "/muhasebe/bilanco", module: "ledger", desc: "Aktif / pasif, Tek Düzen biçimi" },
       { label: "Gelir tablosu", href: "/muhasebe/gelir-tablosu", module: "ledger", desc: "Brüt satışlardan dönem net kârına" },
       { label: "Beyanname hazırlık", href: "/muhasebe/beyanname", module: "ledger", desc: "KDV1, KDV2, muhtasar ve prim hizmet, damga vergisi, KDV iadesi" },
+      { label: "Kontroller ve uyarılar", href: "/muhasebe/kontroller", module: "ledger", desc: "Eksik fiş, belgesiz ihracat, eksi kasa, işlenmemiş banka satırı ve diğer kontroller" },
       { label: "Dönem sonu işlemleri", href: "/muhasebe/donem-sonu", module: "ledger", desc: "Amortisman, dönemsellik, faiz tahakkuku, yansıtma, yeniden değerleme, 131 / 331" },
       { label: "Şüpheli alacaklar", href: "/muhasebe/supheli-alacak", module: "ledger", desc: "Dava / icra safhasındaki alacaklar, karşılık ve tahsilat" },
       { label: "Geçici ve kurumlar vergisi", href: "/muhasebe/vergi", module: "ledger", desc: "Dönem kârı, KKEG, ihracat indirimi, asgari kurumlar vergisi, 193 / 370 fişleri" },
