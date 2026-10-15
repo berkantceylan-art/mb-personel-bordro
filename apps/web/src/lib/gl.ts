@@ -36,6 +36,13 @@ export function glError(m: string): string {
   if (/bad_period/.test(m)) return "Dönem YYYY-AA biçiminde olmalı.";
   if (/gl_pending_in_year/.test(m)) return "Bu yılda eşleştirme bekleyen fiş var: kapanıştan önce tamamlayın.";
   if (/gl_vat_open/.test(m)) return "191 / 391 hesaplarında bakiye var: önce son ayların KDV mahsubunu yapın.";
+  if (/(gl_stamp|gl_vat2|gl_vat_refund|gl_tax_calendar|gl_filing|inv_set_export_doc|gl_stamp_docs|gl_tax_filings)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270212000000_tax_center.sql çalıştırılmalı.";
+  if (/refund_exceeds/.test(m)) return "İade tutarı ay sonu devreden KDV'den (190) büyük olamaz: önce KDV mahsup fişini oluşturun.";
+  if (/bad_amount/.test(m)) return "Tutar sıfırdan büyük olmalı.";
+  if (/bad_account/.test(m)) return "Gider hesabı 6 ya da 7 ile başlayan bir hesap olmalı (ör. 770).";
+  if (/bad_date/.test(m)) return "Tarih girin.";
+  if (/category_missing/.test(m)) return "Kategori eksik: Supabase'de 20270212000000_tax_center.sql çalıştırılmalı.";
+  if (/not_found/.test(m)) return "Kayıt bulunamadı.";
   return m;
 }
 

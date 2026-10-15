@@ -7,7 +7,11 @@ import { PendingSubmit } from "@/components/ConfirmSubmit";
 
 type Acc = { id: string; name: string; kind: string; currency: string; balance: number };
 type Party = { id: string; name: string; currency: string; kind: string; balance: number ; internalBook?: boolean; payBook?: string; twin?: string };
-type Cat = { id: string; name: string; kind: string };
+type Cat = { id: string; name: string; kind: string; code?: string | null };
+
+/** Gider / gelir dışı: vergi dairesine ödeme, KDV iade tahsilatı (KDV ve stopaj uygulanmaz) */
+const TAX_OUT = ["tax_payable", "vat_resp", "stopaj_rent", "stopaj_smm"];
+const TAX_IN = ["vat_refund"];
 
 const KINDS: [string, string, string][] = [
   ["collection", "Tahsilat", "Cariden kasaya / bankaya para girişi"],
@@ -33,6 +37,8 @@ export function TxnForm({ accounts, parties, categories, rates, initial, back, t
   const [counter, setCounter] = useState<"account" | "party">("account");
   const [vat, setVat] = useState("20");
   const [stopaj, setStopaj] = useState("0");
+  const [respVat, setRespVat] = useState("0");
+  const [catId, setCatId] = useState(initial.category ?? "");
 
   const acc = accounts.find((a) => a.id === accountId);
   const to = accounts.find((a) => a.id === toId);
@@ -55,6 +61,8 @@ export function TxnForm({ accounts, parties, categories, rates, initial, back, t
     return ((amt * r1) / r2 / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
   const cats = categories.filter((c) => c.kind === (kind === "income" ? "income" : "expense"));
+  const taxCats = categories.filter((c) => c.kind === "other" && (kind === "income" ? TAX_IN : TAX_OUT).includes(c.code ?? ""));
+  const isTax = taxCats.some((c) => c.id === catId);
 
   return (
     <form action={postTxn} className="flex flex-col gap-5">
@@ -110,9 +118,10 @@ export function TxnForm({ accounts, parties, categories, rates, initial, back, t
         {(kind === "income" || kind === "expense") && (
           <>
             <Field label={kind === "expense" ? "Gider hesabı" : "Gelir hesabı"}>
-              <select name="category_id" required defaultValue={initial.category ?? ""} className={selectCls}>
+              <select name="category_id" required value={catId} onChange={(e) => setCatId(e.target.value)} className={selectCls}>
                 <option value="">Seçin</option>
                 {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {taxCats.length > 0 && <optgroup label={kind === "expense" ? "Vergi ödemesi (KDV, stopaj uygulanmaz)" : "Vergi iadesi"}>{taxCats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>}
               </select>
             </Field>
             <Field label={kind === "expense" ? "Nasıl ödendi?" : "Nereye girdi?"}>
@@ -143,8 +152,8 @@ export function TxnForm({ accounts, parties, categories, rates, initial, back, t
           {amt > 0 && <span className="text-xs font-normal text-muted">= {fmt(amt, acc?.currency ?? party?.currency ?? "TRY")}</span>}
         </Field>
 
-        {(kind === "income" || kind === "expense") && (
-          <Field label="KDV oranı" hint="tutarın içinden ayrılır">
+        {(kind === "income" || kind === "expense") && !isTax && (
+          <Field label="KDV oranı" hint={Number(respVat) > 0 ? "sorumlu KDV'de %0 seçin" : "tutarın içinden ayrılır"}>
             <select name="vat_rate" value={vat} onChange={(e) => setVat(e.target.value)} className={selectCls}>
               {["0", "1", "10", "20"].map((v) => <option key={v} value={v}>%{v}</option>)}
             </select>
@@ -152,7 +161,17 @@ export function TxnForm({ accounts, parties, categories, rates, initial, back, t
           </Field>
         )}
 
-        {kind === "expense" && (
+        {kind === "expense" && !isTax && (
+          <Field label="Sorumlu KDV (KDV2)" hint="KDV'siz yabancı fatura: Google, Meta reklamı, yazılım">
+            <select name="resp_vat" value={respVat} onChange={(e) => { setRespVat(e.target.value); if (e.target.value !== "0") setVat("0"); }} className={selectCls}>
+              <option value="0">Yok</option>
+              <option value="20">%20 · yurt dışından hizmet</option>
+            </select>
+            {amt > 0 && Number(respVat) > 0 && <span className="text-xs font-normal text-muted">KDV2 ile ödenecek {fmt(Math.round((amt * Number(respVat)) / 100), acc?.currency ?? "TRY")} · aynı tutar indirilecek KDV&apos;ye yazılır</span>}
+          </Field>
+        )}
+
+        {kind === "expense" && !isTax && (
           <Field label="Stopaj (gelir vergisi kesintisi)" hint="kira, serbest meslek: tutar brüt yazılır">
             <select name="stopaj_rate" value={stopaj} onChange={(e) => setStopaj(e.target.value)} className={selectCls}>
               <option value="0">Yok</option>
