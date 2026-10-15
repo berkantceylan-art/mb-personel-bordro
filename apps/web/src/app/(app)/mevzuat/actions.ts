@@ -31,3 +31,18 @@ export async function saveSettings(f: FormData) {
   for (const p of ["/mevzuat/ayarlar", "/fazla-mesai", "/bordro", "/puantaj", "/"]) revalidatePath(p);
   await done("Mevzuat ayarları kaydedildi. Kesintisi yazılmamış bordrolar ve yeni fazla mesai önerileri bu ayarlarla hesaplanır.");
 }
+
+/** Mevzuat gelişmesi: okundu / okunmadı / yapıldı / yapılmadı (kullanıcıya özel) */
+export async function markReg(f: FormData) {
+  const s = await getSession();
+  if (!s.userId) await fail("Oturum yok.");
+  const action = String(f.get("action") ?? "");
+  if (!["read", "unread", "done", "undone"].includes(action)) await fail("İşlem geçersiz.");
+  const ids = String(f.get("ids") ?? "").split(",").map((x) => x.trim()).filter((x) => /^[a-z0-9-]{1,120}$/i.test(x)).slice(0, 200);
+  if (!ids.length) await fail("Kayıt seçilmedi.");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reg_mark", { p_action: action, p_items: ids });
+  if (error) await fail(/function|does not exist|schema cache/.test(error.message) ? "Supabase'de 20270215000000_reg_center.sql çalıştırılmalı." : error.message);
+  revalidatePath("/mevzuat");
+  await done(action === "done" ? "Yapıldı olarak işaretlendi." : action === "undone" ? "Yapılacaklara geri alındı." : ids.length > 1 ? `${ids.length} gelişme okundu sayıldı.` : "Güncellendi.");
+}

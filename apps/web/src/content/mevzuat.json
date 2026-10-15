@@ -1,22 +1,166 @@
 {
   "last_checked": "2026-10-12",
   "params": [
-    { "key": "minWageGross", "label": "Brüt asgari ücret (aylık)", "value": 33030, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret", "system": true },
-    { "key": "minWageNet", "label": "Net asgari ücret (aylık)", "value": 28075.5, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret", "system": false },
-    { "key": "sgkFloor", "label": "SGK prime esas kazanç alt sınırı (aylık)", "value": 33030, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret", "system": true },
-    { "key": "sgkCeiling", "label": "SGK prime esas kazanç üst sınırı (aylık)", "value": 297270, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret", "system": true },
-    { "key": "severanceCap", "label": "Kıdem tazminatı tavanı", "value": 73729.87, "unit": "TL", "valid_from": "2026-07-01", "valid_to": "2026-12-31", "source": "https://www.alomaliye.com/2026/07/06/2026-kidem-tazminati-tavani-2-donem-guncel-tutar-ve-merak-edilenler/amp/", "system": true },
-    { "key": "severanceCapPrev", "label": "Kıdem tazminatı tavanı (önceki dönem)", "value": 64948.77, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-06-30", "source": "https://www.alomaliye.com/2026/07/06/2026-kidem-tazminati-tavani-2-donem-guncel-tutar-ve-merak-edilenler/amp/", "system": true },
-    { "key": "taxBracket1", "label": "Gelir vergisi 1. dilim üst sınırı (%15)", "value": 190000, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": true },
-    { "key": "taxBracket2", "label": "Gelir vergisi 2. dilim üst sınırı (%20)", "value": 400000, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": true },
-    { "key": "taxBracket3", "label": "Gelir vergisi 3. dilim üst sınırı, ücretliler (%27)", "value": 1500000, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": true },
-    { "key": "taxBracket4", "label": "Gelir vergisi 4. dilim üst sınırı (%35)", "value": 5300000, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": true },
-    { "key": "mealExemption", "label": "Yemek bedeli istisnası (günlük)", "value": 300, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": false },
-    { "key": "transportExemption", "label": "Yol bedeli istisnası (günlük)", "value": 158, "unit": "TL", "valid_from": "2026-01-01", "valid_to": "2026-12-31", "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi", "system": false },
-    { "key": "maternityWeeks", "label": "Analık (doğum) izni", "value": 24, "unit": "hafta", "valid_from": "2026-05-01", "valid_to": null, "source": "https://www.pwc.com.tr/tr/hizmetlerimiz/insan-yonetimi-ve-organizasyon-danismanligi/sosyal-guvenlik-hizmetleri/bultenler/2026/7578-sayili-kanunla-dogum-ve-babalik-izni-konusunda-yapilan-degisiklikler.html", "system": true },
-    { "key": "paternityDays", "label": "Babalık izni (ücretli)", "value": 10, "unit": "gün", "valid_from": "2026-05-01", "valid_to": null, "source": "https://www.pwc.com.tr/tr/hizmetlerimiz/insan-yonetimi-ve-organizasyon-danismanligi/sosyal-guvenlik-hizmetleri/bultenler/2026/7578-sayili-kanunla-dogum-ve-babalik-izni-konusunda-yapilan-degisiklikler.html", "system": true },
-    { "key": "yearlyOvertimeHours", "label": "Yıllık fazla çalışma üst sınırı", "value": 270, "unit": "saat", "valid_from": "2003-06-10", "valid_to": null, "source": "4857 sayılı İş Kanunu md. 41", "system": true },
-    { "key": "probationMonths", "label": "Deneme süresi üst sınırı", "value": 2, "unit": "ay", "valid_from": "2003-06-10", "valid_to": null, "source": "4857 sayılı İş Kanunu md. 15 (toplu sözleşmeyle 4 ay)", "system": true }
+    {
+      "key": "minWageGross",
+      "label": "Brüt asgari ücret (aylık)",
+      "value": 33030,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret",
+      "system": true
+    },
+    {
+      "key": "minWageNet",
+      "label": "Net asgari ücret (aylık)",
+      "value": 28075.5,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret",
+      "system": false
+    },
+    {
+      "key": "sgkFloor",
+      "label": "SGK prime esas kazanç alt sınırı (aylık)",
+      "value": 33030,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret",
+      "system": true
+    },
+    {
+      "key": "sgkCeiling",
+      "label": "SGK prime esas kazanç üst sınırı (aylık)",
+      "value": 297270,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.ey.com/tr_tr/insights/tax/2026-asgari-ucret",
+      "system": true
+    },
+    {
+      "key": "severanceCap",
+      "label": "Kıdem tazminatı tavanı",
+      "value": 73729.87,
+      "unit": "TL",
+      "valid_from": "2026-07-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.alomaliye.com/2026/07/06/2026-kidem-tazminati-tavani-2-donem-guncel-tutar-ve-merak-edilenler/amp/",
+      "system": true
+    },
+    {
+      "key": "severanceCapPrev",
+      "label": "Kıdem tazminatı tavanı (önceki dönem)",
+      "value": 64948.77,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-06-30",
+      "source": "https://www.alomaliye.com/2026/07/06/2026-kidem-tazminati-tavani-2-donem-guncel-tutar-ve-merak-edilenler/amp/",
+      "system": true
+    },
+    {
+      "key": "taxBracket1",
+      "label": "Gelir vergisi 1. dilim üst sınırı (%15)",
+      "value": 190000,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi",
+      "system": true
+    },
+    {
+      "key": "taxBracket2",
+      "label": "Gelir vergisi 2. dilim üst sınırı (%20)",
+      "value": 400000,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi",
+      "system": true
+    },
+    {
+      "key": "taxBracket3",
+      "label": "Gelir vergisi 3. dilim üst sınırı, ücretliler (%27)",
+      "value": 1500000,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi",
+      "system": true
+    },
+    {
+      "key": "taxBracket4",
+      "label": "Gelir vergisi 4. dilim üst sınırı (%35)",
+      "value": 5300000,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi",
+      "system": true
+    },
+    {
+      "key": "mealExemption",
+      "label": "Yemek bedeli istisnası (günlük)",
+      "value": 300,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi",
+      "system": false
+    },
+    {
+      "key": "transportExemption",
+      "label": "Yol bedeli istisnası (günlük)",
+      "value": 158,
+      "unit": "TL",
+      "valid_from": "2026-01-01",
+      "valid_to": "2026-12-31",
+      "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi",
+      "system": false
+    },
+    {
+      "key": "maternityWeeks",
+      "label": "Analık (doğum) izni",
+      "value": 24,
+      "unit": "hafta",
+      "valid_from": "2026-05-01",
+      "valid_to": null,
+      "source": "https://www.pwc.com.tr/tr/hizmetlerimiz/insan-yonetimi-ve-organizasyon-danismanligi/sosyal-guvenlik-hizmetleri/bultenler/2026/7578-sayili-kanunla-dogum-ve-babalik-izni-konusunda-yapilan-degisiklikler.html",
+      "system": true
+    },
+    {
+      "key": "paternityDays",
+      "label": "Babalık izni (ücretli)",
+      "value": 10,
+      "unit": "gün",
+      "valid_from": "2026-05-01",
+      "valid_to": null,
+      "source": "https://www.pwc.com.tr/tr/hizmetlerimiz/insan-yonetimi-ve-organizasyon-danismanligi/sosyal-guvenlik-hizmetleri/bultenler/2026/7578-sayili-kanunla-dogum-ve-babalik-izni-konusunda-yapilan-degisiklikler.html",
+      "system": true
+    },
+    {
+      "key": "yearlyOvertimeHours",
+      "label": "Yıllık fazla çalışma üst sınırı",
+      "value": 270,
+      "unit": "saat",
+      "valid_from": "2003-06-10",
+      "valid_to": null,
+      "source": "4857 sayılı İş Kanunu md. 41",
+      "system": true
+    },
+    {
+      "key": "probationMonths",
+      "label": "Deneme süresi üst sınırı",
+      "value": 2,
+      "unit": "ay",
+      "valid_from": "2003-06-10",
+      "valid_to": null,
+      "source": "4857 sayılı İş Kanunu md. 15 (toplu sözleşmeyle 4 ay)",
+      "system": true
+    }
   ],
   "bulletin": [
     {
@@ -27,7 +171,11 @@
       "impact": "Bordro hesabına etkisi yok. İşveren olarak e-tebligat hesabınızın açık olduğunu 30.11.2026'ya kadar mali müşavirinizle kontrol edin ve e-tebligat kutusunu düzenli takip edin (5. gün tebliğ sayılır).",
       "category": "Vergi",
       "status": "bilgi",
-      "source": "https://www.muhasebetr.com/guncelmevzuat/mevzuat_oku.php?mevzuat_id=7246"
+      "source": "https://www.muhasebetr.com/guncelmevzuat/mevzuat_oku.php?mevzuat_id=7246",
+      "severity": "aksiyon",
+      "due": "2026-11-30",
+      "area": "muhasebe",
+      "action": "E-tebligat hesabının açık olduğunu mali müşavirinizle kontrol edin; kutuyu düzenli takip edin."
     },
     {
       "id": "2026-07-kidem-tavani",
@@ -78,16 +226,160 @@
       "category": "Vergi",
       "status": "uygulandi",
       "source": "https://www.forbes.com.tr/ekonomi/2026-yili-gelir-vergisi-tarifesi-ve-istisna-tutarlari-belirlendi"
+    },
+    {
+      "id": "2026-07-gecici-vergi-form-2026",
+      "date": "2026-07-09",
+      "title": "Kurumlar geçici vergi beyannamesinde 2026 değişiklikleri",
+      "summary": "2026 dönemi kurumlar geçici vergi beyannamesine \"Toplam Geçmiş Yıl Zararları\" satırı eklendi; mahsup edilecek geçmiş yıl zararı kârı aşamaz. Bazı istisnalar \"Yurt İçi Asgari Geçici Vergi\" bölümüne otomatik taşınıyor; 480-485 indirim kodları eklendi.",
+      "impact": "Genel muhasebe › Geçici ve kurumlar vergisi ekranında geçmiş yıl zararını \"Elle düzeltmeler\"e girin; asgari vergi karşılaştırması ekranda yapılıyor.",
+      "category": "Kurumlar ve gelir vergisi",
+      "area": "muhasebe",
+      "severity": "bilgi",
+      "status": "bilgi",
+      "source": "https://www.alomaliye.com/wp-content/uploads/2026/07/kurum-gecici-tem-2026.pdf"
+    },
+    {
+      "id": "2026-05-e-envanter",
+      "date": "2026-05-08",
+      "title": "e-Envanter defteri 2026 hesap döneminden itibaren uygulanıyor",
+      "summary": "Envanter defterinin açılış onayı yerine dönemin ilk günü için e-Envanter defteri ve berat dosyaları oluşturulup mali mühür / e-imza ile e-Defter uygulamasına yükleniyor. 2026 için son günler: gelir vergisi mükellefleri 10 Mayıs, diğerleri 14 Mayıs (uzatma talep edildi).",
+      "impact": "Yıl sonu envanter listesi (stok, demirbaş, cari, banka bakiyeleri) ERP'den alınıp mali müşavire verilir; e-Defter yüklemesini müşavir yapar.",
+      "category": "e-Dönüşüm",
+      "area": "muhasebe",
+      "severity": "bilgi",
+      "status": "bilgi",
+      "source": "https://www.ismmmo.org.tr/dosya/6093/Kurumsal-Dosya/08052026-e-envanter-ve-berat-duyurusu.pdf"
+    },
+    {
+      "id": "2026-03-kdv-e-beyan",
+      "date": "2026-03-16",
+      "title": "KDV beyannameleri e-Beyan uygulamasına geçiyor (pilot iller)",
+      "summary": "KDV1, KDV2, KDV2B, KDV4 ve KDV9015 beyannameleri pilot illerde Dijital Vergi Dairesi'ndeki e-Beyan uygulamasından veriliyor (Eskişehir, Kırşehir, Konya, Muğla, Afyonkarahisar, Bursa, Kırıkkale, Yalova; Mart 2026 döneminden itibaren 10 il daha). Diğer illerde BDP programı kullanılmaya devam ediyor.",
+      "impact": "Beyannameyi mali müşavir verir; şirketin vergi dairesinin ili pilot listedeyse e-Beyan kullanılır. ERP'deki KDV1 / KDV2 dökümleri her iki yöntemde de aynıdır.",
+      "category": "KDV",
+      "area": "muhasebe",
+      "severity": "bilgi",
+      "status": "bilgi",
+      "source": "https://www.asmmmo.org.tr/userfiles/others/files/Mvzt/Gh/26/03-16-Katma%20De%C4%9Fer%20Vergisi%20Beyannamelerine%20(KDV1,%20KDV2,%20KDV2B,%20KDV4,%20KDV9015)%20%C4%B0li%C5%9Fkin%20%C3%96nemli%20Duyuru.pdf"
+    },
+    {
+      "id": "2026-01-yeniden-degerleme-2025",
+      "date": "2026-01-16",
+      "title": "Yeniden değerleme: 2025 yıl sonu oranı %25,49",
+      "summary": "7571 sayılı Kanunla enflasyon düzeltmesi 2025, 2026 ve 2027 hesap dönemlerinde yapılmayacak; bu dönemlerde VUK mükerrer 298/Ç kapsamında amortismana tabi iktisadi kıymetler isteğe bağlı olarak yeniden değerlenebilir. 2025 yıl sonu oranı %25,49; geçici dönem oranları Yİ-ÜFE'ye göre ilan edilir. Değer artışı 522 hesabında izlenir, sonraki amortisman yeni değerden ayrılır.",
+      "impact": "Genel muhasebe › Dönem sonu işlemleri ekranında çeyrek sonlarında oranı girip yeniden değerleme yapılabilir (25x / 257 / 522 fişi otomatik).",
+      "category": "Genel muhasebe",
+      "area": "muhasebe",
+      "severity": "bilgi",
+      "status": "uygulandi",
+      "source": "https://dengeymm.com.tr/wp-content/uploads/2026/02/OZEL-BULTEN-2026-1_YENIDEN-DEGERLEME.pdf"
+    },
+    {
+      "id": "2025-12-enflasyon-duzeltmesi-7571",
+      "date": "2025-12-25",
+      "title": "Enflasyon düzeltmesi 2025-2027 yıllarında yapılmayacak (7571 sayılı Kanun)",
+      "summary": "VUK'a eklenen geçici 37. madde ile 2025 (geçici dönemler dahil), 2026 ve 2027 hesap dönemlerinde mali tablolar enflasyon düzeltmesine tabi tutulmayacak; süre Cumhurbaşkanı kararıyla en fazla üç dönem uzatılabilir (RG 25.12.2025, sayı 33118).",
+      "impact": "ERP'de enflasyon düzeltmesi modülüne gerek yok; bunun yerine yeniden değerleme kullanılabilir.",
+      "category": "Genel muhasebe",
+      "area": "muhasebe",
+      "severity": "bilgi",
+      "status": "uygulandi",
+      "source": "https://dengeymm.com.tr/wp-content/uploads/2026/02/OZEL-BULTEN-2026-1_YENIDEN-DEGERLEME.pdf"
+    },
+    {
+      "id": "2026-01-damga-vergisi-2026",
+      "date": "2026-01-01",
+      "title": "2026 damga vergisi oranları ve kâğıt başı azami tutar",
+      "summary": "Sözleşme, taahhüt ve kefaletlerde binde 9,48; kira sözleşmelerinde binde 1,89; ücretlerde binde 7,59. Bir kâğıt için azami vergi 29.115.961,10 TL. Ücret damga vergisi muhtasar ve prim hizmet beyannamesinde (kod 302), diğer kâğıtlar damga vergisi beyannamesinde beyan edilir.",
+      "impact": "Genel muhasebe › Beyanname hazırlık › Damga vergisi sekmesindeki oranlar bu değerlerle tanımlı.",
+      "category": "Vergi",
+      "area": "muhasebe",
+      "severity": "bilgi",
+      "status": "uygulandi",
+      "source": "https://www.parasut.com/blog/damga-vergisi"
+    },
+    {
+      "id": "2024-09-ba-bs-kaldirildi",
+      "date": "2024-09-25",
+      "title": "Form Ba ve Form Bs bildirimleri kaldırıldı (VUK 565)",
+      "summary": "VUK Genel Tebliği (Sıra No: 565) ile Eylül 2024 döneminden itibaren Form Ba ve Form Bs bildirimleri verilmiyor; önceki dönemler için eski tebliğler geçerli.",
+      "impact": "Beyanname hazırlıktaki Ba-Bs dökümü \"Cari mutabakat\" olarak tutuluyor; bildirim yükümlülüğü yok.",
+      "category": "Genel muhasebe",
+      "area": "muhasebe",
+      "severity": "bilgi",
+      "status": "uygulandi",
+      "source": "https://www.turmob.org.tr/ekutuphane/Read/38e59786-04c7-451f-8d08-c60cd951ce78"
+    },
+    {
+      "id": "2024-08-asgari-kurumlar-vergisi",
+      "date": "2024-08-02",
+      "title": "Yurt içi asgari kurumlar vergisi %10 (2025 kazançlarından itibaren)",
+      "summary": "Hesaplanan kurumlar vergisi, indirim ve istisnalar düşülmeden önceki kurum kazancının %10'undan az olamaz; geçici vergi dönemlerinde de uygulanır. İhracat indirimli oranı nedeniyle ödenmeyen vergi asgari vergiden düşülür; geçmiş yıl zararları düşülmez. Yeni kurulan kurumlar ilk üç hesap döneminde muaf.",
+      "impact": "Geçici ve kurumlar vergisi ekranı normal vergi ile asgari vergiyi karşılaştırır, büyük olanı alır.",
+      "category": "Kurumlar ve gelir vergisi",
+      "area": "muhasebe",
+      "severity": "bilgi",
+      "status": "uygulandi",
+      "source": "https://www.ey.com/tr_tr/insights/tax/yurt-ici-asgari-kurumlar-vergisi"
     }
   ],
   "calendar": [
-    { "when": "Her ayın 26'sı", "what": "Muhtasar ve prim hizmet beyannamesi verilmesi ve ödenmesi (önceki ayın ücretleri)" },
-    { "when": "Her ayın 26'sı", "what": "SGK primlerinin ödenmesi (önceki ay)" },
-    { "when": "İşe girişten önce", "what": "SGK işe giriş bildirgesi" },
-    { "when": "Çıkıştan itibaren 10 gün", "what": "SGK işten ayrılış bildirgesi" },
-    { "when": "Her ayın 15'i", "what": "İŞKUR aylık işgücü çizelgesi (e-Şube)" },
-    { "when": "Ocak ve Temmuz", "what": "Kıdem tazminatı tavanı güncellenir" },
-    { "when": "Ocak (ve varsa Temmuz)", "what": "Asgari ücret, SGK taban/tavanı, vergi dilimleri ve istisnalar güncellenir" },
-    { "when": "En geç 6 ayda bir", "what": "KVKK periyodik imha" }
+    {
+      "when": "Her ayın 26'sı",
+      "what": "Muhtasar ve prim hizmet beyannamesi verilmesi ve ödenmesi (önceki ayın ücretleri)"
+    },
+    {
+      "when": "Her ayın 26'sı",
+      "what": "SGK primlerinin ödenmesi (önceki ay)"
+    },
+    {
+      "when": "İşe girişten önce",
+      "what": "SGK işe giriş bildirgesi"
+    },
+    {
+      "when": "Çıkıştan itibaren 10 gün",
+      "what": "SGK işten ayrılış bildirgesi"
+    },
+    {
+      "when": "Her ayın 15'i",
+      "what": "İŞKUR aylık işgücü çizelgesi (e-Şube)"
+    },
+    {
+      "when": "Ocak ve Temmuz",
+      "what": "Kıdem tazminatı tavanı güncellenir"
+    },
+    {
+      "when": "Ocak (ve varsa Temmuz)",
+      "what": "Asgari ücret, SGK taban/tavanı, vergi dilimleri ve istisnalar güncellenir"
+    },
+    {
+      "when": "En geç 6 ayda bir",
+      "what": "KVKK periyodik imha"
+    },
+    {
+      "when": "Her ayın 25'i",
+      "what": "KDV2 (sorumlu sıfatıyla KDV) beyanı ve ödemesi"
+    },
+    {
+      "when": "Her ayın 26'sı",
+      "what": "Damga vergisi beyannamesi (sözleşmeler)"
+    },
+    {
+      "when": "Her ayın 28'i",
+      "what": "KDV1 beyannamesi ve ödemesi"
+    },
+    {
+      "when": "17 Mayıs / Ağustos / Kasım",
+      "what": "Geçici vergi beyanı ve ödemesi (1., 2., 3. dönem)"
+    },
+    {
+      "when": "Nisan sonu",
+      "what": "Kurumlar vergisi beyannamesi"
+    },
+    {
+      "when": "4. ayın 14'ü",
+      "what": "e-Defter berat yükleme (aylık seçimde, kurumlar)"
+    }
   ]
 }
