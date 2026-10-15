@@ -69,7 +69,7 @@ export async function InvoiceList({ direction, sp }: { direction: Direction; sp:
                 <td className={tdNum}><Money v={r.total} cur={r.currency} strong /></td>
                 <td className={`${td} ${r.status === "posted" && r.due_date && r.due_date < today ? "text-bad font-semibold" : ""}`}>{r.due_date ? formatDate(r.due_date) : ""}</td>
                 <td className={td}><Chip tone={INV_STATUS[r.status]?.[1]}>{INV_STATUS[r.status]?.[0]}</Chip></td>
-                <td className={td}>{direction === "sale" ? (r.status === "posted" ? <Chip tone={EINV_STATUS[r.einvoice_status]?.[1]}>{EINV_STATUS[r.einvoice_status]?.[0]}</Chip> : "") : <span className="text-xs text-muted">{r.source === "ubl" ? "e-Fatura XML" : "Elle"}</span>}</td>
+                <td className={td}>{direction === "sale" || (r.type === "return" && r.einvoice_status !== "none") ? (r.status === "posted" ? <Chip tone={EINV_STATUS[r.einvoice_status]?.[1]}>{EINV_STATUS[r.einvoice_status]?.[0]}</Chip> : "") : <span className="text-xs text-muted">{r.source === "ubl" ? "e-Fatura XML" : "Elle"}</span>}</td>
               </tr>
             ))}
             {rows.length === 0 && <EmptyRow cols={11} text="Fatura yok." />}

@@ -10,7 +10,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const s = await getSession();
   if (!s.userId) return new NextResponse("Giriş yapın", { status: 401 });
   const { id } = await params;
-  const out = await invoiceXml(id);
+  let out: Awaited<ReturnType<typeof invoiceXml>>;
+  try { out = await invoiceXml(id); }
+  catch (e) { return new NextResponse(`XML üretilemedi (GİB kuralı): ${(e as Error).message}`, { status: 400, headers: { "Content-Type": "text/plain; charset=utf-8" } }); }
   if (!out) return new NextResponse("Fatura bulunamadı ya da yetkiniz yok", { status: 404 });
   return new NextResponse(out.xml, { headers: { "Content-Type": "application/xml; charset=utf-8", "Content-Disposition": `attachment; filename="${out.name}"` } });
 }

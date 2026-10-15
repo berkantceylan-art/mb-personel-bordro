@@ -1,8 +1,9 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { latestRates, loadCategories } from "@/lib/fin-data";
-import type { Company, Direction, InvLine, Invoice } from "@/lib/invoice";
-import { buildUbl } from "@/lib/ubl";
+import type { Company, Direction, Invoice } from "@/lib/invoice";
+import { buildUbl, weIssue } from "@/lib/ubl-build";
+import { loadEdoc } from "@/lib/einv-send";
 
 export type FormParty = { id: string; name: string; currency: string; tax_no: string | null; kind: string; is_einvoice: boolean; country: string; payment_term_days: number; lab: boolean };
 export type FormItem = { id: string; code: string; barcode: string | null; name: string; unit: string; kind: string; sale_price: number | null; sale_currency: string; purchase_price: number | null; purchase_currency: string; vat_rate: number; qty: number };
@@ -45,6 +46,8 @@ export async function loadCompany(): Promise<Company | null> {
   return { ...c, inv_prefix_efatura: c.inv_prefix_efatura ?? "MBD", inv_prefix_earsiv: c.inv_prefix_earsiv ?? "MBA", inv_lab_vat: Number(c.inv_lab_vat ?? 10) };
 }
 
+const EDOC_KEYS = ["type_code", "send_method", "incoterm", "transport_mode", "package_kind", "package_no", "package_count", "delivery_address", "buyer_name", "buyer_tax_no", "online_sale", "pay_method", "pay_agent", "pay_date", "ship_date", "carrier_tax_no", "carrier_name", "export_doc_kind", "export_doc_no", "export_doc_date"];
+
 /** Taslak düzenleme ya da kopyalama / iade için formun başlangıç değerleri */
 export async function loadInvoiceInitial(id: string, mode: "edit" | "copy" | "return") {
   const supabase = await createClient();
@@ -62,7 +65,9 @@ export async function loadInvoiceInitial(id: string, mode: "edit" | "copy" | "re
       name: l.name as string, seller_code: (l.seller_code as string) ?? null, qty: Number(l.qty), unit: l.unit as string, unit_price: Number(l.unit_price), discount_pct: Number(l.discount_pct),
       vat_rate: Number(l.vat_rate), withholding_rate: Number(l.withholding_rate), withholding_code: (l.withholding_code as string) ?? null, vat_exemption_code: (l.vat_exemption_code as string) ?? null,
       lot_no: (l.lot_no as string) ?? null, expiry_date: (l.expiry_date as string) ?? null,
+      gtip: (l.gtip as string) ?? null, ident_scheme: (l.ident_scheme as string) ?? null, ident: (l.ident as string) ?? null, diib_line: (l.diib_line as string) ?? null,
     })),
+    edoc: mode === "return" ? null : Object.fromEntries(EDOC_KEYS.filter((k) => i[k] != null && i[k] !== "").map((k) => [k, i[k] as string | number | boolean])),
   };
   if (mode === "edit") {
     return { ...base, id, type: i.type as "invoice" | "return", doc_no: (i.doc_no as string) ?? null, invoice_date: i.invoice_date as string, due_date: (i.due_date as string) ?? null,
@@ -71,21 +76,15 @@ export async function loadInvoiceInitial(id: string, mode: "edit" | "copy" | "re
   return { ...base, type: mode === "return" ? ("return" as const) : (i.type as "invoice" | "return"), return_of: mode === "return" ? id : null, status: "draft" };
 }
 
-/** Satış faturasının UBL-TR XML'i (içe aktarılmışsa orijinali) */
+/** Faturanın UBL-TR XML'i (içe aktarılmışsa orijinali; satış faturası ve alış iadesi üretilir) */
 export async function invoiceXml(id: string): Promise<{ name: string; xml: string } | null> {
   const supabase = await createClient();
-  const { data } = await supabase.from("inv_invoices").select("*").eq("id", id).maybeSingle();
-  if (!data) return null;
-  const inv = data as Invoice & { ubl_xml: string | null };
+  const d = await loadEdoc(supabase, id);
+  if (!d) return null;
+  const inv = d.inv as Invoice & { ubl_xml: string | null };
   const name = `${inv.doc_no ?? `TASLAK-${inv.no}`}.xml`;
   if (inv.ubl_xml) return { name, xml: inv.ubl_xml };
-  if (inv.direction !== "sale") return null;
-  const [{ data: lines }, co, { data: ret }] = await Promise.all([
-    supabase.from("inv_lines").select("*").eq("invoice_id", id).order("sort"),
-    loadCompany(),
-    inv.return_of ? supabase.from("inv_invoices").select("doc_no, invoice_date").eq("id", inv.return_of).maybeSingle() : Promise.resolve({ data: null }),
-  ]);
-  if (!co) return null;
-  const r = ret as { doc_no: string | null; invoice_date: string } | null;
-  return { name, xml: buildUbl(inv, (lines ?? []) as InvLine[], co, { returnOf: r?.doc_no ? { doc_no: r.doc_no, date: r.invoice_date } : null }) };
+  if (!weIssue(inv) && inv.direction !== "sale") return null;
+  if (!d.co) return null;
+  return { name, xml: buildUbl(inv, d.lines, d.co, { party: d.party, returnOf: d.returnOf }) };
 }

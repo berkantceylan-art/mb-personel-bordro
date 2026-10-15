@@ -10,6 +10,10 @@ import { qty } from "@/lib/stock";
 import { cancelInvoice, deleteInvoice, postInvoice, setEinvoiceStatus } from "@/lib/invoice-actions";
 import { invSetExportDoc } from "@/lib/gl-actions";
 import { DIRECTION, EINV_STATUS, INV_STATUS, PROFILES, type InvLine, type Invoice } from "@/lib/invoice";
+import { EdocPanel } from "../_parts/EdocPanel";
+import { edspFromInvoice } from "@/lib/edsp-actions";
+import { elogoConfigured } from "@/lib/elogo";
+import { weIssue } from "@/lib/einv-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +50,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         <div className="flex flex-wrap items-center gap-2">
           <Chip tone={INV_STATUS[inv.status]?.[1]}>{INV_STATUS[inv.status]?.[0]}</Chip>
           <Chip tone="blue">{PROFILES[inv.profile] ?? inv.profile}</Chip>
-          {inv.einvoice_status !== "none" && <Chip tone={EINV_STATUS[inv.einvoice_status]?.[1]}>e-Fatura: {EINV_STATUS[inv.einvoice_status]?.[0]}</Chip>}
+          {inv.einvoice_status !== "none" && <a href="#e-belge"><Chip tone={EINV_STATUS[inv.einvoice_status]?.[1]}>e-Belge: {EINV_STATUS[inv.einvoice_status]?.[0]}</Chip></a>}
           {inv.source === "jobs" && <Chip>Laboratuvar işlerinden</Chip>}
           {inv.source === "ubl" && <Chip>e-Fatura XML&apos;den</Chip>}
           {ret && <Link href={`/fatura/${(ret as { id: string }).id}`} className="text-sm text-brand-700 font-semibold">İade edilen: {(ret as { doc_no: string | null; no: number }).doc_no ?? `#${(ret as { no: number }).no}`}</Link>}
@@ -105,23 +109,29 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             </>
           )}
           {!draft && <Link href={`/yazdir/fatura/${inv.id}`} className={btnSecondary}>Yazdır / PDF</Link>}
-          {(inv.direction === "sale" || inv.source === "ubl") && <a href={`/api/fatura/${inv.id}/xml`} className={btnSecondary}>{inv.source === "ubl" ? "Orijinal XML" : "e-Fatura XML indir"}</a>}
+          {(inv.direction === "sale" || inv.source === "ubl" || weIssue(inv)) && <a href={`/api/fatura/${inv.id}/xml`} className={btnSecondary}>{inv.source === "ubl" ? "Orijinal XML" : "e-Fatura XML indir"}</a>}
           {posted && <Link href={`/finans/islem?tur=${payKind}&cari=${inv.party_id}&geri=/fatura/${inv.id}`} className={btnSecondary}>{payKind === "collection" ? "Tahsilat al" : "Ödeme yap"}</Link>}
           {posted && inv.type === "invoice" && lvl >= 2 && <Link href={`${D.base}/yeni?kaynak=${inv.id}&iade=1`} className={btnSecondary}>İade faturası</Link>}
           {posted && lvl >= 2 && <Link href={`${D.base}/yeni?kaynak=${inv.id}`} className={btnSecondary}>Kopyala</Link>}
+          {posted && inv.direction === "sale" && inv.type === "invoice" && lvl >= 2 && <form action={edspFromInvoice}><input type="hidden" name="id" value={inv.id} /><PendingSubmit className={btnSecondary}>e-İrsaliye oluştur</PendingSubmit></form>}
         </div>
 
-        {posted && inv.direction === "sale" && lvl >= 2 && (
-          <form action={setEinvoiceStatus} className="bg-white border border-line rounded-[14px] p-4 grid gap-3 md:grid-cols-[200px_1fr_220px_auto] items-end">
-            <input type="hidden" name="id" value={inv.id} /><input type="hidden" name="direction" value={inv.direction} />
-            <label className="flex flex-col gap-1 text-sm font-semibold">e-Fatura durumu
-              <select name="status" defaultValue={inv.einvoice_status} className={selectCls}>{Object.entries(EINV_STATUS).map(([k, [v]]) => <option key={k} value={k}>{k === "none" ? "Gönderilmeyecek" : v}</option>)}</select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm font-semibold">Not<input name="note" defaultValue={inv.einvoice_note ?? ""} maxLength={500} placeholder="Entegratör referansı, red nedeni…" className={inputCls} /></label>
-            <label className="flex flex-col gap-1 text-sm font-semibold">Fatura no (entegratör verdiyse)<input name="doc_no" placeholder={inv.doc_no ?? ""} maxLength={40} className={`${inputCls} font-mono`} /></label>
-            <PendingSubmit className={btnSecondary}>Kaydet</PendingSubmit>
-            <p className="md:col-span-4 text-xs text-muted">Entegratör bağlantısı kurulana kadar: XML&apos;i indirip entegratör portalına yükleyin, sonra “Gönderildi” işaretleyin. Bağlantı kurulunca bu adım otomatik olur.</p>
-          </form>
+        <EdocPanel inv={inv} lines={ls} lvl={lvl} />
+
+        {posted && (inv.direction === "sale" || weIssue(inv)) && lvl >= 2 && (
+          <details className="bg-white border border-line rounded-[14px] p-4" open={!elogoConfigured() && inv.direction === "sale"}>
+            <summary className="cursor-pointer text-sm font-semibold">{elogoConfigured() ? "Elle durum işaretle (portaldan gönderildiyse)" : "e-Fatura durumu"}</summary>
+            <form action={setEinvoiceStatus} className="mt-3 grid gap-3 md:grid-cols-[200px_1fr_220px_auto] items-end">
+              <input type="hidden" name="id" value={inv.id} /><input type="hidden" name="direction" value={inv.direction} />
+              <label className="flex flex-col gap-1 text-sm font-semibold">e-Fatura durumu
+                <select name="status" defaultValue={inv.einvoice_status} className={selectCls}>{Object.entries(EINV_STATUS).filter(([k]) => ["none", "ready", "sent", "accepted", "rejected", "cancelled"].includes(k)).map(([k, [v]]) => <option key={k} value={k}>{k === "none" ? "Gönderilmeyecek" : v}</option>)}</select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-semibold">Not<input name="note" defaultValue={inv.einvoice_note ?? ""} maxLength={500} placeholder="Entegratör referansı, red nedeni…" className={inputCls} /></label>
+              <label className="flex flex-col gap-1 text-sm font-semibold">Fatura no (entegratör verdiyse)<input name="doc_no" placeholder={inv.doc_no ?? ""} maxLength={40} className={`${inputCls} font-mono`} /></label>
+              <PendingSubmit className={btnSecondary}>Kaydet</PendingSubmit>
+              <p className="md:col-span-4 text-xs text-muted">Faturayı eLogo portalından elle gönderdiyseniz burada işaretleyin. ERP&apos;den gönderimde durum kendiliğinden güncellenir.</p>
+            </form>
+          </details>
         )}
 
         {inv.direction === "sale" && inv.status !== "cancelled" && lvl >= 2 && (inv.profile === "IHRACAT" || ((lines ?? []) as Array<{ vat_exemption_code?: string | null }>).some((l) => l.vat_exemption_code === "301" || l.vat_exemption_code === "302")) && (() => {

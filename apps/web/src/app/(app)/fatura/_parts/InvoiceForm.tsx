@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { saveInvoice, type InvoicePayload } from "@/lib/invoice-actions";
 import { CURRENCIES, fmt } from "@/lib/fin";
 import { UNITS, qty as fq } from "@/lib/stock";
-import { DIRECTION, PROFILES, VAT_EXEMPTIONS, VAT_RATES, calcLine, calcTotals, type Direction, type LineInput } from "@/lib/invoice";
+import { DIRECTION, VAT_EXEMPTIONS, VAT_RATES, calcLine, calcTotals, type Direction, type LineInput } from "@/lib/invoice";
+import { EINV_PROFILES, EINV_TYPES, INCOTERMS, PACKAGE_KINDS, PAY_METHODS, PROFILE_TYPES, TRANSPORT_MODES, WITHHOLDINGS } from "@/lib/einv-codes";
 import { Field, Notice, btnPrimary, btnSecondary, inputCls, selectCls, textareaCls } from "@/components/erp";
 import type { FormItem, FormParty, FormProduct } from "@/lib/invoice-data";
 
@@ -17,6 +18,8 @@ const numIn = (s: string) => { const t = s.trim(); const n = Number(t.includes("
 const show = (n: number) => (n ? String(n).replace(".", ",") : "");
 
 export type InitialInvoice = Partial<Omit<InvoicePayload, "lines">> & { lines?: LineInput[] };
+type Ed = Record<string, string | boolean>;
+const isTR = (c?: string | null) => !c || ["TR", "TÜRKIYE", "TÜRKİYE", "TURKEY"].includes(c.trim().toLocaleUpperCase("tr-TR"));
 
 export function InvoiceForm({ direction, parties, items, products, warehouses, categories, rates, today, labVat, initial }: {
   direction: Direction; parties: FormParty[]; items: FormItem[]; products: FormProduct[]; warehouses: { id: string; name: string }[];
@@ -38,6 +41,9 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
   const [wh, setWh] = useState(initial?.warehouse_id ?? warehouses[0]?.id ?? "");
   const [profile, setProfile] = useState(initial?.profile ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
+  const [ed, setEd] = useState<Ed>(() => Object.fromEntries(Object.entries(initial?.edoc ?? {}).map(([k, v]) => [k, typeof v === "boolean" ? v : v == null ? "" : String(v)])));
+  const E = (k: string) => String(ed[k] ?? "");
+  const setE = (patch: Ed) => setEd((x) => ({ ...x, ...patch }));
   const [rows, setRows] = useState<Row[]>(() => (initial?.lines?.length ? initial.lines.map((l) => ({ ...l, key: `r${++seq}` })) : [blank(defVat)]));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -65,7 +71,18 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
     return a && b ? Math.round(((minor / 100) * a) / b * 10000) / 10000 : minor / 100;
   };
   const t = calcTotals(rows.filter((x) => x.name.trim()));
-  const effProfile = profile || (direction === "purchase" ? "TICARIFATURA" : party && party.country !== "TR" ? "IHRACAT" : party?.is_einvoice || (newParty && np.is_einvoice) ? "TICARIFATURA" : "EARSIVFATURA");
+  const issuing = (direction === "sale" && type === "invoice") || (direction === "purchase" && type === "return");
+  const regd = party?.is_einvoice || (newParty && np.is_einvoice);
+  const effProfile = profile || (direction === "purchase" ? (type === "return" ? (regd ? "TEMELFATURA" : "EARSIVFATURA") : "TICARIFATURA") : party && !isTR(party.country) ? "IHRACAT" : regd ? (type === "return" ? "TEMELFATURA" : "TICARIFATURA") : "EARSIVFATURA");
+  const foreign = !!party && !isTR(party.country);
+  const anyZero = rows.some((x) => Number(x.vat_rate) === 0 && x.name.trim());
+  const typeOptions = PROFILE_TYPES[effProfile] ?? Object.keys(EINV_TYPES);
+  function microExport() {
+    setProfile("EARSIVFATURA");
+    setE({ export_doc_kind: "etgb", type_code: "ISTISNA" });
+    setRows((rs) => rs.map((x) => ({ ...x, vat_rate: 0, vat_exemption_code: "301", open: true })));
+    setMsg({ ok: true, text: "Mikro ihracat: e-Arşiv, istisna 301, KDV %0. Satırlara GTİP, aşağıya ETGB numarasını yazın; para birimini seçin." });
+  }
 
   const set = (key: string, patch: Partial<Row>) => setRows((rs) => rs.map((x) => (x.key === key ? { ...x, ...patch } : x)));
   const pick = (key: string, o: Opt) => set(key, {
@@ -98,6 +115,7 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
       id: initial?.id ?? null, direction, type, party_id: newParty ? null : partyId || null, new_party: newParty ? np : null,
       doc_no: docNo, invoice_date: date, due_date: due || null, currency, rate: currency === "TRY" ? null : String(rate || r(currency)), warehouse_id: wh || null,
       profile: profile || null, note, post, return_of: type === "return" ? initial?.return_of ?? null : null,
+      edoc: issuing ? { ...ed, online_sale: !!ed.online_sale } : null,
       lines: rows.filter((x) => x.name.trim()).map((x) => { const l: Partial<Row> = { ...x }; delete l.key; delete l.open; return l as LineInput; }),
     });
     setBusy(false);
@@ -149,19 +167,27 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
         <div className="grid gap-3 grid-cols-2 content-start">
           <Field label="Fatura tarihi"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} /></Field>
           <Field label="Vade"><input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={inputCls} /></Field>
-          <Field label="Fatura no" hint={direction === "sale" ? "boş = otomatik" : "tedarikçinin"}><input value={docNo} onChange={(e) => setDocNo(e.target.value.toUpperCase())} maxLength={40} className={`${inputCls} font-mono`} /></Field>
+          <Field label="Fatura no" hint={issuing ? "boş = otomatik" : "tedarikçinin"}><input value={docNo} onChange={(e) => setDocNo(e.target.value.toUpperCase())} maxLength={40} className={`${inputCls} font-mono`} /></Field>
           <Field label="Para birimi">
             <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={selectCls}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select>
           </Field>
           {currency !== "TRY" && <Field label={`Kur (1 ${currency})`} hint={r(currency) ? `TCMB ${String(r(currency)).replace(".", ",")}` : "kur yok"}><input value={rate} onChange={(e) => setRate(e.target.value)} placeholder={String(r(currency) || "").replace(".", ",")} inputMode="decimal" className={inputCls} /></Field>}
           <Field label="Depo"><select value={wh} onChange={(e) => setWh(e.target.value)} className={selectCls}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></Field>
-          {direction === "sale" && (
-            <Field label="Fatura türü" className="col-span-2">
-              <select value={profile} onChange={(e) => setProfile(e.target.value)} className={selectCls}>
-                <option value="">Otomatik ({PROFILES[effProfile]})</option>
-                {Object.entries(PROFILES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </Field>
+          {issuing && (
+            <>
+              <Field label="Senaryo" className="col-span-2" hint={EINV_PROFILES[effProfile]?.hint}>
+                <select value={profile} onChange={(e) => { setProfile(e.target.value); setE({ type_code: "" }); }} className={selectCls}>
+                  <option value="">Otomatik ({EINV_PROFILES[effProfile]?.label ?? effProfile})</option>
+                  {Object.entries(EINV_PROFILES).filter(([k]) => direction === "sale" || ["TEMELFATURA", "EARSIVFATURA", "KAGIT"].includes(k)).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Fatura tipi" className="col-span-2" hint="otomatik: satırlardaki tevkifat / istisna kodundan">
+                <select value={E("type_code")} onChange={(e) => setE({ type_code: e.target.value })} className={selectCls}>
+                  <option value="">Otomatik</option>
+                  {typeOptions.map((k) => <option key={k} value={k}>{EINV_TYPES[k] ?? k}</option>)}
+                </select>
+              </Field>
+            </>
           )}
         </div>
       </section>
@@ -213,12 +239,31 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
                                 </select>
                               </label>
                             )}
-                            <label className="flex flex-col gap-1">Tevkifat (KDV&apos;nin %&apos;si)<input defaultValue={show(Number(x.withholding_rate ?? 0))} onChange={(e) => set(x.key, { withholding_rate: Math.min(100, numIn(e.target.value)) })} placeholder="ör. 50 = 5/10" className={`${inputCls} h-9 w-32`} /></label>
-                            <label className="flex flex-col gap-1">Tevkifat kodu<input defaultValue={x.withholding_code ?? ""} onChange={(e) => set(x.key, { withholding_code: e.target.value.replace(/\D/g, "").slice(0, 3) || null })} placeholder="6xx" className={`${inputCls} h-9 w-20`} /></label>
+                            <label className="flex flex-col gap-1">KDV tevkifatı
+                              <select value={x.withholding_code ?? ""} onChange={(e) => { const w = WITHHOLDINGS.find((y) => y[0] === e.target.value); set(x.key, { withholding_code: e.target.value || null, withholding_rate: w ? w[2] : 0 }); }} className={`${selectCls} h-9 w-72`}>
+                                <option value="">Yok</option>
+                                {WITHHOLDINGS.map(([k, v, rt]) => <option key={k} value={k}>{k} · {v} ({rt / 10}/10)</option>)}
+                              </select>
+                            </label>
+                            {!!x.withholding_code && <span className="pb-2">oran %{Number(x.withholding_rate ?? 0)}</span>}
                             {Number(x.vat_rate) === 0 && (
                               <label className="flex flex-col gap-1">KDV istisna
                                 <select value={x.vat_exemption_code ?? "351"} onChange={(e) => set(x.key, { vat_exemption_code: e.target.value })} className={`${selectCls} h-9 w-56`}>{VAT_EXEMPTIONS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
                               </label>
+                            )}
+                            {issuing && (effProfile === "IHRACAT" || foreign || x.vat_exemption_code === "301" || x.vat_exemption_code === "702") && (
+                              <label className="flex flex-col gap-1">GTİP<input defaultValue={x.gtip ?? ""} onChange={(e) => set(x.key, { gtip: e.target.value.replace(/[^0-9.]/g, "").slice(0, 16) || null })} placeholder="9021.21.00.00.00" className={`${inputCls} h-9 w-40 font-mono`} /></label>
+                            )}
+                            {issuing && x.vat_exemption_code === "702" && Number(x.vat_rate) === 0 && (
+                              <label className="flex flex-col gap-1">Alıcı DİİB satır kodu<input defaultValue={x.diib_line ?? ""} onChange={(e) => set(x.key, { diib_line: e.target.value.replace(/\D/g, "").slice(0, 11) || null })} placeholder="11 hane" className={`${inputCls} h-9 w-32 font-mono`} /></label>
+                            )}
+                            {issuing && effProfile === "ILAC_TIBBICIHAZ" && (
+                              <>
+                                <label className="flex flex-col gap-1">Ürün türü
+                                  <select value={x.ident_scheme ?? "DIGER"} onChange={(e) => set(x.key, { ident_scheme: e.target.value })} className={`${selectCls} h-9 w-36`}><option value="TIBBICIHAZ">Tıbbi cihaz (ÜTS)</option><option value="ILAC">İlaç (İTS)</option><option value="DIGER">Diğer</option></select>
+                                </label>
+                                <label className="flex flex-col gap-1">Ürün tanımlayıcı<input defaultValue={x.ident ?? ""} onChange={(e) => set(x.key, { ident: e.target.value.slice(0, 200) || null })} placeholder="(UNO)…(LNO)…(SNO)…(URT)YYAAGG" className={`${inputCls} h-9 w-80 font-mono`} /></label>
+                              </>
                             )}
                             {x.item_id && (
                               <>
@@ -241,6 +286,54 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
           <button type="button" onClick={() => setRows((rs) => [...rs, blank(defVat)])} className="text-sm font-semibold text-brand-700">+ Satır ekle</button>
         </div>
       </section>
+
+      {issuing && (
+        <section className="bg-white border border-line rounded-[14px] p-4 flex flex-col gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="font-semibold">e-Belge ayrıntıları</h2>
+            <span className="text-xs text-muted">{EINV_PROFILES[effProfile]?.label}{E("type_code") ? ` · ${EINV_TYPES[E("type_code")] ?? E("type_code")}` : ""}</span>
+            {direction === "sale" && <button type="button" onClick={microExport} className="ml-auto text-sm font-semibold text-brand-700">Mikro ihracat (ETGB) olarak hazırla</button>}
+          </div>
+          {effProfile === "EARSIVFATURA" && (
+            <div className="grid gap-3 sm:grid-cols-4">
+              <Field label="Gönderim şekli"><select value={E("send_method") || "ELEKTRONIK"} onChange={(e) => setE({ send_method: e.target.value })} className={selectCls}><option value="ELEKTRONIK">Elektronik (e-posta)</option><option value="KAGIT">Kâğıt</option></select></Field>
+              <Field label="ETGB no" hint="mikro ihracatta"><input value={E("export_doc_no")} onChange={(e) => setE({ export_doc_no: e.target.value.toUpperCase(), export_doc_kind: "etgb" })} className={`${inputCls} font-mono`} /></Field>
+              <Field label="ETGB tarihi"><input type="date" value={E("export_doc_date")} onChange={(e) => setE({ export_doc_date: e.target.value })} className={inputCls} /></Field>
+              <label className="flex items-center gap-2 self-end pb-2"><input type="checkbox" checked={!!ed.online_sale} onChange={(e) => setE({ online_sale: e.target.checked })} /> İnternet satışı</label>
+              {!!ed.online_sale && (
+                <>
+                  <Field label="Ödeme şekli"><select value={E("pay_method")} onChange={(e) => setE({ pay_method: e.target.value })} className={selectCls}><option value="">—</option>{PAY_METHODS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+                  <Field label="Ödeme tarihi"><input type="date" value={E("pay_date")} onChange={(e) => setE({ pay_date: e.target.value })} className={inputCls} /></Field>
+                  <Field label="Ödeme aracısı"><input value={E("pay_agent")} onChange={(e) => setE({ pay_agent: e.target.value })} placeholder="ör. iyzico" className={inputCls} /></Field>
+                  <Field label="Gönderim tarihi"><input type="date" value={E("ship_date")} onChange={(e) => setE({ ship_date: e.target.value })} className={inputCls} /></Field>
+                  <Field label="Taşıyıcı (kargo) unvanı"><input value={E("carrier_name")} onChange={(e) => setE({ carrier_name: e.target.value })} className={inputCls} /></Field>
+                  <Field label="Taşıyıcı VKN"><input value={E("carrier_tax_no")} onChange={(e) => setE({ carrier_tax_no: e.target.value.replace(/\D/g, "").slice(0, 11) })} inputMode="numeric" className={inputCls} /></Field>
+                </>
+              )}
+            </div>
+          )}
+          {effProfile === "IHRACAT" && (
+            <div className="grid gap-3 sm:grid-cols-4">
+              <Field label="Teslim şartı"><select value={E("incoterm")} onChange={(e) => setE({ incoterm: e.target.value })} className={selectCls}><option value="">—</option>{INCOTERMS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+              <Field label="Taşıma şekli"><select value={E("transport_mode")} onChange={(e) => setE({ transport_mode: e.target.value })} className={selectCls}><option value="">—</option>{TRANSPORT_MODES.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+              <Field label="Kap cinsi"><select value={E("package_kind")} onChange={(e) => setE({ package_kind: e.target.value })} className={selectCls}><option value="">—</option>{PACKAGE_KINDS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+              <Field label="Kap adedi"><input value={E("package_count")} onChange={(e) => setE({ package_count: e.target.value.replace(/\D/g, "") })} inputMode="numeric" className={inputCls} /></Field>
+              <Field label="Kap no"><input value={E("package_no")} onChange={(e) => setE({ package_no: e.target.value })} className={inputCls} /></Field>
+              <Field label="Teslim adresi" hint="boş = cari adresi" className="sm:col-span-3"><input value={E("delivery_address")} onChange={(e) => setE({ delivery_address: e.target.value })} className={inputCls} /></Field>
+              <Field label="Gümrük beyannamesi no" hint="sonradan da girilebilir"><input value={E("export_doc_no")} onChange={(e) => setE({ export_doc_no: e.target.value.toUpperCase(), export_doc_kind: "gb" })} className={`${inputCls} font-mono`} /></Field>
+              <p className="sm:col-span-3 text-xs text-muted self-end">İhracat faturası Gümrük ve Ticaret Bakanlığına gider; yabancı alıcı faturada ayrıca yer alır. Her satıra GTİP yazın, KDV %0 ve istisna 301 olmalı.</p>
+            </div>
+          )}
+          {effProfile === "KAMU" && (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Alıcı kurum (birim)" hint="boş = cari"><input value={E("buyer_name")} onChange={(e) => setE({ buyer_name: e.target.value })} className={inputCls} /></Field>
+              <Field label="Kurum VKN"><input value={E("buyer_tax_no")} onChange={(e) => setE({ buyer_tax_no: e.target.value.replace(/\D/g, "").slice(0, 11) })} inputMode="numeric" className={inputCls} /></Field>
+              <p className="text-xs text-muted self-end">Cari: faturayı ödeyen birim (saymanlık). Şirket IBAN&apos;ı Satış › Ayarlar&apos;dan gelir.</p>
+            </div>
+          )}
+          {!["EARSIVFATURA", "IHRACAT", "KAMU"].includes(effProfile) && <p className="text-xs text-muted">{effProfile === "KAGIT" ? "Kâğıt fatura elektronik gönderilmez." : "Ek bilgi gerekmiyor."}{anyZero ? " %0 KDV'li satırlarda istisna kodunu satır ayrıntısından (⋯) seçin." : ""}</p>}
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <Field label="Fatura notu" hint="faturada görünür"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} maxLength={1000} className={textareaCls} /></Field>

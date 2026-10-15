@@ -83,6 +83,9 @@ importers:
       fast-xml-parser:
         specifier: 4.5.0
         version: 4.5.0
+      json2ubl-ts:
+        specifier: 5.1.0
+        version: 5.1.0
       jsqr:
         specifier: ^1.4.0
         version: 1.4.0
@@ -2230,6 +2233,10 @@ packages:
   json-stable-stringify-without-jsonify@1.0.1:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
 
+  json2ubl-ts@5.1.0:
+    resolution: {integrity: sha512-yIs4b2Kg+A6n7PpLelCoQzweCGIGNg4l2n/TauX8bAR9cHMcaqLiRLNdCfTsnWtwV5fsxzdAVTgHS0cnixVz4w==}
+    engines: {node: '>=18'}
+
   json5@1.0.2:
     resolution: {integrity: sha512-g1MWMLBiz8FKi1e4w0UyVL3w+iJceWAFBAaBnnGKOpNa5f8TLktkbre1+s6oICydWAm+HRUGTmI+//xv2hvXYA==}
     hasBin: true
@@ -3024,6 +3031,10 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  uuid@13.0.2:
+    resolution: {integrity: sha512-vzi9uRZ926x4XV73S/4qQaTwPXM2JBj6/6lI/byHH1jOpCzb0zDbfytgA9LcN/hzb2l7WQSQnxITOVx5un/wGw==}
+    hasBin: true
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
@@ -5254,6 +5265,10 @@ snapshots:
 
   json-stable-stringify-without-jsonify@1.0.1: {}
 
+  json2ubl-ts@5.1.0:
+    dependencies:
+      uuid: 13.0.2
+
   json5@1.0.2:
     dependencies:
       minimist: 1.2.8
@@ -6154,6 +6169,8 @@ snapshots:
       punycode: 2.3.1
 
   util-deprecate@1.0.2: {}
+
+  uuid@13.0.2: {}
 
   uuid@8.3.2: {}
 
