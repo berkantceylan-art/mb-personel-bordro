@@ -75,6 +75,7 @@ export default async function LucaSettings() {
               <h2 className="font-bold">2. Luca hesap planı</h2>
               <p className="text-sm text-muted">Luca&apos;dan hesap planını Excel olarak alıp yükleyin (kod ve hesap adı sütunları yeterli). Aktarımdan önce her satırın Luca&apos;da tanımlı bir alt hesaba gittiği kontrol edilir.</p>
               <p className="text-sm">{st.plan_count ? <>Yüklü: <b>{st.plan_count}</b> hesap{st.plan_imported_at && ` · ${formatDate(st.plan_imported_at.slice(0, 10))}`} · <Link href="/muhasebe/luca/hesaplar" className="font-semibold text-brand-700">Luca&apos;da açılacak hesaplar (Excel)</Link></> : <span className="text-[#7A4F00]">Hesap planı yüklenmedi.</span>}</p>
+              {st.plan_count > 0 && <p className="text-sm"><Link href="/muhasebe/luca/hesap-plani" className="font-semibold text-brand-700">Luca hesaplarını ERP&apos;de aç ve kategorileri bağla →</Link></p>}
               {approver && <form action={lucaUploadPlan} className="flex flex-wrap gap-2"><input type="file" name="file" accept=".xls,.xlsx,.csv" className="text-sm" required /><PendingSubmit className={btnPrimary}>Hesap planını yükle</PendingSubmit></form>}
             </section>
 

@@ -139,4 +139,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270217000000_gl_inbox.sql", "f:gl_inbox_exclude"],
   ["20270218000000_gl_checks.sql", "t:gl_check_acks"],
   ["20270219000000_luca_export.sql", "t:gl_luca_batch_items"],
+  ["20270220000000_luca_plan_sync.sql", "f:gl_luca_apply_suggestions"],
 ];

@@ -51,7 +51,7 @@ export default async function LucaExport({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <PageHeader title="Luca aktarımı" subtitle="Onaylı fişler Luca'nın Excel Veri Aktarımı dosyasına çevrilir; aktarılan fiş işaretlenir, ikinci kez gitmez" actions={<Link href="/muhasebe/luca/ayarlar" className="text-sm font-semibold text-brand-700">Şablon, hesap planı ve kurallar</Link>} />
+      <PageHeader title="Luca aktarımı" subtitle="Onaylı fişler Luca'nın Excel Veri Aktarımı dosyasına çevrilir; aktarılan fiş işaretlenir, ikinci kez gitmez" actions={<span className="flex flex-wrap gap-4"><Link href="/muhasebe/luca/hesap-plani" className="text-sm font-semibold text-brand-700">Hesap planı ve kategoriler</Link><Link href="/muhasebe/luca/ayarlar" className="text-sm font-semibold text-brand-700">Şablon ve kurallar</Link></span>} />
       <div className={page}>
         {error && <Notice tone="bad">{/function|does not exist|schema cache|relation/.test(error.message) ? "Supabase'de 20270219000000_luca_export.sql çalıştırılmalı." : glError(error.message)}</Notice>}
         {p && !p.settings.template_name && <Notice tone="warn">Luca fiş şablonu henüz yüklenmedi; varsayılan sütunlar ({p.settings.columns.map((c) => c.header).join(", ")}) kullanılıyor. <Link href="/muhasebe/luca/ayarlar" className="font-semibold text-brand-700">Luca&apos;dan &quot;Şablon indir&quot; ile aldığınız dosyayı yükleyin</Link>.</Notice>}
