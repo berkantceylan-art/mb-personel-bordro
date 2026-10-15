@@ -4,7 +4,7 @@ export const VOUCHER_KIND: Record<string, string> = { mahsup: "Mahsup", tahsil: 
 export const VOUCHER_STATUS: Record<string, [string, "green" | "amber" | "gray" | "red" | "blue"]> = {
   posted: ["Kayıtlı", "green"], pending: ["Eşleştirme bekliyor", "amber"], excluded: ["Muhasebe dışı", "gray"], cancelled: ["İptal", "red"],
 };
-export const VOUCHER_SOURCE: Record<string, string> = { auto: "Otomatik", manual: "Elle", opening: "Açılış", closing: "Kapanış", fx: "Kur değerleme", payroll: "Bordro tahakkuk", reversal: "Ters kayıt", vat: "KDV mahsup" };
+export const VOUCHER_SOURCE: Record<string, string> = { auto: "Otomatik", manual: "Elle", opening: "Açılış", closing: "Kapanış", fx: "Kur değerleme", payroll: "Bordro tahakkuk", reversal: "Ters kayıt", vat: "KDV / damga", tax: "Vergi tahakkuku", period: "Dönem sonu" };
 export const DOC_TYPE: Record<string, string> = { invoice: "Fatura", check: "Çek", note: "Senet", receipt: "Makbuz / dekont", voucher: "Fiş", other: "Diğer" };
 export const ACC_KIND: Record<string, string> = { asset: "Aktif", liability: "Pasif", equity: "Özkaynak", income: "Gelir", expense: "Gider", cost: "Maliyet", memo: "Nazım" };
 
@@ -36,6 +36,7 @@ export function glError(m: string): string {
   if (/bad_period/.test(m)) return "Dönem YYYY-AA biçiminde olmalı.";
   if (/gl_pending_in_year/.test(m)) return "Bu yılda eşleştirme bekleyen fiş var: kapanıştan önce tamamlayın.";
   if (/gl_vat_open/.test(m)) return "191 / 391 hesaplarında bakiye var: önce son ayların KDV mahsubunu yapın.";
+  if (/(gl_cit_|gl_kkeg|gl_tax_adj|kkeg_pct)/.test(m) && /function|relation|does not exist|schema cache|column/.test(m)) return "Supabase'de 20270213000000_corporate_tax.sql çalıştırılmalı.";
   if (/(gl_stamp|gl_vat2|gl_vat_refund|gl_tax_calendar|gl_filing|inv_set_export_doc|gl_stamp_docs|gl_tax_filings)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270212000000_tax_center.sql çalıştırılmalı.";
   if (/refund_exceeds/.test(m)) return "İade tutarı ay sonu devreden KDV'den (190) büyük olamaz: önce KDV mahsup fişini oluşturun.";
   if (/bad_amount/.test(m)) return "Tutar sıfırdan büyük olmalı.";

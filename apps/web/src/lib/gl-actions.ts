@@ -234,3 +234,33 @@ export async function invSetExportDoc(f: FormData) {
   again();
   await done("İhracat belgesi kaydedildi.");
 }
+
+// ---------------------------------------------------------------------
+// Geçici vergi ve kurumlar vergisi
+// ---------------------------------------------------------------------
+export async function glCitPost(f: FormData) {
+  const y = Number(str(f, "year", 4));
+  const q = Number(str(f, "q", 1));
+  await rpcDone("gl_cit_post", { p_year: y, p_q: q }, (d) => {
+    const x = d as { tax?: number; payable?: number };
+    const tl = (v?: number) => (Number(v ?? 0) / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2 });
+    return q < 4 ? `${y}/${q}. dönem geçici vergi fişi oluştu: ödenecek ${tl(x.payable)} TL.` : `${y} kurumlar vergisi karşılık fişi oluştu: vergi ${tl(x.tax)} TL, mahsup sonrası ${tl(x.payable)} TL.`;
+  });
+}
+
+export async function glKkegSet(f: FormData) {
+  const pct = Number(str(f, "pct", 6).replace(",", "."));
+  await rpcDone("gl_kkeg_set", { p_code: str(f, "code", 40), p_pct: Number.isFinite(pct) ? pct : -1 }, () => (pct > 0 ? "KKEG oranı kaydedildi." : "Hesap KKEG listesinden çıkarıldı."));
+}
+
+export async function glTaxAdjSave(f: FormData) {
+  const amount = parseAmount(str(f, "amount", 20));
+  if (!amount) await fail("Tutarı yazın.");
+  const description = str(f, "description", 200);
+  if (!description) await fail("Açıklama yazın.");
+  await rpcDone("gl_tax_adj_save", { p: { adj_date: str(f, "adj_date", 10), kind: str(f, "kind", 12), description, amount, min_allowed: f.get("min_allowed") === "on" } }, () => "Düzeltme eklendi.");
+}
+
+export async function glTaxAdjDelete(f: FormData) {
+  await rpcDone("gl_tax_adj_delete", { p_id: str(f, "id", 40) }, () => "Düzeltme silindi.");
+}

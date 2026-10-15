@@ -17,8 +17,8 @@ const KIND: Record<string, [string, string | null]> = {
   kdv2: ["KDV2 (sorumlu sıfatıyla)", "kdv2"],
   muhsgk: ["Muhtasar ve prim hizmet", "muhtasar"],
   damga: ["Damga vergisi beyannamesi", "damga"],
-  gecici: ["Geçici vergi (kurumlar)", null],
-  kurumlar: ["Kurumlar vergisi", null],
+  gecici: ["Geçici vergi (kurumlar)", "vergi"],
+  kurumlar: ["Kurumlar vergisi", "vergi"],
   edefter: ["e-Defter berat yükleme", null],
 };
 const STATUS: Array<[string, string, string]> = [
@@ -66,7 +66,7 @@ export default async function TaxCalendar() {
                 return (
                   <tr key={`${i.kind}-${i.period}`} className={done ? "opacity-60" : ""}>
                     <td className={td}><b>{formatDate(i.due)}</b><div className={`text-xs ${!done && d < 0 ? "text-bad font-semibold" : !done && d <= 7 ? "text-[#B45309]" : "text-muted"}`}>{d === 0 ? "bugün" : d > 0 ? `${d} gün kaldı` : `${-d} gün geçti`}</div></td>
-                    <td className={td}>{sekme && ay ? <Link href={`/muhasebe/beyanname?ay=${ay}&sekme=${sekme}`} className="font-semibold text-brand-700">{label}</Link> : label}{i.note ? <div className="text-xs text-muted">{i.note}</div> : null}</td>
+                    <td className={td}>{sekme === "vergi" ? <Link href={`/muhasebe/vergi?yil=${i.period.slice(0, 4)}&donem=${i.kind === "kurumlar" ? 4 : i.period.slice(-1)}`} className="font-semibold text-brand-700">{label}</Link> : sekme && ay ? <Link href={`/muhasebe/beyanname?ay=${ay}&sekme=${sekme}`} className="font-semibold text-brand-700">{label}</Link> : label}{i.note ? <div className="text-xs text-muted">{i.note}</div> : null}</td>
                     <td className={`${td} num`}>{i.period}</td>
                     <td className={`${td} font-semibold ${st[2]}`}>{st[1]}</td>
                     {canEdit && (
