@@ -37,7 +37,7 @@ export async function utsAction(f: FormData) {
   const action = str(f, "action", 30);
   if (!UUID.test(id) || !["retry", "manual", "cancel", "cancelled_in_uts"].includes(action)) await fail("Geçersiz işlem.");
   const patch: Record<string, string> = {};
-  for (const k of ["lot_no", "serial_no", "product_no", "counterparty_no", "qty"]) if (f.has(k)) patch[k] = str(f, k, 60);
+  for (const k of ["lot_no", "serial_no", "product_no", "counterparty_no", "qty", "vbi", "bno"]) if (f.has(k)) patch[k] = str(f, k, 60);
   const supabase = await createClient();
   const { error } = await supabase.rpc("uts_action", { p_id: id, p_action: action, p_ref: str(f, "ref", 120) || null, p_patch: Object.keys(patch).length ? patch : null });
   if (error) await fail(utsError(error.message));
@@ -49,7 +49,7 @@ export async function utsAdd(f: FormData) {
   await need(2);
   const supabase = await createClient();
   const p: Record<string, string> = {};
-  for (const k of ["kind", "item_id", "item_name", "product_no", "lot_no", "serial_no", "qty", "expiry_date", "counterparty_no", "counterparty_name", "note"]) p[k] = str(f, k, 300);
+  for (const k of ["kind", "item_id", "item_name", "product_no", "lot_no", "serial_no", "qty", "expiry_date", "counterparty_no", "counterparty_name", "note", "vbi", "bno"]) p[k] = str(f, k, 300);
   const { error } = await supabase.rpc("uts_add", { p });
   if (error) await fail(utsError(error.message));
   revalidatePath("/stok/uts");

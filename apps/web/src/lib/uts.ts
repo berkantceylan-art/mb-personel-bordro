@@ -16,6 +16,7 @@ export type UtsKind = "alma" | "kullanim" | "verme" | "ismarlama";
 type Row = {
   id: string; kind: UtsKind; product_no: string | null; lot_no: string | null; serial_no: string | null; qty: number | null; expiry_date: string | null;
   counterparty_no: string | null; event_date: string; own_no: string | null; env_setting: "test" | "live"; payload: Record<string, unknown>;
+  vbi: string | null; bno: string | null;
 };
 
 const BASE = {
@@ -26,16 +27,24 @@ const BASE = {
 /** Ürün kimliği: lot takipli ürünlerde LNO + ADT, seri (tekil) takipte SNO */
 const ident = (r: Row) => ({ UNO: r.product_no ?? undefined, ...(r.serial_no ? { SNO: r.serial_no } : { LNO: r.lot_no ?? undefined, ADT: Number(r.qty ?? 1) }) });
 
-export const UTS_SERVICES: Record<Exclude<UtsKind, "ismarlama">, { path: string; body: (r: Row) => Record<string, unknown>; needs: Array<keyof Row> }> = {
-  // Alma: tedarikçinin verme bildirimi yaptığı ürünü kabul (gönderen kurum = tedarikçi)
-  alma: { path: "uh/rest/bildirim/alma/ekle", needs: ["product_no", "counterparty_no"], body: (r) => ({ ...ident(r), GKK: r.counterparty_no }) },
-  // Kullanım: ürünün işte kullanıldığı (laboratuvar içi tüketim)
-  kullanim: { path: "uh/rest/bildirim/kullanim/ekle", needs: ["product_no"], body: (r) => ({ ...ident(r), GIT: r.event_date }) },
-  // Verme: ürünün kliniğe devri (alan kurum = klinik)
-  verme: { path: "uh/rest/bildirim/verme/ekle", needs: ["product_no", "counterparty_no"], body: (r) => ({ ...ident(r), KUN: r.counterparty_no, BEN: r.payload.job_no ? `IS-${r.payload.job_no}` : undefined }) },
+/** Belge no (verme bildiriminde zorunlu): elle girilen, yoksa iş / mal kabul belgesi */
+const docNo = (r: Row) => r.bno || (r.payload.invoice_no as string | undefined) || (r.payload.job_no ? `IS-${r.payload.job_no}` : undefined) || (r.payload.doc as string | undefined);
+/** Barkod kuruluşu (BRK): eski doküman sürümlerinde zorunlu; UTS_SEND_BRK=1 ise gönderilir (GTIN → GS1) */
+const brk = (r: Row) => (process.env.UTS_SEND_BRK === "1" ? { BRK: /^[0-9]{8,14}$/.test(r.product_no ?? "") ? "GS1" : "UTS" } : {});
+
+/**
+ * Servisler (Takip ve İzleme Web Servis Tanımları):
+ *  verme   …/bildirim/verme/ekle    UNO, LNO+ADT | SNO, KUN (alan kurum), BNO (belge no, zorunlu), BEN (bedelsiz numune, isteğe bağlı)
+ *  alma    …/bildirim/alma/ekle     VBI (tedarikçinin verme bildirim ID'si, zorunlu), ADT (eksik alındıysa)
+ *  kullanim …/bildirim/kullanim/ekle UNO, LNO+ADT | SNO, GIT (gerçek işlem tarihi); hasta bilgisi yalnız kimlik isteyen ürünlerde
+ */
+export const UTS_SERVICES: Record<Exclude<UtsKind, "ismarlama">, { path: string; body: (r: Row) => Record<string, unknown>; needs: Array<keyof Row | "doc"> }> = {
+  alma: { path: "uh/rest/bildirim/alma/ekle", needs: ["vbi"], body: (r) => ({ VBI: r.vbi, ...(r.qty && !r.serial_no ? { ADT: Number(r.qty) } : {}) }) },
+  kullanim: { path: "uh/rest/bildirim/kullanim/ekle", needs: ["product_no"], body: (r) => ({ ...brk(r), ...ident(r), GIT: r.event_date }) },
+  verme: { path: "uh/rest/bildirim/verme/ekle", needs: ["product_no", "counterparty_no", "doc"], body: (r) => ({ ...brk(r), ...ident(r), KUN: r.counterparty_no, BNO: docNo(r)?.slice(0, 50) }) },
 };
 
-const LABEL: Record<string, string> = { product_no: "ürün numarası (UNO)", counterparty_no: "karşı kurumun ÜTS kurum no", lot_no: "lot", serial_no: "seri no" };
+const LABEL: Record<string, string> = { product_no: "ürün numarası (UNO)", counterparty_no: "karşı kurumun ÜTS kurum no", lot_no: "lot", serial_no: "seri no", vbi: "tedarikçinin verme bildirim ID'si (VBI: ÜTS'de \"alma bekleyenler\" listesinde)", doc: "belge no (fatura / irsaliye)" };
 
 /** Cevaptaki hata mesajları ve bildirim numarası (ÜTS cevabı: SNC / MSJ listeleri) */
 function readResponse(j: unknown): { ok: boolean; ref: string | null; text: string } {
@@ -72,7 +81,7 @@ export async function sendUtsQueue(): Promise<{ sent: number; failed: number; sk
   for (const r of (data ?? []) as Row[]) {
     const svc = UTS_SERVICES[r.kind as Exclude<UtsKind, "ismarlama">];
     const env = r.env_setting === "live" ? "live" : "test";
-    const missing = svc ? svc.needs.filter((k) => !r[k]) : [];
+    const missing = svc ? svc.needs.filter((k) => (k === "doc" ? !docNo(r) : !r[k])) : [];
     if (!svc || missing.length) {
       failed++;
       await admin.rpc("uts_result", { p_id: r.id, p_ok: false, p_ref: null, p_response: null, p_error: svc ? `Eksik bilgi: ${missing.map((k) => LABEL[k] ?? k).join(", ")}` : "Bu bildirim türü ÜTS ekranından elle yapılır.", p_env: env });

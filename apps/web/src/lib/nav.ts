@@ -174,6 +174,7 @@ export const NAV: Group[] = [
       { label: "Alış özeti", href: "/alis", module: "purchases", desc: "Aylık alış, tedarikçiler, vadesi geçen borçlar" },
       { label: "Verilen siparişler (tedarikçi)", href: "/alis/siparisler", module: ["purchases", "stock"], desc: "Depo hazırlar, satın alma onaylar, tedarikçiye e-posta + WhatsApp ile gider; tedarikçi onayı, termin, sevk" }, { label: "Tedarikçi kullanıcıları", href: "/alis/tedarikci-kullanicilari", module: "purchases", desc: "Tedarikçiye hesap tanımlayın; siparişleri kendi ekranından görsün" },
       { label: "Alış faturası gir", href: "/alis/yeni", module: "purchases", level: 2, desc: "Malzeme, hammadde, sarf, hizmet alışı; stoğa giriş" },
+      { label: "Gelen e-belgeler", href: "/alis/gelen-efatura", module: "purchases", desc: "eLogo'dan gelen e-fatura, e-arşiv ve e-irsaliye: alışa / mal kabule aktar, kabul-red süresi" },
       { label: "e-Fatura içe aktar", href: "/alis/ice-aktar", module: ["purchases", "sales"], level: 2, desc: "UBL XML / ZIP: cari yoksa açılır, kalemler stokla eşleşir" },
       { label: "Alış faturaları", href: "/alis/faturalar", module: "purchases", desc: "Gelen faturalar, iade, iptal" },
       { label: "Fatura ayarları", href: "/satis/ayarlar", module: "sales", desc: "Şirket VKN / adres, seri önekleri, KDV, entegratör" },

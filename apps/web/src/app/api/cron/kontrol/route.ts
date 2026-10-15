@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { scanMailbox } from "@/lib/einv";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -14,5 +15,8 @@ export async function GET(req: Request) {
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   // Muhasebe kokpiti sabah özeti (kurulmadıysa sessizce geçilir)
   const gl = await admin.rpc("gl_morning_digest");
-  return NextResponse.json({ ok: true, ...(data as object), muhasebe: gl.error ? { error: gl.error.message } : gl.data });
+  // Gelen e-belge: e-posta eklerini tara (ayar yoksa geçilir)
+  let einv: unknown = null;
+  try { einv = await scanMailbox(admin, admin); } catch (e) { einv = { ok: false, message: (e as Error).message }; }
+  return NextResponse.json({ ok: true, ...(data as object), muhasebe: gl.error ? { error: gl.error.message } : gl.data, einv });
 }

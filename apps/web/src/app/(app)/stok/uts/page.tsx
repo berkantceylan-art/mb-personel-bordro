@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 type N = {
   id: string; kind: "alma" | "kullanim" | "verme" | "ismarlama"; status: string; item_id: string | null; item_name: string | null; product_no: string | null; lot_no: string | null; serial_no: string | null;
-  qty: number | null; expiry_date: string | null; counterparty_no: string | null; counterparty_name: string | null; job_id: string | null; receipt_id: string | null; payload: Record<string, unknown>;
+  qty: number | null; expiry_date: string | null; counterparty_no: string | null; counterparty_name: string | null; job_id: string | null; receipt_id: string | null; payload: Record<string, unknown>; vbi?: string | null; bno?: string | null;
   env: string | null; uts_ref: string | null; error: string | null; attempts: number; created_at: string; sent_at: string | null;
 };
 type S = { enabled: boolean; auto_alma: boolean; auto_kullanim: boolean; auto_verme: boolean; auto_ismarlama: boolean; env: "test" | "live"; start_date: string };
@@ -149,6 +149,8 @@ export default async function UtsPage({ searchParams }: { searchParams: Promise<
                                 {r.serial_no || !r.lot_no ? <input name="serial_no" defaultValue={r.serial_no ?? ""} placeholder="Seri no" className="h-8 rounded-md border border-line px-2" /> : null}
                                 {!r.serial_no && <input name="lot_no" defaultValue={r.lot_no ?? ""} placeholder="Lot" className="h-8 rounded-md border border-line px-2" />}
                                 {(r.kind === "alma" || r.kind === "verme") && <input name="counterparty_no" defaultValue={r.counterparty_no ?? ""} placeholder="Karşı kurum no" className="h-8 rounded-md border border-line px-2" />}
+                                {r.kind === "alma" && <input name="vbi" defaultValue={r.vbi ?? ""} placeholder="Verme bildirim ID (VBI)" className="h-8 rounded-md border border-line px-2 w-64" />}
+                                {r.kind === "verme" && <input name="bno" defaultValue={r.bno ?? ""} placeholder="Belge no (fatura / irsaliye)" className="h-8 rounded-md border border-line px-2" />}
                                 <PendingSubmit className="h-8 rounded-md bg-brand-700 px-2 font-semibold text-white">Tekrar dene</PendingSubmit>
                               </form>
                             </details>
@@ -192,6 +194,8 @@ export default async function UtsPage({ searchParams }: { searchParams: Promise<
               <input name="expiry_date" type="date" className={inp} />
               <input name="counterparty_no" placeholder="Karşı kurum ÜTS no" inputMode="numeric" className={inp} />
               <input name="counterparty_name" placeholder="Karşı kurum adı" className={`${inp} md:col-span-2`} />
+              <input name="vbi" placeholder="Alma için: verme bildirim ID (VBI)" className={`${inp} md:col-span-2`} />
+              <input name="bno" placeholder="Verme için: belge no" className={inp} />
               <PendingSubmit className="h-10 rounded-[10px] bg-brand-700 px-4 text-sm font-semibold text-white">Sıraya ekle</PendingSubmit>
             </form>
           </Card>

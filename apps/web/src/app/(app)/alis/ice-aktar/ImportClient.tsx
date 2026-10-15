@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { commitImport, matchImports, type ImportMatch } from "@/lib/invoice-actions";
 import { parseUbl, type ParsedInvoice } from "@/lib/ubl";
@@ -13,8 +13,10 @@ type Card = { key: string; file: string; xml: string; inv: ParsedInvoice; match?
 
 const KINDS: [string, string][] = [["material", "Malzeme"], ["raw", "Hammadde"], ["consumable", "Sarf"], ["goods", "Ticari mal"], ["packaging", "Ambalaj"], ["service", "Hizmet"]];
 
-export function ImportClient({ items, categories, warehouses }: {
+export function ImportClient({ items, categories, warehouses, preload }: {
   items: { id: string; code: string; name: string; unit: string }[]; categories: { id: string; name: string; kind: string }[]; warehouses: { id: string; name: string }[];
+  /** Gelen kutusundan açılan e-fatura(lar) */
+  preload?: { file: string; xml: string }[];
 }) {
   const [cards, setCards] = useState<Card[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -37,6 +39,11 @@ export function ImportClient({ items, categories, warehouses }: {
         } else found.push({ file: f.name, xml: await f.text() });
       } catch (e) { errs.push(`${f.name}: ${(e as Error).message}`); }
     }
+    await processFound(found, errs);
+  }
+
+  async function processFound(found: { file: string; xml: string }[], errs: string[]) {
+    setLoading(true);
     const parsed: Card[] = [];
     for (const x of found.slice(0, 100)) {
       try {
@@ -57,6 +64,13 @@ export function ImportClient({ items, categories, warehouses }: {
     setErrors(errs);
     setLoading(false);
   }
+
+  const pre = useRef(false);
+  useEffect(() => {
+    if (pre.current || !preload?.length) return;
+    pre.current = true;
+    void processFound(preload, []);
+  }, [preload]);
 
   const setMode = (key: string, i: number, m: Mode) => setCards((cs) => cs.map((c) => (c.key === key ? { ...c, modes: c.modes.map((x, j) => (j === i ? m : x)) } : c)));
   const bulk = (key: string, mode: "new" | "none") => setCards((cs) => cs.map((c) => (c.key === key ? { ...c, modes: c.modes.map((x) => (x.mode === "item" && x.item_id ? x : mode === "new" ? { mode: "new", new_kind: "material" } : { mode: "none" })) } : c)));
