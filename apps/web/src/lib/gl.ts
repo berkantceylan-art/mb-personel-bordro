@@ -39,6 +39,10 @@ export function glError(m: string): string {
   if (/(gl_cit_|gl_kkeg|gl_tax_adj|kkeg_pct)/.test(m) && /function|relation|does not exist|schema cache|column/.test(m)) return "Supabase'de 20270213000000_corporate_tax.sql çalıştırılmalı.";
   if (/(gl_stamp|gl_vat2|gl_vat_refund|gl_tax_calendar|gl_filing|inv_set_export_doc|gl_stamp_docs|gl_tax_filings)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270212000000_tax_center.sql çalıştırılmalı.";
   if (/(gl_reflect|gl_reval|gl_deferral|gl_loan_accrual|gl_partner_reclass|gl_period_checklist|asset_revaluations|gl_deferrals)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270214000000_period_end.sql çalıştırılmalı.";
+  if (/(gl_rediscount|gl_doubtful|gl_severance|gl_cash_count|gl_cash_counts)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270216000000_provisions.sql çalıştırılmalı.";
+  if (/party_no_account/.test(m)) return "Bu carinin muhasebe hesabı (120.xxxx) henüz oluşmamış: önce bir faturası fişe dönmeli.";
+  if (/doubtful_exceeds/.test(m)) return "Tutar carinin o tarihteki muhasebe bakiyesinden büyük olamaz.";
+  if (/account_required/.test(m)) return "Bir kasa hesabı seçin.";
   if (/reval_bad_date/.test(m)) return "Yeniden değerleme yalnız geçici vergi dönemi sonunda (31 Mart, 30 Haziran, 30 Eylül) ya da yıl sonunda (31 Aralık) yapılır.";
   if (/reval_exists/.test(m)) return "Bu tarihte yeniden değerleme zaten yapılmış.";
   if (/reval_has_later_depreciation/.test(m)) return "Yeniden değerlemeden sonra amortisman ayrılmış: önce o ayların amortismanını geri alın.";
