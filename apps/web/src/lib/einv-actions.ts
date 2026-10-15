@@ -123,3 +123,39 @@ export async function einvToReceipt(f: FormData) {
   again();
   redirect(`/stok/mal-kabul/${rid}?tamam=${encodeURIComponent("e-İrsaliye kalemleri mal kabule alındı; ürünleri okutup ya da karta bağlayıp onaylayın.")}`);
 }
+
+/** eLogo bağlantı testi (WSDL + oturum) */
+export async function einvElogoTest() {
+  await need();
+  const { elogoTest } = await import("@/lib/elogo");
+  let r;
+  try { r = await elogoTest(); } catch (e) { return await fail(`eLogo: ${(e as Error).message}`.slice(0, 280)); }
+  if (!r.ok) await fail(r.message.slice(0, 280));
+  await done(r.message.slice(0, 280));
+}
+
+/** eLogo'dan şimdi çek: son 7 gün ya da "geçmiş" seçilirse başlangıç tarihinden bugüne */
+export async function einvElogoSync(f: FormData) {
+  await need();
+  const supabase = await createClient();
+  const { data: set } = await supabase.from("einv_settings").select("elogo_from").maybeSingle();
+  const today = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+  const week = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const from = f.get("all") === "1" && set?.elogo_from ? (set.elogo_from as string) : week;
+  const { elogoSync } = await import("@/lib/elogo");
+  let r;
+  try { r = await elogoSync(supabase, { from, to: today, max: 60 }); } catch (e) { return await fail(`eLogo: ${(e as Error).message}`.slice(0, 280)); }
+  again();
+  if (!r.ok) await fail(r.message.slice(0, 280));
+  await done(r.message);
+}
+
+export async function einvElogoSettings(f: FormData) {
+  await need();
+  const supabase = await createClient();
+  const from = str(f, "from", 10);
+  const { error } = await supabase.rpc("einv_elogo_settings", { p_enabled: f.get("enabled") === "on", p_from: /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : null });
+  if (error) await fail(msg(error.message));
+  again();
+  await done("eLogo eşitleme ayarı kaydedildi.");
+}

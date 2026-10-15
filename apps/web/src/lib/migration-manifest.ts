@@ -145,4 +145,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270223000000_gl_checks_more.sql", "t:gl_stage_signoffs"],
   ["20270224000000_uts_fields.sql", "k:uts_notifications.bno"],
   ["20270225000000_einv_inbox.sql", "t:einv_settings"],
+  ["20270226000000_elogo_sync.sql", "f:einv_elogo_log"],
 ];

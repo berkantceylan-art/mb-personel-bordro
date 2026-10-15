@@ -36,6 +36,10 @@
     {
       "path": "/api/cron/mevzuat",
       "schedule": "10 6 * * *"
+    },
+    {
+      "path": "/api/cron/elogo",
+      "schedule": "20 * * * *"
     }
   ]
 }
