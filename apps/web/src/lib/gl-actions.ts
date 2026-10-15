@@ -264,3 +264,55 @@ export async function glTaxAdjSave(f: FormData) {
 export async function glTaxAdjDelete(f: FormData) {
   await rpcDone("gl_tax_adj_delete", { p_id: str(f, "id", 40) }, () => "Düzeltme silindi.");
 }
+
+// ---------------------------------------------------------------------
+// Dönem sonu işlemleri
+// ---------------------------------------------------------------------
+const tl = (v?: number) => (Number(v ?? 0) / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2 });
+
+export async function glDepreciationRun(f: FormData) {
+  const s = await getSession();
+  if ((s.modules.assets ?? 0) < 2) await fail("Amortisman için demirbaş modülünde düzenleme yetkisi gerekir.");
+  const m = str(f, "month", 7);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("asset_depreciation_run", { p_period: `${m}-01` });
+  if (error) await fail(glError(error.message));
+  const d = data as { count: number; total: number };
+  again();
+  await done(d.count ? `${m} amortismanı ayrıldı: ${d.count} demirbaş, ${tl(d.total)} TL.` : "Bu ay amortisman ayrılacak demirbaş yok (zaten ayrılmış olabilir).");
+}
+export async function glReflectMonth(f: FormData) {
+  const m = str(f, "month", 7);
+  await rpcDone("gl_reflect_month", { p_month: m }, (d) => ((d as { empty?: boolean }).empty ? "Yansıtılacak gider yok." : `${m} yansıtma fişi oluştu.`));
+}
+export async function glDeferralsRun(f: FormData) {
+  const m = str(f, "month", 7);
+  await rpcDone("gl_deferrals_run", { p_month: m }, (d) => ((d as { empty?: boolean }).empty ? "Bu ay dönemsellik payı yok." : `${m} dönemsellik fişi oluştu.`));
+}
+export async function glDeferralSave(f: FormData) {
+  const total = parseAmount(str(f, "total", 20));
+  if (!total) await fail("Toplam tutarı yazın.");
+  const months = Number(str(f, "months", 4));
+  if (!(months >= 2 && months <= 120)) await fail("Süre 2 ile 120 ay arasında olmalı.");
+  const description = str(f, "description", 200);
+  if (!description) await fail("Açıklama yazın.");
+  await rpcDone("gl_deferral_save", { p: { kind: str(f, "kind", 10) === "income" ? "income" : "expense", description, total, start_month: `${str(f, "start_month", 7)}-01`, months, pl_code: str(f, "pl_code", 20) || "770", setup_date: str(f, "setup_date", 10) || null } }, () => "Dönemsellik kaydı ve kurulum fişi oluştu.");
+}
+export async function glDeferralDelete(f: FormData) {
+  await rpcDone("gl_deferral_delete", { p_id: str(f, "id", 40) }, () => "Dönemsellik kaydı silindi.");
+}
+export async function glLoanAccrual(f: FormData) {
+  const m = str(f, "month", 7);
+  await rpcDone("gl_loan_accrual", { p_month: m }, (d) => `Kredi faiz tahakkuku: ${tl((d as { accrued?: number }).accrued)} TL (ertesi ay ters kaydı da oluştu).`);
+}
+export async function glPartnerReclass(f: FormData) {
+  const y = Number(str(f, "year", 4));
+  await rpcDone("gl_partner_reclass", { p_year: y }, (d) => { const x = d as { accounts?: number; amount?: number }; return x.accounts ? `${x.accounts} ortak hesabı 131'e aktarıldı: ${tl(x.amount)} TL.` : "Borç bakiyeli ortak hesabı yok."; });
+}
+export async function glRevalPost(f: FormData) {
+  const rate = Number(str(f, "rate", 10).replace(",", "."));
+  await rpcDone("gl_reval_post", { p_date: str(f, "date", 10), p_rate: Number.isFinite(rate) ? rate : 0 }, (d) => { const x = d as { assets?: number; fund?: number }; return x.assets ? `Yeniden değerleme yapıldı: ${x.assets} demirbaş, değer artışı ${tl(x.fund)} TL (522).` : "Yeniden değerlenecek demirbaş yok."; });
+}
+export async function glRevalUndo(f: FormData) {
+  await rpcDone("gl_reval_undo", { p_date: str(f, "date", 10) }, (d) => `${d} demirbaşın yeniden değerlemesi geri alındı.`, 3);
+}
