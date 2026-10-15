@@ -54,7 +54,10 @@ export async function einvScanMail() {
   let admin;
   try { admin = createAdminClient(); } catch { return await fail("Sunucu anahtarı ayarlı değil."); }
   let r;
-  try { r = await scanMailbox(supabase, admin); } catch (e) { return await fail(`E-posta taranamadı: ${(e as Error).message}`.slice(0, 280)); }
+  try { r = await scanMailbox(supabase, admin); } catch (e) {
+    const m = (e as Error).message;
+    return await fail(/quota|rate|429/i.test(m) ? "Gmail'in dakikalık sorgu sınırı doldu. 1-2 dakika bekleyip yeniden deneyin; tarama kaldığı yerden devam eder." : `E-posta taranamadı: ${m}`.slice(0, 280));
+  }
   again();
   if (!r.ok) await fail(msg(r.message));
   await done(r.message);

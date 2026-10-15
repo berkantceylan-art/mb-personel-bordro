@@ -68,7 +68,7 @@ export async function accessToken(accountId: string, userId: string): Promise<{ 
   return { token: j.access_token, email: a.email };
 }
 
-async function api<T>(token: string, path: string, init?: RequestInit): Promise<T> {
+async function api<T>(token: string, path: string, init?: RequestInit, attempt = 0): Promise<T> {
   const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/${path}`, {
     ...init,
     headers: { authorization: `Bearer ${token}`, ...(init?.body ? { "content-type": "application/json" } : {}), ...(init?.headers ?? {}) },
@@ -76,6 +76,11 @@ async function api<T>(token: string, path: string, init?: RequestInit): Promise<
   });
   if (!res.ok) {
     const t = await res.text();
+    // kota / hız sınırı: kısa bekleyip en çok iki kez yeniden dene
+    if ((res.status === 429 || (res.status === 403 && /rateLimit|Quota exceeded|userRateLimitExceeded/i.test(t))) && attempt < 2) {
+      await new Promise((r) => setTimeout(r, attempt === 0 ? 3000 : 12000));
+      return api<T>(token, path, init, attempt + 1);
+    }
     throw new GmailError(`Gmail: ${res.status} ${t.slice(0, 200)}`, res.status);
   }
   return (res.status === 204 ? {} : await res.json()) as T;
@@ -169,6 +174,24 @@ export async function getThread(token: string, id: string): Promise<{ id: string
   });
   return { id: th.id, subject: messages[0]?.subject || "(konu yok)", messages, labels: [...new Set((th.messages ?? []).flatMap((m) => m.labelIds ?? []))] };
 }
+
+/** Sorguya uyan e-posta kimlikleri (hafif: yalnız liste) */
+export async function listMessageIds(token: string, opts: { q: string; pageToken?: string; max?: number }): Promise<{ ids: string[]; next: string | null }> {
+  const p = new URLSearchParams({ maxResults: String(opts.max ?? 50), q: opts.q });
+  if (opts.pageToken) p.set("pageToken", opts.pageToken);
+  const r = await api<{ messages?: { id: string }[]; nextPageToken?: string }>(token, `messages?${p}`);
+  return { ids: (r.messages ?? []).map((m) => m.id), next: r.nextPageToken ?? null };
+}
+
+/** Tek e-posta: başlık ve ek listesi (gövde çözülmez) */
+export async function getMessageAttachments(token: string, id: string): Promise<{ id: string; subject: string; attachments: MailMessage["attachments"] }> {
+  const m = await api<RawMsg>(token, `messages/${encodeURIComponent(id)}?format=full`);
+  const out = { html: null as string | null, text: "", atts: [] as MailMessage["attachments"] };
+  walk(m.payload, out);
+  return { id: m.id, subject: hdr(m.payload?.headers, "Subject"), attachments: out.atts };
+}
+
+export const isQuotaError = (e: unknown) => e instanceof GmailError && (e.status === 429 || (e.status === 403 && /quota|rate/i.test(e.message)));
 
 export async function modifyThread(token: string, id: string, add: string[], remove: string[]) {
   await api(token, `threads/${encodeURIComponent(id)}/modify`, { method: "POST", body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }) });
