@@ -46,7 +46,7 @@ export default async function Inbox({ searchParams }: { searchParams: Promise<{ 
   const q = (o: Record<string, string | null>) => { const u = new URLSearchParams(); const v = { yon: dir === "out" ? "out" : null, durum: tab, tur: kind, ...o }; for (const [k, x] of Object.entries(v)) if (x) u.set(k, x); return `/alis/gelen-efatura?${u}`; };
   const invoiceIds = rows.filter((r) => r.doc_kind !== "eirsaliye" && r.status === "new").map((r) => r.id);
   const elogo = elogoConfigured();
-  const elog = (set?.elogo_log ?? null) as { added?: number; fetched?: number; errors?: number; error?: string; ops?: string[]; types?: Record<string, Record<string, unknown>> } | null;
+  const elog = (set?.elogo_log ?? null) as { added?: number; fetched?: number; errors?: number; remaining?: number; error?: string; ops?: string[]; types?: Record<string, Record<string, unknown>> } | null;
   const today = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
 
   return (
@@ -67,7 +67,7 @@ export default async function Inbox({ searchParams }: { searchParams: Promise<{ 
           <section className="bg-white border border-line rounded-[14px] p-4 flex flex-col gap-2 text-sm">
             <div className="flex flex-wrap items-center gap-2"><b>eLogo otomatik eşitleme</b>
               <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${elogo ? "bg-[#E6F4EC] text-[#1A7F52]" : "bg-[#FFF4E0] text-[#7A4F00]"}`}>{elogo ? "kullanıcı tanımlı" : "kullanıcı tanımlı değil"}</span>
-              {set?.elogo_last_sync && <span className="text-xs text-muted">Son eşitleme {new Date(set.elogo_last_sync).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul", dateStyle: "short", timeStyle: "short" })}{elog?.error ? ` · hata: ${elog.error}` : elog?.fetched != null ? ` · ${elog.fetched} belge, ${elog.added ?? 0} yeni` : ""}</span>}
+              {set?.elogo_last_sync && <span className="text-xs text-muted">Son eşitleme {new Date(set.elogo_last_sync).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul", dateStyle: "short", timeStyle: "short" })}{elog?.error ? ` · hata: ${elog.error}` : elog?.fetched != null ? ` · ${elog.fetched} belge, ${elog.added ?? 0} yeni${elog.remaining ? `, ${elog.remaining} sırada` : ""}` : ""}</span>}
             </div>
             {!elogo && <p className="text-xs text-muted">Gelen ve giden e-fatura, e-arşiv ve e-irsaliyeler her saat eLogo&apos;dan kendiliğinden çekilir. Bunun için eLogo&apos;dan bir web servis kullanıcısı alıp Vercel&apos;e <b>ELOGO_USER</b> ve <b>ELOGO_PASS</b> olarak ekleyin (demo hesabı için ayrıca ELOGO_TEST=1).</p>}
             {elogo && (
@@ -80,7 +80,23 @@ export default async function Inbox({ searchParams }: { searchParams: Promise<{ 
                 {set?.elogo_from && <button formAction={einvElogoSync} name="all" value="1" className={btnSecondary}>Başlangıçtan bugüne çek</button>}
               </form>
             )}
-            {elog?.types && <details className="text-xs text-muted"><summary className="cursor-pointer">Son eşitleme ayrıntısı</summary><pre className="whitespace-pre-wrap">{JSON.stringify({ metotlar: elog.ops, turler: elog.types }, null, 1)}</pre></details>}
+            {elog?.remaining ? <p className="text-xs text-[#7A4F00]">eLogo&apos;da {elog.remaining} belge daha sırada: saatlik eşitleme bunları kendiliğinden getirir, beklemek istemezseniz düğmeye yeniden basın.</p> : null}
+            {elog?.types && (
+              <details className="text-xs text-muted">
+                <summary className="cursor-pointer">Son eşitleme ayrıntısı</summary>
+                <table className="mt-2 text-xs">
+                  <thead><tr><th className="text-left pr-4">Tür</th><th className="text-right pr-4">Liste 1 (yeni)</th><th className="text-right pr-4">Liste 2 (yeni)</th><th className="text-left">Not</th></tr></thead>
+                  <tbody>
+                    {Object.entries(elog.types).map(([t, v]) => {
+                      const cell = (o: string) => v[`err${o}`] ? "hata" : `${Number(v[`optype${o}`] ?? 0)}${v[`new${o}`] != null ? ` (${Number(v[`new${o}`])})` : ""}`;
+                      const note = [v.err1, v.err2, v.msg1, v.msg2, v.firstError].filter(Boolean).map(String).join(" · ");
+                      return <tr key={t}><td className="pr-4">{({ EINVOICE: "e-Fatura", EARCHIVE: "e-Arşiv", DESPATCHADVICE: "e-İrsaliye" } as Record<string, string>)[t] ?? t}</td><td className="text-right pr-4">{cell("1")}</td><td className="text-right pr-4">{cell("2")}</td><td>{note || "—"}</td></tr>;
+                    })}
+                  </tbody>
+                </table>
+                {elog.ops && <p className="mt-1">Servis metotları: {elog.ops.join(", ")}</p>}
+              </details>
+            )}
           </section>
         )}
 
