@@ -163,3 +163,42 @@ export async function lucaAutoMap() {
   again();
   await done(`${d.mapped} hesap Luca alt hesabıyla eşleştirildi${d.left ? `, ${d.left} hesap için öneri bulunamadı (elle seçin)` : ""}. Eşleştirmeleri ayarlardan kontrol edin.`);
 }
+
+/** Luca hesap planını ERP hesap planına aktar (eksik hesaplar açılır, kesin öneriler uygulanır) */
+export async function lucaSyncToErp() {
+  await need(3);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("gl_luca_sync_to_erp");
+  if (error) await fail(glError(error.message));
+  const d = data as { created: number; skipped: number; categories: number; redirects: number };
+  revalidatePath("/muhasebe", "layout");
+  await done(`ERP'de ${d.created} Luca hesabı açıldı${d.skipped ? ` (${d.skipped} hesap üst hesabı olmadığı için atlandı)` : ""}. ${d.categories} kategori ve ${d.redirects} ana hesap öneriye göre bağlandı; kalanları aşağıdan seçin.`);
+}
+
+export async function lucaSetRedirect(f: FormData) {
+  await need(3);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("gl_luca_set_redirect", { p_on: f.get("on") === "1" });
+  if (error) await fail(glError(error.message));
+  again();
+  await done(f.get("on") === "1" ? "Yeni fişler Luca alt hesaplarına yazılacak." : "Yönlendirme kapatıldı.");
+}
+
+export async function lucaCategorySet(f: FormData) {
+  await need(3);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("gl_luca_category_set", { p_cat: str(f, "cat", 40), p_code: str(f, "code", 40) });
+  if (error) await fail(glError(error.message));
+  revalidatePath("/muhasebe", "layout");
+  await done(`Kategori ${str(f, "code", 40) ? `${str(f, "code", 40)} hesabına bağlandı` : "eşleştirmesi kaldırıldı"}.`);
+}
+
+export async function lucaApplySuggestions() {
+  await need(3);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("gl_luca_apply_suggestions");
+  if (error) await fail(glError(error.message));
+  const d = data as { categories: number; redirects: number };
+  revalidatePath("/muhasebe", "layout");
+  await done(`${d.categories} kategori ve ${d.redirects} ana hesap öneriye göre bağlandı.`);
+}
