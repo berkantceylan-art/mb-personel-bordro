@@ -31,7 +31,7 @@ export default async function LedgerPage({ searchParams }: { searchParams: Promi
       <PageHeader title={r ? `${r.code} · ${r.name}` : "Muavin / kebir"} subtitle={`Hesap ekstresi · ${formatDate(from)} – ${formatDate(to)}`} actions={<Link href="/muhasebe/mizan" className="text-sm font-semibold text-brand-700">Mizan</Link>} />
       <div className={page}>
         <datalist id="gl-all">{((accs ?? []) as Array<{ code: string; name: string }>).map((a) => <option key={a.code} value={a.code}>{a.name}</option>)}</datalist>
-        <PeriodForm from={from} to={to} extra={{ hesap: code }} excel={code ? `/muhasebe/aktar/excel?tur=kebir&hesap=${encodeURIComponent(code)}&bas=${from}&bit=${to}` : undefined}>
+        <PeriodForm from={from} to={to} extra={{ hesap: code }} print={code ? `/yazdir/muhasebe/muavin?hesap=${encodeURIComponent(code)}&bas=${from}&bit=${to}` : undefined} excel={code ? `/muhasebe/aktar/excel?tur=kebir&hesap=${encodeURIComponent(code)}&bas=${from}&bit=${to}` : undefined}>
           <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Hesap<input name="hesap" list="gl-all" defaultValue={code} placeholder="ör. 120 ya da 120.0001" className="h-11 w-48 rounded-[10px] border border-line bg-white px-3 text-sm num" /></label>
         </PeriodForm>
         {error && <Notice tone="bad">{/function|does not exist|schema cache/.test(error.message) ? "Supabase'de 20270207000000_gl_reports.sql çalıştırılmalı." : glError(error.message)}</Notice>}

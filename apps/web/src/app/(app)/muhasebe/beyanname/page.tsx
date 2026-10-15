@@ -30,6 +30,7 @@ export default async function TaxPrep({ searchParams }: { searchParams: Promise<
   const supabase = await createClient();
   const res = tab === "kdv" ? await supabase.rpc("gl_vat_report", { p_from: from, p_to: to }) : tab === "babs" ? await supabase.rpc("gl_babs", { p_month: month }) : await supabase.rpc("gl_payroll_report", { p_period: month });
   const err = res.error;
+  const wh = tab === "muhtasar" ? ((await supabase.rpc("gl_withholding_report", { p_period: month })).data as { rent: number; smm: number } | null) : null;
   const link = (p: Record<string, string>) => `/muhasebe/beyanname?${new URLSearchParams({ ay: month, sekme: tab, ...p })}`;
   const canEdit = (s.modules.ledger ?? 0) >= 2;
   const m = (v: number) => fmt(v);
@@ -99,6 +100,12 @@ export default async function TaxPrep({ searchParams }: { searchParams: Promise<
           return (<><Notice tone="info">Sınır: {m(b.limit)} (KDV hariç, aynı kişiden aylık toplam). İade faturaları ve fişli cariler dahil değildir.</Notice><T rows={b.ba} title="Form Ba · mal ve hizmet alımları" /><T rows={b.bs} title="Form Bs · mal ve hizmet satışları" /></>);
         })()}
 
+        {tab === "muhtasar" && wh && (Number(wh.rent) > 0 || Number(wh.smm) > 0) && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <KPI label="Kira stopajı (bu ay kesilen)" value={m(Number(wh.rent))} />
+            <KPI label="Serbest meslek stopajı" value={m(Number(wh.smm))} />
+          </div>
+        )}
         {tab === "muhtasar" && res.data && (() => {
           const p = res.data as Pay;
           if (!p.people) return <Notice tone="info">{month} dönemi bordrosu hesaplanmamış.</Notice>;
@@ -115,7 +122,7 @@ export default async function TaxPrep({ searchParams }: { searchParams: Promise<
                   <span>Net ücret: <b className="num">{m(p.net)}</b></span><span>BES + icra kesintisi: <b className="num">{m(Number(p.bes) + Number(p.garnishment))}</b></span>
                   <span>Bankaya ödenecek: <b className="num">{m(p.net_to_bank)}</b></span><span>İşveren maliyeti: <b className="num">{m(p.employer_cost)}</b></span>
                 </div>
-                <p className="text-xs text-muted">Kira ve serbest meslek stopajı ERP&apos;de ayrı izlenmediği için muhtasara mali müşavir ekler.</p>
+                <p className="text-xs text-muted">Kira ve serbest meslek stopajı, masraf girerken &quot;Stopaj&quot; seçilen kayıtlardan yukarıda toplanır.</p>
                 {p.accrual ? <p className="text-sm">Tahakkuk fişi: <Link href={`/muhasebe/fisler/${p.accrual.id}`} className="font-semibold text-brand-700">{p.accrual.year}/{p.accrual.no}</Link></p>
                   : canEdit && <form action={glPayrollAccrual} className="flex items-end gap-2"><input type="hidden" name="period" value={month} /><label className="flex flex-col gap-1 text-xs font-semibold text-muted">Gider hesabı<input name="expense" defaultValue="770" className={`${inputCls} w-28`} /></label><PendingSubmit className={btnPrimary}>Tahakkuk fişini oluştur</PendingSubmit></form>}
               </Card>

@@ -199,10 +199,21 @@ export async function postTxn(form: FormData) {
     const counter = acc ? { account_id: acc.id } : partyId ? { party_id: partyId } : null;
     if (!counter) await fail("Ödendiği / tahsil edildiği hesabı ya da cariyi seçin.");
     const { data: vatCat } = vat ? await supabase.from("fin_categories").select("id").eq("code", kind === "expense" ? "vat_in" : "vat_out").maybeSingle() : { data: null };
+    // Stopaj (yalnız gider): tutar brüttür; stopaj vergi dairesine ödenecek (muhtasar), kasadan / bankadan net çıkar
+    const stRaw = kind === "expense" ? str(form, "stopaj_rate", 4) : "";
+    const stRate = parseInt(stRaw) || 0;
+    const stopaj = stRate > 0 ? Math.round((net * stRate) / 100) : 0;
+    let stCat: { id: string } | null = null;
+    if (stopaj) {
+      const code = stRaw.endsWith("s") ? "stopaj_smm" : "stopaj_rent";
+      ({ data: stCat } = await supabase.from("fin_categories").select("id").eq("code", code).maybeSingle());
+      if (!stCat) await fail("Stopaj kategorisi yok: Supabase'de 20270211000000_stopaj.sql çalıştırılmalı.");
+    }
     const lines: Record<string, unknown>[] = [
       { category_id: categoryId, amount: sign * net, currency, rate },
       ...(vat && vatCat ? [{ category_id: vatCat.id, amount: sign * vat, currency, rate }] : []),
-      { ...counter, amount: -sign * amount!, currency, rate },
+      ...(stopaj && stCat ? [{ category_id: stCat.id, amount: -stopaj, currency, rate }] : []),
+      { ...counter, amount: -sign * amount! + (stopaj ? stopaj : 0), currency, rate },
     ];
     if (vat && !vatCat) lines[0]!.amount = sign * amount!;
     ({ error } = await supabase.rpc("fin_post", {

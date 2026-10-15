@@ -43,6 +43,7 @@ export default async function VoucherPage({ params, searchParams }: { params: Pr
           {v.journal_no && <span>Yevmiye madde no: <b>{v.journal_no}</b></span>}
           {v.doc_no && <span>Belge: <b>{DOC_TYPE[v.doc_type ?? "other"] ?? ""} {v.doc_no}</b>{v.doc_date ? ` · ${formatDate(v.doc_date)}` : ""}</span>}
           {src && <Link href={src} className="font-semibold text-brand-700">ERP kaydına git ↗</Link>}
+          <Link href={`/yazdir/muhasebe/fis?id=${v.id}`} target="_blank" className="font-semibold text-brand-700">🖨 Yazdır</Link>
           {v.reversal_of && <Link href={`/muhasebe/fisler/${v.reversal_of}`} className="font-semibold text-brand-700">Ters kaydı yapılan fiş</Link>}
         </div>
         {v.description && <p className="text-sm">{v.description}</p>}

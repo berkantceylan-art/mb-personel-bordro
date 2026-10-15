@@ -42,7 +42,7 @@ export default async function IncomeStatement({ searchParams }: { searchParams: 
       <PageHeader title="Gelir tablosu" subtitle={`${formatDate(from)} – ${formatDate(to)}`} actions={<Link href="/muhasebe/bilanco" className="text-sm font-semibold text-brand-700">Bilanço</Link>} />
       <div className={page}>
         {error && <Notice tone="bad">{/function|does not exist|schema cache/.test(error.message) ? "Supabase'de 20270207000000_gl_reports.sql çalıştırılmalı." : glError(error.message)}</Notice>}
-        <PeriodForm from={from} to={to} />
+        <PeriodForm from={from} to={to} print={`/yazdir/muhasebe/gelir-tablosu?bas=${from}&bit=${to}`} />
         {cost && <Notice tone="info">7/A gider hesapları (770, 760, 780 …) dönem sonunda 6xx hesaplarına yansıtılmadığı için ilgili satıra doğrudan alındı (işaretli satırlar).</Notice>}
         <section className="bg-white border border-line rounded-[14px] p-5 text-sm max-w-3xl">
           {SECTIONS.map(([t, p], i) => {
