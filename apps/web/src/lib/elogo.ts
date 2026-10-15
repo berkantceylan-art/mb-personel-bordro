@@ -143,6 +143,13 @@ async function documentXml(w: Wsdl, session: string, uuid: string, type: string)
   return [buf.toString("utf8")];
 }
 
+async function flush(supabase: SupabaseClient, rows: EinvRow[]): Promise<number> {
+  if (!rows.length) return 0;
+  const { data, error } = await supabase.rpc("einv_inbox_add", { p_rows: rows, p_source: "api" });
+  if (error) throw new Error(error.message);
+  return Number((data as { added: number }).added ?? 0);
+}
+
 /**
  * Eşitleme: tarih aralığındaki gelen ve giden belgeleri listeler, kutuda olmayanların UBL'ini indirir, kutuya ekler.
  * Yön (gelen / giden) XML'deki satıcı VKN'sinden belirlenir.
@@ -159,47 +166,64 @@ export async function elogoSync(supabase: SupabaseClient, opts: { from: string; 
   const session = login.session;
   const vkn = await ownVkn(supabase);
   const max = opts.max ?? 80;
-  let added = 0, fetched = 0, errors = 0;
+  let added = 0, fetched = 0, errors = 0, remaining = 0;
   try {
+    // 1) Listeleme: her tür ve yön için ETTN'ler (kutuda olanlar ayıklanır)
+    type Bucket = { type: string; optype: string; todo: string[] };
+    const buckets: Bucket[] = [];
+    const seen = new Set<string>();
     for (const t of DOC_TYPES) {
       const tl: Record<string, unknown> = {};
       (log.types as Record<string, unknown>)[t.type] = tl;
-      const uuids = new Set<string>();
       for (const optype of ["1", "2"]) {
         try {
           const xml = await call(w, listOp, { sessionID: session, paramList: [`DOCUMENTTYPE=${t.type}`, `BEGINDATE=${opts.from}`, `ENDDATE=${opts.to}`, `OPTYPE=${optype}`, "DATEBY=0"] });
-          const found = [...new Set((xml.match(UUID_RE) ?? []).map((u) => u.toLowerCase()))].filter((u) => u !== session.toLowerCase());
-          found.forEach((u) => uuids.add(u));
+          const found = [...new Set((xml.match(UUID_RE) ?? []).map((u) => u.toLowerCase()))].filter((u) => u !== session.toLowerCase() && !seen.has(u));
+          found.forEach((u) => seen.add(u));
           tl[`optype${optype}`] = found.length;
           if (!found.length) { const r = resultOf(xml); if (r.msg) tl[`msg${optype}`] = r.msg.slice(0, 200); }
+          if (found.length) buckets.push({ type: t.type, optype, todo: found });
         } catch (e) { tl[`err${optype}`] = (e as Error).message.slice(0, 200); }
       }
-      if (!uuids.size) continue;
-      const { data: have } = await supabase.from("einv_inbox").select("ettn").in("ettn", [...uuids]);
-      const known = new Set(((have ?? []) as Array<{ ettn: string }>).map((h) => h.ettn.toLowerCase()));
-      const todo = [...uuids].filter((u) => !known.has(u)).slice(0, Math.max(0, max - fetched));
-      tl.new = todo.length;
-      const rows: EinvRow[] = [];
-      for (const u of todo) {
-        fetched++;
-        try {
-          for (const x of await documentXml(w, session, u, t.type)) {
-            const r = rowFromXmlDir(x, vkn, `elogo:${t.type}`);
-            if (r) rows.push(r);
-          }
-        } catch (e) { errors++; if (!tl.firstError) tl.firstError = (e as Error).message.slice(0, 200); }
-      }
-      for (let i = 0; i < rows.length; i += 20) {
-        const { data, error } = await supabase.rpc("einv_inbox_add", { p_rows: rows.slice(i, i + 20), p_source: "api" });
-        if (error) throw new Error(error.message);
-        added += Number((data as { added: number }).added ?? 0);
-      }
-      if (fetched >= max) { log.limited = true; break; }
     }
+    const all = buckets.flatMap((b) => b.todo);
+    const known = new Set<string>();
+    for (let i = 0; i < all.length; i += 200) {
+      const { data: have } = await supabase.from("einv_inbox").select("ettn").in("ettn", all.slice(i, i + 200));
+      ((have ?? []) as Array<{ ettn: string }>).forEach((h) => known.add(h.ettn.toLowerCase()));
+    }
+    for (const b of buckets) {
+      b.todo = b.todo.filter((u) => !known.has(u));
+      const tl = (log.types as Record<string, Record<string, unknown>>)[b.type]!;
+      tl[`new${b.optype}`] = b.todo.length;
+    }
+    // 2) İndirme sınırı türler ve yönler arasında sırayla paylaştırılır (bir tür diğerlerini aç bırakmaz)
+    const queue: Array<{ type: string; uuid: string }> = [];
+    for (let i = 0; queue.length < max && buckets.some((b) => b.todo.length > i); i++) {
+      for (const b of buckets) if (b.todo[i] && queue.length < max) queue.push({ type: b.type, uuid: b.todo[i]! });
+    }
+    remaining = buckets.reduce((n, b) => n + b.todo.length, 0) - queue.length;
+    const rows: EinvRow[] = [];
+    for (const q of queue) {
+      fetched++;
+      try {
+        for (const x of await documentXml(w, session, q.uuid, q.type)) {
+          const r = rowFromXmlDir(x, vkn, `elogo:${q.type}`);
+          if (r) rows.push(r);
+        }
+      } catch (e) {
+        errors++;
+        const tl = (log.types as Record<string, Record<string, unknown>>)[q.type]!;
+        if (!tl.firstError) tl.firstError = (e as Error).message.slice(0, 200);
+      }
+      if (rows.length >= 20) added += await flush(supabase, rows.splice(0));
+    }
+    added += await flush(supabase, rows);
+    if (remaining > 0) log.limited = true;
   } finally {
     await call(w, "Logout", { sessionID: session }).catch(() => null);
   }
-  Object.assign(log, { added, fetched, errors });
+  Object.assign(log, { added, fetched, errors, remaining });
   await supabase.rpc("einv_elogo_log", { p_log: log });
-  return { ok: true, message: `eLogo: ${fetched} belge indirildi, ${added} tanesi kutuya eklendi${errors ? `, ${errors} belge alınamadı` : ""}${log.limited ? " (kalanlar bir sonraki eşitlemede)" : ""}.`, log };
+  return { ok: true, message: `eLogo: ${fetched} belge indirildi, ${added} tanesi kutuya eklendi${errors ? `, ${errors} belge alınamadı` : ""}${remaining ? ` · ${remaining} belge sırada, bir sonraki eşitlemede gelecek` : ""}.`, log };
 }
