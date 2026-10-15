@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { fmt } from "@/lib/fin";
 import { DOC_TYPE, VOUCHER_KIND, VOUCHER_SOURCE, VOUCHER_STATUS, amt } from "@/lib/gl";
-import { glCancelVoucher } from "@/lib/gl-actions";
+import { glApprove, glCancelVoucher, glUnapprove } from "@/lib/gl-actions";
 import { VoucherEditor } from "../VoucherEditor";
 
 export const dynamic = "force-dynamic";
@@ -78,6 +78,8 @@ export default async function VoucherPage({ params, searchParams }: { params: Pr
             <form action={glCancelVoucher}><input type="hidden" name="id" value={v.id} /><PendingSubmit className="font-semibold text-bad">Fişi iptal et</PendingSubmit></form>
           </div>
         )}
+        {(s.modules.ledger ?? 0) >= 3 && v.status === "draft" && <form action={glApprove}><input type="hidden" name="ids" value={v.id} /><PendingSubmit className="h-11 px-5 rounded-[10px] bg-brand-700 text-white font-semibold">Fişi onayla</PendingSubmit></form>}
+        {(s.modules.ledger ?? 0) >= 3 && v.status === "posted" && !["closing", "opening", "reversal"].includes(v.source) && <form action={glUnapprove}><input type="hidden" name="id" value={v.id} /><PendingSubmit className="text-sm font-semibold text-brand-700">Onayı geri al</PendingSubmit></form>}
         {v.source === "auto" && <p className="text-xs text-muted">Otomatik fiş ERP kaydından gelir. Değiştirmek için kaynağı (fatura, ödeme, banka işlemi) düzeltin; ERP kaydı iptal edilince fiş de iptal olur, kilitli dönemde ters kayıt atılır.</p>}
       </div>
     </>

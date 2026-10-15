@@ -2,7 +2,7 @@
 
 export const VOUCHER_KIND: Record<string, string> = { mahsup: "Mahsup", tahsil: "Tahsil", tediye: "Tediye", acilis: "Açılış", kapanis: "Kapanış" };
 export const VOUCHER_STATUS: Record<string, [string, "green" | "amber" | "gray" | "red" | "blue"]> = {
-  posted: ["Kayıtlı", "green"], pending: ["Eşleştirme bekliyor", "amber"], excluded: ["Muhasebe dışı", "gray"], cancelled: ["İptal", "red"],
+  posted: ["Kayıtlı", "green"], draft: ["Onay bekliyor", "blue"], pending: ["Eşleştirme bekliyor", "amber"], excluded: ["Muhasebe dışı", "gray"], cancelled: ["İptal", "red"],
 };
 export const VOUCHER_SOURCE: Record<string, string> = { auto: "Otomatik", manual: "Elle", opening: "Açılış", closing: "Kapanış", fx: "Kur değerleme", payroll: "Bordro tahakkuk", reversal: "Ters kayıt", vat: "KDV / damga", tax: "Vergi tahakkuku", period: "Dönem sonu" };
 export const DOC_TYPE: Record<string, string> = { invoice: "Fatura", check: "Çek", note: "Senet", receipt: "Makbuz / dekont", voucher: "Fiş", other: "Diğer" };

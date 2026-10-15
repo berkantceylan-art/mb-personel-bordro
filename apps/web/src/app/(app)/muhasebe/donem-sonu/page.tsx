@@ -76,7 +76,7 @@ export default async function PeriodEnd({ searchParams }: { searchParams: Promis
         <form className="flex flex-wrap gap-2"><input type="month" name="ay" defaultValue={month} className={`${inputCls} w-44`} /><button className={btnSecondary}>Göster</button></form>
         {error && <Notice tone="bad">{/function|does not exist|schema cache|relation/.test(error.message) ? "Supabase'de 20270214000000_period_end.sql çalıştırılmalı." : glError(error.message)}</Notice>}
         {c?.locked && <Notice tone="info">Bu dönem kilitli: fiş eklenemez.</Notice>}
-        {c && c.pending > 0 && <Notice tone="warn">Bu ay {c.pending} fiş eşleştirme bekliyor. Dönem sonu işlemlerinden önce <Link href={`/muhasebe/fisler?durum=pending`} className="font-semibold text-brand-700">tamamlayın</Link>.</Notice>}
+        {c && c.pending > 0 && <Notice tone="warn">Bu ay {c.pending} fiş onay ya da eşleştirme bekliyor; onaylanmayan fişler bakiyelere girmez. Dönem sonu işlemlerinden önce <Link href={`/muhasebe/gelen-kutusu?ay=${month}`} className="font-semibold text-brand-700">gelen kutusunu</Link> boşaltın.</Notice>}
         {c && (
           <>
             <h2 className="font-display text-lg font-semibold text-brand-800">Aylık</h2>

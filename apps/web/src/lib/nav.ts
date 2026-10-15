@@ -89,6 +89,7 @@ export const NAV: Group[] = [
     group: "Genel muhasebe", slug: "genel-muhasebe",
     items: [
       { label: "Genel muhasebe", href: "/muhasebe", module: "ledger", desc: "ERP kayıtlarının otomatik muhasebe fişleri, ayarlar, kurulum" },
+      { label: "Fiş onayı (gelen kutusu)", href: "/muhasebe/gelen-kutusu", module: "ledger", desc: "ERP işlemlerinden oluşan fiş taslakları: hesap kontrolü, onay, kural öğrenme" },
       { label: "Muhasebe fişleri", href: "/muhasebe/fisler", module: "ledger", desc: "Mahsup, tahsil, tediye; eşleştirme bekleyenler; elle fiş" },
       { label: "Hesap planı", href: "/muhasebe/hesap-plani", module: "ledger", desc: "Tek Düzen Hesap Planı, alt hesaplar, Excel'den aktarma" },
       { label: "Eşleştirme", href: "/muhasebe/eslestirme", module: "ledger", level: 3, desc: "Kasa, banka, kart, cari, kategori → hesap kodu" },
