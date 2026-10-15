@@ -17,17 +17,18 @@ import { decideMeal } from "../yemek/actions";
 import { savePayDay, saveSgkPayment } from "./actions";
 import { CashMini, CashTab } from "./CashTab";
 import { RevenueView } from "../ciro/RevenueView";
+import { PnlTab } from "./PnlTab";
 
-type Tab = "ozet" | "nakit" | "ciro" | "para" | "insan" | "risk";
-const TABS: Array<[Tab, string]> = [["ozet", "Özet"], ["nakit", "Nakit"], ["ciro", "Ciro"], ["para", "Maliyet"], ["insan", "İnsan"], ["risk", "Risk"]];
+type Tab = "ozet" | "kar" | "nakit" | "ciro" | "para" | "insan" | "risk";
+const TABS: Array<[Tab, string]> = [["ozet", "Özet"], ["kar", "Kâr/Zarar"], ["nakit", "Nakit"], ["ciro", "Ciro"], ["para", "Maliyet"], ["insan", "İnsan"], ["risk", "Risk"]];
 type SB = Awaited<ReturnType<typeof createClient>>;
 
 /** Patron ekranı: Özet · Para · İnsan · Risk — mobil öncelikli */
-export default async function BossPage({ searchParams }: { searchParams: Promise<{ donem?: string; sekme?: string; aralik?: string; gun?: string; bas?: string; bit?: string; esas?: string; tur?: string }> }) {
+export default async function BossPage({ searchParams }: { searchParams: Promise<{ donem?: string; sekme?: string; aralik?: string; gun?: string; bas?: string; bit?: string; esas?: string; tur?: string; gorunum?: string }> }) {
   const s = await getSession();
   if (!(s.boss || s.role === "owner") || !canManagePay(s.role)) redirect("/");
   const sp = await searchParams;
-  const tab: Tab = (["ozet", "nakit", "ciro", "para", "insan", "risk"] as const).find((t) => t === sp.sekme) ?? "ozet";
+  const tab: Tab = (["ozet", "kar", "nakit", "ciro", "para", "insan", "risk"] as const).find((t) => t === sp.sekme) ?? "ozet";
   const today = todayIso();
   const cur = currentPeriod();
   const period = sp.donem && /^\d{4}-\d{2}$/.test(sp.donem) ? sp.donem : cur;
@@ -50,7 +51,7 @@ export default async function BossPage({ searchParams }: { searchParams: Promise
         ) : undefined
       } />
       <nav className="sticky top-0 z-10 bg-[#F5F7FA]/95 backdrop-blur px-4 md:px-6 pt-3 pb-2" aria-label="Patron sekmeleri">
-        <div className="grid grid-cols-6 gap-1 p-1 rounded-xl bg-white border border-line max-w-[720px]">
+        <div className="grid grid-cols-7 gap-1 p-1 rounded-xl bg-white border border-line max-w-[820px] overflow-x-auto">
           {TABS.map(([t, l]) => (
             <Link key={t} href={href(t)} aria-current={tab === t ? "page" : undefined} className={`h-10 rounded-lg grid place-items-center text-sm font-semibold relative ${tab === t ? "bg-brand-800 text-white" : "text-brand-700"}`}>
               {l}{t === "ozet" && pending > 0 && <span className="absolute top-1 right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#D64545] text-white text-[10px] grid place-items-center">{pending}</span>}
@@ -60,6 +61,7 @@ export default async function BossPage({ searchParams }: { searchParams: Promise
       </nav>
       <div className="p-4 md:p-6 pt-2 flex flex-col gap-4 max-w-[1100px]">
         {tab === "ozet" && <Overview sb={supabase} today={today} cur={cur} payDay={payDay} emps={emps} approvals={approvals} />}
+        {tab === "kar" && <PnlTab sb={supabase} today={today} p={{ gorunum: sp.gorunum, aralik: sp.aralik, esas: sp.esas }} base="/patron?sekme=kar" />}
         {tab === "ciro" && <RevenueView sb={supabase} today={today} p={{ aralik: sp.aralik, bas: sp.bas, bit: sp.bit, esas: sp.esas, tur: sp.tur }} base="/patron?sekme=ciro" />}
         {tab === "nakit" && <CashTab sb={supabase} today={today} aralik={sp.aralik} gun={sp.gun} />}
         {tab === "para" && <Money sb={supabase} today={today} cur={cur} period={period} payDay={payDay} emps={emps} />}
