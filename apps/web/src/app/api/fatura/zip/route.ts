@@ -19,10 +19,12 @@ export async function GET(req: NextRequest) {
   }
   if (!ids.length) return new NextResponse("Gönderime hazır fatura yok.", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
   const zip = new JSZip();
+  const errs: string[] = [];
   for (const id of ids) {
-    const x = await invoiceXml(id);
-    if (x) zip.file(x.name, x.xml);
+    try { const x = await invoiceXml(id); if (x) zip.file(x.name, x.xml); }
+    catch (e) { errs.push(`${id}: ${(e as Error).message}`); }
   }
+  if (errs.length) zip.file("HATALAR.txt", `Bu faturalar GİB kurallarına uymadığı için XML üretilmedi:\n\n${errs.join("\n")}`);
   const out = await zip.generateAsync({ type: "uint8array" });
   return new NextResponse(out as unknown as BodyInit, { headers: { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="e-fatura-${new Date().toISOString().slice(0, 10)}.zip"` } });
 }

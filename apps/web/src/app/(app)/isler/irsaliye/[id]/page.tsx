@@ -7,6 +7,7 @@ import { formatDate, getSession } from "@/lib/session";
 import { money } from "@/lib/jobs";
 import { WB_STATUS, stNo, wbNo } from "@/lib/waybill";
 import { cancelWaybill, issueWaybill, removeWaybillJob } from "@/lib/waybill-actions";
+import { edspFromWaybill } from "@/lib/edsp-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export default async function WaybillPage({ params }: { params: Promise<{ id: st
           {st && <Link href={`/yazdir/ic-fatura/${st.id}`} className="text-sm font-semibold text-brand-700">Fatura {stNo(st.year, st.no)}</Link>}
           {cust && <Link href={`/isler/hekimler/${cust.id}`} className="text-sm font-semibold text-brand-700">Müşteri kartı</Link>}
           <span className="ml-auto flex gap-2">
+            {w.status !== "cancelled" && rows.length > 0 && <form action={edspFromWaybill}><input type="hidden" name="id" value={w.id} /><PendingSubmit className="h-10 px-4 rounded-[10px] border border-line text-brand-700 text-sm font-semibold">e-İrsaliye oluştur</PendingSubmit></form>}
             {w.status === "open" && <form action={issueWaybill}><input type="hidden" name="id" value={w.id} /><PendingSubmit className="h-10 px-4 rounded-[10px] border border-ok text-ok text-sm font-semibold">Kesildi olarak işaretle</PendingSubmit></form>}
             {!locked && w.status !== "cancelled" && <form action={cancelWaybill}><input type="hidden" name="id" value={w.id} /><ConfirmSubmit label="İrsaliyeyi iptal et" question="İrsaliye iptal edilsin mi?" className="h-10 px-4 rounded-[10px] border border-bad text-bad text-sm font-semibold" /></form>}
           </span>

@@ -168,7 +168,8 @@ export const NAV: Group[] = [
     items: [
       { label: "Satış özeti", href: "/satis", module: "sales", desc: "Aylık satış, en çok çalışılan hekimler, vadesi geçenler" },
       { label: "Satış faturası kes", href: "/satis/yeni", module: "sales", level: 2, desc: "Protez, malzeme, hizmet; e-Fatura / e-Arşiv, döviz, iskonto, tevkifat" },
-      { label: "Satış faturaları", href: "/satis/faturalar", module: "sales", desc: "Kesilen faturalar, e-fatura durumu, toplu XML indirme" },
+      { label: "Satış faturaları", href: "/satis/faturalar", module: "sales", desc: "Kesilen faturalar, eLogo'ya gönderim ve GİB durumu, toplu XML" },
+      { label: "e-İrsaliyeler", href: "/satis/e-irsaliye", module: "sales", desc: "Giden e-irsaliye: laboratuvar irsaliyesinden ya da faturadan, araç / şoför / kargo, eLogo ile gönderim" },
       { label: "Faturalanmamış işler", href: "/satis/isler", module: "sales", desc: "Teslim edilen laboratuvar işlerini hekim bazında faturala" },
       { label: "Müşteri kârlılığı", href: "/satis/karlilik", module: ["sales", "finance"], desc: "Ciro, malzeme, işçilik, genel gider ve kâr; yeniden yapımlar" },
       { label: "Alış özeti", href: "/alis", module: "purchases", desc: "Aylık alış, tedarikçiler, vadesi geçen borçlar" },
@@ -177,7 +178,7 @@ export const NAV: Group[] = [
       { label: "Gelen e-belgeler", href: "/alis/gelen-efatura", module: "purchases", desc: "eLogo'dan gelen e-fatura, e-arşiv ve e-irsaliye: alışa / mal kabule aktar, kabul-red süresi" },
       { label: "e-Fatura içe aktar", href: "/alis/ice-aktar", module: ["purchases", "sales"], level: 2, desc: "UBL XML / ZIP: cari yoksa açılır, kalemler stokla eşleşir" },
       { label: "Alış faturaları", href: "/alis/faturalar", module: "purchases", desc: "Gelen faturalar, iade, iptal" },
-      { label: "Fatura ayarları", href: "/satis/ayarlar", module: "sales", desc: "Şirket VKN / adres, seri önekleri, KDV, entegratör" },
+      { label: "Fatura ayarları", href: "/satis/ayarlar", module: "sales", desc: "Şirket VKN / adres, seri önekleri, KDV, eLogo gönderim ayarları" },
     ],
   },
   {

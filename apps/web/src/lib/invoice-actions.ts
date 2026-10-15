@@ -7,6 +7,8 @@ import { done, fail } from "@/lib/flash";
 import { CURRENCIES, dateOk, parseRate } from "@/lib/fin";
 import { DIRECTION, invError, type Direction, type LineInput } from "@/lib/invoice";
 import type { ParsedInvoice, ParsedParty } from "@/lib/ubl";
+import { elogoConfigured } from "@/lib/elogo";
+import { checkParties } from "@/lib/einv-send";
 
 const str = (f: FormData, k: string, max = 400) => String(f.get(k) ?? "").trim().slice(0, max);
 const dirOf = (v: unknown): Direction => (v === "purchase" ? "purchase" : "sale");
@@ -28,6 +30,7 @@ export type InvoicePayload = {
   new_party?: { name: string; tax_no?: string; tax_office?: string; address?: string; city?: string; email?: string; phone?: string; is_einvoice?: boolean } | null;
   doc_no?: string | null; invoice_date: string; due_date?: string | null; currency: string; rate?: string | null; warehouse_id?: string | null; profile?: string | null;
   note?: string | null; lines: LineInput[]; post?: boolean; return_of?: string | null;
+  edoc?: Record<string, string | number | boolean | null> | null;
 };
 
 /** Fatura formu: taslak kaydet (+ isteğe bağlı işle). Cari yoksa VKN ile açar. */
@@ -42,6 +45,14 @@ export async function saveInvoice(p: InvoicePayload): Promise<{ ok: boolean; id?
     partyId = data as string;
   }
   if (!partyId) return { ok: false, message: "Cari seçin ya da yeni cari bilgilerini yazın." };
+  // kesmeden önce alıcının GİB mükellefiyeti (e-Fatura / e-Arşiv kararı için) — eLogo bağlıysa, 7 günde bir
+  const issuing = (direction === "sale" && p.type !== "return") || (direction === "purchase" && p.type === "return");
+  if (p.post && issuing && !p.profile && elogoConfigured()) {
+    const { data: pt } = await supabase.from("fin_parties").select("id, tax_no, country, gib_checked_at").eq("id", partyId).maybeSingle();
+    if (pt?.tax_no && (!pt.gib_checked_at || Date.now() - new Date(pt.gib_checked_at as string).getTime() > 7 * 86400000)) {
+      try { await checkParties(supabase, [pt as { id: string; tax_no: string; country: string }]); } catch { /* sorgu yapılamazsa kayıtlı bilgi kullanılır */ }
+    }
+  }
   const lines = (p.lines ?? []).filter((l) => l.name?.trim() && Number(l.qty) > 0).slice(0, 500);
   if (!lines.length) return { ok: false, message: "En az bir satır girin." };
   const currency = (CURRENCIES as readonly string[]).includes(p.currency) ? p.currency : "TRY";
@@ -55,10 +66,15 @@ export async function saveInvoice(p: InvoicePayload): Promise<{ ok: boolean; id?
       name: l.name.slice(0, 300), seller_code: l.seller_code || null, qty: Number(l.qty), unit: l.unit || "adet", unit_price: Number(l.unit_price) || 0,
       discount_pct: Number(l.discount_pct) || 0, vat_rate: Number(l.vat_rate) || 0, withholding_rate: Number(l.withholding_rate) || 0,
       withholding_code: l.withholding_code || null, vat_exemption_code: l.vat_exemption_code || null, lot_no: l.lot_no || null, expiry_date: dateOk(l.expiry_date) ?? null,
+      gtip: l.gtip || null, ident_scheme: l.ident_scheme || null, ident: l.ident || null, diib_line: l.diib_line || null,
     })),
   };
   const { data: id, error } = await supabase.rpc("inv_save", { p: body });
   if (error) return { ok: false, message: invError(error.message) };
+  if (p.edoc && Object.keys(p.edoc).length) {
+    const { error: ee } = await supabase.rpc("inv_set_edoc", { p_id: id, p: p.edoc });
+    if (ee && !/function|schema cache/.test(ee.message)) return { ok: false, id: id as string, message: `Taslak kaydedildi ama e-belge bilgileri kaydedilemedi: ${invError(ee.message)}` };
+  }
   if (p.post) {
     const { error: pe } = await supabase.rpc("inv_post", { p_id: id });
     revalidate(direction, id as string);

@@ -22,6 +22,9 @@ type Param = { name: string; ns: string; typeNs: string | null; isArray: boolean
 type Wsdl = { tns: string; endpoint: string; actions: Record<string, string>; params: Record<string, Param[]>; ops: string[]; raw: number };
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+/** Hazır XML parçası (iç içe veri sözleşmeleri için) */
+class Raw { constructor(public xml: string) {} }
+const DC_NS = "http://schemas.datacontract.org/2004/07/eFaturaWebService";
 
 /** WSDL (tek dosya) okuma ve çözümleme */
 async function loadWsdl(): Promise<Wsdl> {
@@ -73,6 +76,7 @@ const idx = (order: string[], k: string) => { const i = order.findIndex((o) => o
 /** Değeri XML'e çevir: dizi → <string> öğeleri, nesne → üyeler (tür ad alanında) */
 function valueXml(p: Param, v: unknown): string {
   const typeNs = p.typeNs ?? p.ns;
+  if (v instanceof Raw) return v.xml;
   if (Array.isArray(v)) return v.map((x) => `<a:string xmlns:a="${p.typeNs ?? "http://schemas.microsoft.com/2003/10/Serialization/Arrays"}">${esc(String(x))}</a:string>`).join("");
   if (v && typeof v === "object") {
     const order = p.members ?? [];
@@ -100,7 +104,7 @@ async function call(w: Wsdl, op: string, args: Record<string, unknown>): Promise
   return text;
 }
 
-const tag = (xml: string, name: string) => xml.match(new RegExp(`<(?:\\w+:)?${name}>([^<]*)</(?:\\w+:)?${name}>`))?.[1] ?? null;
+export const tag = (xml: string, name: string) => xml.match(new RegExp(`<(?:\\w+:)?${name}>([^<]*)</(?:\\w+:)?${name}>`))?.[1] ?? null;
 const resultOf = (xml: string) => ({ code: tag(xml, "resultCode"), msg: tag(xml, "resultMsg") });
 
 /** Bağlantı testi: WSDL metotları ve oturum açma */
@@ -226,4 +230,124 @@ export async function elogoSync(supabase: SupabaseClient, opts: { from: string; 
   Object.assign(log, { added, fetched, errors, remaining });
   await supabase.rpc("einv_elogo_log", { p_log: log });
   return { ok: true, message: `eLogo: ${fetched} belge indirildi, ${added} tanesi kutuya eklendi${errors ? `, ${errors} belge alınamadı` : ""}${remaining ? ` · ${remaining} belge sırada, bir sonraki eşitlemede gelecek` : ""}.`, log };
+}
+
+// ---------------------------------------------------------------------
+// Gönderim, durum, mükellef sorgusu, PDF, iptal
+// ---------------------------------------------------------------------
+
+/** Oturum açıp işi yapar, sonunda kapatır */
+export async function withElogo<T>(fn: (w: Wsdl, session: string) => Promise<T>): Promise<T> {
+  if (!elogoConfigured()) throw new Error("Vercel'de ELOGO_USER ve ELOGO_PASS tanımlı değil.");
+  const w = await loadWsdl();
+  const login = await elogoLogin(w);
+  if (!login.session) throw new Error(`eLogo oturumu açılamadı: ${login.error}`);
+  try { return await fn(w, login.session); } finally { await call(w, "Logout", { sessionID: login.session }).catch(() => null); }
+}
+
+const outputs = (xml: string) => Object.fromEntries([...xml.matchAll(/<(?:\w+:)?string>([^<=]+)=([^<]*)<\/(?:\w+:)?string>/g)].map((m) => [m[1]!.trim().toUpperCase(), m[2]!.trim()]));
+const resultOk = (xml: string, name: string) => {
+  const block = xml.match(new RegExp(`<(?:\\w+:)?${name}Result[^>]*>([\\s\\S]*?)</(?:\\w+:)?${name}Result>`))?.[1] ?? xml;
+  return { code: Number(tag(block, "resultCode") ?? 0), msg: tag(block, "resultMsg") ?? "" };
+};
+
+export type ElogoDocType = "EINVOICE" | "EARCHIVE" | "DESPATCHADVICE";
+
+/** UBL XML → ZIP (tek belge, adı ETTN) → SendDocument */
+export async function elogoSend(w: Wsdl, session: string, o: { type: ElogoDocType; ettn: string; xml: string; alias?: string | null; draft?: boolean; xslt?: string | null; numberPrefix?: string | null }): Promise<{ ok: boolean; ref: number | null; message: string }> {
+  const zip = new JSZip();
+  zip.file(`${o.ettn.toUpperCase()}.xml`, o.xml);
+  const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  const { createHash } = await import("node:crypto");
+  const params = [`DOCUMENTTYPE=${o.type}`, "SIGNED=0"];
+  if (o.alias && o.type !== "EARCHIVE") params.push(`ALIAS=${o.alias}`);
+  if (o.draft) params.push("DRAFT=1");
+  if (o.xslt) params.push(`XSLTUUID=${o.xslt}`);
+  if (o.numberPrefix) params.push("SETDOCUMENTNUMBER=1", "DOCUMENTNUMBERTYPE=SERIALCODE", `DOCUMENTNUMBERPREFIX=${o.numberPrefix}`);
+  const doc = new Raw(`<b:binaryData xmlns:b="${DC_NS}"><b:Value>${buf.toString("base64")}</b:Value><b:contentType>Base64</b:contentType></b:binaryData>`
+    + `<b:currentDate xmlns:b="${DC_NS}">${new Date().toISOString().slice(0, 19)}</b:currentDate>`
+    + `<b:fileName xmlns:b="${DC_NS}">${o.ettn.toUpperCase()}.zip</b:fileName>`
+    + `<b:hash xmlns:b="${DC_NS}">${createHash("md5").update(buf).digest("hex").toUpperCase()}</b:hash>`);
+  const xml = await call(w, "SendDocument", { sessionID: session, paramList: params, document: doc });
+  const r = resultOk(xml, "SendDocument");
+  const ref = Number(tag(xml, "refId") ?? NaN);
+  return { ok: r.code === 1, ref: Number.isFinite(ref) ? ref : null, message: r.msg || (r.code === 1 ? "Başarılı" : `eLogo sonuç kodu ${r.code}`) };
+}
+
+export type ElogoStatus = { found: boolean; code: number | null; status: number | null; desc: string; docNo: string | null; isCancel: boolean; envelopeId: string | null; resultMsg: string };
+
+export async function elogoStatus(w: Wsdl, session: string, uuid: string, type: ElogoDocType): Promise<ElogoStatus> {
+  const xml = await call(w, "GetDocumentStatus", { sessionID: session, uuid, paramList: [`DOCUMENTTYPE=${type}`] });
+  const r = resultOk(xml, "GetDocumentStatus");
+  const info = xml.match(/<(?:\w+:)?statusInfo[^>]*>([\s\S]*?)<\/(?:\w+:)?statusInfo>/)?.[1] ?? "";
+  const out = outputs(xml);
+  const code = tag(info, "code");
+  const status = tag(info, "status");
+  return {
+    found: r.code === 1, code: code != null ? Number(code) : null, status: status != null ? Number(status) : null, desc: tag(info, "description") ?? "",
+    docNo: out.ELEMENTID ?? null, isCancel: tag(info, "isCancel") === "true", envelopeId: tag(info, "envelopeId"), resultMsg: r.msg,
+  };
+}
+
+export type GibUser = { identifier: string; einvoice: boolean; invoiceAliases: string[]; edespatch: boolean; despatchAliases: string[]; title: string | null };
+
+/** GİB mükellef listesinden e-Fatura / e-İrsaliye mükellefiyeti ve posta kutusu etiketleri (en çok 100 VKN) */
+export async function elogoCheckUsers(w: Wsdl, session: string, vkns: string[]): Promise<GibUser[]> {
+  const list = [...new Set(vkns.map((v) => v.replace(/\D/g, "")).filter((v) => v.length === 10 || v.length === 11))].slice(0, 100);
+  if (!list.length) return [];
+  const xml = await call(w, "CheckGibUser", { sessionID: session, vknTcknList: list });
+  const r = resultOk(xml, "CheckGibUser");
+  if (r.code !== 1) throw new Error(`Mükellef sorgusu başarısız: ${r.msg}`);
+  const users = [...xml.matchAll(/<(?:\w+:)?GibUserType>([\s\S]*?)<\/(?:\w+:)?GibUserType>/g)].map((m) => m[1]!);
+  const aliases = (block: string, list: string) => {
+    const b = block.match(new RegExp(`<(?:\\w+:)?${list}>([\\s\\S]*?)</(?:\\w+:)?${list}>`))?.[1] ?? "";
+    return [...b.matchAll(/<(?:\w+:)?Alias>([^<]+)</g)].map((x) => x[1]!.trim());
+  };
+  const found = users.map((u) => {
+    const inv = aliases(u, "InvoicePkList");
+    const dsp = aliases(u, "DespatchAdvicePkList");
+    // kimlik: GibUserType'ın kendi Identifier'ı (alt listelerden önce gelir)
+    const ident = u.replace(/<(?:\w+:)?(InvoiceGbList|InvoicePkList|DespatchAdviceGbList|DespatchAdvicePkList)>[\s\S]*?<\/(?:\w+:)?\1>/g, "");
+    return { identifier: tag(ident, "Identifier") ?? "", einvoice: inv.length > 0, invoiceAliases: inv, edespatch: dsp.length > 0, despatchAliases: dsp, title: tag(u, "Title") };
+  });
+  // listede çıkmayan VKN: mükellef değil
+  return list.map((v) => found.find((f) => f.identifier === v) ?? { identifier: v, einvoice: false, invoiceAliases: [], edespatch: false, despatchAliases: [], title: null });
+}
+
+/** Birden çok etiket varsa varsayılan (defaultpk) tercih edilir */
+export const pickAlias = (aliases: string[]) => aliases.find((a) => /defaultpk/i.test(a)) ?? aliases[0] ?? null;
+
+/** Belgenin PDF / HTML görüntüsü */
+export async function elogoDocFile(w: Wsdl, session: string, uuid: string, type: ElogoDocType, format: "PDF" | "HTML" | "UBL"): Promise<{ name: string; data: Buffer } | null> {
+  const xml = await call(w, "GetDocumentData", { sessionID: session, uuid, paramList: [`DOCUMENTTYPE=${type}`, `DATAFORMAT=${format}`] });
+  const r = resultOk(xml, "GetDocumentData");
+  if (r.code !== 1) throw new Error(r.msg || "Belge alınamadı");
+  const b64 = [...xml.matchAll(/<(?:\w+:)?Value>([A-Za-z0-9+/=\s]{40,})<\//g)].map((m) => m[1]!).sort((a, b) => b.length - a.length)[0];
+  if (!b64) return null;
+  const buf = Buffer.from(b64.replace(/\s/g, ""), "base64");
+  if (buf[0] === 0x50 && buf[1] === 0x4b) {
+    const zip = await JSZip.loadAsync(buf);
+    const want = format === "PDF" ? /\.pdf$/i : format === "HTML" ? /\.html?$/i : /\.xml$/i;
+    const e = Object.values(zip.files).find((f) => !f.dir && want.test(f.name)) ?? Object.values(zip.files).find((f) => !f.dir);
+    if (!e) return null;
+    return { name: e.name.split("/").pop()!, data: await e.async("nodebuffer") };
+  }
+  return { name: `${uuid}.${format.toLowerCase()}`, data: buf };
+}
+
+/** e-Arşiv faturası iptali (GİB'e raporlanmadan önce / 7 gün içinde) */
+export async function elogoCancelEArchive(w: Wsdl, session: string, uuid: string, docNo: string | null): Promise<{ ok: boolean; message: string }> {
+  const params = ["DOCUMENTTYPE=CANCELEARCHIVEINVOICE", `UUID=${uuid}`];
+  if (docNo) params.push(`ELEMENTID=${docNo}`);
+  const xml = await call(w, "SendDocument", { sessionID: session, paramList: params });
+  const r = resultOk(xml, "SendDocument");
+  return { ok: r.code === 1, message: r.msg || `eLogo sonuç kodu ${r.code}` };
+}
+
+/** eLogo'da tanımlı seri önekleri ve son numaraları */
+export async function elogoPrefixes(w: Wsdl, session: string): Promise<Array<{ prefix: string; counter: number; type: number }>> {
+  const xml = await call(w, "GetPrefixLastNumberList", { sessionID: session, paramList: [] });
+  return [...xml.matchAll(/<(?:\w+:)?PrefixLastNumber>([\s\S]*?)<\/(?:\w+:)?PrefixLastNumber>/g)].map((m) => ({
+    prefix: tag(m[1]!, "InvoicePrefix") ?? "", counter: Number(tag(m[1]!, "Counter") ?? 0), type: Number(tag(m[1]!, "Type") ?? 0),
+  }));
 }
