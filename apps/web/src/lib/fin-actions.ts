@@ -190,7 +190,10 @@ export async function postTxn(form: FormData) {
     const categoryId = str(form, "category_id", 40);
     if (!categoryId) await fail("Gelir / gider hesabını seçin.");
     const partyId = str(form, "party_id", 40);
-    const vatRate = Number(str(form, "vat_rate")) || 0;
+    // vergi dairesine ödeme / KDV iade tahsilatı: gider-gelir değil, KDV ve stopaj uygulanmaz
+    const { data: catRow } = await supabase.from("fin_categories").select("code, kind").eq("id", categoryId).maybeSingle();
+    const taxCat = catRow?.kind === "other" && ["tax_payable", "vat_resp", "stopaj_rent", "stopaj_smm", "vat_refund"].includes(String(catRow?.code));
+    const vatRate = taxCat ? 0 : Number(str(form, "vat_rate")) || 0;
     const sign = kind === "expense" ? 1 : -1;
     // tutar KDV dahil; KDV ayrı satıra
     const vat = vatRate > 0 ? Math.round((amount! * vatRate) / (100 + vatRate)) : 0;
@@ -200,7 +203,7 @@ export async function postTxn(form: FormData) {
     if (!counter) await fail("Ödendiği / tahsil edildiği hesabı ya da cariyi seçin.");
     const { data: vatCat } = vat ? await supabase.from("fin_categories").select("id").eq("code", kind === "expense" ? "vat_in" : "vat_out").maybeSingle() : { data: null };
     // Stopaj (yalnız gider): tutar brüttür; stopaj vergi dairesine ödenecek (muhtasar), kasadan / bankadan net çıkar
-    const stRaw = kind === "expense" ? str(form, "stopaj_rate", 4) : "";
+    const stRaw = kind === "expense" && !taxCat ? str(form, "stopaj_rate", 4) : "";
     const stRate = parseInt(stRaw) || 0;
     const stopaj = stRate > 0 ? Math.round((net * stRate) / 100) : 0;
     let stCat: { id: string } | null = null;
@@ -209,10 +212,21 @@ export async function postTxn(form: FormData) {
       ({ data: stCat } = await supabase.from("fin_categories").select("id").eq("code", code).maybeSingle());
       if (!stCat) await fail("Stopaj kategorisi yok: Supabase'de 20270211000000_stopaj.sql çalıştırılmalı.");
     }
+    // Sorumlu KDV (KDV2): KDV'siz yabancı faturada KDV'yi alıcı beyan eder; 191 borç / 360 alacak, kasadan çıkış değişmez
+    const respRate = kind === "expense" && !taxCat ? parseInt(str(form, "resp_vat", 4)) || 0 : 0;
+    if (respRate && vat) await fail("Sorumlu KDV seçildiğinde KDV oranı %0 olmalı (yabancı faturada KDV yoktur).");
+    const resp = respRate ? Math.round((amount! * respRate) / 100) : 0;
+    let respCats: { vin?: string; vresp?: string } = {};
+    if (resp) {
+      const { data: rc } = await supabase.from("fin_categories").select("id, code").in("code", ["vat_in", "vat_resp"]);
+      respCats = { vin: rc?.find((x) => x.code === "vat_in")?.id, vresp: rc?.find((x) => x.code === "vat_resp")?.id };
+      if (!respCats.vin || !respCats.vresp) await fail("Sorumlu KDV kategorisi yok: Supabase'de 20270212000000_tax_center.sql çalıştırılmalı.");
+    }
     const lines: Record<string, unknown>[] = [
       { category_id: categoryId, amount: sign * net, currency, rate },
       ...(vat && vatCat ? [{ category_id: vatCat.id, amount: sign * vat, currency, rate }] : []),
       ...(stopaj && stCat ? [{ category_id: stCat.id, amount: -stopaj, currency, rate }] : []),
+      ...(resp ? [{ category_id: respCats.vin, amount: resp, currency, rate }, { category_id: respCats.vresp, amount: -resp, currency, rate, description: "Sorumlu sıfatıyla KDV (KDV2)" }] : []),
       { ...counter, amount: -sign * amount! + (stopaj ? stopaj : 0), currency, rate },
     ];
     if (vat && !vatCat) lines[0]!.amount = sign * amount!;

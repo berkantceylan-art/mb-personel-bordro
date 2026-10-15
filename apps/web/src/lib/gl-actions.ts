@@ -170,3 +170,67 @@ export async function glSetLock(f: FormData) {
   const d = str(f, "date", 10) || null;
   await rpcDone("gl_set_lock", { p_date: d }, () => (d ? `Dönem ${d.split("-").reverse().join(".")} tarihine kadar kilitlendi.` : "Dönem kilidi kaldırıldı."), 3);
 }
+
+// ---------------------------------------------------------------------
+// Beyanname merkezi: KDV iadesi, damga vergisi, vergi takvimi, ihracat belgesi
+// ---------------------------------------------------------------------
+export async function glVatRefundPost(f: FormData) {
+  const m = str(f, "month", 7);
+  const amount = parseAmount(str(f, "amount", 20));
+  if (!amount) await fail("İade tutarını yazın.");
+  await rpcDone("gl_vat_refund_post", { p_month: m, p_amount: amount }, () => `${m} KDV iade alacağı fişi oluştu (136 / 190).`);
+}
+
+export async function glStampSave(f: FormData) {
+  await need(2);
+  const supabase = await createClient();
+  const type = str(f, "doc_type", 20);
+  const fixed = type === "fixed" ? parseAmount(str(f, "fixed_amount", 20)) : null;
+  const base = type === "fixed" ? 0 : parseAmount(str(f, "base", 20));
+  if (type === "fixed" && !fixed) await fail("Maktu vergi tutarını yazın.");
+  if (type !== "fixed" && !base) await fail("Sözleşme bedelini yazın.");
+  const title = str(f, "title", 200);
+  if (!title) await fail("Kâğıdın adını yazın (ör. Atölye kira sözleşmesi).");
+  const { error } = await supabase.rpc("gl_stamp_save", { p: {
+    id: str(f, "id", 40) || null, doc_date: str(f, "doc_date", 10), doc_type: type, title, party_id: str(f, "party_id", 40) || null,
+    base, rate_pm: Number(str(f, "rate_pm", 12).replace(",", ".")) || 0, fixed_amount: fixed, share_pct: Number(str(f, "share_pct", 6).replace(",", ".")) || 100, note: str(f, "note", 500),
+  } });
+  if (error) await fail(glError(error.message));
+  again();
+  await done("Damga vergisi kaydı eklendi.");
+}
+
+export async function glStampDelete(f: FormData) {
+  await rpcDone("gl_stamp_delete", { p_id: str(f, "id", 40) }, () => "Kayıt silindi.");
+}
+
+export async function glStampClose(f: FormData) {
+  const m = str(f, "month", 7);
+  await rpcDone("gl_stamp_close", { p_month: m, p_expense: str(f, "expense", 30) || "770" }, (d) => ((d as { empty?: boolean })?.empty ? "Bu ay damga vergisi yok." : `${m} damga vergisi tahakkuk fişi oluştu.`));
+}
+
+const FILING_STATUS = ["todo", "prepared", "filed", "paid", "none"];
+export async function glFilingSet(f: FormData) {
+  await need(2);
+  const status = str(f, "status", 10);
+  if (!FILING_STATUS.includes(status)) await fail("Durum geçersiz.");
+  const supabase = await createClient();
+  const amount = str(f, "amount", 20);
+  const { error } = await supabase.rpc("gl_filing_set", { p_kind: str(f, "kind", 10), p_period: str(f, "period", 7), p_status: status, p_amount: amount ? parseAmount(amount) : null, p_note: str(f, "note", 300) || null });
+  if (error) await fail(glError(error.message));
+  again();
+  await done("Durum güncellendi.");
+}
+
+export async function invSetExportDoc(f: FormData) {
+  const s = await getSession();
+  if ((s.modules.finance ?? 0) < 2 && (s.modules.ledger ?? 0) < 2) await fail("Bu işlem için fatura yetkiniz yok.");
+  const supabase = await createClient();
+  const id = str(f, "id", 40);
+  const kind = str(f, "kind", 4) === "gb" ? "gb" : "etgb";
+  const { error } = await supabase.rpc("inv_set_export_doc", { p_id: id, p_kind: kind, p_no: str(f, "no", 40), p_date: str(f, "date", 10) || null });
+  if (error) await fail(glError(error.message));
+  revalidatePath(`/fatura/${id}`);
+  again();
+  await done("İhracat belgesi kaydedildi.");
+}

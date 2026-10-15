@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fmt } from "@/lib/fin";
 import { qty } from "@/lib/stock";
 import { cancelInvoice, deleteInvoice, postInvoice, setEinvoiceStatus } from "@/lib/invoice-actions";
+import { invSetExportDoc } from "@/lib/gl-actions";
 import { DIRECTION, EINV_STATUS, INV_STATUS, PROFILES, type InvLine, type Invoice } from "@/lib/invoice";
 
 export const dynamic = "force-dynamic";
@@ -122,6 +123,22 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             <p className="md:col-span-4 text-xs text-muted">Entegratör bağlantısı kurulana kadar: XML&apos;i indirip entegratör portalına yükleyin, sonra “Gönderildi” işaretleyin. Bağlantı kurulunca bu adım otomatik olur.</p>
           </form>
         )}
+
+        {inv.direction === "sale" && inv.status !== "cancelled" && lvl >= 2 && (inv.profile === "IHRACAT" || ((lines ?? []) as Array<{ vat_exemption_code?: string | null }>).some((l) => l.vat_exemption_code === "301" || l.vat_exemption_code === "302")) && (() => {
+          const ex = inv as unknown as { export_doc_kind?: string | null; export_doc_no?: string | null; export_doc_date?: string | null };
+          return (
+            <form action={invSetExportDoc} className="bg-white border border-line rounded-[14px] p-4 grid gap-3 md:grid-cols-[180px_1fr_180px_auto] items-end">
+              <input type="hidden" name="id" value={inv.id} />
+              <label className="flex flex-col gap-1 text-sm font-semibold">İhracat belgesi
+                <select name="kind" defaultValue={ex.export_doc_kind ?? "gb"} className={selectCls}><option value="gb">Gümrük beyannamesi (GÇB)</option><option value="etgb">ETGB (kargo)</option></select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-semibold">Belge no<input name="no" defaultValue={ex.export_doc_no ?? ""} maxLength={40} placeholder="ör. 26341300EX000123" className={`${inputCls} font-mono`} /></label>
+              <label className="flex flex-col gap-1 text-sm font-semibold">Belge tarihi<input type="date" name="date" defaultValue={ex.export_doc_date ?? ""} className={inputCls} /></label>
+              <PendingSubmit className={btnSecondary}>Kaydet</PendingSubmit>
+              <p className="md:col-span-4 text-xs text-muted">KDV iade dosyasında kullanılır (Genel muhasebe › Beyanname hazırlık › KDV iadesi). Numarayı silip kaydederseniz belge kaldırılır.</p>
+            </form>
+          );
+        })()}
 
         {mv.length > 0 && (
           <section className="text-sm">

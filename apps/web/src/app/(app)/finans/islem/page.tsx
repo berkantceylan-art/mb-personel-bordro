@@ -14,7 +14,7 @@ export default async function NewTxnPage({ searchParams }: { searchParams: Promi
   const s = await getSession();
   if ((s.modules.finance ?? 0) < 2 && (s.modules.expenses ?? 0) < 2) redirect("/");
   const sp = await searchParams;
-  const [{ rows: accounts, error }, { rows: parties }, categories, { rates }] = await Promise.all([loadAccounts(), loadParties(), loadCategories(["income", "expense"]), latestRates()]);
+  const [{ rows: accounts, error }, { rows: parties }, categories, { rates }] = await Promise.all([loadAccounts(), loadParties(), loadCategories(["income", "expense", "other"]), latestRates()]);
   const supabase = await createClient();
   const { data: ibs } = await supabase.from("lab_customers").select("id, pay_book").eq("internal_book", true);
   const pname = new Map(parties.map((p) => [p.id, p.name]));
@@ -31,7 +31,7 @@ export default async function NewTxnPage({ searchParams }: { searchParams: Promi
           <TxnForm
             accounts={accounts.filter((a) => a.is_active).map((a) => ({ id: a.id, name: a.name, kind: a.kind, currency: a.currency, balance: a.balance }))}
             parties={parties.filter((p) => p.is_active).map((p) => ({ id: p.id, name: p.name, currency: p.currency, kind: p.kind, balance: p.balance, internalBook: !!p.lab_customer_id && ib.has(p.lab_customer_id), payBook: p.lab_customer_id ? ib.get(p.lab_customer_id) : undefined, twin: twinOf.get(p.id) }))}
-            categories={categories.filter((c) => c.is_active).map((c) => ({ id: c.id, name: c.name, kind: c.kind }))}
+            categories={categories.filter((c) => c.is_active).map((c) => ({ id: c.id, name: c.name, kind: c.kind, code: c.code }))}
             rates={rates}
             today={today()}
             back={sp.geri?.startsWith("/") ? sp.geri : undefined}

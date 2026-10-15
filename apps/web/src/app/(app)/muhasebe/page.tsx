@@ -24,7 +24,8 @@ const LINKS: Array<[string, string, string]> = [
   ["/muhasebe/yevmiye", "Yevmiye defteri", "Tarih sırasıyla madde madde"],
   ["/muhasebe/bilanco", "Bilanço", "Aktif / pasif, Tek Düzen biçimi"],
   ["/muhasebe/gelir-tablosu", "Gelir tablosu", "Brüt satıştan dönem net kârına"],
-  ["/muhasebe/beyanname", "Beyanname hazırlık", "KDV, Ba-Bs, muhtasar"],
+  ["/muhasebe/beyanname", "Beyanname hazırlık", "KDV1, KDV2, muhtasar, damga vergisi, KDV iadesi"],
+  ["/muhasebe/vergi-takvimi", "Vergi takvimi", "Son günler ve beyanname durumları"],
   ["/muhasebe/donem", "Dönem işlemleri", "Kur değerleme, bordro tahakkuku, kapanış / açılış, kilit"],
   ["/muhasebe/aktar", "Aktarım", "Fişleri Luca / Zirve / Excel'e aktar"],
 ];
@@ -68,7 +69,7 @@ export default async function LedgerHome() {
                   <Field label="Aktarım biçimi"><select name="export_format" defaultValue={set?.export_format ?? "luca"} className={selectCls}><option value="luca">Luca</option><option value="zirve">Zirve</option><option value="generic">Genel Excel</option></select></Field>
                   <Field label="Muhasebe dışı kategori kodları" hint="virgülle; bu kategorideki kayıtlar fişe dönmez" className="md:col-span-2"><input name="exclude_codes" defaultValue={(set?.exclude_codes ?? []).join(", ")} className={inputCls} /></Field>
                   <label className="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" name="exclude_cash_salary" defaultChecked={set?.exclude_cash_salary} /> Elden maaş ödemeleri muhasebe dışı (yalnız banka ile ödenen maaş 335&apos;e işlenir)</label>
-                  <Field label="Ba-Bs bildirim sınırı (TL)" hint="KDV hariç"><input name="babs_limit" inputMode="decimal" defaultValue={String((set?.babs_limit ?? 500000) / 100)} className={inputCls} /></Field>
+                  <Field label="Cari mutabakat sınırı (TL)" hint="KDV hariç, eski Ba-Bs"><input name="babs_limit" inputMode="decimal" defaultValue={String((set?.babs_limit ?? 500000) / 100)} className={inputCls} /></Field>
                   <p className="text-xs text-muted md:col-span-2">Dönem kilidi: {set?.lock_date ? formatDate(set.lock_date) : "yok"} (Dönem işlemleri). Fişli carilerin ve fişli-faturalı yansıtma kayıtlarının hepsi her zaman muhasebe dışıdır.</p>
                   <div className="md:col-span-2"><PendingSubmit className={btnPrimary}>Kaydet</PendingSubmit></div>
                 </form>
