@@ -18,7 +18,7 @@ export default async function Vouchers({ searchParams }: { searchParams: Promise
   const s = await getSession();
   if ((s.modules.ledger ?? 0) < 1) redirect("/");
   const sp = await searchParams;
-  const st = ["posted", "pending", "excluded", "cancelled", "all"].includes(sp.durum ?? "") ? sp.durum! : "posted";
+  const st = ["posted", "draft", "pending", "excluded", "cancelled", "all"].includes(sp.durum ?? "") ? sp.durum! : "posted";
   const pg = Math.max(0, Number(sp.s) || 0);
   const supabase = await createClient();
   let q = supabase.from("gl_vouchers").select("*", { count: "exact" }).order("voucher_date", { ascending: false }).order("no", { ascending: false }).range(pg * 200, pg * 200 + 199);
@@ -36,7 +36,7 @@ export default async function Vouchers({ searchParams }: { searchParams: Promise
       <PageHeader title="Muhasebe fişleri" subtitle="ERP kayıtlarından otomatik oluşan ve elle girilen fişler" actions={(s.modules.ledger ?? 0) >= 2 ? <Link href="/muhasebe/fisler/yeni" className="text-sm font-semibold text-brand-700">+ Elle fiş</Link> : undefined} />
       <div className={page}>
         {error && <Notice tone="bad">Supabase&apos;de 20270206000000_gl_core.sql çalıştırılmalı.</Notice>}
-        <Tabs active={link({ durum: st })} items={[[link({ durum: "posted" }), "Kayıtlı", counts.posted ?? 0], [link({ durum: "pending" }), "Eşleştirme bekleyen", counts.pending ?? 0], [link({ durum: "excluded" }), "Muhasebe dışı", counts.excluded ?? 0], [link({ durum: "cancelled" }), "İptal", counts.cancelled ?? 0], [link({ durum: "all" }), "Tümü"]]} />
+        <Tabs active={link({ durum: st })} items={[[link({ durum: "posted" }), "Kayıtlı", counts.posted ?? 0], [link({ durum: "draft" }), "Onay bekleyen", counts.draft ?? 0], [link({ durum: "pending" }), "Eşleştirme bekleyen", counts.pending ?? 0], [link({ durum: "excluded" }), "Muhasebe dışı", counts.excluded ?? 0], [link({ durum: "cancelled" }), "İptal", counts.cancelled ?? 0], [link({ durum: "all" }), "Tümü"]]} />
         {st === "pending" && (counts.pending ?? 0) > 0 && (
           <Notice tone="warn">Bu kayıtların hesabı tanımlı değil. <Link href="/muhasebe/eslestirme" className="font-semibold underline">Eşleştirmeden</Link> hesap kodunu girin, sonra <form action={glRepost} className="inline"><PendingSubmit className="font-semibold underline">yeniden deneyin</PendingSubmit></form>.</Notice>
         )}

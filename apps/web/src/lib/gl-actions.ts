@@ -353,3 +353,38 @@ export async function glCashCount(f: FormData) {
   again();
   await done(d.diff === 0 ? "Kasa sayımı kaydedildi: fark yok." : `Kasa sayımı kaydedildi: ${d.diff < 0 ? "noksan" : "fazla"} ${tl(Math.abs(d.diff))} TL kasaya işlendi (${d.diff < 0 ? "197" : "397"}).`);
 }
+
+// ---------------------------------------------------------------------
+// Fiş gelen kutusu (onaylı çalışma)
+// ---------------------------------------------------------------------
+const ids = (f: FormData) => f.getAll("ids").map((x) => String(x)).filter((x) => /^[0-9a-f-]{36}$/.test(x)).slice(0, 500);
+
+export async function glApprove(f: FormData) {
+  const list = ids(f);
+  if (!list.length) await fail("Onaylanacak fiş seçin.");
+  await rpcDone("gl_approve", { p_ids: list }, (d) => { const x = d as { approved: number; skipped: number }; return `${x.approved} fiş onaylandı${x.skipped ? `, ${x.skipped} fiş atlandı (dengesiz ya da kilitli dönem)` : ""}.`; }, 3);
+}
+export async function glApproveGreen(f: FormData) {
+  await rpcDone("gl_approve_green", { p_from: str(f, "from", 10), p_to: str(f, "to", 10) }, (d) => { const x = d as { approved: number; skipped: number }; return `${x.approved} yeşil fiş onaylandı${x.skipped ? `, ${x.skipped} atlandı` : ""}.`; }, 3);
+}
+export async function glUnapprove(f: FormData) {
+  await rpcDone("gl_unapprove", { p_id: str(f, "id", 40) }, () => "Onay geri alındı; fiş tekrar gelen kutusunda.", 3);
+}
+export async function glInboxMapCategory(f: FormData) {
+  const code = str(f, "code", 40);
+  if (!code) await fail("Hesap kodunu yazın.");
+  await rpcDone("gl_inbox_map_category", { p_category: str(f, "category_id", 40), p_code: code }, (d) => `Kural kaydedildi: bu kategori bundan sonra ${code} hesabına işlenecek. ${(d as { refreshed: number }).refreshed} fiş yenilendi.`, 3);
+}
+export async function glLineSetAccount(f: FormData) {
+  const code = str(f, "code", 40);
+  if (!code) await fail("Hesap kodunu yazın.");
+  await rpcDone("gl_line_set_account", { p_line: str(f, "line_id", 40), p_code: code }, () => `Satır ${code} hesabına alındı (yalnız bu fişte).`, 3);
+}
+export async function glInboxExclude(f: FormData) {
+  const on = str(f, "on", 1) !== "0";
+  await rpcDone("gl_inbox_exclude", { p_id: str(f, "id", 40), p_note: str(f, "note", 200) || null, p_on: on }, () => (on ? "Fiş muhasebe dışı sayıldı." : "Fiş yeniden oluşturuldu ve gelen kutusuna alındı."), 3);
+}
+export async function glSetApprovalMode(f: FormData) {
+  const on = str(f, "on", 1) === "1";
+  await rpcDone("gl_set_approval_mode", { p_on: on }, () => (on ? "Onaylı çalışma açıldı: yeni fişler onayınıza düşecek." : "Onaylı çalışma kapatıldı: fişler doğrudan kaydedilecek (bekleyen taslakları onaylamayı unutmayın)."), 3);
+}

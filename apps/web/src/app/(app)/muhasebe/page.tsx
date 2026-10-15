@@ -16,6 +16,7 @@ type O = {
 };
 
 const LINKS: Array<[string, string, string]> = [
+  ["/muhasebe/gelen-kutusu", "Fiş onayı (gelen kutusu)", "ERP'den gelen fiş taslaklarını kontrol edip onaylayın"],
   ["/muhasebe/fisler", "Muhasebe fişleri", "Otomatik ve elle fişler, eşleştirme bekleyenler"],
   ["/muhasebe/hesap-plani", "Hesap planı", "Tek Düzen Hesap Planı, alt hesaplar, içe aktarma"],
   ["/muhasebe/eslestirme", "Eşleştirme", "Kasa, banka, kart, cari, kategori → hesap kodu"],
@@ -38,7 +39,7 @@ export default async function LedgerHome() {
   const s = await getSession();
   if ((s.modules.ledger ?? 0) < 1) redirect("/");
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("gl_overview");
+  const [{ data, error }, { count: drafts }] = await Promise.all([supabase.rpc("gl_overview"), supabase.from("gl_vouchers").select("id", { count: "exact", head: true }).eq("status", "draft")]);
   const o = (data ?? null) as O | null;
   const set = o?.settings ?? null;
   const admin = (s.modules.ledger ?? 0) >= 3;
@@ -49,7 +50,8 @@ export default async function LedgerHome() {
         {error && <Notice tone="bad">Supabase&apos;de 20270206000000_gl_core.sql çalıştırılmalı.</Notice>}
         {o && !set?.enabled && <Notice tone="warn">Genel muhasebe kapalı. Aşağıdan başlangıç tarihini seçip açın; o tarihten sonraki ERP kayıtları otomatik fişe döner. Geçmiş kayıtlar için &quot;Geçmişi fişe çevir&quot;i kullanın.</Notice>}
         {o && (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+            <KPI label="Onay bekleyen fiş" value={(drafts ?? 0).toLocaleString("tr-TR")} tone={drafts ? "bad" : undefined} href="/muhasebe/gelen-kutusu" sub="gelen kutusu" />
             <KPI label="Kayıtlı fiş" value={o.posted.toLocaleString("tr-TR")} href="/muhasebe/fisler" />
             <KPI label="Eşleştirme bekleyen" value={o.pending.toLocaleString("tr-TR")} tone={o.pending ? "bad" : undefined} href="/muhasebe/fisler?durum=pending" sub="hesap kodu tanımlanınca kaydolur" />
             <KPI label="Fişe dönmemiş ERP kaydı" value={o.unposted.toLocaleString("tr-TR")} tone={o.unposted ? "bad" : undefined} sub="geçmişi fişe çevirin" />
