@@ -32,7 +32,9 @@ export function glError(m: string): string {
   if (/gl_opening_exists/.test(m)) return "Başlangıç tarihinde zaten bir açılış fişi var.";
   if (/duplicate key.*gl_accounts/.test(m)) return "Bu hesap kodu zaten var.";
   if (/gl_no_payroll/.test(m)) return "Bu dönemin bordrosu hesaplanmamış.";
-  if (/gl_pending_before_lock/.test(m)) return "Kilitlenecek dönemde eşleştirme bekleyen kayıt var: önce onları tamamlayın.";
+  if (/gl_pending_before_lock/.test(m)) return "Kilitlenecek dönemde onay ya da eşleştirme bekleyen fiş var: önce gelen kutusunu boşaltın.";
+  if (/gl_checks_open:(.*)/.test(m)) return `Açık kritik kontrol var, dönem kilitlenemez: ${m.match(/gl_checks_open:([^"\n]*)/)?.[1] ?? ""}. Kontroller ekranından düzeltin ya da bilerek geçin.`;
+  if (/(gl_checks|gl_check_ack|gl_check_acks)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270218000000_gl_checks.sql çalıştırılmalı.";
   if (/bad_period/.test(m)) return "Dönem YYYY-AA biçiminde olmalı.";
   if (/gl_pending_in_year/.test(m)) return "Bu yılda eşleştirme bekleyen fiş var: kapanıştan önce tamamlayın.";
   if (/gl_vat_open/.test(m)) return "191 / 391 hesaplarında bakiye var: önce son ayların KDV mahsubunu yapın.";
