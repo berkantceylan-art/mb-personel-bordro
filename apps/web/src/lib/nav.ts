@@ -99,6 +99,7 @@ export const NAV: Group[] = [
       { label: "Gelir tablosu", href: "/muhasebe/gelir-tablosu", module: "ledger", desc: "Brüt satışlardan dönem net kârına" },
       { label: "Beyanname hazırlık", href: "/muhasebe/beyanname", module: "ledger", desc: "KDV1, KDV2, muhtasar ve prim hizmet, damga vergisi, KDV iadesi" },
       { label: "Dönem sonu işlemleri", href: "/muhasebe/donem-sonu", module: "ledger", desc: "Amortisman, dönemsellik, faiz tahakkuku, yansıtma, yeniden değerleme, 131 / 331" },
+      { label: "Şüpheli alacaklar", href: "/muhasebe/supheli-alacak", module: "ledger", desc: "Dava / icra safhasındaki alacaklar, karşılık ve tahsilat" },
       { label: "Geçici ve kurumlar vergisi", href: "/muhasebe/vergi", module: "ledger", desc: "Dönem kârı, KKEG, ihracat indirimi, asgari kurumlar vergisi, 193 / 370 fişleri" },
       { label: "Mevzuat ve gelişmeler", href: "/mevzuat", module: "ledger", desc: "Muhasebe, vergi, SGK ve iş hukuku gelişmeleri; okundu / yapıldı takibi, bildirim" },
       { label: "Vergi takvimi", href: "/muhasebe/vergi-takvimi", module: "ledger", desc: "Beyanname son günleri ve durumları (hazırlandı, verildi, ödendi)" },
@@ -126,6 +127,7 @@ export const NAV: Group[] = [
     items: [
       { label: "Finans özeti", href: "/finans", module: "finance", desc: "Kasa, banka, alacak ve borçların anlık durumu" },
       { label: "Kasa", href: "/finans/kasa", module: "finance", desc: "Nakit kasalar ve hareketleri" },
+      { label: "Kasa sayımı", href: "/finans/kasa-sayim", module: "finance", desc: "Sayım tutanağı, noksan / fazla kaydı" },
       { label: "Banka", href: "/finans/banka", module: "finance", desc: "Banka hesapları (TL / döviz) ve hareketleri" },
       { label: "İşlem gir", href: "/finans/islem", module: "finance", level: 2, desc: "Tahsilat, ödeme, virman, gelir, masraf" },
       { label: "Banka ekstresi aktar", href: "/finans/banka-aktar", module: "finance", level: 2, desc: "Excel / CSV / CAMT / MT940 ekstre: otomatik eşleştirme, cari önerisi, tek tıkla işleme" },

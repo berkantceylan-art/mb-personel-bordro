@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { fmt } from "@/lib/fin";
 import { glError } from "@/lib/gl";
-import { glDeferralDelete, glDeferralSave, glDeferralsRun, glDepreciationRun, glLoanAccrual, glPartnerReclass, glReflectMonth, glRevalPost, glRevalUndo } from "@/lib/gl-actions";
+import { glDeferralDelete, glDeferralSave, glDeferralsRun, glDepreciationRun, glLoanAccrual, glPartnerReclass, glRediscountPost, glReflectMonth, glRevalPost, glRevalUndo, glSeverancePost } from "@/lib/gl-actions";
+import { severanceCapAt } from "@/lib/mevzuat";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +40,7 @@ function Step({ n, title, desc, state, children }: { n: number; title: string; d
 const VLink = ({ v }: { v?: V | { id: string; no: number; year: number } | null }) => (v ? <Link href={`/muhasebe/fisler/${v.id}`} className="text-sm font-semibold text-brand-700">Fiş {v.year}/{v.no}{"total" in v ? ` · ${m(v.total)}` : ""}</Link> : null);
 
 /** Dönem sonu sihirbazı: aylık, çeyrek sonu ve yıl sonu muhasebe işlemleri sırayla */
-export default async function PeriodEnd({ searchParams }: { searchParams: Promise<{ ay?: string; oran?: string }> }) {
+export default async function PeriodEnd({ searchParams }: { searchParams: Promise<{ ay?: string; oran?: string; reesk?: string; cek?: string }> }) {
   const s = await getSession();
   if ((s.modules.ledger ?? 0) < 1) redirect("/");
   const sp = await searchParams;
@@ -52,11 +53,17 @@ export default async function PeriodEnd({ searchParams }: { searchParams: Promis
   const c = (data ?? null) as Check | null;
   const canEdit = (s.modules.ledger ?? 0) >= 2 && !c?.locked;
   const rate = sp.oran && /^\d+([.,]\d+)?$/.test(sp.oran) ? Number(sp.oran.replace(",", ".")) : null;
-  const [defs, accr, rev] = c ? await Promise.all([
+  const rrate = sp.reesk && /^\d+([.,]\d+)?$/.test(sp.reesk) ? Number(sp.reesk.replace(",", ".")) : null;
+  const cap = c ? severanceCapAt(c.end) : null;
+  const [defs, accr, rev, rd, sev] = c ? await Promise.all([
     supabase.from("gl_deferrals").select("id, kind, description, total, start_month, months, pl_code").order("start_month", { ascending: false }).limit(100),
     supabase.rpc("gl_loan_accrual_calc", { p_month: month }),
     c.quarter_end && rate ? supabase.rpc("gl_reval_preview", { p_date: c.end, p_rate: rate }) : Promise.resolve({ data: null }),
-  ]) : [null, null, null];
+    c.quarter_end && rrate ? supabase.rpc("gl_rediscount_calc", { p_date: c.end, p_rate: rrate, p_cheques: sp.cek === "1" }) : Promise.resolve({ data: null }),
+    c.quarter_end ? supabase.rpc("gl_severance_calc", { p_date: c.end, p_cap: cap }) : Promise.resolve({ data: null }),
+  ]) : [null, null, null, null, null];
+  const rdRows = ((rd?.data ?? null) as Array<{ direction: string; discount: number }> | null);
+  const sevCalc = ((sev?.data ?? null) as { rows: Array<{ id: string; name: string; years: number; base: number; amount: number }>; total: number; booked: number; skipped: number; voucher: V | null } | null);
   const deferrals = ((defs?.data ?? []) as Def[]);
   const accrual = ((accr?.data ?? []) as Acc[]);
   const preview = ((rev?.data ?? null) as Rev[] | null);
@@ -123,6 +130,10 @@ export default async function PeriodEnd({ searchParams }: { searchParams: Promis
               <div className="flex flex-wrap gap-4"><VLink v={c.fx} /><Link href="/muhasebe/donem" className="text-sm font-semibold text-brand-700">Kur değerleme →</Link></div>
             </Step>
 
+            <Step n={++n} title="Kasa sayımı" desc="Ay sonunda kasalar sayılır; fark 197 (noksan) ya da 397 (fazla) olarak işlenir." state="na">
+              <Link href={`/finans/kasa-sayim?tarih=${c.end}`} className="text-sm font-semibold text-brand-700">Kasa sayım tutanağı →</Link>
+            </Step>
+
             <Step n={++n} title="Bordro tahakkuku ve damga vergisi" desc="Maaş tahakkuk fişi (770 / 335-360-361) ve ayın damga vergisi tahakkuku." state={v[`payroll:${month}`] ? "ok" : "todo"}>
               <div className="flex flex-wrap gap-4 text-sm"><VLink v={v[`payroll:${month}`]} /><VLink v={v[`stamp:${month}`]} />
                 <Link href={`/muhasebe/beyanname?ay=${month}&sekme=muhtasar`} className="font-semibold text-brand-700">Bordro tahakkuku →</Link>
@@ -165,6 +176,33 @@ export default async function PeriodEnd({ searchParams }: { searchParams: Promis
                   )}
                   {v[`reval:${c.end}`] && (s.modules.ledger ?? 0) >= 3 && !c.locked && <form action={glRevalUndo}><input type="hidden" name="date" value={c.end} /><ConfirmSubmit label="Yeniden değerlemeyi geri al" question="Demirbaş değerleri ve fiş geri alınsın mı?" /></form>}
                   <p className="text-xs text-muted">2025, 2026 ve 2027&apos;de enflasyon düzeltmesi yapılmadığından yeniden değerleme yapılabilir. İsteğe bağlıdır; geçmiş dönemler için yapılamaz.</p>
+                </Step>
+                <Step n={++n} title="Reeskont" desc="Vadesi dönem sonundan sonra olan alacak / borç senetlerinin (isteğe bağlı vadeli çeklerin) iç iskontoyla değerlemesi: 657 / 122 ve 322 / 647; ertesi gün ters kaydı otomatik." state={v[`reesk:${c.end}`] ? "ok" : "todo"}>
+                  <VLink v={v[`reesk:${c.end}`]} />
+                  <form className="flex flex-wrap items-end gap-2">
+                    <input type="hidden" name="ay" value={month} />{rate ? <input type="hidden" name="oran" value={String(rate)} /> : null}
+                    <Field label="TCMB reeskont faiz oranı (%)"><input name="reesk" defaultValue={rrate ?? ""} inputMode="decimal" placeholder="ör. 45" className={`${inputCls} w-32`} /></Field>
+                    <label className="flex items-center gap-2 text-sm h-11"><input type="checkbox" name="cek" value="1" defaultChecked={sp.cek === "1"} /> Vadeli çekleri de dahil et</label>
+                    <button className={btnSecondary}>Hesapla</button>
+                  </form>
+                  {rdRows && (
+                    <>
+                      <p className="text-sm">{rdRows.length} belge · alacak reeskontu <b>{m(rdRows.filter((r) => r.direction === "in").reduce((x, r) => x + Number(r.discount), 0))}</b> · borç reeskontu <b>{m(rdRows.filter((r) => r.direction === "out").reduce((x, r) => x + Number(r.discount), 0))}</b></p>
+                      {canEdit && rdRows.length > 0 && <form action={glRediscountPost}><input type="hidden" name="date" value={c.end} /><input type="hidden" name="rate" value={String(rrate)} /><input type="hidden" name="cheques" value={sp.cek === "1" ? "1" : "0"} /><PendingSubmit className={btnPrimary}>{v[`reesk:${c.end}`] ? "Fişi yeniden oluştur" : "Reeskont fişini oluştur"}</PendingSubmit></form>}
+                    </>
+                  )}
+                </Step>
+                <Step n={++n} title="Kıdem tazminatı karşılığı" desc="1 yılını doldurmuş sigortalı çalışanların son resmi brüt ücreti (tavanla sınırlı) × hizmet yılı; fark gider / 472. Karşılık gideri vergi hesabına KKEG olarak eklenir." state={!sevCalc || (!sevCalc.total && !sevCalc.booked) ? "na" : sevCalc.voucher ? "ok" : "todo"}>
+                  {sevCalc && (
+                    <>
+                      <p className="text-sm">{sevCalc.rows.length} çalışan · hesaplanan <b>{m(sevCalc.total)}</b> · kayıtlı (472) <b>{m(sevCalc.booked)}</b> · fark <b>{m(sevCalc.total - sevCalc.booked)}</b>{cap ? <span className="text-muted"> · tavan {m(cap)}</span> : null}{sevCalc.skipped ? <span className="text-[#B45309]"> · {sevCalc.skipped} kişinin bordrosu yok</span> : null}</p>
+                      <VLink v={sevCalc.voucher} />
+                      {canEdit && (sevCalc.total || sevCalc.booked) ? <form action={glSeverancePost} className="flex flex-wrap items-end gap-2"><input type="hidden" name="date" value={c.end} /><input type="hidden" name="cap" value={cap ? (cap / 100).toFixed(2).replace(".", ",") : ""} /><Field label="Gider hesabı"><input name="expense" defaultValue="770" className={`${inputCls} w-28`} /></Field><PendingSubmit className={btnPrimary}>{sevCalc.voucher ? "Fişi yeniden oluştur" : "Karşılık fişini oluştur"}</PendingSubmit></form> : null}
+                    </>
+                  )}
+                </Step>
+                <Step n={++n} title="Şüpheli alacaklar" desc="Dava / icra safhasındaki ya da tahsili şüpheli hale gelen müşteri alacakları için 128 / 129 / 654." state="na">
+                  <Link href="/muhasebe/supheli-alacak" className="text-sm font-semibold text-brand-700">Şüpheli alacaklar →</Link>
                 </Step>
                 <Step n={++n} title={c.year_end ? "Kurumlar vergisi karşılığı" : "Geçici vergi"} desc={c.year_end ? "691 / 370 ve peşin ödenen vergilerin mahsubu (371 / 193)." : "Dönem kârı üzerinden geçici vergi (193 / 360)."} state={(c.year_end ? v[`cit:${year}`] : v[`gecici:${year}-Q${c.quarter}`]) ? "ok" : "todo"}>
                   <div className="flex flex-wrap gap-4"><VLink v={c.year_end ? v[`cit:${year}`] : v[`gecici:${year}-Q${c.quarter}`]} /><Link href={`/muhasebe/vergi?yil=${year}&donem=${c.year_end ? 4 : c.quarter}`} className="text-sm font-semibold text-brand-700">Vergi hesabı →</Link></div>

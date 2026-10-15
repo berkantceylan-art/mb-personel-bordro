@@ -316,3 +316,40 @@ export async function glRevalPost(f: FormData) {
 export async function glRevalUndo(f: FormData) {
   await rpcDone("gl_reval_undo", { p_date: str(f, "date", 10) }, (d) => `${d} demirbaşın yeniden değerlemesi geri alındı.`, 3);
 }
+
+// ---------------------------------------------------------------------
+// Karşılıklar ve mutabakat
+// ---------------------------------------------------------------------
+export async function glRediscountPost(f: FormData) {
+  const rate = Number(str(f, "rate", 10).replace(",", "."));
+  await rpcDone("gl_rediscount_post", { p_date: str(f, "date", 10), p_rate: Number.isFinite(rate) ? rate : 0, p_cheques: f.get("cheques") === "1" },
+    (d) => { const x = d as { receivable?: number; payable?: number }; return `Reeskont fişi oluştu: alacak ${tl(x.receivable)} TL, borç ${tl(x.payable)} TL (ertesi gün ters kaydı da oluştu).`; });
+}
+export async function glSeverancePost(f: FormData) {
+  const cap = parseAmount(str(f, "cap", 20));
+  await rpcDone("gl_severance_post", { p_date: str(f, "date", 10), p_cap: cap, p_expense: str(f, "expense", 30) || "770" },
+    (d) => { const x = d as { total?: number; diff?: number }; return `Kıdem tazminatı karşılığı: toplam ${tl(x.total)} TL, bu fişle ${Number(x.diff ?? 0) >= 0 ? "eklenen" : "iptal edilen"} ${tl(Math.abs(Number(x.diff ?? 0)))} TL (vergi hesabına KKEG olarak yazıldı).`; });
+}
+export async function glDoubtfulAdd(f: FormData) {
+  const amount = parseAmount(str(f, "amount", 20));
+  if (!amount) await fail("Tutarı yazın.");
+  await rpcDone("gl_doubtful_add", { p: { party_id: str(f, "party_id", 40), doubt_date: str(f, "date", 10), amount, reason: str(f, "reason", 10) || "diger", note: str(f, "note", 300) } }, () => "Şüpheli alacak ve karşılık fişi oluştu (128 / 129 / 654).");
+}
+export async function glDoubtfulCollect(f: FormData) {
+  const amount = parseAmount(str(f, "amount", 20));
+  if (!amount) await fail("Tahsil edilen tutarı yazın.");
+  await rpcDone("gl_doubtful_collect", { p_id: str(f, "id", 40), p_amount: amount, p_date: str(f, "date", 10) || null }, () => "Tahsilat işlendi; karşılık iptal edildi (644). Parayı finansta tahsilat olarak da girin.");
+}
+export async function glCashCount(f: FormData) {
+  const s = await getSession();
+  if ((s.modules.finance ?? 0) < 2 && (s.modules.ledger ?? 0) < 2) await fail("Bu işlem için finans yetkiniz yok.");
+  const counted = parseAmount(str(f, "counted", 20));
+  if (counted === null) await fail("Sayılan tutarı yazın.");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("gl_cash_count", { p: { account_id: str(f, "account_id", 40), count_date: str(f, "date", 10), counted, counted_by: str(f, "counted_by", 120), note: str(f, "note", 300) } });
+  if (error) await fail(glError(error.message));
+  const d = data as { diff: number };
+  revalidatePath("/finans", "layout");
+  again();
+  await done(d.diff === 0 ? "Kasa sayımı kaydedildi: fark yok." : `Kasa sayımı kaydedildi: ${d.diff < 0 ? "noksan" : "fazla"} ${tl(Math.abs(d.diff))} TL kasaya işlendi (${d.diff < 0 ? "197" : "397"}).`);
+}
