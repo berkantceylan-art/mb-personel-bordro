@@ -16,6 +16,7 @@ import { elogoConfigured } from "@/lib/elogo";
 import { weIssue } from "@/lib/einv-rules";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 /** Fatura ayrıntısı: kes / iptal / yazdır / XML / e-fatura durumu / tahsilat */
 export default async function InvoicePage({ params }: { params: Promise<{ id: string }> }) {

@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { scanMailbox } from "@/lib/einv";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 /** Sabah kontrol raporu (Vercel Cron, her sabah 07:30): Kontrol Merkezi denetimleri + yöneticilere bildirim */
 export async function GET(req: Request) {

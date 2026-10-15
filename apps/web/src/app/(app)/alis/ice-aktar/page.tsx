@@ -16,7 +16,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
   const supabase = await createClient();
   const gelen = (await searchParams).gelen ?? "";
   const ids = gelen.split(",").filter((x) => /^[0-9a-f-]{36}$/.test(x)).slice(0, 50);
-  const { data: pre } = ids.length ? await supabase.from("einv_inbox").select("doc_no, sender_name, xml").in("id", ids) : { data: [] };
+  const { data: pre } = ids.length ? await supabase.from("einv_inbox").select("doc_no, sender_name, xml").in("id", ids).not("xml", "is", null) : { data: [] };
   const [{ data: items }, cats, { data: whs }] = await Promise.all([
     supabase.from("stk_items").select("id, code, name, unit").eq("is_active", true).order("name").limit(5000),
     loadCategories(["expense", "stock"]),

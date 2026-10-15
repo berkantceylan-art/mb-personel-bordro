@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { aiModel } from "@/lib/ai-model";
 import type { InitialInvoice } from "@/app/(app)/fatura/_parts/InvoiceForm";
 
-type Out = {
+export type Out = {
   supplier_name?: string; supplier_tax_no?: string; supplier_tax_office?: string; supplier_address?: string; doc_no?: string; date?: string; due_date?: string; currency?: string;
   lines?: { name?: string; code?: string; qty?: number; unit?: string; unit_price?: number; discount_pct?: number; vat_rate?: number }[]; total?: number;
 };
@@ -38,6 +38,11 @@ Okunamayan alanı boş bırak; satırları atlama.` }] }],
   } catch (e) {
     return { ok: false, note: `Fatura okunamadı: ${(e as Error).message.slice(0, 120)}` };
   }
+  return initialFromRead(supabase, d, "Fotoğraftan yapay zekâ ile okundu — kontrol edin");
+}
+
+/** Okunan fatura verisinden alış faturası formu: tedarikçi ve stok kartı eşleştirme */
+export async function initialFromRead(supabase: Awaited<ReturnType<typeof createClient>>, d: Out, note: string, extra: Partial<InitialInvoice> = {}): Promise<{ initial: InitialInvoice; note: string; ok: boolean }> {
   const tax = (d.supplier_tax_no ?? "").replace(/\D/g, "");
   const [{ data: parties }, { data: items }] = await Promise.all([
     supabase.from("fin_parties").select("id, name, tax_no, currency").eq("is_active", true).limit(5000),
@@ -63,7 +68,7 @@ Okunamayan alanı boş bırak; satırları atlama.` }] }],
     new_party: party ? null : d.supplier_name ? { name: d.supplier_name.slice(0, 200), tax_no: tax.length >= 10 ? tax : undefined, tax_office: d.supplier_tax_office?.slice(0, 80), address: d.supplier_address?.slice(0, 400) } : null,
     doc_no: d.doc_no?.slice(0, 60) ?? null, invoice_date: /^\d{4}-\d{2}-\d{2}$/.test(d.date ?? "") ? d.date! : undefined,
     due_date: /^\d{4}-\d{2}-\d{2}$/.test(d.due_date ?? "") ? d.due_date! : null, currency, lines,
-    note: "Fotoğraftan yapay zekâ ile okundu — kontrol edin",
+    note, ...extra,
   };
   const parts = [`${lines.length} satır okundu, ${matched} tanesi stok kartıyla eşleşti.`];
   parts.push(party ? `Tedarikçi: ${party.name}.` : d.supplier_name ? `Tedarikçi kayıtlı değil; "${d.supplier_name}" yeni cari olarak açılacak.` : "Tedarikçi okunamadı; seçin.");

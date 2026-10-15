@@ -13,6 +13,7 @@ import { edspDelete, edspRefresh, edspSend } from "@/lib/edsp-actions";
 import { DespatchForm } from "../_parts/DespatchForm";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 const dt = (v: string | null) => (v ? new Date(v).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul", dateStyle: "short", timeStyle: "short" }) : "");
 
 export default async function DespatchPage({ params }: { params: Promise<{ id: string }> }) {

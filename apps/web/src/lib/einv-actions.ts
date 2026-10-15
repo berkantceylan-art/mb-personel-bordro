@@ -159,3 +159,31 @@ export async function einvElogoSettings(f: FormData) {
   again();
   await done("eLogo eşitleme ayarı kaydedildi.");
 }
+
+/** PDF fatura yükle (e-Arşiv): yapay zekâyla okunup gelen kutusuna eklenir */
+export async function einvUploadPdf(f: FormData) {
+  await need();
+  const files = f.getAll("pdfs").filter((x): x is File => x instanceof File && x.size > 0 && /\.pdf$/i.test(x.name)).slice(0, 5);
+  if (!files.length) await fail("PDF dosyası seçin.");
+  const { pdfReaderConfigured, readEinvPdf } = await import("@/lib/einv-pdf");
+  if (!pdfReaderConfigured()) await fail("PDF okumak için Vercel'e ANTHROPIC_API_KEY eklenmeli.");
+  const supabase = await createClient();
+  let admin;
+  try { admin = createAdminClient(); } catch { await fail("Sunucu anahtarı (SUPABASE_SERVICE_ROLE_KEY) ayarlı değil."); }
+  const vkn = await ownVkn(supabase);
+  const rows = [];
+  const notes: string[] = [];
+  for (const file of files) {
+    const r = await readEinvPdf(admin!, Buffer.from(await file.arrayBuffer()), vkn, `upload:${file.name}`.slice(0, 200));
+    if (r.row) rows.push(r.row); else notes.push(`${file.name}: ${r.reason}`);
+  }
+  let added = 0, dup = 0;
+  if (rows.length) {
+    const { data, error } = await supabase.rpc("einv_inbox_add", { p_rows: rows, p_source: "upload" });
+    if (error) await fail(msg(error.message));
+    added = Number((data as { added: number }).added ?? 0); dup = Number((data as { duplicate: number }).duplicate ?? 0);
+  }
+  again();
+  if (!added && !dup) await fail(`Eklenecek fatura bulunamadı. ${notes.join(" · ")}`.slice(0, 300));
+  await done(`${added} PDF fatura okunup eklendi${dup ? `, ${dup} tanesi zaten kutudaydı` : ""}. Aktarmadan önce okunan bilgileri kontrol edin.${notes.length ? ` Atlanan: ${notes.join(" · ")}` : ""}`.slice(0, 300));
+}
