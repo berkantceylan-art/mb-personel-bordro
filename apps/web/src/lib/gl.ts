@@ -33,6 +33,11 @@ export function glError(m: string): string {
   if (/duplicate key.*gl_accounts/.test(m)) return "Bu hesap kodu zaten var.";
   if (/gl_no_payroll/.test(m)) return "Bu dönemin bordrosu hesaplanmamış.";
   if (/gl_pending_before_lock/.test(m)) return "Kilitlenecek dönemde onay ya da eşleştirme bekleyen fiş var: önce gelen kutusunu boşaltın.";
+  if (/luca_blocked:(\d+)/.test(m)) return `Seçilenlerden ${m.match(/luca_blocked:(\d+)/)?.[1]} fiş aktarılamaz (hesap kodu Luca'da yok, onaysız veya dengesiz). Önce düzeltin ya da seçimden çıkarın.`;
+  if (/luca_bad_columns/.test(m)) return "Sütun düzeni geçersiz: fiş no ve hesap kodu sütunları olmalı.";
+  if (/luca_plan_empty/.test(m)) return "Hesap planı dosyası boş.";
+  if (/luca_nothing/.test(m)) return "Aktarılacak fiş seçin.";
+  if (/luca_too_many/.test(m)) return "Bir pakette en çok 3000 fiş olabilir; tarih aralığını daraltın.";
   if (/gl_checks_open:(.*)/.test(m)) return `Açık kritik kontrol var, dönem kilitlenemez: ${m.match(/gl_checks_open:([^"\n]*)/)?.[1] ?? ""}. Kontroller ekranından düzeltin ya da bilerek geçin.`;
   if (/(gl_checks|gl_check_ack|gl_check_acks)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270218000000_gl_checks.sql çalıştırılmalı.";
   if (/bad_period/.test(m)) return "Dönem YYYY-AA biçiminde olmalı.";
