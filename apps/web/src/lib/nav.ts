@@ -182,6 +182,8 @@ export const NAV: Group[] = [
       { label: "Satın alma paneli", href: "/satinalma", module: ["purchases", "stock"], desc: "Akıştaki her adımda bekleyenler, geciken teslimler, aylık harcama, minimum stok altı" },
       { label: "İstekler (malzeme / demirbaş / sipariş)", href: "/stok/talepler", module: ["stock", "purchases"], desc: "Depo / personel isteği, depodan teslim ya da satın almaya gönder, onay, çift imzalı teslim" },
       { label: "İstekten sipariş", href: "/satinalma/istekten-siparis", module: ["purchases", "stock"], level: 2, desc: "Onaylı istek satırlarını tedarikçiye göre grupla, tek tıkla sipariş" },
+      { label: "Teklifler (fiyat karşılaştırma)", href: "/satinalma/teklifler", module: ["purchases", "stock"], desc: "Birden çok tedarikçiden teklif iste, karşılaştır, en iyisini siparişe dönüştür" },
+      { label: "Tedarikçi karnesi", href: "/satinalma/tedarikciler", module: ["purchases", "stock"], desc: "Zamanında teslim, gecikme, hasar, teklif yanıtı ve tedarikçi puanı" },
       { label: "Satın alma siparişleri", href: "/alis/siparisler", module: ["purchases", "stock"], desc: "Onay, tedarikçiye e-posta + WhatsApp, tedarikçi onayı, termin, sevk, eksik teslimle kapatma" },
       { label: "Mal kabul (okut)", href: "/stok/mal-kabul", module: ["stock", "purchases"], desc: "Gelen malı barkodla teyit et; kısmi teslim, hasar, e-faturayla eşleştir" },
       { label: "Alım listeleri (kurye)", href: "/stok/talepler/alim", module: ["purchases", "stock"], desc: "Onaylı satın almalardan tedarikçiye göre liste, kuryeye ata" },
