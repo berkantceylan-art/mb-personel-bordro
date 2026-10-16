@@ -63,6 +63,40 @@ export async function removeWaybillJob(f: FormData) {
   await done("İş irsaliyeden çıkarıldı.");
 }
 
+/** Günün açık irsaliyelerinin hepsini "kesildi" yap */
+export async function issueAllWaybills(f: FormData) {
+  const d = day(str(f, "date"));
+  if (!d) await fail("Gün seçin.");
+  const supabase = await createClient();
+  const { data: open } = await supabase.from("lab_waybills").select("id").eq("ship_date", d!).eq("status", "open");
+  let ok = 0; const errs: string[] = [];
+  for (const w of open ?? []) {
+    const { error } = await supabase.rpc("lab_waybill_issue", { p_id: w.id });
+    if (error) errs.push(waybillError(error.message)); else ok++;
+  }
+  refresh();
+  if (!ok && errs.length) await fail(errs[0]!);
+  await done(ok ? `${ok} irsaliye kesildi.${errs.length ? ` ${errs.length} irsaliye kesilemedi: ${errs[0]}` : ""}` : "Kesilecek açık irsaliye yok.");
+}
+
+/** Günün irsaliyesiz teslimlerinin hepsine, müşteri başına birer irsaliye kes */
+export async function createAllWaybills(f: FormData) {
+  const d = day(str(f, "date"));
+  if (!d) await fail("Gün seçin.");
+  const supabase = await createClient();
+  const { data: loose } = await supabase.from("jobs").select("id, customer_id").eq("status", "delivered").is("waybill_id", null).gte("delivered_at", `${d}T00:00:00+03:00`).lte("delivered_at", `${d}T23:59:59+03:00`);
+  const by = new Map<string, string[]>();
+  for (const j of (loose ?? []) as { id: string; customer_id: string }[]) by.set(j.customer_id, [...(by.get(j.customer_id) ?? []), j.id]);
+  let ok = 0; const errs: string[] = [];
+  for (const [cid, jobs] of by) {
+    const { error } = await supabase.rpc("lab_waybill_create", { p_customer: cid, p_date: d, p_jobs: jobs });
+    if (error) errs.push(waybillError(error.message)); else ok++;
+  }
+  refresh();
+  if (!ok && errs.length) await fail(errs[0]!);
+  await done(ok ? `${ok} müşteriye irsaliye kesildi.${errs.length ? ` ${errs.length} müşteride hata: ${errs[0]}` : ""}` : "İrsaliyesiz teslim yok.");
+}
+
 /** Ay sonu fatura: tek müşteri ya da seçilen tüm müşteriler */
 export async function createStatements(f: FormData) {
   const from = day(str(f, "from")), to = day(str(f, "to"));

@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { money } from "@/lib/jobs";
 import { WB_STATUS, waybillError, wbNo } from "@/lib/waybill";
-import { cancelWaybill, createWaybill, issueWaybill } from "@/lib/waybill-actions";
+import { cancelWaybill, createAllWaybills, createWaybill, issueAllWaybills, issueWaybill } from "@/lib/waybill-actions";
 import { waLink, waWaybillText } from "@/lib/wa";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +50,15 @@ export default async function WaybillsPage({ searchParams }: { searchParams: Pro
           <span className="ml-auto text-sm text-muted">{formatDate(day)} · {wbs.length} irsaliye · {wbs.reduce((a, w) => a + w.job_count, 0)} iş{sum("TRY") ? ` · ${money(sum("TRY"), "TRY")}` : ""}{sum("EUR") ? ` · ${money(sum("EUR"), "EUR")}` : ""}</span>
         </div>
 
+        {(wbs.length > 0 || byCust.size > 0) && (
+          <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-line bg-white p-3">
+            <b className="text-sm mr-2">Toplu işlemler</b>
+            {byCust.size > 0 && <form action={createAllWaybills}><input type="hidden" name="date" value={day} /><PendingSubmit className="h-10 px-4 rounded-[10px] bg-brand-700 text-white text-sm font-semibold">İrsaliyesiz {looseRows.length} işe toplu irsaliye kes ({byCust.size} müşteri)</PendingSubmit></form>}
+            {wbs.some((w) => w.status === "open") && <form action={issueAllWaybills}><input type="hidden" name="date" value={day} /><PendingSubmit className="h-10 px-4 rounded-[10px] border border-ok text-ok text-sm font-semibold">Açık {wbs.filter((w) => w.status === "open").length} irsaliyeyi “kesildi” yap</PendingSubmit></form>}
+            {wbs.length > 0 && <Link href={`/yazdir/irsaliye/toplu?gun=${day}`} className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold text-brand-700">🖨 Hepsini yazdır ({wbs.length})</Link>}
+            {wbs.length > 0 && <Link href={`/yazdir/irsaliye/toplu?gun=${day}&fiyat=0`} className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold text-brand-700">Hepsini fiyatsız yazdır</Link>}
+          </div>
+        )}
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {wbs.map((w) => (
             <article key={w.id} className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-2">

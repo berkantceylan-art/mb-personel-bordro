@@ -9,6 +9,7 @@ import { money } from "@/lib/jobs";
 import { LANGS, stNo, waybillError } from "@/lib/waybill";
 import { cancelStatement, createStatements } from "@/lib/waybill-actions";
 import { waLink, waStatementText } from "@/lib/wa";
+import { SelectAllToggle } from "@/components/SelectAllToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -62,10 +63,11 @@ export default async function MonthlyBilling({ searchParams }: { searchParams: P
           <input type="hidden" name="from" value={from} />
           <input type="hidden" name="to" value={to} />
           <header className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-line">
-            <h2 className="font-display text-lg font-bold mr-auto">Faturalanacaklar</h2>
+            <h2 className="font-display text-lg font-bold mr-auto">Faturalanacaklar <span className="text-sm font-normal text-muted">({ready.length} müşteri)</span></h2>
+            <SelectAllToggle name="customer_id" />
             <label className="flex items-center gap-2 text-sm">Fatura tarihi<input type="date" name="issue" defaultValue={to} className="h-10 rounded-[10px] border border-[#D5DEE8] px-2" /></label>
             <input name="note" placeholder="Faturaya not (isteğe bağlı)" className="h-10 w-64 rounded-[10px] border border-[#D5DEE8] px-3 text-sm" />
-            <PendingSubmit className="h-10 px-4 rounded-[10px] bg-brand-700 text-white text-sm font-semibold">Seçilenleri faturala</PendingSubmit>
+            <PendingSubmit className="h-10 px-4 rounded-[10px] bg-brand-700 text-white text-sm font-semibold">Seçilenlere toplu fatura kes</PendingSubmit>
           </header>
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[860px]">
@@ -92,7 +94,13 @@ export default async function MonthlyBilling({ searchParams }: { searchParams: P
         </form>
 
         <section className="rounded-[18px] border border-line bg-white overflow-x-auto">
-          <h2 className="font-display text-lg font-bold px-4 pt-4">Bu dönemin faturaları</h2>
+          <div className="flex flex-wrap items-center gap-2 px-4 pt-4">
+            <h2 className="font-display text-lg font-bold mr-auto">Bu dönemin faturaları</h2>
+            {statements.some((x) => x.status === "issued") && <>
+              <Link href={`/yazdir/ic-fatura/toplu?ay=${ym}`} className="h-10 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white text-sm font-semibold">🖨 Hepsini yazdır ({statements.filter((x) => x.status === "issued").length})</Link>
+              <Link href={`/yazdir/ic-fatura/toplu?ay=${ym}&ozet=1`} className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold text-brand-700">Hepsini özet yazdır</Link>
+            </>}
+          </div>
           <table className="w-full text-sm min-w-[820px] mt-2">
             <thead><tr className="text-left text-xs text-muted"><th className="p-3">No</th><th className="p-3">Müşteri</th><th className="p-3">Dönem</th><th className="p-3 text-right">İş / birim</th><th className="p-3 text-right">Tutar</th><th className="p-3" /></tr></thead>
             <tbody>
