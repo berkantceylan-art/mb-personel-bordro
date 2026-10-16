@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/giris", "/sifre", "/auth", "/davet", "/api/davet", "/api/push", "/api/ilanlar", "/api/cron", "/kariyer", "/basvuru", "/kvkk-aydinlatma", "/kvkk-basvuru", "/api/sgk-robot", "/z/", "/api/whatsapp/webhook", "/tedarikci/siparis", "/tedarikci/davet", "/api/dentalsis-dump"];
+const PUBLIC_PATHS = ["/giris", "/sifre", "/auth", "/davet", "/api/davet", "/api/push", "/api/ilanlar", "/api/cron", "/kariyer", "/basvuru", "/kvkk-aydinlatma", "/kvkk-basvuru", "/api/sgk-robot", "/z/", "/api/whatsapp/webhook", "/tedarikci/siparis", "/tedarikci/davet", "/api/dentalsis-dump", "/api/pdks/push"];
 
 export async function middleware(request: NextRequest) {
   // Sunucu bileşenleri (layout) mevcut yolu bilsin
