@@ -24,16 +24,19 @@ export default async function CostingPage({ searchParams }: { searchParams: Prom
   const lvl = Math.max(s.modules.production ?? 0, s.modules.stock ?? 0, s.modules.finance ?? 0, s.modules.sales ?? 0);
   if (lvl < 1) redirect("/");
   const sb = await createClient();
-  const [{ data, error }, { data: set }, { data: prods }] = await Promise.all([
+  const [{ data, error }, { data: set }, { data: prods }, { data: svc }] = await Promise.all([
     sb.rpc("prd_cost_list"),
     sb.from("prd_cost_settings").select("labor_rate_min, overhead_per_unit, remake_pct, marketing_pct, admin_pct, finance_pct, note, updated_at").maybeSingle(),
     sb.from("lab_products").select("id, name").eq("is_active", true).order("sort").order("name"),
+    sb.from("prd_recipe_plan").select("product_id").eq("tpl", "hizmet"),
   ]);
+  const service = new Set(((svc ?? []) as { product_id: string }[]).map((x) => x.product_id));
   const norm = (v: string) => v.toLocaleLowerCase("tr").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ı/g, "i");
   const terms = norm(q ?? "").split(/\s+/).filter(Boolean);
   const rows = ((data ?? []) as Row[]).filter((r) => !terms.length || terms.every((t) => norm(`${r.name} ${r.code ?? ""} ${r.material ?? ""}`).includes(t)));
   const withRecipe = rows.filter((r) => r.lines > 0 || r.steps > 0);
-  const without = rows.filter((r) => r.lines === 0 && r.steps === 0);
+  const without = rows.filter((r) => r.lines === 0 && r.steps === 0 && !service.has(r.id));
+  const nService = rows.filter((r) => r.lines === 0 && r.steps === 0 && service.has(r.id)).length;
   const cfg: Set = (set as Set | null) ?? { labor_rate_min: 600, overhead_per_unit: 20000, remake_pct: 4, marketing_pct: 7, admin_pct: 10, finance_pct: 2, note: null };
   const canSet = (s.modules.production ?? 0) >= 3 || (s.modules.finance ?? 0) >= 3;
   const canSeed = (s.modules.production ?? 0) >= 2 || (s.modules.stock ?? 0) >= 2;
@@ -88,9 +91,10 @@ export default async function CostingPage({ searchParams }: { searchParams: Prom
             </tbody>
           </table>
         </section>
+        {nService > 0 && <p className="text-xs text-muted">{nService} kalem hizmet (malzemesiz) olarak işaretli; reçetesiz listesinde gösterilmez.</p>}
         {without.length > 0 && (
           <details className="rounded-[16px] border border-line bg-white p-4 text-sm">
-            <summary className="cursor-pointer font-semibold text-brand-800">Reçetesi olmayan ürünler ({without.length})</summary>
+            <summary className="cursor-pointer font-semibold text-brand-800">Reçetesi olmayan ürünler ({without.length}) <Link href="/uretim/recete-sihirbazi?f=eksik" className="ml-2 text-xs text-brand-700 underline">Reçete sihirbazında tamamla</Link></summary>
             <div className="flex flex-wrap gap-2 mt-3">{without.map((r) => <Link key={r.id} href={`/uretim/maliyet/${r.id}`} className="rounded-full border border-line px-3 py-1 hover:border-brand-600">{r.name}</Link>)}</div>
           </details>
         )}

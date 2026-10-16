@@ -21,7 +21,7 @@ type Station = { code: string; name: string; sort: number };
 
 const PAGE = 50;
 const norm = (v: string) => v.toLocaleLowerCase("tr").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ı/g, "i");
-const SRC: Record<string, [string, "gray" | "blue" | "green" | "amber"]> = { kural: ["Kural", "gray"], ai: ["Yapay zekâ", "blue"], elle: ["Elle", "green"] };
+const SRC: Record<string, [string, "gray" | "blue" | "green" | "amber"]> = { kural: ["Kural", "gray"], ai: ["Yapay zekâ", "blue"], elle: ["Elle", "green"], tahmin: ["Tahmin — kontrol edin", "amber"] };
 
 /** Üretim reçetesi sihirbazı: her protez ürününü Fransızca + Türkçe adına göre bir reçete şablonuna eşler ve reçeteyi yazar */
 export default async function RecipeWizardPage({ searchParams }: { searchParams: Promise<{ q?: string; f?: string; s?: string }> }) {
@@ -39,7 +39,7 @@ export default async function RecipeWizardPage({ searchParams }: { searchParams:
     sb.from("prd_tpl_steps").select("tpl, station, minutes"),
     sb.from("prd_tpl_stations").select("code, name, sort"),
   ]);
-  const rows = ((data ?? []) as Row[]).filter((r) => r.is_active);
+  const rows = (data ?? []) as Row[];
   const ts = (tpls ?? []) as Tpl[];
   const tname = new Map(ts.map((t) => [t.key, t.name]));
   const imap = new Map(((items ?? []) as Item[]).map((i) => [i.code, i]));
@@ -48,11 +48,14 @@ export default async function RecipeWizardPage({ searchParams }: { searchParams:
   const count = (k: string | null) => rows.filter((r) => r.tpl === k).length;
   const nNone = rows.filter((r) => !r.tpl && !r.has_manual).length;
   const nManual = rows.filter((r) => r.has_manual).length;
-  const nDone = rows.filter((r) => r.lines > 0 || r.tpl === "hizmet").length;
+  const nDone = rows.filter((r) => r.lines > 0 || (r.tpl === "hizmet" && r.applied_tpl === "hizmet")).length;
+  const nService = rows.filter((r) => r.tpl === "hizmet").length;
+  const nGuess = rows.filter((r) => r.source === "tahmin").length;
+  const nMissing = rows.filter((r) => !(r.lines > 0 || r.steps > 0) && r.tpl !== "hizmet").length;
   const f = sp.f ?? "";
   const terms = norm(sp.q ?? "").split(/\s+/).filter(Boolean);
   const shown = rows.filter((r) =>
-    (f === "" || (f === "yok" ? !r.tpl && !r.has_manual : f === "elle" ? r.has_manual : r.tpl === f)) &&
+    (f === "" || (f === "yok" ? !r.tpl && !r.has_manual : f === "eksik" ? !(r.lines > 0 || r.steps > 0) && r.tpl !== "hizmet" : f === "tahmin" ? r.source === "tahmin" : f === "pasif" ? !r.is_active : f === "elle" ? r.has_manual : r.tpl === f)) &&
     (!terms.length || terms.every((t) => norm(`${r.name} ${r.name_tr ?? ""} ${r.code ?? ""} ${r.material ?? ""}`).includes(t))));
   const pages = Math.max(1, Math.ceil(shown.length / PAGE));
   const cur = Math.min(Math.max(1, Number(sp.s) || 1), pages);
@@ -77,10 +80,10 @@ export default async function RecipeWizardPage({ searchParams }: { searchParams:
 
         <section className="rounded-[20px] p-5 text-white bg-gradient-to-br from-[#06213f] via-[#0a3d73] to-[#13649f] flex flex-col gap-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Stat label="Aktif ürün" value={rows.length} />
-            <Stat label="Reçetesi hazır" value={nDone} />
-            <Stat label="Elle girilmiş (korunuyor)" value={nManual} />
-            <Stat label="Eşleşmeyen" value={nNone} warn={nNone > 0} />
+            <Stat label={`Ürün (${rows.filter((r) => !r.is_active).length} pasif dahil)`} value={rows.length} />
+            <Stat label={`Reçetesi hazır (${nService} hizmet)`} value={nDone} />
+            <Stat label="Tahminle eşlenen (kontrol edin)" value={nGuess} warn={nGuess > 0} />
+            <Stat label="Reçetesi eksik" value={nMissing} warn={nMissing > 0} />
           </div>
           {canEdit && (
             <div className="flex flex-wrap gap-2">
@@ -89,14 +92,17 @@ export default async function RecipeWizardPage({ searchParams }: { searchParams:
               <form action={applyAllRecipes} className="flex items-center"><input type="hidden" name="force" value="1" /><ConfirmSubmit label="Şablondan oluşanları yeniden yaz" question="Şablondan oluşan reçetelerdeki elle değişiklikler silinir. Devam?" className="h-11 px-4 rounded-xl text-white/80 text-sm font-semibold underline" /></form>
             </div>
           )}
-          <p className="text-xs text-white/70">Yapay zekâ her ürünün Fransızca adını ve Türkçesini okuyup en uygun şablonu seçer (birkaç dakika sürebilir). Elle seçtiğiniz şablonlar ve elle girilmiş reçeteler değişmez. Miktarlar sektörde tipik değerler, fiyatlar tahmini: alış yaptıkça ortalama alış fiyatı kullanılır.</p>
+          <p className="text-xs text-white/70">“Eksik reçeteleri oluştur” eşleşmeyen ürünleri önce yapay zekâya sorar, yine kalanlara malzeme / birim bilgisinden tahmini şablon verir. “Yapay zekâ ile ürün ürün kontrol et” tüm ürünleri (pasifler dahil) baştan kontrol eder; birkaç dakika sürebilir. Elle seçtiğiniz şablonlar ve elle girilmiş reçeteler değişmez. Miktarlar sektörde tipik değerler, fiyatlar tahmini: alış yaptıkça ortalama alış fiyatı kullanılır.</p>
         </section>
 
         <form className="flex flex-wrap items-center gap-2">
           <input name="q" type="search" defaultValue={sp.q} placeholder="Ürün ara: Fransızca / Türkçe ad, kod" className={`${inputCls} flex-1 min-w-[240px] max-w-xl`} />
           <select name="f" defaultValue={f} className={`${selectCls} w-64`}>
             <option value="">Tüm şablonlar</option>
-            <option value="yok">Eşleşmeyenler ({nNone})</option>
+            <option value="eksik">Reçetesi eksik ({nMissing})</option>
+            <option value="tahmin">Tahminle eşlenenler ({nGuess})</option>
+            <option value="yok">Şablonu seçilmemiş ({nNone})</option>
+            <option value="pasif">Pasif ürünler ({rows.filter((r) => !r.is_active).length})</option>
             <option value="elle">Elle girilmiş reçeteler ({nManual})</option>
             {ts.map((t) => <option key={t.key} value={t.key}>{t.name} ({count(t.key)})</option>)}
           </select>
@@ -111,7 +117,7 @@ export default async function RecipeWizardPage({ searchParams }: { searchParams:
             <tbody>
               {pageRows.map((r) => (
                 <tr key={r.id}>
-                  <td className={td}><span className="font-semibold">{r.name}</span><span className="block text-xs text-muted">{r.code ?? ""}{r.material ? ` · ${r.material}` : ""} · {r.per_unit ? "üye başına" : "iş başına"}</span></td>
+                  <td className={td}><span className="font-semibold">{r.name}</span>{!r.is_active && <span className="ml-1.5"><Chip>pasif</Chip></span>}<span className="block text-xs text-muted">{r.code ?? ""}{r.material ? ` · ${r.material}` : ""} · {r.per_unit ? "üye başına" : "iş başına"}</span></td>
                   <td className={td}>{r.name_tr ?? <span className="text-muted">—</span>}</td>
                   <td className={td}>
                     {canEdit ? (
