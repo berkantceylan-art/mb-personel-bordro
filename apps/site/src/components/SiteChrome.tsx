@@ -95,6 +95,9 @@ export function SiteHeader({ locale, altPath = "", current }: { locale: Locale; 
               </Link>
             ))}
           </nav>
+          <Link href={`/${locale}/ziyaret`} className="hidden rounded-full bg-smile px-4 py-2 text-sm font-semibold text-navy hover:opacity-90 sm:inline-block">
+            📅 {{ tr: "Randevu al", en: "Book a visit", fr: "Rendez-vous" }[locale]}
+          </Link>
           <Link href="/giris" className="hidden rounded-full border border-white/30 px-4 py-2 text-sm hover:border-white sm:inline-block">
             {d.nav.login}
           </Link>
@@ -250,6 +253,9 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
             <Link href={`/${locale}/iletisim`} className="mt-4 inline-block rounded-full border border-white/30 px-4 py-2 text-sm font-semibold hover:border-white">
               {fc.write}
             </Link>
+            <Link href={`/${locale}/ziyaret`} className="ml-2 mt-4 inline-block rounded-full bg-smile px-4 py-2 text-sm font-semibold text-navy hover:opacity-90">
+              📅 {{ tr: "Ziyaret randevusu", en: "Book a visit", fr: "Rendez-vous visite" }[locale]}
+            </Link>
           </div>
           <div>
             <h2 className="display text-lg font-semibold">{d.contact.address}</h2>
@@ -274,6 +280,7 @@ export async function SiteFooter({ locale }: { locale: Locale }) {
               <Link href={`/${locale}/yardim`} className="hover:text-smile">{HELP_UI[locale].nav}</Link>
               <Link href={`/${locale}/blog`} className="hover:text-smile">{BLOG_UI[locale].nav}</Link>
               <Link href={`/${locale}/teslim-suresi`} className="hover:text-smile">{LEAD_UI[locale].nav}</Link>
+              <Link href={`/${locale}/ziyaret`} className="hover:text-smile">{{ tr: "Ziyaret randevusu", en: "Book a visit", fr: "Rendez-vous visite" }[locale]}</Link>
               <Link href={`/${locale}/kariyer`} className="hover:text-smile">{CAREER_UI[locale].nav}</Link>
               <Link href={`/${locale}/yurtdisi`} className="hover:text-smile">{locale === "tr" ? "Yurt dışı hekimler" : locale === "fr" ? "Praticiens hors Turquie" : "Dentists abroad"}</Link>
               <Link href={`/${locale}/malzemeler`} className="hover:text-smile">{locale === "tr" ? "Malzemeler" : locale === "fr" ? "Matériaux" : "Materials"}</Link>
