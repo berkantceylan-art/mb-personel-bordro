@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card, PageHeader } from "@/components/ui";
+import { PriceHistoryButton } from "@/components/PriceHistoryButton";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { CUSTOMER_KIND, type Customer } from "@/lib/jobs";
@@ -33,6 +34,10 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       <PageHeader title="Hekim / hastane" subtitle={`${list.length} kart`} actions={<Link href="/isler/yeni" className="text-sm font-semibold text-brand-700">İş kayıt</Link>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1320px]">
         {error && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">Tablolar yok: Supabase&apos;de 20261125000000_lab_jobs.sql çalıştırın.</p>}
+        <Card title="Hekime özel fiyat listeleri">
+          <p className="text-sm text-muted">Her hekimin kendi fiyat listesi, o hekimin geçmiş işlerinden (Dentalsis&apos;ten aktarılanlar dahil) ürün başına en son uygulanan fiyatla oluşturulur. İş kayıtta bu fiyat gelir; hekim kartındaki “Özel fiyatlar”dan düzeltebilir, “Fiyat listesi yazdır” ile çıktı alabilirsiniz.</p>
+          <PriceHistoryButton customerId={null} label="Tüm hekimlerin fiyat listesini oluştur" />
+        </Card>
         <Card title="Yeni hekim / hastane">
           <CustomerForm accounts={(accs ?? []).map((a) => ({ id: a.id, name: a.company ? `${a.company} (${a.name})` : a.name, linked: linked.has(a.id) }))} />
         </Card>
