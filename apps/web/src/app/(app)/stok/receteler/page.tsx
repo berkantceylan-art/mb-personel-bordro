@@ -20,7 +20,7 @@ export default async function BomPage({ searchParams }: { searchParams: Promise<
   const [{ data: products }, { data: boms, error }, { data: items }, { data: tot }] = await Promise.all([
     supabase.from("lab_products").select("id, code, name, material, per_unit, price_try, is_active").order("sort").order("name"),
     supabase.from("stk_boms").select("id, lab_product_id, item_id, qty, waste_pct, note"),
-    supabase.from("stk_items").select("id, code, name, unit, kind").eq("is_active", true).neq("kind", "service").order("name").limit(5000),
+    supabase.from("stk_items").select("id, code, name, unit, kind").eq("is_active", true).in("kind", ["material", "raw", "consumable", "packaging"]).is("lab_product_id", null).order("name").limit(5000),
     supabase.from("stk_item_totals").select("item_id, avg_cost").limit(5000),
   ]);
   type P = { id: string; code: string | null; name: string; material: string | null; per_unit: boolean; price_try: number | null; is_active: boolean };

@@ -21,7 +21,7 @@ begin
   select id into v_item from stk_items where lab_product_id = p.id;
   if v_item is not null then
     update stk_items set name = v_name, sale_price = v_price, sale_currency = v_cur, unit = case when p.per_unit then 'üye' else 'adet' end,
-           is_active = p.is_active, category_id = coalesce(category_id, p_category),
+           is_active = p.is_active, kind = 'goods', category_id = coalesce(category_id, p_category),
            note = case when v_name <> p.name then left('Protez ürünü · orijinal ad: ' || p.name, 2000) else coalesce(note, 'Protez ürünü') end, updated_at = now()
      where id = v_item;
     return 'updated';
@@ -33,7 +33,7 @@ begin
     n := n + 1; v_code := left(v_base, 36) || '-' || n;
   end loop;
   insert into stk_items (company_id, code, name, kind, category_id, unit, sale_price, sale_currency, lab_product_id, is_active, note)
-  values (coalesce(p.company_id, lab_company()), v_code, v_name, 'product', p_category, case when p.per_unit then 'üye' else 'adet' end, v_price, v_cur, p.id, p.is_active,
+  values (coalesce(p.company_id, lab_company()), v_code, v_name, 'goods', p_category, case when p.per_unit then 'üye' else 'adet' end, v_price, v_cur, p.id, p.is_active,
           case when v_name <> p.name then left('Protez ürünü · orijinal ad: ' || p.name, 2000) else 'Protez ürünü' end);
   return 'created';
 end $$;

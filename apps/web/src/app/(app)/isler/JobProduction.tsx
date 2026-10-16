@@ -17,7 +17,7 @@ export async function JobProduction({ jobId, canEdit }: { jobId: string; canEdit
     supabase.from("prd_job_materials").select("id, qty, lot_no, expiry_date, source, created_at, stk_items(name, unit, code)").eq("job_id", jobId).order("created_at"),
     supabase.from("prd_remakes").select("id, reason, description, created_at, chargeable, prd_stations!prd_remakes_station_id_fkey(name)").eq("job_id", jobId).order("created_at"),
     supabase.from("prd_stations").select("id, name").eq("is_active", true).order("sort"),
-    supabase.from("stk_items").select("id, name, unit, track_lot").eq("is_active", true).neq("kind", "service").order("name").limit(3000),
+    supabase.from("stk_items").select("id, name, unit, track_lot").eq("is_active", true).in("kind", ["material", "raw", "consumable", "packaging"]).is("lab_product_id", null).order("name").limit(3000),
   ]);
   if (error) return null; // üretim modülü kurulmamış
   type O = { id: string; station_id: string; status: string; qty: number; std_minutes: number | null; work_minutes: number | null; started_at: string | null; finished_at: string | null; round: number; consume: boolean; employees: { first_name: string; last_name: string } | null; prd_stations: { name: string; color: string | null } | null };
