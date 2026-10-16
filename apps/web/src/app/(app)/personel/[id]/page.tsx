@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EmployeeTimesheet } from "@/components/EmployeeTimesheet";
 import { legalParams } from "@/lib/legal";
 import { logAccess, maskIban, maskTc } from "@/lib/kvkk";
 import { notFound } from "next/navigation";
@@ -52,7 +53,7 @@ export default async function EmployeeProfile({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ donem?: string; iptal?: string; goster?: string }>;
+  searchParams: Promise<{ donem?: string; iptal?: string; goster?: string; puantaj?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -60,6 +61,9 @@ export default async function EmployeeProfile({
   const all = !sp.donem || sp.donem === "tumu";
   const period = !all && /^\d{4}-\d{2}$/.test(sp.donem!) ? sp.donem! : currentPeriod();
   const showVoided = sp.iptal === "1";
+  const tsPeriod = /^\d{4}-\d{2}$/.test(sp.puantaj ?? "") ? sp.puantaj! : currentPeriod();
+  const [tsY, tsM] = tsPeriod.split("-").map(Number) as [number, number];
+  const tsPrev = new Date(Date.UTC(tsY, tsM - 2, 1)).toISOString().slice(0, 7), tsNext = new Date(Date.UTC(tsY, tsM, 1)).toISOString().slice(0, 7);
   const s = await getSession();
   const pay = canManagePay(s.role);
   const hr = ["owner", "accountant", "hr"].includes(s.role);
@@ -202,6 +206,7 @@ export default async function EmployeeProfile({
           {hr && <Link href={`/personel/${id}/duzenle`} className={`${btn} border border-[#D5DEE8] bg-white text-brand-700`}>Düzenle</Link>}
           {hr && e.status !== "terminated" && <OfficeCallButton employeeId={id} action={callToOffice} />}
           {hr && <Link href={`/personel/${id}/cikis`} className={`${btn} border border-[#D5DEE8] bg-white ${e.status === "terminated" ? "text-brand-700" : "text-bad"}`}>{e.status === "terminated" ? "Çıkış sihirbazı" : "İşten çıkar"}</Link>}
+          <Link href={`/yazdir/puantaj/${id}?donem=${tsPeriod}`} className={`${btn} border border-[#D5DEE8] bg-white text-brand-700`}>Puantaj yazdır</Link>
           {pay && <Link href={`/personel/${id}/zam`} className={`${btn} border border-[#D5DEE8] bg-white text-brand-700`}>Zam / ücret</Link>}
           {pay && <Link href={`/odemeler/yeni?personel=${id}`} className={`${btn} bg-brand-700 text-white`}>+ Avans / Ödeme</Link>}
         </div>
@@ -358,6 +363,9 @@ export default async function EmployeeProfile({
             </Card>
           )}
 
+          <Card title={`Puantaj · giriş / çıkış · ${periodLabel(tsPeriod)}`} action={<span className="flex items-center gap-3 text-[13px] font-semibold"><Link href={`/personel/${id}?${new URLSearchParams({ ...(sp.donem ? { donem: sp.donem } : {}), puantaj: tsPrev })}#puantaj`} className="text-brand-700">‹ Önceki ay</Link><Link href={`/personel/${id}?${new URLSearchParams({ ...(sp.donem ? { donem: sp.donem } : {}), puantaj: tsNext })}#puantaj`} className="text-brand-700">Sonraki ay ›</Link><Link href={`/yazdir/puantaj/${id}?donem=${tsPeriod}`} className="text-brand-700">🖨 Yazdır</Link></span>}>
+              <div id="puantaj"><EmployeeTimesheet supabase={supabase} employeeId={id} period={tsPeriod} compact /></div>
+            </Card>
           {pay && (
             <Card title="Ücret geçmişi" action={<Link href={`/personel/${id}/zam`} className="text-[13px] font-semibold text-brand-700">+ Zam / ücret değişikliği</Link>}>
               <div className="overflow-x-auto">
