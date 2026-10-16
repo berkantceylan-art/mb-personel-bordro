@@ -13,6 +13,7 @@ import { addLabPayment, saveCustomerBook } from "@/lib/waybill-actions";
 import { saveContract } from "@/lib/pricing-actions";
 import { LANGS } from "@/lib/waybill";
 import { CariCheck, type CariLine } from "./CariCheck";
+import { PriceHistoryButton } from "@/components/PriceHistoryButton";
 import { BOOK_LABEL, PAY_METHOD, buildLedger, internalPays, type LedgerPayment } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
@@ -27,15 +28,17 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   if (!data) notFound();
   const c = data as Customer & { internal_book?: boolean; pay_book?: string; doc_lang?: string; internal_opening?: number; internal_opening_date?: string | null };
   const ib = c.internal_book === true;
-  const [{ data: docs }, { data: jobs }, { data: accs }, { data: links }, { data: pays }, { data: prods }, { data: specials }] = await Promise.all([
+  const [{ data: docs }, { data: jobs }, { data: accs }, { data: links }, { data: pays }, { data: prods0 }, { data: specials }] = await Promise.all([
     supabase.from("lab_customer_doctors").select("id, name").eq("customer_id", id).order("name"),
     supabase.from("jobs").select("id, no, patient, in_date, due_date, status, total, currency, delivered_at").eq("customer_id", id).order("no", { ascending: false }).limit(5000),
     supabase.from("portal_accounts").select("id, name, company").eq("status", "active").order("name"),
     supabase.from("lab_customers").select("portal_account_id").not("portal_account_id", "is", null),
     supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note, book, legacy_ref, currency").eq("customer_id", id).order("paid_on"),
-    supabase.from("lab_products").select("id, name, price_try, price_eur").eq("is_active", true).order("sort").order("name"),
+    supabase.from("lab_products").select("id, name, name_tr, price_try, price_eur, is_active").order("sort").order("name"),
     supabase.from("lab_customer_prices").select("product_id, price_try, price_eur").eq("customer_id", id),
   ]);
+  // name_tr sütunu yoksa (eski veritabanı) Türkçe adsız listeye dön
+  const prods = prods0 ?? (await supabase.from("lab_products").select("id, name, price_try, price_eur, is_active").order("sort").order("name")).data?.map((p) => ({ ...p, name_tr: null as string | null }));
   const [{ data: accRows }, { data: offi }] = await Promise.all([
     supabase.from("fin_accounts").select("id, name, currency, kind").in("kind", ["cash", "bank", "pos"]).eq("is_active", true).order("name"),
     supabase.from("fin_party_balances").select("party_id, balance").eq("lab_customer_id", id).maybeSingle(),
@@ -51,7 +54,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const { data: riskData } = await supabase.rpc("lab_customer_risk", { p_customer: id });
   const risk = riskData as { balance: number; limit: number | null; over: boolean; overdue: number; term: number; contract_expired: boolean } | null;
   const cx = data as { credit_limit?: number | null; payment_term_days?: number; block_over_limit?: boolean; contract_start?: string | null; contract_end?: string | null; contract_note?: string | null };
-  const prodName = new Map((prods ?? []).map((p) => [p.id as string, p as { id: string; name: string; price_try: number | null; price_eur: number | null }]));
+  const prodName = new Map((prods ?? []).map((p) => [p.id as string, p as { id: string; name: string; name_tr: string | null; price_try: number | null; price_eur: number | null }]));
   const linked = new Set((links ?? []).map((l) => l.portal_account_id as string));
   const list = (jobs ?? []) as { id: string; no: number; patient: string | null; in_date: string; due_date: string | null; status: JobStatus; total: number; currency: string; delivered_at: string | null }[];
   const billable = list.filter((j) => j.status !== "cancelled");
@@ -195,9 +198,11 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         </Card>
         <Card title="Özel fiyatlar">
           <p className="text-xs text-muted">Bu hekime / kuruma özel ürün fiyatı. İş kayıtta liste fiyatı ve iskonto yerine bu fiyat gelir.</p>
+          <PriceHistoryButton customerId={c.id} label="Geçmiş işlerden fiyat listesini doldur" />
+          <p className="text-xs text-muted">Bu hekimin işlerinde (Dentalsis&apos;ten gelenler dahil) her ürün için en son uygulanan birim fiyat yazılır; elle girdiğiniz fiyatlar korunur.</p>
           <form action={saveCustomerPrice} className="grid gap-2 md:grid-cols-5 items-end">
             <input type="hidden" name="customer_id" value={c.id} />
-            <label className="flex flex-col gap-1 text-xs font-semibold text-muted md:col-span-2">Ürün<select name="product_id" required className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white"><option value="">Seçin</option>{(prods ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-muted md:col-span-2">Ürün<select name="product_id" required className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white"><option value="">Seçin</option>{(prods ?? []).filter((p) => p.is_active !== false).map((p) => <option key={p.id} value={p.id}>{p.name}{p.name_tr && p.name_tr !== p.name ? ` — ${p.name_tr}` : ""}</option>)}</select></label>
             <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Fiyat TL<input name="price_try" inputMode="decimal" className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white num" /></label>
             <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Fiyat €<input name="price_eur" inputMode="decimal" className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white num" /></label>
             <button className="h-10 rounded-lg bg-brand-700 text-white font-semibold">Kaydet</button>
@@ -206,7 +211,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             <ul className="flex flex-col gap-1.5">
               {(specials ?? []).map((sp) => (
                 <li key={sp.product_id as string} className="flex flex-wrap items-center gap-3 text-sm border-t border-line pt-1.5">
-                  <span className="font-semibold">{prodName.get(sp.product_id as string)?.name ?? "—"}</span>
+                  <span className="font-semibold">{prodName.get(sp.product_id as string)?.name ?? "—"}{prodName.get(sp.product_id as string)?.name_tr && prodName.get(sp.product_id as string)?.name_tr !== prodName.get(sp.product_id as string)?.name && <span className="block text-xs font-normal text-muted">🇹🇷 {prodName.get(sp.product_id as string)?.name_tr}</span>}</span>
                   <span className="num">{sp.price_try != null ? money(sp.price_try as number, "TRY") : ""} {sp.price_eur != null ? `· ${money(sp.price_eur as number, "EUR")}` : ""}</span>
                   <span className="text-xs text-muted">liste: {prodName.get(sp.product_id as string)?.price_try != null ? money(prodName.get(sp.product_id as string)!.price_try, "TRY") : "—"}</span>
                   <form action={deleteCustomerPrice} className="ml-auto"><input type="hidden" name="customer_id" value={c.id} /><input type="hidden" name="product_id" value={sp.product_id as string} /><button className="text-xs text-bad font-semibold">Sil</button></form>
