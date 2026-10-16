@@ -15,7 +15,7 @@ const TABS = [
 ] as const;
 
 /** İş listesi */
-export default async function JobsPage({ searchParams }: { searchParams: Promise<{ sekme?: string; q?: string; hekim?: string; bas?: string; bit?: string }> }) {
+export default async function JobsPage({ searchParams }: { searchParams: Promise<{ sekme?: string; q?: string; hekim?: string; bas?: string; bit?: string; pazar?: string }> }) {
   const s = await getSession();
   if (!s.logistics) redirect("/");
   const sp = await searchParams;
@@ -29,6 +29,14 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   if (sp.hekim) query = query.eq("customer_id", sp.hekim);
   if (sp.bas) query = query.gte("in_date", sp.bas);
   if (sp.bit) query = query.lte("in_date", sp.bit);
+  // Yerli / yabancı: hekimin ülkesi ya da "yabancı hekim" tipi
+  const pazar = sp.pazar === "yerli" || sp.pazar === "yabanci" ? sp.pazar : "";
+  if (pazar) {
+    const { data: all } = await supabase.from("lab_customers").select("id, country, kind");
+    const fx = (c: { country: string | null; kind: string | null }) => c.kind === "doctor_foreign" || !["TR", "TURKIYE", "TURKEY", "TÜRKİYE"].includes((c.country || "TR").trim().toLocaleUpperCase("tr").replace(/İ/g, "I").replace(/Ü/g, "U"));
+    const ids = ((all ?? []) as { id: string; country: string | null; kind: string | null }[]).filter((c) => (pazar === "yabanci") === fx(c)).map((c) => c.id);
+    query = query.in("customer_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+  }
   const [{ data, error }, { data: cs }, { count: openCount }, { count: lateCount }, { count: todayCount }] = await Promise.all([
     query,
     supabase.from("lab_customers").select("id, name").order("name"),
@@ -74,6 +82,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
             <option value="">Tüm hekimler</option>
             {(cs ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
+          <select name="pazar" defaultValue={sp.pazar ?? ""} className={`${input} max-w-40`} aria-label="Yerli / yabancı"><option value="">Yerli + yabancı</option><option value="yerli">Yerli işler</option><option value="yabanci">Yabancı işler</option></select>
           <input type="date" name="bas" defaultValue={sp.bas} className={input} aria-label="Giriş başlangıç" />
           <input type="date" name="bit" defaultValue={sp.bit} className={input} aria-label="Giriş bitiş" />
           <button className="h-11 px-4 rounded-[10px] bg-brand-700 text-white font-semibold">Filtrele</button>

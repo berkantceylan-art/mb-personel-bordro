@@ -6,8 +6,8 @@ import type { createClient } from "@/lib/supabase/server";
 import { PnlChart, type PnlPoint } from "./PnlChart";
 
 type SB = Awaited<ReturnType<typeof createClient>>;
-type Series = { b: string; lab: number; inc: number; exp: number; mat: number };
-type Part = { lab: number; inc: number; exp: number; mat: number };
+type Series = { b: string; lab: number; lab_fx?: number; inc: number; exp: number; mat: number };
+type Part = { lab: number; lab_fx?: number; lab_fx_eur?: number; jobs_tr?: number; jobs_fx?: number; inc: number; exp: number; mat: number };
 type Pnl = {
   from: string; to: string; prev_from: string; prev_to: string; bucket: "day" | "month"; basis: string; series: Series[]; totals: Part; prev: Part;
   income_by: Array<{ code: string; name: string; try: number }>; expense_by: Array<{ code: string; name: string; try: number; prev: number }>; suppliers: Array<{ name: string; try: number }>;
@@ -103,6 +103,7 @@ export async function PnlTab({ sb, today, p, base }: { sb: SB; today: string; p:
   const T = { lab: Number(v.totals.lab), inc: Number(v.totals.inc), exp: Number(v.totals.exp), mat: Number(v.totals.mat) };
   const P = { lab: Number(v.prev.lab), inc: Number(v.prev.inc), exp: Number(v.prev.exp), mat: Number(v.prev.mat) };
   const income = T.lab + T.inc, incomePrev = P.lab + P.inc;
+  const labFx = Number(v.totals.lab_fx ?? 0), labFxEur = Number(v.totals.lab_fx_eur ?? 0), jobsTr = Number(v.totals.jobs_tr ?? 0), jobsFx = Number(v.totals.jobs_fx ?? 0);
   const expense = T.exp + T.mat + staff, expensePrev = P.exp + P.mat + staffPrev;
   const net = income - expense, netPrev = incomePrev - expensePrev;
   const margin = income ? Math.round((net / income) * 1000) / 10 : null;
@@ -132,7 +133,8 @@ export async function PnlTab({ sb, today, p, base }: { sb: SB; today: string; p:
     ...v.expense_by.map((e) => ({ key: e.code, name: e.name, v: Number(e.try), prev: Number(e.prev) })),
   ].filter((x) => x.v > 0 || x.prev > 0).sort((a, b) => b.v - a.v);
   const incomeRows = [
-    ...(T.lab ? [{ key: "lab", name: `Laboratuvar işleri (${basis === "in" ? "iş girişi" : "teslim"})`, v: T.lab }] : []),
+    ...(T.lab - labFx ? [{ key: "lab", name: `Yerli işler (${basis === "in" ? "iş girişi" : "teslim"})`, v: T.lab - labFx }] : []),
+    ...(labFx ? [{ key: "labfx", name: `Yabancı işler${labFxEur ? ` · ${(labFxEur / 100).toLocaleString("tr-TR", { maximumFractionDigits: 0 })} €` : ""}`, v: labFx }] : []),
     ...v.income_by.map((e) => ({ key: e.code, name: e.name, v: Number(e.try) })),
   ].filter((x) => x.v !== 0).sort((a, b) => b.v - a.v);
   const maxRow = Math.max(1, ...expenseRows.map((x) => x.v), ...incomeRows.map((x) => x.v));
@@ -263,7 +265,8 @@ export async function PnlTab({ sb, today, p, base }: { sb: SB; today: string; p:
         <h2 className="font-semibold mb-2">Kâr / zarar özeti</h2>
         <table className="w-full text-sm">
           <tbody>
-            <PlRow l="Laboratuvar iş cirosu" v={T.lab} />
+            <PlRow l={`Yerli iş cirosu${jobsTr ? ` (${jobsTr.toLocaleString("tr-TR")} iş)` : ""}`} v={T.lab - labFx} />
+            <PlRow l={`Yabancı iş cirosu${labFxEur ? ` · ${(labFxEur / 100).toLocaleString("tr-TR", { maximumFractionDigits: 0 })} €` : ""}${jobsFx ? ` (${jobsFx.toLocaleString("tr-TR")} iş)` : ""}`} v={labFx} />
             <PlRow l="Diğer gelirler (fatura, faiz, kur farkı…)" v={T.inc} />
             <PlRow l="Toplam gelir" v={income} strong />
             <PlRow l="Personel maliyeti" v={-staff} />

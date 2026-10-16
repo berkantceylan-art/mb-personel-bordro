@@ -28,3 +28,13 @@ export async function fetchTcmb(): Promise<{ date: string | null; rates: TcmbRat
   if (!res.ok) throw new Error(`TCMB yanıtı ${res.status}`);
   return parseTcmb(await res.text());
 }
+
+/** Geçmiş bir günün TCMB kurları (hafta sonu / tatilde yayın yok → null) */
+export async function fetchTcmbDate(date: string): Promise<{ date: string | null; rates: TcmbRate[] } | null> {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return null;
+  const res = await fetch(`https://www.tcmb.gov.tr/kurlar/${m[1]}${m[2]}/${m[3]}${m[2]}${m[1]}.xml`, { cache: "no-store", headers: { "user-agent": "MB Dental ERP" }, signal: AbortSignal.timeout(8000) });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`TCMB yanıtı ${res.status}`);
+  return parseTcmb(await res.text());
+}

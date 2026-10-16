@@ -81,3 +81,111 @@ export async function dsisImportBalance(): Promise<DsisStep> {
     return { ok: false, message: (e as Error).message };
   }
 }
+
+// ---------------------------------------------------------------------
+// Aktarım sonrası düzenlemeler (para birimi, toplu kapatma, kur, ürün çevirisi, stok)
+// ---------------------------------------------------------------------
+const fixHint = (m: string) => (/dsis_close_old|dsis_fix|fx_rates_missing|lab_products_set_tr|dsis_products_to_stock|dsis_revenue_summary|name_tr|schema cache/i.test(m) ? "Önce mbdental-dentalsis-duzenleme.sql dosyasını Supabase'de çalıştırın." : m);
+
+/** 2026 başından bugüne eksik TCMB kurlarını doldurur (her çağrıda en çok 25 gün) */
+export async function dsisFxBackfill(from = "2026-01-01"): Promise<DsisStep & { left?: number; next?: string }> {
+  try {
+    await owner();
+    const sb = await createClient();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) from = "2026-01-01";
+    const { data, error } = await sb.rpc("fx_rates_missing", { p_from: from, p_to: new Date().toISOString().slice(0, 10) });
+    if (error) return { ok: false, message: fixHint(error.message) };
+    const days = ((data ?? []) as string[]).slice(0, 25);
+    const { fetchTcmbDate } = await import("@/lib/tcmb");
+    const admin = createAdminClient();
+    let got = 0, none = 0;
+    for (const d of days) {
+      const r = await fetchTcmbDate(d).catch(() => null);
+      if (!r || !r.rates.length) { none++; continue; }
+      const { error: e2 } = await admin.from("fx_rates").upsert(r.rates.map((x) => ({ rate_date: d, currency: x.currency, buying: x.buying, selling: x.selling, source: "tcmb" })));
+      if (!e2) got++;
+    }
+    const left = Math.max(0, ((data ?? []) as string[]).length - days.length);
+    const last = days[days.length - 1];
+    const next = last ? new Date(Date.parse(`${last}T12:00:00Z`) + 86400000).toISOString().slice(0, 10) : undefined;
+    return { ok: true, message: `Kurlar: ${got} gün eklendi${none ? `, ${none} gün yayın yok (tatil)` : ""}${left ? `, ${left} gün kaldı` : ""}`, left, next };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+export async function dsisFixCurrencyBatch(name: string): Promise<DsisStep> {
+  try {
+    await owner();
+    if (!/^jobs-\d{1,4}$/.test(name)) return { ok: false, message: "Geçersiz parti" };
+    const jobs = await readJson<{ id: number; stoklar?: unknown[] }[]>(name);
+    const slim = jobs.map((j) => ({ id: j.id, stoklar: j.stoklar ?? [] }));
+    const sb = await createClient();
+    const sum: Record<string, number> = {};
+    for (let i = 0; i < slim.length; i += 500) {
+      const { data, error } = await sb.rpc("dsis_fix_currency", { p_jobs: slim.slice(i, i + 500) });
+      if (error) return { ok: false, message: fixHint(error.message) };
+      for (const [k, v] of Object.entries((data ?? {}) as Record<string, number>)) sum[k] = (sum[k] ?? 0) + Number(v || 0);
+    }
+    return { ok: true, message: `${name}: ${sum.fixed ?? 0} işin para birimi düzeltildi`, result: sum };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+async function rpcStep(fn: string, args: Record<string, unknown>, label: string): Promise<DsisStep> {
+  try {
+    await owner();
+    const { data, error } = await (await createClient()).rpc(fn, args);
+    if (error) return { ok: false, message: fixHint(error.message) };
+    return { ok: true, message: label, result: data as Record<string, unknown> };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+export async function dsisFixCustomerCurrency() { return rpcStep("dsis_fix_customer_currency", {}, "Hekim para birimleri işlerine göre düzeltildi"); }
+export async function dsisCloseOld() {
+  const r = await rpcStep("dsis_close_old", {}, "Bugünden önceki açık işler teslim edildi olarak kapatıldı");
+  revalidatePath("/isler");
+  return r;
+}
+export async function dsisProductsToStock() {
+  const r = await rpcStep("dsis_products_to_stock", {}, "Ürünlerin stok kartları açıldı");
+  revalidatePath("/stok");
+  return r;
+}
+
+export async function dsisTranslateProducts(): Promise<DsisStep & { left?: number }> {
+  try {
+    await owner();
+    const { translateMissing } = await import("@/lib/product-tr");
+    const r = await translateMissing(await createClient(), 120);
+    revalidatePath("/isler/urunler");
+    return { ok: true, message: `Türkçe karşılık: ${r.done} ürün çevrildi${r.left ? `, ${r.left} kaldı` : ""}`, left: r.left };
+  } catch (e) {
+    return { ok: false, message: fixHint((e as Error).message) };
+  }
+}
+
+export async function dsisRevenueSummary(): Promise<Record<string, unknown> | null> {
+  try {
+    await owner();
+    const { data } = await (await createClient()).rpc("dsis_revenue_summary");
+    return (data as Record<string, unknown>) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function dsisFixCountry(): Promise<DsisStep> {
+  try {
+    await owner();
+    const ref = await readJson<{ cari?: unknown[] }>("ref");
+    const { data, error } = await (await createClient()).rpc("dsis_fix_customer_country", { p_cari: ref.cari ?? [] });
+    if (error) return { ok: false, message: fixHint(error.message) };
+    return { ok: true, message: "Yabancı hekimler işaretlendi (ülke Dentalsis'ten)", result: data as Record<string, unknown> };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}

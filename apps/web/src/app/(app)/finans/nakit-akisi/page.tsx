@@ -40,7 +40,7 @@ export default async function CashForecast({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title="Nakit akışı tahmini" subtitle="Bugünkü kasa ve banka bakiyesine; müşteri alacakları (vadesine göre), çekler, tedarikçi borçları, kredi taksitleri, tekrarlayan masraflar, satın alma siparişleri ve maaşlar eklenerek." />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1400px]">
-        {error && <Notice tone="bad">Supabase&apos;de 20261218000000_cashflow_kpi.sql çalıştırılmalı.</Notice>}
+        {error && <Notice tone="bad">{/schema cache|does not exist|could not find/i.test(error.message) ? "Supabase'de 20261218000000_cashflow_kpi.sql çalıştırılmalı." : `Veri alınamadı: ${error.message}`}</Notice>}
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           {[["Bugün kasa + banka", tl(start), ""], ["Beklenen giriş", tl(cols.reduce((a, c) => a + c.inn, 0)), "text-ok"], ["Beklenen çıkış", tl(cols.reduce((a, c) => a + c.out, 0)), "text-bad"], [`En düşük bakiye (${low ? formatDate(low.w) : ""} haftası)`, tl(low?.bal ?? start), (low?.bal ?? 0) < 0 ? "text-bad" : ""]].map(([l, v, c]) => (
             <div key={l} className="rounded-[16px] border border-line bg-white p-4"><div className="text-xs font-semibold text-muted">{l}</div><div className={`font-display text-2xl font-bold mt-1 ${c}`}>{v}</div></div>

@@ -33,6 +33,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
             {p && <input type="hidden" name="id" value={p.id} />}
             <label className={lbl}>Kod<input name="code" defaultValue={p?.code ?? ""} className={inp} /></label>
             <label className={`${lbl} md:col-span-2`}>Ürün adı *<input name="name" required defaultValue={p?.name ?? ""} className={inp} /></label>
+            <label className={`${lbl} md:col-span-2`}>Türkçe adı<input name="name_tr" defaultValue={(p as { name_tr?: string | null } | undefined)?.name_tr ?? ""} placeholder="Boş bırakılırsa otomatik çevrilir" className={inp} /></label>
             <label className={lbl}>
               Şema malzemesi
               <select name="material" defaultValue={p?.material ?? ""} className={inp}>
@@ -66,7 +67,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
               {list.map((x) => (
                 <tr key={x.id} className={`border-t border-line ${x.is_active ? "" : "opacity-60"}`}>
                   <td className="py-2.5 px-3 num text-muted">{x.code ?? ""}</td>
-                  <td className="py-2.5 px-3"><Link href={`/isler/urunler?duzenle=${x.id}`} className="font-semibold text-brand-700">{x.name}</Link>{!x.per_unit && <span className="ml-2 text-[11px] text-muted">iş başına</span>}</td>
+                  <td className="py-2.5 px-3"><Link href={`/isler/urunler?duzenle=${x.id}`} className="font-semibold text-brand-700">{x.name}</Link>{(x as { name_tr?: string | null }).name_tr && (x as { name_tr?: string | null }).name_tr !== x.name && <span className="block text-xs text-muted">🇹🇷 {(x as { name_tr?: string | null }).name_tr}</span>}{!x.per_unit && <span className="ml-2 text-[11px] text-muted">iş başına</span>}</td>
                   <td className="py-2.5 px-3">{x.material ? <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded text-white" style={{ background: MATERIALS[x.material]?.[1] }}>{MATERIALS[x.material]?.[0]}</span> : "—"}</td>
                   <td className="py-2.5 px-3 num text-right">{x.price_try != null ? money(x.price_try, "TRY") : "—"}</td>
                   <td className="py-2.5 px-3 num text-right">{x.price_eur != null ? money(x.price_eur, "EUR") : "—"}</td>

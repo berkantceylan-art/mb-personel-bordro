@@ -5,6 +5,7 @@ import { dsisFiles } from "@/lib/dsis-actions";
 import { DsisImporter } from "./DsisImporter";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 export const metadata = { title: "Dentalsis'ten aktar" };
 
 /** Dentalsis Plus 2026 iş kayıtlarını ERP'ye aktarma (tek seferlik) */
