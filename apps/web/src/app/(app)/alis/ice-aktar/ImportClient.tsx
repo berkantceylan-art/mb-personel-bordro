@@ -7,6 +7,7 @@ import { calcTotals } from "@/lib/invoice";
 import { fmt } from "@/lib/fin";
 import { qty } from "@/lib/stock";
 import { Chip, Notice, btnPrimary, selectCls } from "@/components/erp";
+import { CategorySelect } from "@/components/CategorySelect";
 
 type Mode = { mode: "item" | "new" | "none"; item_id?: string | null; category_id?: string | null; new_kind?: string };
 type Card = { key: string; file: string; xml: string; inv: ParsedInvoice; match?: ImportMatch; modes: Mode[]; result?: { ok: boolean; id?: string; message: string }; busy?: boolean };
@@ -154,10 +155,7 @@ export function ImportClient({ items, categories, warehouses, preload }: {
                             )}
                             {m.mode === "new" && <select value={m.new_kind ?? "material"} onChange={(e) => setMode(c.key, i, { mode: "new", new_kind: e.target.value })} className={`${selectCls} h-9 w-40`}>{KINDS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>}
                             {m.mode === "none" && (
-                              <select value={m.category_id ?? ""} onChange={(e) => setMode(c.key, i, { mode: "none", category_id: e.target.value || null })} className={`${selectCls} h-9 flex-1 min-w-48`}>
-                                <option value="">Otomatik (malzeme gideri)</option>
-                                {categories.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
-                              </select>
+                              <CategorySelect value={m.category_id ?? null} onChange={(id) => setMode(c.key, i, { mode: "none", category_id: id })} categories={categories} emptyLabel="Otomatik (malzeme gideri)" className={`${selectCls} h-9 flex-1 min-w-48`} />
                             )}
                           </div>
                           {m.mode === "item" && m.item_id && how && <span className="text-[11px] text-ok">{how === "learned" ? "Önceki faturalardan öğrenildi" : how === "barcode" ? "Barkodla eşleşti" : how === "code" ? "Stok koduyla eşleşti" : "Adla eşleşti"}: {itemName.get(m.item_id)?.name}</span>}

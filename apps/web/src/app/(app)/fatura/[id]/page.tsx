@@ -11,6 +11,8 @@ import { cancelInvoice, deleteInvoice, postInvoice, setEinvoiceStatus } from "@/
 import { invSetExportDoc } from "@/lib/gl-actions";
 import { DIRECTION, EINV_STATUS, INV_STATUS, PROFILES, type InvLine, type Invoice } from "@/lib/invoice";
 import { EdocPanel } from "../_parts/EdocPanel";
+import { InvoiceFiles, type InvFile } from "../_parts/InvoiceFiles";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { edspFromInvoice } from "@/lib/edsp-actions";
 import { elogoConfigured } from "@/lib/elogo";
 import { weIssue } from "@/lib/einv-rules";
@@ -36,6 +38,10 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
     supabase.from("stk_moves").select("id, qty, lot_no, kind, stk_items(name, unit)").eq("doc_type", "invoice").eq("doc_id", id).limit(200),
     inv.return_of ? supabase.from("inv_invoices").select("id, doc_no, no").eq("id", inv.return_of).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  const { data: fr, error: frErr } = await supabase.from("inv_invoice_files").select("id, name, mime, path, created_at").eq("invoice_id", id).order("created_at");
+  const frs = (fr ?? []) as { id: string; name: string | null; mime: string | null; path: string; created_at: string }[];
+  const signed = frs.length ? (await createAdminClient().storage.from("receipts").createSignedUrls(frs.map((f) => f.path), 3600)).data ?? [] : [];
+  const files: InvFile[] = frs.map((f, i) => ({ id: f.id, name: f.name, mime: f.mime, created_at: f.created_at, url: signed[i]?.signedUrl ?? null }));
   const ls = (lines ?? []) as (InvLine & { stk_items: { code: string; name: string; unit: string } | null })[];
   const mv = (moves ?? []) as unknown as { id: number; qty: number; lot_no: string | null; kind: string; stk_items: { name: string; unit: string } | null }[];
   const draft = inv.status === "draft", posted = inv.status === "posted";
@@ -118,6 +124,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         </div>
 
         <EdocPanel inv={inv} lines={ls} lvl={lvl} />
+        <InvoiceFiles invoiceId={inv.id} userId={s.userId} files={files} canEdit={lvl >= 2 || (s.modules.finance ?? 0) >= 2} missing={!!frErr} />
 
         {posted && (inv.direction === "sale" || weIssue(inv)) && lvl >= 2 && (
           <details className="bg-white border border-line rounded-[14px] p-4" open={!elogoConfigured() && inv.direction === "sale"}>

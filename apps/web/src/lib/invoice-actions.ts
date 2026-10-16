@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/session";
 import { done, fail } from "@/lib/flash";
 import { CURRENCIES, dateOk, parseRate } from "@/lib/fin";
@@ -32,6 +33,7 @@ export type InvoicePayload = {
   note?: string | null; lines: LineInput[]; post?: boolean; return_of?: string | null;
   edoc?: Record<string, string | number | boolean | null> | null;
   ettn?: string | null;
+  attach_path?: string | null; attach_name?: string | null;
 };
 
 /** Fatura formu: taslak kaydet (+ isteğe bağlı işle). Cari yoksa VKN ile açar. */
@@ -77,6 +79,7 @@ export async function saveInvoice(p: InvoicePayload): Promise<{ ok: boolean; id?
     const { error: ee } = await supabase.rpc("inv_set_edoc", { p_id: id, p: p.edoc });
     if (ee && !/function|schema cache/.test(ee.message)) return { ok: false, id: id as string, message: `Taslak kaydedildi ama e-belge bilgileri kaydedilemedi: ${invError(ee.message)}` };
   }
+  if (p.attach_path) await attachAfterSave(id as string, p.attach_path, p.attach_name ?? null);
   if (p.post) {
     const { error: pe } = await supabase.rpc("inv_post", { p_id: id });
     revalidate(direction, id as string);
@@ -301,4 +304,17 @@ export async function commitImport(c: ImportCommit): Promise<{ ok: boolean; id?:
   }
   revalidate(direction, id as string);
   return { ok: true, id: id as string, message: c.post ? "Kaydedildi ve işlendi." : "Taslak kaydedildi." };
+}
+
+/** Formda seçilen / fotoğraftan okunan fatura görüntüsünü kaydedilen faturaya bağla (hata faturayı engellemez) */
+async function attachAfterSave(invoiceId: string, path: string, name: string | null) {
+  try {
+    const s = await getSession();
+    if (!path.startsWith(`${s.userId}/`) || path.includes("..")) return;
+    const admin = createAdminClient();
+    const { data: ex } = await admin.from("inv_invoice_files").select("id").eq("invoice_id", invoiceId).eq("path", path).maybeSingle();
+    if (ex) return;
+    const mime = path.endsWith(".pdf") ? "application/pdf" : path.endsWith(".png") ? "image/png" : path.endsWith(".webp") ? "image/webp" : "image/jpeg";
+    await admin.from("inv_invoice_files").insert({ company_id: s.companyId, invoice_id: invoiceId, path, name: name?.slice(0, 200) ?? "Fatura görüntüsü", mime, created_by: s.userId });
+  } catch { /* tablo yoksa sessiz geç */ }
 }
