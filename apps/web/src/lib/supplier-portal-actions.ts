@@ -164,6 +164,7 @@ export async function setPayPlanStatus(f: FormData) {
   const { error } = await sb.rpc("pay_plan_status", { p_id: str(f, "id"), p_status: str(f, "status") });
   if (error) await fail(portalError(error.message));
   revalidatePath("/satinalma/odeme-takvimi");
+  revalidatePath("/odeme-merkezi");
   const party = str(f, "party_id");
   if (UUID.test(party)) refresh(party);
   await done(str(f, "status") === "paid" ? "Ödendi olarak işaretlendi. Ödemeyi finansta da kaydetmeyi unutmayın." : "Plan iptal edildi.");

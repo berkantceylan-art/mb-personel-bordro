@@ -134,6 +134,7 @@ export const NAV: Group[] = [
     group: "Finans", slug: "finans",
     items: [
       { label: "Finans özeti", href: "/finans", module: "finance", desc: "Kasa, banka, alacak ve borçların anlık durumu" },
+      { label: "Ödeme merkezi", href: "/odeme-merkezi", module: ["finance", "purchases", "payroll"], desc: "Tüm ödemeler tek listede: tedarikçi, maaş, avans, vergi / SGK, kredi, kart, kira — günlük, haftalık, aylık, acil" },
       { label: "Kasa", href: "/finans/kasa", module: "finance", desc: "Nakit kasalar ve hareketleri" },
       { label: "Kasa sayımı", href: "/finans/kasa-sayim", module: "finance", desc: "Sayım tutanağı, noksan / fazla kaydı" },
       { label: "Banka", href: "/finans/banka", module: "finance", desc: "Banka hesapları (TL / döviz) ve hareketleri" },
