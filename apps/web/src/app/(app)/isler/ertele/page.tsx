@@ -44,7 +44,7 @@ export default async function PostponePage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="İş erteleme" subtitle="Bugün çıkamayacak işleri seçin, yeni teslim tarihini ve sebebi girin · her erteleme kayda geçer" actions={<Link href="/isler/prova" className="text-sm font-semibold text-brand-700">Prova / teslim listesi</Link>} />
+      <PageHeader title="İş erteleme" subtitle="Bugün çıkamayacak işleri seçin, yeni teslim tarihini ve sebebi girin · her erteleme kayda geçer" actions={<span className="flex flex-wrap items-center gap-4 text-sm font-semibold"><Link href="/isler/ertele/rapor" className="h-10 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white">📊 Erteleme raporu</Link><Link href="/isler/prova" className="text-brand-700">Prova / teslim listesi</Link></span>} />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[1200px]">
         {(error || repErr) && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">{/postpone/.test((error ?? repErr)!.message) ? "Supabase'de mbdental-is-erteleme.sql çalıştırılmalı." : (error ?? repErr)!.message}</p>}
         <div className="flex flex-wrap gap-2">
@@ -56,7 +56,7 @@ export default async function PostponePage({ searchParams }: { searchParams: Pro
 
         <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-display text-lg font-bold mr-auto">Ertelenen işler</h2>
+            <h2 className="font-display text-lg font-bold mr-auto">Ertelenen işler <Link href="/isler/ertele/rapor" className="ml-2 text-sm font-semibold text-brand-700">Ayrıntılı rapor →</Link></h2>
             {[["bugun", "Bugün"], ["hafta", "Son 7 gün"], ["ay", "Son 30 gün"]].map(([k, l]) => (
               <Link key={k} href={`/isler/ertele?kapsam=${scope}&donem=${k}`} className={`h-9 px-3 inline-flex items-center rounded-full text-xs font-semibold ${(sp.donem ?? "hafta") === k ? "bg-brand-700 text-white" : "bg-white border border-line text-brand-700"}`}>{l}</Link>
             ))}

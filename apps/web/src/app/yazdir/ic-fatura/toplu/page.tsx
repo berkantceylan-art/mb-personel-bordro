@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 /** Ayın kesilmiş tüm faturalarını tek seferde yazdır: ?ay=YYYY-MM&ozet=1&dil=tr|en|fr (dil boşsa her fatura kendi dilinde) */
-export default async function StatementsBulkPrint({ searchParams }: { searchParams: Promise<{ ay?: string; ozet?: string; dil?: string }> }) {
+export default async function StatementsBulkPrint({ searchParams }: { searchParams: Promise<{ ay?: string; ozet?: string; dil?: string; id?: string }> }) {
   const s = await getSession();
   if (!s.logistics && (s.modules.sales ?? 0) < 1) redirect("/");
   const sp = await searchParams;
@@ -20,8 +20,9 @@ export default async function StatementsBulkPrint({ searchParams }: { searchPara
   const brief = sp.ozet === "1";
   const supabase = await createClient();
   const { data } = await supabase.from("lab_statements").select("id").eq("status", "issued").lte("period_from", to).gte("period_to", from).order("no");
-  const ids = (data ?? []).map((x) => x.id as string);
-  const qs = (p: Record<string, string | null>) => `/yazdir/ic-fatura/toplu?${new URLSearchParams(Object.entries({ ay: ym, ozet: brief ? "1" : null, dil: lang, ...p }).filter(([, v]) => v) as [string, string][])}`;
+  const only = (sp.id ?? "").split(",").filter((x) => /^[0-9a-f-]{36}$/i.test(x));
+  const ids = only.length ? only : (data ?? []).map((x) => x.id as string);
+  const qs = (p: Record<string, string | null>) => `/yazdir/ic-fatura/toplu?${new URLSearchParams(Object.entries({ ay: ym, id: only.length ? only.join(",") : null, ozet: brief ? "1" : null, dil: lang, ...p }).filter(([, v]) => v) as [string, string][])}`;
 
   return (
     <main className="bg-[#E9EEF4] min-h-screen print:bg-white text-[11px] text-black">

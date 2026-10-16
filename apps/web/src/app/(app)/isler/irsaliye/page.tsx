@@ -39,7 +39,7 @@ export default async function WaybillsPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeader title="Günlük irsaliyeler" subtitle="İç hesap kullanan müşterilerde kutu çıkışında iş o günün irsaliyesine kendiliğinden eklenir. Ay sonunda Aylık faturalama ekranından tek faturada toplanır."
-        actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/isler/aylik-fatura" className="text-brand-700">Aylık faturalama</Link><Link href="/isler/cari" className="text-brand-700">Cari hesaplar</Link></span>} />
+        actions={<span className="flex flex-wrap items-center gap-4 text-sm font-semibold"><Link href={`/isler/irsaliye/sihirbaz?gun=${day}`} className="h-10 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white">🧭 Sihirbazla başla</Link><Link href="/isler/aylik-fatura" className="text-brand-700">Aylık faturalama</Link><Link href="/isler/cari" className="text-brand-700">Cari hesaplar</Link></span>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1320px]">
         {error && <Notice tone="bad">{waybillError(error.message)}</Notice>}
         <div className="flex flex-wrap items-center gap-2">
@@ -57,6 +57,7 @@ export default async function WaybillsPage({ searchParams }: { searchParams: Pro
             {wbs.some((w) => w.status === "open") && <form action={issueAllWaybills}><input type="hidden" name="date" value={day} /><PendingSubmit className="h-10 px-4 rounded-[10px] border border-ok text-ok text-sm font-semibold">Açık {wbs.filter((w) => w.status === "open").length} irsaliyeyi “kesildi” yap</PendingSubmit></form>}
             {wbs.length > 0 && <Link href={`/yazdir/irsaliye/toplu?gun=${day}`} className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold text-brand-700">🖨 Hepsini yazdır ({wbs.length})</Link>}
             {wbs.length > 0 && <Link href={`/yazdir/irsaliye/toplu?gun=${day}&fiyat=0`} className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold text-brand-700">Hepsini fiyatsız yazdır</Link>}
+            {wbs.length > 0 && <a href={`/isler/belge-excel?tur=irsaliye&gun=${day}`} className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold text-brand-700">⬇ Excel</a>}
           </div>
         )}
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

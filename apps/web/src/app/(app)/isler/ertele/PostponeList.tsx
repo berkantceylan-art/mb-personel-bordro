@@ -11,10 +11,18 @@ const ST: Record<string, string> = { open: "Açık", tryin: "Provada", ready: "H
 export function PostponeList({ jobs, preselect }: { jobs: PJob[]; preselect?: string }) {
   const [sel, setSel] = useState<Set<string>>(() => new Set(preselect ? [preselect] : []));
   const [q, setQ] = useState("");
+  const [cust, setCust] = useState<string | null>(null);
+  const custs = useMemo(() => {
+    const m = new Map<string, { n: number; late: number }>();
+    for (const j of jobs) { const x = m.get(j.customer) ?? { n: 0, late: 0 }; x.n++; if (j.late) x.late++; m.set(j.customer, x); }
+    return [...m.entries()].sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0], "tr"));
+  }, [jobs]);
   const shown = useMemo(() => {
     const s = q.trim().toLocaleLowerCase("tr");
-    return s ? jobs.filter((j) => `${j.no} ${j.patient ?? ""} ${j.customer}`.toLocaleLowerCase("tr").includes(s)) : jobs;
-  }, [jobs, q]);
+    const base = cust ? jobs.filter((j) => j.customer === cust) : jobs;
+    return s ? base.filter((j) => `${j.no} ${j.patient ?? ""} ${j.customer}`.toLocaleLowerCase("tr").includes(s)) : base;
+  }, [jobs, q, cust]);
+  const pickCust = (c: string | null) => { setCust(c); setSel(c ? new Set(jobs.filter((j) => j.customer === c).map((j) => j.id)) : new Set()); };
   const allOn = shown.length > 0 && shown.every((j) => sel.has(j.id));
   const toggle = (id: string) => setSel((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [view, setView] = useState<"grup" | "liste">("grup");
@@ -45,6 +53,19 @@ export function PostponeList({ jobs, preselect }: { jobs: PJob[]; preselect?: st
         <span className="text-sm text-muted">{sel.size ? `${sel.size} iş seçili` : "Ertelenecek işleri seçin"}</span>
         <div className="ml-auto"><PostponeForm ids={[...sel]} onDone={() => setSel(new Set())} /></div>
       </div>
+      {custs.length > 0 && (
+        <div className="flex flex-col gap-2 px-3 pt-3">
+          <div className="text-xs font-semibold text-muted">İşi kalan hekimler ({custs.length}) — birine tıklayın, o hekimin tüm işleri seçilsin, sonra yukarıdan erteleyin</div>
+          <div className="flex flex-wrap gap-1.5">
+            <button type="button" onClick={() => pickCust(null)} className={`h-9 px-3 rounded-full text-xs font-semibold border ${!cust ? "bg-brand-700 text-white border-brand-700" : "bg-white border-line text-brand-700"}`}>Tümü ({jobs.length})</button>
+            {custs.map(([c, x]) => (
+              <button key={c} type="button" onClick={() => pickCust(cust === c ? null : c)} className={`h-9 px-3 rounded-full text-xs font-semibold border ${cust === c ? "bg-[#C2410C] text-white border-[#C2410C]" : "bg-white border-line text-ink"}`}>
+                {c} <b>{x.n}</b>{x.late > 0 && <span className={cust === c ? "" : "text-bad"}> · {x.late} gecikmiş</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 px-3 pt-3 text-sm">
         <span className="text-muted">Görünüm:</span>
         {([["grup", "Hekime göre grupla"], ["liste", "Düz liste"]] as const).map(([k, l]) => (
