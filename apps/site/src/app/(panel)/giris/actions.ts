@@ -33,8 +33,12 @@ export async function signIn(_: LoginState, form: FormData): Promise<LoginState>
   const staff = (u?.erpRoles ?? []).length > 0;
   await siteEvent(editor ? "login_admin" : portal ? "login_portal" : "login_staff", "/giris");
 
+  // Tedarikçi: ERP'deki tedarikçi portalına ayrı oturumla geçer
+  const { data: sup } = !editor && !portal && !staff && u ? await supabase.from("sup_portal_users").select("id").eq("user_id", u.id).eq("is_active", true).limit(1) : { data: null };
+  const supplier = !!sup?.length;
+
   // Personel ekranı: açıkça istendiyse ya da hesabın sitede başka paneli yoksa
-  if (erp && staff && (toStaff || (!editor && !portal))) {
+  if (erp && (supplier || (staff && (toStaff || (!editor && !portal))))) {
     // Bordro uygulaması ayrı alan adında: ona AYRI bir oturum açılır (yenileme
     // anahtarları çakışmasın). Sitede başka işi olmayan personelin site oturumu kapanır.
     const stateless = createStatelessClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
@@ -42,8 +46,8 @@ export async function signIn(_: LoginState, form: FormData): Promise<LoginState>
     });
     const { data, error: e2 } = await stateless.auth.signInWithPassword({ email, password });
     if (!editor && !portal) await supabase.auth.signOut({ scope: "local" });
-    if (e2 || !data.session) return { error: "Personel ekranına geçilemedi. Lütfen tekrar deneyin." };
-    const hash = new URLSearchParams({ access_token: data.session.access_token, refresh_token: data.session.refresh_token, sonra: "/" });
+    if (e2 || !data.session) return { error: supplier ? "Tedarikçi ekranına geçilemedi. Lütfen tekrar deneyin." : "Personel ekranına geçilemedi. Lütfen tekrar deneyin." };
+    const hash = new URLSearchParams({ access_token: data.session.access_token, refresh_token: data.session.refresh_token, sonra: supplier ? "/tedarikci" : "/" });
     return { handoff: `${erp}/auth/aktar#${hash.toString()}` };
   }
   if (toStaff && !staff) {
