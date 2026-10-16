@@ -38,7 +38,7 @@ Okunamayan alanı boş bırak; satırları atlama.` }] }],
   } catch (e) {
     return { ok: false, note: `Fatura okunamadı: ${(e as Error).message.slice(0, 120)}` };
   }
-  return initialFromRead(supabase, d, "Fotoğraftan yapay zekâ ile okundu — kontrol edin");
+  return initialFromRead(supabase, d, "Fotoğraftan yapay zekâ ile okundu — kontrol edin", { attach_path: path });
 }
 
 /** Okunan fatura verisinden alış faturası formu: tedarikçi ve stok kartı eşleştirme */

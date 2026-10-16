@@ -8,6 +8,8 @@ import { DIRECTION, VAT_EXEMPTIONS, VAT_RATES, calcLine, calcTotals, type Direct
 import { EINV_PROFILES, EINV_TYPES, INCOTERMS, PACKAGE_KINDS, PAY_METHODS, PROFILE_TYPES, TRANSPORT_MODES, WITHHOLDINGS } from "@/lib/einv-codes";
 import { Field, Notice, btnPrimary, btnSecondary, inputCls, selectCls, textareaCls } from "@/components/erp";
 import type { FormItem, FormParty, FormProduct } from "@/lib/invoice-data";
+import { CategorySelect } from "@/components/CategorySelect";
+import { uploadReceipt } from "@/lib/upload-receipt";
 
 type Row = LineInput & { key: string; open?: boolean };
 type Opt = { kind: "item" | "product"; id: string; label: string; sub: string; unit: string; price: number | null; cur: string; vat: number; stock?: number; stockKind?: string };
@@ -29,6 +31,8 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
   const D = DIRECTION[direction];
   const defVat = direction === "sale" ? labVat : 20;
   const [type, setType] = useState<"invoice" | "return">(initial?.type ?? "invoice");
+  const [attach, setAttach] = useState<{ path: string; name: string } | null>(initial?.attach_path ? { path: initial.attach_path, name: initial.attach_name ?? "Fotoğraftan okunan fatura" } : null);
+  const [upBusy, setUpBusy] = useState(false);
   const [partyId, setPartyId] = useState(initial?.party_id ?? "");
   const [pq, setPq] = useState("");
   const [newParty, setNewParty] = useState(!initial?.party_id && !!initial?.new_party?.name);
@@ -117,6 +121,7 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
       profile: profile || null, note, post, return_of: type === "return" ? initial?.return_of ?? null : null,
       edoc: issuing ? { ...ed, online_sale: !!ed.online_sale } : null,
       ettn: initial?.ettn ?? null,
+      attach_path: attach?.path ?? null, attach_name: attach?.name ?? null,
       lines: rows.filter((x) => x.name.trim()).map((x) => { const l: Partial<Row> = { ...x }; delete l.key; delete l.open; return l as LineInput; }),
     });
     setBusy(false);
@@ -234,10 +239,14 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
                           <div className="flex flex-wrap gap-3 text-xs items-end">
                             {!x.item_id && !x.lab_product_id && (
                               <label className="flex flex-col gap-1">{direction === "sale" ? "Gelir hesabı" : "Gider / varlık hesabı"}
-                                <select value={x.category_id ?? ""} onChange={(e) => set(x.key, { category_id: e.target.value || null })} className={`${selectCls} h-9 w-56`}>
-                                  <option value="">Otomatik</option>
-                                  {categories.map((c2) => <option key={c2.id} value={c2.id}>{c2.name}</option>)}
-                                </select>
+                                {direction === "sale" ? (
+                                  <select value={x.category_id ?? ""} onChange={(e) => set(x.key, { category_id: e.target.value || null })} className={`${selectCls} h-9 w-56`}>
+                                    <option value="">Otomatik</option>
+                                    {categories.map((c2) => <option key={c2.id} value={c2.id}>{c2.name}</option>)}
+                                  </select>
+                                ) : (
+                                  <CategorySelect value={x.category_id ?? null} onChange={(id) => set(x.key, { category_id: id })} categories={categories} emptyLabel="Otomatik" className={`${selectCls} h-9 w-56`} />
+                                )}
                               </label>
                             )}
                             <label className="flex flex-col gap-1">KDV tevkifatı
@@ -337,7 +346,26 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
       )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
-        <Field label="Fatura notu" hint="faturada görünür"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} maxLength={1000} className={textareaCls} /></Field>
+        <div className="flex flex-col gap-3">
+          <Field label="Fatura notu" hint="faturada görünür"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} maxLength={1000} className={textareaCls} /></Field>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-semibold">Fatura görüntüsü</span>
+            {attach ? (
+              <><span className="rounded-full bg-ok-bg text-ok px-3 py-1 text-xs font-semibold">📎 {attach.name}</span>
+                <button type="button" onClick={() => setAttach(null)} className="text-xs text-muted">Kaldır</button></>
+            ) : (
+              <label className={`h-9 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-xs font-semibold text-brand-700 cursor-pointer ${upBusy ? "opacity-60 pointer-events-none" : ""}`}>
+                {upBusy ? "Yükleniyor…" : "📎 Fotoğraf / PDF ekle (isteğe bağlı)"}
+                <input type="file" accept="image/*,application/pdf" capture="environment" className="sr-only" onChange={async (e) => {
+                  const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+                  setUpBusy(true); const u = await uploadReceipt(f, null); setUpBusy(false);
+                  if (u.path) setAttach({ path: u.path, name: f.name }); else setMsg({ ok: false, text: u.error ?? "Yüklenemedi" });
+                }} />
+              </label>
+            )}
+            <span className="text-xs text-muted">kaydedince faturaya eklenir</span>
+          </div>
+        </div>
         <section className="bg-white border border-line rounded-[14px] p-4 text-sm flex flex-col gap-1.5">
           <Line label="Brüt" v={fmt(t.gross, currency)} />
           {t.discount > 0 && <Line label="İskonto" v={`−${fmt(t.discount, currency)}`} />}

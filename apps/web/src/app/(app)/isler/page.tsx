@@ -108,7 +108,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                       </div>
                     </td>
                     <td className={`${td} num`}>{formatDate(j.in_date)}</td>
-                    <td className={`${td} num ${late ? "text-bad font-semibold" : ""}`}>{j.due_date ? formatDate(j.due_date) : "—"}{j.delivery_time ? ` ${j.delivery_time}` : ""}</td>
+                    <td className={`${td} num ${late ? "text-bad font-semibold" : ""}`}>{j.due_date ? formatDate(j.due_date) : "—"}{j.delivery_time ? ` ${j.delivery_time}` : ""}{Number((j as { postpone_count?: number }).postpone_count ?? 0) > 0 && <span className="ml-1 text-[11px] font-semibold text-[#9A3412]" title="Ertelendi">↻{(j as { postpone_count?: number }).postpone_count}</span>}</td>
                     <td className={`${td} num text-right`}>{money(j.total, j.currency)}</td>
                     <td className={td}><span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${cls}`}>{label}</span></td>
                   </tr>

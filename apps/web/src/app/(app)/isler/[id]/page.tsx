@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PostponeForm } from "@/components/PostponeForm";
 import { notFound, redirect } from "next/navigation";
 import { Card, PageHeader } from "@/components/ui";
 import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
@@ -89,6 +90,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                 <button name="status" value={job.status === "ready" ? "delivered" : "ready"} className="h-10 px-3 rounded-[10px] bg-ok text-white text-sm font-semibold">{job.status === "ready" ? "Teslim edildi (cariye işle)" : "Hazır"}</button>
               </form>
             )}
+            {["open", "tryin", "ready"].includes(job.status) && <PostponeForm ids={[job.id]} compact />}
+            {Number((job as { postpone_count?: number }).postpone_count ?? 0) > 0 && <Link href="/isler/ertele?donem=ay" className="text-xs font-semibold rounded-full bg-[#FFEDD5] text-[#9A3412] px-2 py-1">↻ {(job as { postpone_count?: number }).postpone_count} kez ertelendi</Link>}
             <Link href={`/yazdir/is/${job.id}`} className="h-10 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-sm font-semibold text-brand-700">Yazdır</Link>
             <Link href={`/yazdir/is-etiket/${job.id}`} className="h-10 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-sm font-semibold text-brand-700">Kutu etiketi</Link>
             {shipment && <Link href={`/kargo/${shipment.id}`} className="text-sm font-semibold text-brand-700">Kargo kaydı</Link>}

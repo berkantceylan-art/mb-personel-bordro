@@ -42,7 +42,7 @@ export default async function TryInList({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader title="Prova / teslim listesi" subtitle="Önümüzdeki 7 gün ve gecikenler" actions={<Link href="/isler" className="text-sm font-semibold text-brand-700">İş listesi</Link>} />
+      <PageHeader title="Prova / teslim listesi" subtitle="Önümüzdeki 7 gün ve gecikenler" actions={<span className="flex gap-3"><Link href="/isler/ertele" className="text-sm font-semibold text-[#9A3412]">⏭ İş erteleme</Link><Link href="/isler" className="text-sm font-semibold text-brand-700">İş listesi</Link></span>} />
       <div className="p-4 md:p-8 flex flex-col gap-6 max-w-[1000px]">
         {error && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">İş kayıt tabloları yok: Supabase&apos;de 20261125000000_lab_jobs.sql çalıştırın.</p>}
         {[...groups.entries()].map(([g, list]) => (
@@ -57,6 +57,7 @@ export default async function TryInList({ searchParams }: { searchParams: Promis
                   <span>{e.customer}</span>
                   <span className="text-muted">{e.patient ?? ""}</span>
                   {e.method && <span className="text-xs text-muted">· {e.method}</span>}
+                  {(g === "late" || g === today) && <Link href={`/isler/ertele?is=${e.jobId}`} className={`${e.stepId ? "" : "ml-auto "}h-9 px-3 inline-flex items-center rounded-[10px] border border-[#F2C38B] bg-[#FFF7ED] text-sm font-semibold text-[#9A3412]`}>⏭ Ertele</Link>}
                   {e.stepId && (
                     <form action={toggleStep} className="ml-auto">
                       <input type="hidden" name="id" value={e.stepId} />

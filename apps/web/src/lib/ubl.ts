@@ -67,6 +67,20 @@ function parseParty(p: X): ParsedParty {
   };
 }
 
+/** İhracat faturasında GİB kuralı gereği "müşteri" Gümrük ve Ticaret Bakanlığıdır (VKN 1460415308);
+ *  gerçek alıcı BuyerCustomerParty'dedir. Ekranda ve aktarımda gerçek alıcı gösterilir. */
+const CUSTOMS_VKN = "1460415308";
+function realCustomer(inv: X): ParsedParty {
+  const acc = parseParty(obj(inv.AccountingCustomerParty));
+  const buyerNode = obj(inv.BuyerCustomerParty);
+  const export_ = acc.tax_no === CUSTOMS_VKN || txt(inv.ProfileID).toUpperCase() === "IHRACAT";
+  if (export_ && buyerNode.Party) {
+    const b = parseParty(buyerNode);
+    if (b.name && b.name !== "Adsız cari") return { ...b, tax_no: b.tax_no === CUSTOMS_VKN ? null : b.tax_no };
+  }
+  return acc;
+}
+
 export function parseUbl(xml: string): ParsedInvoice {
   const doc = parser.parse(xml);
   const inv = findInvoice(doc);
@@ -106,7 +120,7 @@ export function parseUbl(xml: string): ParsedInvoice {
     currency: txt(inv.DocumentCurrencyCode) || "TRY",
     rate: n(obj(inv.PricingExchangeRate).CalculationRate) || null,
     supplier: parseParty(obj(inv.AccountingSupplierParty)),
-    customer: parseParty(obj(inv.AccountingCustomerParty)),
+    customer: realCustomer(inv),
     lines,
     notes: arr(inv.Note).map((x) => txt(x)).filter(Boolean),
     payable: minor(mt.PayableAmount),
