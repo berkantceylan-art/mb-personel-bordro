@@ -13,7 +13,7 @@ export { NAV, activeHref, visibleNav };
 /** Grubun ana sayfası: modül sayfası; Genel ve Benim sayfam için ilk sayfa */
 export const hubHref = (g: Group) => (g.slug === "genel" || g.slug === "benim" ? g.items[0]?.href ?? "/" : `/modul/${g.slug}`);
 const short = (g: Group) =>
-  ({ genel: "Genel", benim: "Benim", "insan-kaynaklari": "İK", "puantaj-izin": "Puantaj", "muhasebe-bordro": "Bordro", "genel-muhasebe": "Muhasebe", cari: "Cari", laboratuvar: "Lab", lojistik: "Kargo", finans: "Finans", stok: "Stok", "alis-satis": "Alış-satış", uretim: "Üretim", masraf: "Masraf", demirbas: "Demirbaş", "isg-uyum": "İSG", raporlar: "Rapor", "web-sitesi": "Site", sistem: "Sistem" })[g.slug] ?? g.group;
+  ({ genel: "Genel", benim: "Benim", "insan-kaynaklari": "İK", "puantaj-izin": "Puantaj", "muhasebe-bordro": "Bordro", "genel-muhasebe": "Muhasebe", cari: "Cari", laboratuvar: "Lab", lojistik: "Kargo", finans: "Finans", stok: "Stok", "alis-satis": "Satış", satinalma: "Satın alma", uretim: "Üretim", masraf: "Masraf", demirbas: "Demirbaş", "isg-uyum": "İSG", raporlar: "Rapor", "web-sitesi": "Site", sistem: "Sistem" })[g.slug] ?? g.group;
 
 /** Ctrl+K kısayolu ve arama penceresi (masaüstü ve mobil menü ortak) */
 export function useCommandK() {

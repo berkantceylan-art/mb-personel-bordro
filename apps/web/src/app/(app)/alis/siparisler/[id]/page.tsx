@@ -11,6 +11,8 @@ import { supplierLink } from "@/lib/po-send";
 import { CopyText } from "@/components/CopyText";
 import { cancelPO, decidePO, invoicePO, manualSentPO, receivePO, resendPO, submitPO } from "@/lib/order-actions";
 import { POForm } from "../POForm";
+import { closePO } from "@/lib/purchasing-actions";
+import { mrNo } from "@/lib/material";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +60,8 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
 
   const p = o!.fin_parties as { name: string; phone: string | null; email: string | null; order_email?: string | null; order_phone?: string | null; contact_name?: string | null } | null;
   const st = o!.status as string;
+  const { data: rl } = await supabase.from("stk_request_lines").select("stk_requests(id, year, no, kind)").eq("po_id", o!.id);
+  const reqLinks = [...new Map(((rl ?? []) as unknown as { stk_requests: { id: string; year: number; no: number; kind: string } | null }[]).filter((x) => x.stk_requests).map((x) => [x.stk_requests!.id, x.stk_requests!])).values()];
   const ss = supStatus(o!);
   const token = o!.supplier_token as string | undefined;
   const link = token ? supplierLink(token) : "";
@@ -80,9 +84,12 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
             </>}
             {st === "draft" && canDraft && <form action={submitPO}><input type="hidden" name="id" value={o!.id} /><PendingSubmit className="h-10 px-4 rounded-[10px] bg-brand-700 text-white text-sm font-semibold">Onaya gönder</PendingSubmit></form>}
             {["approved", "sent", "partial", "received"].includes(st) && lvl >= 2 && <form action={invoicePO}><input type="hidden" name="id" value={o!.id} /><PendingSubmit className="h-10 px-4 rounded-[10px] border border-brand-600 text-brand-700 text-sm font-semibold">Alış faturasına dönüştür</PendingSubmit></form>}
+            {["approved", "sent", "partial"].includes(st) && lvl >= 2 && <form action={closePO} className="flex gap-1"><input type="hidden" name="id" value={o!.id} /><input name="note" placeholder="Kapatma notu (ör. kalan gelmeyecek)" className="h-10 w-56 rounded-[10px] border border-[#D5DEE8] px-2 text-sm" /><ConfirmSubmit label="Eksik teslimle kapat" question="Sipariş kapatılsın mı? Kalan miktar artık beklenmez." className="h-10 px-3 rounded-[10px] border border-warn text-warn text-sm font-semibold" /></form>}
             {["pending", "approved", "sent"].includes(st) && lvl >= 2 && <form action={cancelPO}><input type="hidden" name="id" value={o!.id} /><ConfirmSubmit label="İptal" question="Sipariş iptal edilsin mi?" className="h-10 px-3 text-sm font-semibold text-bad" /></form>}
           </span>
         </div>
+        {(o as { closed_short?: boolean }).closed_short && <p className="text-sm rounded-[12px] px-4 py-3 bg-warn-bg text-warn">Eksik teslimle kapatıldı{(o as { close_note?: string | null }).close_note ? `: ${(o as { close_note?: string | null }).close_note}` : ""}.</p>}
+        {reqLinks.length > 0 && <p className="text-sm text-muted">Bağlı istekler: {reqLinks.map((r, i) => <span key={r.id}>{i > 0 && ", "}<Link href={`/stok/talepler/${r.id}`} className="font-mono font-semibold text-brand-700">{mrNo(r)}</Link></span>)} · mal gelince isteği açan kişiye bildirim gider.</p>}
         {p && (p.phone || p.email) && <p className="text-sm text-muted">Tedarikçi: {[p.contact_name, supPhone, supEmail].filter(Boolean).join(" · ")}</p>}
         {st === "pending" && <p className="text-sm rounded-[12px] px-4 py-3 bg-warn-bg text-warn">Satın alma onayı bekleniyor. Onaylanınca sipariş tedarikçiye e-posta{supPhone ? " ve WhatsApp" : ""} ile otomatik gider.</p>}
         {ss && token && (
