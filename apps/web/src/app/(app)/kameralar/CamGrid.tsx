@@ -13,6 +13,13 @@ function wallShape(n: number) {
 
 const LAYOUTS = [1, 2, 3, 4, 5, 6];
 
+/** go2rtc'de her kanalın sesli kopyası "<kanal>_ses" adıyla tanımlı; varsayılan akışlar sessizdir */
+function withSound(url: string) {
+  const m = url.match(/([?&]src=)([^&#]+)/);
+  if (!m || m[2].endsWith("_ses")) return null;
+  return url.replace(m[0], `${m[1]}${m[2]}_ses`);
+}
+
 /** Kamera ızgarası: grup filtresi, 1–36'lı görünüm, tüm kameralar duvarı, tam ekran; izleme kaydı tutulur */
 export function CamGrid({ cams, startWall = false }: { cams: Cam[]; startWall?: boolean }) {
   const groups = [...new Set(cams.map((c) => c.group_name))];
@@ -20,6 +27,7 @@ export function CamGrid({ cams, startWall = false }: { cams: Cam[]; startWall?: 
   const [cols, setCols] = useState(3);
   const [wall, setWall] = useState(startWall);
   const [full, setFull] = useState<Cam | null>(null);
+  const [sound, setSound] = useState(false);
   const wallRef = useRef<HTMLDivElement>(null);
   const shown = cams.filter((c) => !g || c.group_name === g);
 
@@ -32,7 +40,7 @@ export function CamGrid({ cams, startWall = false }: { cams: Cam[]; startWall?: 
   }, [g]);
   useEffect(() => {
     if (!wall && !full) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { if (full) setFull(null); else setWall(false); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { if (full) { setFull(null); setSound(false); } else setWall(false); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [wall, full]);
@@ -95,8 +103,12 @@ export function CamGrid({ cams, startWall = false }: { cams: Cam[]; startWall?: 
 
       {full && (
         <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog">
-          <div className="flex items-center gap-2 px-4 py-2 text-white"><b className="flex-1">{full.name}</b><button type="button" onClick={() => setFull(null)} className="rounded bg-white/20 px-3 py-1">Kapat ✕</button></div>
-          <iframe src={full.embed_url} title={full.name} className="w-full flex-1 border-0" allow="autoplay; fullscreen" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin" />
+          <div className="flex items-center gap-2 px-4 py-2 text-white">
+            <b className="flex-1">{full.name}</b>
+            {withSound(full.embed_url) && <button type="button" onClick={() => setSound((v) => !v)} className={`rounded px-3 py-1 ${sound ? "bg-red-600" : "bg-white/20"}`}>{sound ? "🔊 Sesi kapat" : "🔇 Ses aç"}</button>}
+            <button type="button" onClick={() => { setFull(null); setSound(false); }} className="rounded bg-white/20 px-3 py-1">Kapat ✕</button>
+          </div>
+          <iframe key={sound ? "ses" : "sessiz"} src={sound ? withSound(full.embed_url) ?? full.embed_url : full.embed_url} title={full.name} className="w-full flex-1 border-0" allow="autoplay; fullscreen" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin" />
         </div>
       )}
     </div>
