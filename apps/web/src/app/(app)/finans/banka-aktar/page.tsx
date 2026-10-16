@@ -45,7 +45,7 @@ export default async function BankImportPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title="Banka ekstresi aktarımı" subtitle="İnternet bankacılığından indirilen ekstreyi yükleyin: kayıtlı olanlar eşleşir, kalanlar için cari / kategori önerilir, tek tıkla işlenir" actions={<Link href="/finans/banka" className="text-sm font-semibold text-brand-700">Banka hesapları</Link>} />
+      <PageHeader title="Banka ekstresi aktarımı" subtitle="İnternet bankacılığından indirilen ekstreyi yükleyin: kayıtlı olanlar eşleşir, kalanlar için cari / kategori önerilir, tek tıkla işlenir" actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/finans/banka-eposta" className="text-brand-700">E-postayla otomatik aktarım</Link><Link href="/finans/banka" className="text-brand-700">Banka hesapları</Link></span>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1320px]">
         {error && <Notice tone="bad">Supabase&apos;de 20261225000000_bank_recon.sql çalıştırılmalı.</Notice>}
         {accounts.length === 0 ? <Notice tone="warn">Önce Finans &gt; Banka&apos;dan bir banka hesabı açın.</Notice> : (

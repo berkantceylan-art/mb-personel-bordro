@@ -139,6 +139,7 @@ export const NAV: Group[] = [
       { label: "Banka", href: "/finans/banka", module: "finance", desc: "Banka hesapları (TL / döviz) ve hareketleri" },
       { label: "İşlem gir", href: "/finans/islem", module: "finance", level: 2, desc: "Tahsilat, ödeme, virman, gelir, masraf" },
       { label: "Banka ekstresi aktar", href: "/finans/banka-aktar", module: "finance", level: 2, desc: "Excel / CSV / CAMT / MT940 ekstre: otomatik eşleştirme, cari önerisi, tek tıkla işleme" },
+      { label: "Banka e-postası (otomatik)", href: "/finans/banka-eposta", module: "finance", level: 2, desc: "Bankanın e-postayla gönderdiği MT940 / Excel ekstre 15 dakikada bir okunur, hesaba aktarılır" },
       { label: "İşlem defteri", href: "/finans/islemler", module: "finance", desc: "Tüm finans kayıtları, iptal" },
       { label: "Çek ve senet", href: "/finans/cek-senet", module: "finance", desc: "Portföy, tahsil, ciro, karşılıksız, vade takvimi" },
       { label: "Kredi kartları", href: "/finans/kredi-karti", module: "finance", desc: "Limit, taksitli harcama, ekstre tahmini, borç ödeme" },

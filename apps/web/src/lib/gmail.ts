@@ -184,11 +184,11 @@ export async function listMessageIds(token: string, opts: { q: string; pageToken
 }
 
 /** Tek e-posta: başlık ve ek listesi (gövde çözülmez) */
-export async function getMessageAttachments(token: string, id: string): Promise<{ id: string; subject: string; attachments: MailMessage["attachments"] }> {
+export async function getMessageAttachments(token: string, id: string): Promise<{ id: string; subject: string; from: string; attachments: MailMessage["attachments"] }> {
   const m = await api<RawMsg>(token, `messages/${encodeURIComponent(id)}?format=full`);
   const out = { html: null as string | null, text: "", atts: [] as MailMessage["attachments"] };
   walk(m.payload, out);
-  return { id: m.id, subject: hdr(m.payload?.headers, "Subject"), attachments: out.atts };
+  return { id: m.id, subject: hdr(m.payload?.headers, "Subject"), from: hdr(m.payload?.headers, "From"), attachments: out.atts };
 }
 
 export const isQuotaError = (e: unknown) => e instanceof GmailError && (e.status === 429 || (e.status === 403 && /quota|rate/i.test(e.message)));
