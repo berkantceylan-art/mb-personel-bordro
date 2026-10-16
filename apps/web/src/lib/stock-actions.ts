@@ -127,6 +127,8 @@ export async function saveBom(form: FormData) {
   const q = parseQty(str(form, "qty"));
   if (!q || q <= 0) await fail("Birim başına miktarı yazın.");
   const supabase = await createClient();
+  const { data: it } = await supabase.from("stk_items").select("kind, lab_product_id").eq("id", str(form, "item_id", 40)).maybeSingle();
+  if (it && (it.lab_product_id || !["material", "raw", "consumable", "packaging"].includes(it.kind as string))) await fail("Reçeteye yalnız malzeme, hammadde, sarf ve ambalaj eklenebilir; satılan ürünler (ticari mal / protez) eklenemez.");
   const { error } = await supabase.from("stk_boms").upsert({ lab_product_id: str(form, "lab_product_id", 40), item_id: str(form, "item_id", 40), qty: q, waste_pct: Math.min(100, Math.max(0, Number(str(form, "waste_pct").replace(",", ".")) || 0)), note: opt(form, "note", 200) }, { onConflict: "lab_product_id,item_id" });
   if (error) await fail(stockError(error.message));
   revalidatePath("/stok/receteler");
