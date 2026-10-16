@@ -305,6 +305,9 @@ export async function importProductsFromPriceList() {
     const { error: e2 } = await supabase.from("lab_products").insert(rows);
     if (e2) await fail(missing(e2.message));
   }
+  if (rows.length) {
+    try { const { translateMissing } = await import("@/lib/product-tr"); await translateMissing(supabase, 60, true); } catch { /* çeviri isteğe bağlı; ekrandaki düğmeyle tamamlanır */ }
+  }
   revalidatePath("/isler/urunler");
   await done(rows.length ? `${rows.length} ürün fiyat listesinden aktarıldı.` : "Aktarılacak yeni ürün yok.");
 }

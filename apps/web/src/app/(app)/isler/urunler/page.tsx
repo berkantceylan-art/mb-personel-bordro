@@ -6,8 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { MATERIALS, money, type Product } from "@/lib/jobs";
 import { deleteProduct, importProductsFromPriceList, saveProduct } from "../actions";
+import { TranslateAll } from "./TranslateAll";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 const inp = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white text-[15px] w-full";
 const lbl = "flex flex-col gap-1 text-sm text-muted";
@@ -28,6 +30,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       <PageHeader title="Protez / ürün" subtitle={`${list.length} ürün · iş kayıtta fiyat buradan gelir`} actions={<form action={importProductsFromPriceList}><button className="h-10 px-3 rounded-[10px] border border-[#D5DEE8] bg-white text-sm font-semibold text-brand-700">Sitedeki fiyat listesinden aktar</button></form>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1100px]">
         {error && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">Tablolar yok: Supabase&apos;de 20261125000000_lab_jobs.sql çalıştırın.</p>}
+        <TranslateAll missing={list.filter((x) => !(x as { name_tr?: string | null }).name_tr).length} />
         <Card title={p ? `Düzenle: ${p.name}` : "Yeni ürün"} action={p ? <Link href="/isler/urunler" className="text-sm font-semibold text-brand-700">Vazgeç</Link> : undefined}>
           <form key={p?.id ?? "new"} action={saveProduct} className="grid gap-4 md:grid-cols-6">
             {p && <input type="hidden" name="id" value={p.id} />}
