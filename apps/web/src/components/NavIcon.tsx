@@ -9,6 +9,7 @@ const P: Record<string, React.ReactNode> = {
   finans: <path d="M12 3v18M16.5 6.5C15.5 5 13.9 4.5 12 4.5c-2.5 0-4.5 1.3-4.5 3.3 0 4.6 9 2.4 9 7 0 2-2 3.4-4.5 3.4-2.2 0-3.9-.7-4.9-2.2" />,
   stok: <path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M7.5 5l9 4" />,
   "alis-satis": <path d="M4 7h13l-3-3M20 17H7l3 3" />,
+  satinalma: <path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 8H6.2M9 19.5a1 1 0 1 0 0 .01M17 19.5a1 1 0 1 0 0 .01" />,
   uretim: <path d="M3 21V10l5 3V10l5 3V10l5 3v8zM17 3h3v7h-3z" />,
   masraf: <path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3" />,
   yetki: <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM12 8v5M12 16h.01" />,
