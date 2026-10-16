@@ -7,7 +7,7 @@ import { formatDate, getSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-type M = { month: string; revenue_try: number; jobs: number; units: number; on_time: number | null; remakes: number; remake_rate: number | null; avg_days: number | null; new_jobs: number; clinics: number };
+type M = { month: string; revenue_try: number; jobs: number; units: number; on_time: number | null; remakes: number; remake_rate: number | null; avg_days: number | null; new_jobs: number; clinics: number; revenue_dom?: number; revenue_for?: number; revenue_for_eur?: number; jobs_for?: number };
 const MON = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 const tl = (m: number) => { const v = Number(m ?? 0) / 100; return v >= 1e6 ? `${(v / 1e6).toLocaleString("tr-TR", { maximumFractionDigits: 2 })} mn ₺` : `${v.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺`; };
 
@@ -46,10 +46,12 @@ export default async function KpiPage() {
     <>
       <PageHeader title="Yönetim KPI" subtitle="Son 12 ay: ciro, iş ve birim, zamanında teslim, yeniden yapım oranı, ortalama üretim süresi, tahsilat süresi" actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/satis/karlilik" className="text-brand-700">Kârlılık</Link><Link href="/finans/nakit-akisi" className="text-brand-700">Nakit akışı</Link></span>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1320px]">
-        {error && <Notice tone="bad">Supabase&apos;de 20261218000000_cashflow_kpi.sql çalıştırılmalı.</Notice>}
+        {error && <Notice tone="bad">{/schema cache|does not exist|could not find/i.test(error.message) ? "Supabase'de 20261218000000_cashflow_kpi.sql çalıştırılmalı." : `Veri alınamadı: ${error.message}`}</Notice>}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[
             ["Ciro (TL karşılığı)", ms.map((m) => m.revenue_try), "#2563EB", tl, false],
+            ["Yerli iş cirosu", ms.map((m) => Number(m.revenue_dom ?? 0)), "#0F766E", tl, false],
+            ["Yabancı iş cirosu (TL)", ms.map((m) => Number(m.revenue_for ?? 0)), "#B45309", tl, false],
             ["Teslim edilen birim", ms.map((m) => Number(m.units)), "#059669", (v: number) => v.toLocaleString("tr-TR"), false],
             ["Zamanında teslim %", ms.map((m) => m.on_time), "#7C3AED", (v: number) => `%${v.toLocaleString("tr-TR")}`, false],
             ["Yeniden yapım %", ms.map((m) => m.remake_rate), "#DC2626", (v: number) => `%${v.toLocaleString("tr-TR")}`, true],
@@ -82,8 +84,8 @@ export default async function KpiPage() {
         </div>
         <section className="rounded-[18px] border border-line bg-white overflow-x-auto">
           <table className="w-full text-sm min-w-[900px]">
-            <thead><tr className="text-left text-xs text-muted"><th className="p-3">Ay</th><th className="p-3 text-right">Ciro</th><th className="p-3 text-right">Teslim / yeni iş</th><th className="p-3 text-right">Birim</th><th className="p-3 text-right">Zamanında</th><th className="p-3 text-right">Yeniden yapım</th><th className="p-3 text-right">Ort. süre</th><th className="p-3 text-right">Klinik</th></tr></thead>
-            <tbody>{[...ms].reverse().map((m) => <tr key={m.month} className="border-t border-[#EEF2F6]"><td className="p-3 font-semibold">{label(m.month)}</td><td className="p-3 text-right num">{tl(m.revenue_try)}</td><td className="p-3 text-right">{m.jobs} / {m.new_jobs}</td><td className="p-3 text-right">{Number(m.units).toLocaleString("tr-TR")}</td><td className="p-3 text-right">{m.on_time != null ? `%${m.on_time}` : "—"}</td><td className="p-3 text-right">{m.remakes}{m.remake_rate != null ? ` (%${m.remake_rate})` : ""}</td><td className="p-3 text-right">{m.avg_days != null ? `${m.avg_days} g` : "—"}</td><td className="p-3 text-right">{m.clinics}</td></tr>)}</tbody>
+            <thead><tr className="text-left text-xs text-muted"><th className="p-3">Ay</th><th className="p-3 text-right">Ciro</th><th className="p-3 text-right">Yerli</th><th className="p-3 text-right">Yabancı</th><th className="p-3 text-right">Teslim / yeni iş</th><th className="p-3 text-right">Birim</th><th className="p-3 text-right">Zamanında</th><th className="p-3 text-right">Yeniden yapım</th><th className="p-3 text-right">Ort. süre</th><th className="p-3 text-right">Klinik</th></tr></thead>
+            <tbody>{[...ms].reverse().map((m) => <tr key={m.month} className="border-t border-[#EEF2F6]"><td className="p-3 font-semibold">{label(m.month)}</td><td className="p-3 text-right num">{tl(m.revenue_try)}</td><td className="p-3 text-right num">{tl(m.revenue_dom ?? 0)}</td><td className="p-3 text-right num">{tl(m.revenue_for ?? 0)}{m.revenue_for_eur ? <span className="block text-[11px] text-muted">{(Number(m.revenue_for_eur) / 100).toLocaleString("tr-TR", { maximumFractionDigits: 0 })} € · {m.jobs_for} iş</span> : null}</td><td className="p-3 text-right">{m.jobs} / {m.new_jobs}</td><td className="p-3 text-right">{Number(m.units).toLocaleString("tr-TR")}</td><td className="p-3 text-right">{m.on_time != null ? `%${m.on_time}` : "—"}</td><td className="p-3 text-right">{m.remakes}{m.remake_rate != null ? ` (%${m.remake_rate})` : ""}</td><td className="p-3 text-right">{m.avg_days != null ? `${m.avg_days} g` : "—"}</td><td className="p-3 text-right">{m.clinics}</td></tr>)}</tbody>
           </table>
         </section>
       </div>

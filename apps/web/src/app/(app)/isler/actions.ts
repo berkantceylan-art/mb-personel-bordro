@@ -1,4 +1,5 @@
 "use server";
+import { translateNames } from "@/lib/product-tr";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -263,8 +264,16 @@ export async function saveProduct(f: FormData) {
     is_active: f.get("is_active") !== "off",
   };
   const supabase = await createClient();
-  const { error } = id ? await supabase.from("lab_products").update(row).eq("id", id) : await supabase.from("lab_products").insert(row);
+  const { data: saved, error } = id ? await supabase.from("lab_products").update(row).eq("id", id).select("id").single() : await supabase.from("lab_products").insert(row).select("id").single();
   if (error) await fail(missing(error.message));
+  // Türkçe karşılık: elle yazıldıysa o, boşsa yapay zekâ ile otomatik çeviri (hata olursa kayıt yine geçerli)
+  const nameTr = str(f, "name_tr", 160);
+  if (saved?.id) {
+    try {
+      const tr = nameTr || (f.get("name_tr_auto") !== "off" ? (await translateNames([name]))[0] : "");
+      if (tr) await supabase.rpc("lab_products_set_tr", { p: [{ id: saved.id, name_tr: tr }] });
+    } catch { /* çeviri isteğe bağlı */ }
+  }
   revalidatePath("/isler/urunler");
   redirect(`/isler/urunler?tamam=${encodeURIComponent("Ürün kaydedildi.")}`);
 }
