@@ -13,6 +13,8 @@ import { cancelPO, decidePO, invoicePO, manualSentPO, receivePO, resendPO, submi
 import { POForm } from "../POForm";
 import { closePO } from "@/lib/purchasing-actions";
 import { mrNo } from "@/lib/material";
+import { setPOCategory } from "@/lib/purchasing3-actions";
+import { MONTHS } from "@/lib/purchasing3";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +54,7 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
           <POForm
             initial={{ id: o?.id, party_id: o?.party_id, order_date: o?.order_date ?? today, expected_date: o?.expected_date, currency: o?.currency, warehouse_id: o?.warehouse_id, note: o?.note, lines: ls.map((l) => ({ item_id: l.item_id ?? "", name: l.name, qty: String(Number(l.qty)).replace(".", ","), unit: l.unit, unit_price: (l.unit_price / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2 }), vat_rate: String(Number(l.vat_rate)) })) }}
             parties={(parties ?? []) as { id: string; name: string }[]} items={(items ?? []) as { id: string; code: string; name: string; unit: string; purchase_price: number | null; vat_rate: number | null }[]} warehouses={(whs ?? []) as { id: string; name: string }[]} />
+          {o && <BudgetCard id={o.id} categoryId={o.category_id ?? null} canEdit={canDraft} />}
           {o && <form action={cancelPO}><input type="hidden" name="id" value={o.id} /><ConfirmSubmit label="Siparişi iptal et" question="Sipariş iptal edilsin mi?" /></form>}
         </div>
       </>
@@ -148,7 +151,43 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
           </table>
         </form>
         {o!.note && <p className="text-sm"><b>Not:</b> {o!.note}</p>}
+        <BudgetCard id={o!.id} categoryId={o!.category_id ?? null} canEdit={canDraft && st !== "cancelled"} matchLink={["approved", "sent", "partial", "received", "invoiced"].includes(st) && (lvl >= 1 || (s.modules.finance ?? 0) >= 1)} />
       </div>
     </>
+  );
+}
+
+type Bud = { category_id: string; category: string | null; month: number; budget: number | null; used: number; this: number; after: number; over: boolean } | null;
+
+/** Gider türü + bu ayın bütçe durumu + eşleştirme bağlantısı */
+async function BudgetCard({ id, categoryId, canEdit, matchLink }: { id: string; categoryId: string | null; canEdit: boolean; matchLink?: boolean }) {
+  const supabase = await createClient();
+  const [{ data: b, error }, { data: cats }] = await Promise.all([
+    supabase.rpc("pur_budget_check", { p_po: id }),
+    supabase.from("fin_categories").select("id, name").in("kind", ["expense", "stock"]).eq("is_active", true).order("name"),
+  ]);
+  if (error) return null; // 3. aşama SQL'i çalışmamışsa kart görünmez
+  const bud = b as Bud;
+  const pct = bud?.budget ? Math.round((bud.after / bud.budget) * 100) : 0;
+  return (
+    <section className={`rounded-[16px] border bg-white p-4 flex flex-wrap items-center gap-3 text-sm ${bud?.over ? "border-bad" : "border-line"}`}>
+      <form action={setPOCategory} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="id" value={id} />
+        <span className="font-semibold">Gider türü</span>
+        <select name="category_id" defaultValue={categoryId ?? ""} disabled={!canEdit} className="h-9 rounded-[10px] border border-[#D5DEE8] px-2 text-sm">
+          <option value="">Otomatik ({bud?.category ?? "—"})</option>
+          {((cats ?? []) as { id: string; name: string }[]).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        {canEdit && <PendingSubmit className="h-9 px-3 rounded-[10px] border border-line text-sm font-semibold">Kaydet</PendingSubmit>}
+      </form>
+      {bud && (bud.budget != null ? (
+        <div className="flex items-center gap-2 flex-1 min-w-[260px]">
+          <span className="text-muted whitespace-nowrap">{MONTHS[bud.month - 1]} bütçesi</span>
+          <span className="flex-1 h-2.5 rounded-full bg-[#EEF2F6] overflow-hidden"><span className={`block h-2.5 ${pct > 100 ? "bg-bad" : pct >= 80 ? "bg-warn" : "bg-ok"}`} style={{ width: `${Math.min(100, pct)}%` }} /></span>
+          <span className={`whitespace-nowrap font-semibold ${bud.over ? "text-bad" : ""}`}>{money(bud.after, "TRY")} / {money(bud.budget, "TRY")}{bud.over ? " · aşım" : ""}</span>
+        </div>
+      ) : <span className="text-muted">Bu gider türüne {MONTHS[bud.month - 1]} için bütçe girilmemiş. <Link href="/satinalma/butce" className="font-semibold text-brand-700">Bütçe</Link></span>)}
+      {matchLink && <Link href={`/satinalma/eslestirme/${id}`} className="ml-auto font-semibold text-brand-700">3&apos;lü eşleştirme →</Link>}
+    </section>
   );
 }

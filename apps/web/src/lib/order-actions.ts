@@ -60,7 +60,7 @@ export async function savePurchaseOrder(f: FormData) {
     if (e2) await fail(orderError(e2.message));
     if (st === "approved") kickSend();
     revalidatePath("/alis/siparisler");
-    redirect(`/alis/siparisler/${data}?tamam=${encodeURIComponent(st === "pending" ? "Sipariş onaya gönderildi." : "Sipariş onaylandı.")}`);
+    redirect(`/alis/siparisler/${data}?tamam=${encodeURIComponent(st === "budget" ? "Bütçeyi aştığı için yöneticinin onayına gönderildi." : st === "pending" ? "Sipariş onaya gönderildi." : "Sipariş onaylandı.")}`);
   }
   revalidatePath("/alis/siparisler");
   redirect(`/alis/siparisler/${data}?tamam=${encodeURIComponent("Taslak kaydedildi.")}`);
@@ -80,7 +80,7 @@ export async function submitPO(f: FormData) {
   if (error) await fail(orderError(error.message));
   if (data === "approved") kickSend();
   revalidatePath("/alis/siparisler");
-  await done(data === "pending" ? "Onay limitini aştığı için yöneticinin onayına gönderildi." : "Sipariş onaylandı.");
+  await done(data === "budget" ? "Bu ayın bütçesini aştığı için yöneticinin onayına gönderildi." : data === "pending" ? "Onay limitini aştığı için yöneticinin onayına gönderildi." : "Sipariş onaylandı.");
 }
 export async function decidePO(f: FormData) { if (str(f, "ok") === "1") kickSend(); await po("pur_order_decide", { p_id: str(f, "id"), p_ok: str(f, "ok") === "1", p_reason: str(f, "reason") || null }, str(f, "ok") === "1" ? "Sipariş onaylandı." : "Sipariş reddedildi, taslağa döndü."); }
 export async function sentPO(f: FormData) { await po("pur_order_sent", { p_id: str(f, "id") }, "Tedarikçiye gönderildi olarak işaretlendi."); }

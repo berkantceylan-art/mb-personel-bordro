@@ -10,7 +10,7 @@ import { mrNo } from "@/lib/material";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Satın alma" };
 
-type D = { req_waiting: number; lines_to_order: number; po_draft: number; po_pending: number; po_unsent: number; po_open: number; po_late: number; po_noinvoice: number; month_total: number; prev_total: number; top_suppliers: { name: string; total: number; n: number }[] };
+type D = { req_waiting: number; lines_to_order: number; po_draft: number; po_pending: number; po_unsent: number; po_open: number; po_late: number; po_noinvoice: number; month_total: number; prev_total: number; top_suppliers: { name: string; total: number; n: number }[]; match_diff?: number; inv_unlinked?: number; budget?: { budget: number }; budget_used?: { actual: number; committed: number }; budget_over?: number };
 
 /** Satın alma paneli: akıştaki her adımda bekleyen iş, geciken teslimler, harcama */
 export default async function PurchasingHome() {
@@ -48,6 +48,7 @@ export default async function PurchasingHome() {
           <Link href="/satinalma/teklifler" className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-brand-700">Teklifler</Link>
           <Link href="/alis/siparisler/yeni" className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-brand-700">+ Yeni sipariş</Link>
           <Link href="/stok/mal-kabul" className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-brand-700">Mal kabul</Link>
+          <Link href="/satinalma/raporlar" className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-brand-700">Raporlar</Link>
         </span>} />
       <div className="p-4 md:p-6 flex flex-col gap-5 max-w-[1300px]">
         {error && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">{/pur_dashboard|schema cache/.test(error.message) ? "Supabase'de mbdental-satinalma-1.sql çalıştırılmalı." : error.message}</p>}
@@ -62,6 +63,31 @@ export default async function PurchasingHome() {
                 </Link>
               ))}
             </section>
+            {d.match_diff !== undefined && (() => {
+              const bb = d.budget?.budget ?? 0, bu = (d.budget_used?.actual ?? 0) + (d.budget_used?.committed ?? 0), bp = bb ? Math.round((bu / bb) * 100) : 0;
+              return (
+                <section className="grid gap-3 md:grid-cols-3">
+                  <Link href="/satinalma/eslestirme?s=sorun" className={`rounded-[16px] border bg-white p-4 flex flex-col gap-1 hover:border-brand-600 ${d.match_diff ? "border-bad" : "border-line"}`}>
+                    <span className="text-xs font-semibold text-muted">3&apos;lü eşleştirme · fark var</span>
+                    <span className={`font-display text-3xl font-bold ${d.match_diff ? "text-bad" : ""}`}>{d.match_diff}</span>
+                    <span className="text-[11px] text-muted">Gelenden fazla faturalanan ya da fiyatı yüksek fatura</span>
+                  </Link>
+                  <Link href="/satinalma/eslestirme#baglanmamis" className={`rounded-[16px] border bg-white p-4 flex flex-col gap-1 hover:border-brand-600 ${d.inv_unlinked ? "border-warn" : "border-line"}`}>
+                    <span className="text-xs font-semibold text-muted">Siparişe bağlanmamış alış faturası</span>
+                    <span className="font-display text-3xl font-bold">{d.inv_unlinked ?? 0}</span>
+                    <span className="text-[11px] text-muted">Önerilen siparişle tek tıkla bağlayın</span>
+                  </Link>
+                  <Link href="/satinalma/butce" className={`rounded-[16px] border bg-white p-4 flex flex-col gap-1 hover:border-brand-600 ${d.budget_over ? "border-bad" : "border-line"}`}>
+                    <span className="text-xs font-semibold text-muted">Bu ayın bütçesi</span>
+                    {bb ? <>
+                      <span className="font-display text-2xl font-bold tabular-nums">{tl(bu)} <span className="text-sm font-normal text-muted">/ {tl(bb)}</span></span>
+                      <span className="h-2.5 rounded-full bg-[#EEF2F6] overflow-hidden"><span className={`block h-2.5 ${bp > 100 ? "bg-bad" : bp >= 80 ? "bg-warn" : "bg-ok"}`} style={{ width: `${Math.min(100, bp)}%` }} /></span>
+                      <span className={`text-[11px] ${d.budget_over ? "text-bad font-semibold" : "text-muted"}`}>%{bp}{d.budget_over ? ` · ${d.budget_over} kalem aştı` : ""}</span>
+                    </> : <span className="text-sm text-muted">Bütçe girilmemiş — gider türü bazında aylık bütçe tanımlayın.</span>}
+                  </Link>
+                </section>
+              );
+            })()}
             <section className="grid gap-4 md:grid-cols-3">
               <div className="rounded-[16px] border border-line bg-white p-4">
                 <div className="text-xs font-semibold text-muted">Bu ay satın alma</div>
