@@ -29,8 +29,10 @@ export async function translateNames(names: string[]): Promise<string[]> {
 }
 
 /** Türkçe adı olmayan ürünleri çevirir; dönen: çevrilen sayısı ve kalan */
-export async function translateMissing(sb: SupabaseClient, limit = 120): Promise<{ done: number; left: number }> {
-  const { data, error } = await sb.from("lab_products").select("id, name").is("name_tr", null).eq("is_active", true).order("sort").limit(limit);
+export async function translateMissing(sb: SupabaseClient, limit = 120, all = false): Promise<{ done: number; left: number }> {
+  let q = sb.from("lab_products").select("id, name").is("name_tr", null).order("sort").order("name").limit(limit);
+  if (!all) q = q.eq("is_active", true);
+  const { data, error } = await q;
   if (error) throw new Error(/name_tr/.test(error.message) ? "Önce mbdental-dentalsis-duzenleme.sql dosyasını Supabase'de çalıştırın." : error.message);
   const rows = (data ?? []) as { id: string; name: string }[];
   let done = 0;
@@ -41,6 +43,8 @@ export async function translateMissing(sb: SupabaseClient, limit = 120): Promise
     if (e2) throw new Error(e2.message);
     done += Number(n ?? 0);
   }
-  const { count } = await sb.from("lab_products").select("id", { count: "exact", head: true }).is("name_tr", null).eq("is_active", true);
+  let cq = sb.from("lab_products").select("id", { count: "exact", head: true }).is("name_tr", null);
+  if (!all) cq = cq.eq("is_active", true);
+  const { count } = await cq;
   return { done, left: count ?? 0 };
 }
