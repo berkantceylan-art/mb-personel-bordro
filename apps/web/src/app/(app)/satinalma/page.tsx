@@ -45,6 +45,7 @@ export default async function PurchasingHome() {
       <PageHeader title="Satın alma" subtitle="İstek → onay → sipariş → tedarikçi → mal kabul → fatura: her adımda bekleyenler"
         actions={<span className="flex flex-wrap gap-2 text-sm font-semibold">
           <Link href="/satinalma/istekten-siparis" className="h-10 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white">İstekten sipariş oluştur</Link>
+          <Link href="/satinalma/teklifler" className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-brand-700">Teklifler</Link>
           <Link href="/alis/siparisler/yeni" className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-brand-700">+ Yeni sipariş</Link>
           <Link href="/stok/mal-kabul" className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-brand-700">Mal kabul</Link>
         </span>} />

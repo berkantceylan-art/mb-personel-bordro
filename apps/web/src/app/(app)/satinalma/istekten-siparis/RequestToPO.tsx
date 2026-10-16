@@ -53,6 +53,7 @@ function Group({ k, lines, parties, title }: { k: string; lines: RLine[]; partie
         <label className="flex flex-col gap-1 text-xs text-muted">İstenen teslim<input type="date" name="expected" className="h-10 rounded-[10px] border border-[#D5DEE8] px-2 text-sm text-ink" /></label>
         <label className="flex flex-col gap-1 text-xs text-muted flex-1 min-w-48">Sipariş notu<input name="note" maxLength={500} className="h-10 rounded-[10px] border border-[#D5DEE8] px-3 text-sm text-ink" /></label>
         <PendingSubmit className="h-10 px-5 rounded-[10px] bg-brand-700 text-white text-sm font-semibold">{`Seçilenlerle sipariş oluştur (${sel.size})`}</PendingSubmit>
+        <Link href={`/satinalma/teklifler/yeni?satir=${[...sel].join(",")}`} className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold text-brand-700">Önce teklif topla</Link>
       </div>
     </form>
   );
