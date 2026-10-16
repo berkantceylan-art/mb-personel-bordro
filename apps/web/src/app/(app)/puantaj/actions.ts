@@ -8,6 +8,7 @@ import { canManagePay, getSession } from "@/lib/session";
 import { loadMonth } from "@/lib/timekeeping";
 import { cumulativeBases } from "@/lib/payroll";
 import { must } from "@/lib/flash";
+import { importPunchText } from "@/lib/pdks-import";
 
 const canEdit = (r: string) => ["owner", "accountant", "hr", "branch_manager"].includes(r);
 
@@ -26,55 +27,14 @@ export async function importPunches(_: ImportPunchResult | null, f: FormData): P
   if (!(file instanceof File) || file.size === 0) return { ok: false, message: "Dosya seçin." };
   const text = await file.text();
   const supabase = await createClient();
-
-  const { data: devices } = await supabase.from("devices").select("code, direction, branch_id");
-  const deviceDirection = Object.fromEntries((devices ?? []).map((d) => [d.code, d.direction])) as Record<string, "IN" | "OUT">;
-  const parsed = parseDeviceFile(text, Object.keys(deviceDirection).length ? { deviceDirection } : {});
-  if (!parsed.punches.length) return { ok: false, message: "Dosyada okunabilir kayıt yok.", errors: parsed.errors.slice(0, 5).map((e) => `Satır ${e.line}: ${e.reason}`) };
-
-  const { data: emps } = await supabase.from("employees").select("id, card_no, branch_id").not("card_no", "is", null);
-  const byCard = new Map((emps ?? []).map((e) => [String(e.card_no).replace(/^0+/, ""), e]));
-  const { data: branch } = await supabase.from("branches").select("id").order("created_at").limit(1).single();
-  const deviceBranch = new Map((devices ?? []).map((d) => [d.code, d.branch_id as string]));
-
-  const { data: imp } = await supabase
-    .from("attendance_imports")
-    .insert({ company_id: s.companyId, branch_id: branch!.id, file_name: file.name, punch_count: parsed.punches.length, error_count: parsed.errors.length })
-    .select("id")
-    .single();
-
-  const unknown = new Map<string, number>();
-  const rows = parsed.punches.map((p) => {
-    const emp = byCard.get(p.cardNo.replace(/^0+/, ""));
-    if (!emp) unknown.set(p.cardNo, (unknown.get(p.cardNo) ?? 0) + 1);
-    return {
-      company_id: s.companyId,
-      branch_id: emp?.branch_id ?? deviceBranch.get(p.device) ?? branch!.id,
-      card_no: p.cardNo,
-      employee_id: emp?.id ?? null,
-      device_code: p.device,
-      direction: p.direction,
-      punched_at: p.at.replace("T", " ") + ":00",
-      source: "DEVICE",
-      import_id: imp?.id ?? null,
-    };
-  });
-
-  let inserted = 0;
-  for (let i = 0; i < rows.length; i += 500) {
-    const chunk = rows.slice(i, i + 500);
-    const { data, error } = await supabase
-      .from("attendance_punches")
-      .upsert(chunk, { onConflict: "company_id,card_no,direction,punched_at", ignoreDuplicates: true })
-      .select("id");
-    if (error) return { ok: false, message: `Kayıt hatası: ${error.message}` };
-    inserted += data?.length ?? 0;
-  }
-  const dup = rows.length - inserted;
-  if (imp) await supabase.from("attendance_imports").update({ duplicate_count: dup }).eq("id", imp.id);
+  const r = await importPunchText(supabase, s.companyId, text, file.name, s.userId);
+  if (!r.ok) return { ok: false, message: r.message, errors: r.errors.slice(0, 5).map((e) => `Satır ${e.line}: ${e.reason}`) };
   await supabase.rpc("link_punches_to_employees", { p_company: s.companyId });
+  const parsed = { punches: r.punches, errors: r.errors };
+  const byCard = new Set(r.punches.filter((p) => !r.unknown.has(p.cardNo)).map((p) => p.cardNo));
+  const unknown = r.unknown, inserted = r.inserted, dup = r.dup;
 
-  const known = parsed.punches.filter((p) => byCard.has(p.cardNo.replace(/^0+/, "")));
+  const known = parsed.punches.filter((p) => byCard.has(p.cardNo));
   const pr = pairPunches(known);
   revalidatePath("/puantaj");
   return {
