@@ -42,7 +42,7 @@ export default async function CostingPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title="Ürün maliyetleri" subtitle="Üretim reçetesi: saf malzeme + işçilik + üretim genel gideri + tekrar payı + pazarlama + genel yönetim + finansman → tam maliyet ve kâr marjı"
-        actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/stok/receteler" className="text-brand-700">Malzeme reçeteleri</Link><Link href="/uretim/ayarlar" className="text-brand-700">Üretim rotaları</Link></span>} />
+        actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/uretim/recete-sihirbazi" className="text-brand-700">Reçete sihirbazı</Link><Link href="/stok/receteler" className="text-brand-700">Malzeme reçeteleri</Link><Link href="/uretim/ayarlar" className="text-brand-700">Üretim rotaları</Link></span>} />
       <div className="p-4 md:p-6 flex flex-col gap-5 max-w-[1400px]">
         {error && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">{/prd_cost|schema cache|does not exist/.test(error.message) ? "Supabase'de mbdental-urun-maliyeti.sql çalıştırılmalı." : error.message}</p>}
 
