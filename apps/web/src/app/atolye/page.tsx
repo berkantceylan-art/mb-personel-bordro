@@ -53,7 +53,12 @@ export default async function WorkshopScreen() {
       </header>
 
       {error || !b ? (
-        <p className="rounded-2xl bg-white/10 p-6 text-lg">Atölye verisi alınamadı: Supabase&apos;de 20261213000000_workshop.sql çalıştırılmalı.</p>
+        <div className="rounded-2xl bg-white/10 p-6 text-lg flex flex-col gap-2">
+          <p>Atölye verisi alınamadı.</p>
+          <p className="text-base text-white/70">
+            {!error ? "Veri boş döndü." : /not_allowed/.test(error.message) ? "Bu hesabın üretim / lojistik yetkisi yok (Yönetim › Kullanıcılar)." : /prd_workshop_board|schema cache|does not exist/i.test(error.message) ? "Supabase'de 20261213000000_workshop.sql çalıştırılmalı." : `Hata: ${error.message}`}
+          </p>
+        </div>
       ) : (
         <>
           <section className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
