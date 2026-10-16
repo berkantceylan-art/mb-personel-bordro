@@ -152,7 +152,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         <Card title="Cari kontrol — bakiye nereden geliyor?">
           <CariCheck customerId={c.id} lines={cariLines} hasDsis={devirJobs.length > 0 || adjPays.length > 0} />
         </Card>
-        <Card title={ib ? "İç cari hesap" : "Cari hesap"} action={<span className="flex gap-4 text-sm font-semibold">{ib && <Link href="/isler/irsaliye" className="text-brand-700">İrsaliyeler</Link>}<Link href={`/yazdir/ekstre/${c.id}`} className="text-brand-700">Ekstre yazdır</Link></span>}>
+        <Card title={ib ? "İç cari hesap" : "Cari hesap"} action={<span className="flex gap-4 text-sm font-semibold">{ib && <Link href="/isler/irsaliye" className="text-brand-700">İrsaliyeler</Link>}<Link href={`/yazdir/ekstre/${c.id}?dil=tr`} className="text-brand-700">Ekstre (Türkçe)</Link><Link href={`/yazdir/ekstre/${c.id}?dil=fr`} className="text-brand-700">Relevé (Français)</Link></span>}>
           <form action={addLabPayment} className="grid gap-2 md:grid-cols-4 lg:grid-cols-8 items-end rounded-xl bg-[#F3F6F9] p-3">
             <input type="hidden" name="customer_id" value={c.id} />
             <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Tarih<input type="date" name="paid_on" defaultValue={today} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white" /></label>
