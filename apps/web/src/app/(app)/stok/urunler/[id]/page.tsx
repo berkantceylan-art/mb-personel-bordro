@@ -5,7 +5,8 @@ import { Chip, EmptyRow, KPI, Table, page, td, tdNum } from "@/components/erp";
 import { getSession, formatDate } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { loadCategories, loadStock, loadWarehouses } from "@/lib/stock-data";
-import { ITEM_KIND, MOVE_KIND, qty, type Item } from "@/lib/stock";
+import { ITEM_KIND, MOVE_KIND, qty, stockImageUrl, type Item } from "@/lib/stock";
+import { ItemImage } from "@/components/stock/ItemImage";
 import { fmt } from "@/lib/fin";
 import { ItemForm } from "../../_parts/ItemForm";
 import { AdjustForm } from "../../_parts/AdjustForm";
@@ -36,11 +37,14 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
     <>
       <PageHeader title={item.name} subtitle={`${item.code} · ${ITEM_KIND[item.kind]} · ${item.unit}${item.barcode ? ` · ${item.barcode}` : ""}`} actions={<span className="flex gap-4"><Link href={`/yazdir/stok-etiket?ids=${item.id}`} className="text-sm font-semibold text-brand-700">Etiket</Link><Link href="/stok/urunler" className="text-sm font-semibold text-brand-700">← Kartlar</Link></span>} />
       <div className={page}>
+        <div className="grid gap-4 md:grid-cols-[220px_1fr] items-start">
+        <ItemImage itemId={item.id} url={stockImageUrl(item.image_path)} name={item.name} canEdit={canEdit} />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KPI label="Toplam stok" value={`${qty(total)} ${item.unit}`} tone={total < 0 || (item.min_qty !== null && total < Number(item.min_qty)) ? "bad" : undefined} sub={item.min_qty !== null ? `asgari ${qty(item.min_qty)}` : undefined} />
           <KPI label="Ortalama maliyet" value={fmt(Number(tot?.avg_cost ?? 0))} />
           <KPI label="Stok değeri" value={fmt(Number(tot?.value ?? 0))} />
           <KPI label="Satış fiyatı" value={item.sale_price ? fmt(item.sale_price, item.sale_currency) : "—"} sub={`KDV %${item.vat_rate}`} />
+        </div>
         </div>
         <Card title="Depo ve lot bazında stok">
           <Table head={["Depo", "Lot", "Son kullanma", "Miktar"]} min={520}>

@@ -145,6 +145,42 @@ export async function deleteBom(form: FormData) {
 }
 
 // ---------------------------------------------------------------------
+// Kart resmi (dosya tarayıcıdan stock-images deposuna yüklenir; burada karta bağlanır)
+// ---------------------------------------------------------------------
+const IMG_PATH = /^[0-9a-f-]{36}\/[A-Za-z0-9._-]{1,80}$/;
+function imgErr(m: string) {
+  return /image_path|schema cache|does not exist/.test(m) ? "Supabase'de mbdental-stok-hiz-resim.sql çalıştırılmalı." : m;
+}
+
+export async function setItemImage(itemId: string, path: string): Promise<{ ok: boolean; message: string }> {
+  const s = await getSession();
+  if ((s.modules.stock ?? 0) < 2) return { ok: false, message: "Bu işlem için stok yetkiniz yok." };
+  if (!IMG_PATH.test(path) || !path.startsWith(`${itemId}/`)) return { ok: false, message: "Geçersiz dosya yolu." };
+  const supabase = await createClient();
+  const { data: old, error: e1 } = await supabase.from("stk_items").select("image_path").eq("id", itemId).maybeSingle();
+  if (e1) return { ok: false, message: imgErr(e1.message) };
+  const { error } = await supabase.from("stk_items").update({ image_path: path }).eq("id", itemId);
+  if (error) return { ok: false, message: imgErr(error.message) };
+  const prev = (old as { image_path?: string | null } | null)?.image_path;
+  if (prev && prev !== path) await supabase.storage.from("stock-images").remove([prev]);
+  revalidatePath("/stok", "layout");
+  return { ok: true, message: "Resim kaydedildi." };
+}
+
+export async function removeItemImage(itemId: string): Promise<{ ok: boolean; message: string }> {
+  const s = await getSession();
+  if ((s.modules.stock ?? 0) < 2) return { ok: false, message: "Bu işlem için stok yetkiniz yok." };
+  const supabase = await createClient();
+  const { data: old } = await supabase.from("stk_items").select("image_path").eq("id", itemId).maybeSingle();
+  const { error } = await supabase.from("stk_items").update({ image_path: null }).eq("id", itemId);
+  if (error) return { ok: false, message: imgErr(error.message) };
+  const prev = (old as { image_path?: string | null } | null)?.image_path;
+  if (prev) await supabase.storage.from("stock-images").remove([prev]);
+  revalidatePath("/stok", "layout");
+  return { ok: true, message: "Resim kaldırıldı." };
+}
+
+// ---------------------------------------------------------------------
 // Transfer
 // ---------------------------------------------------------------------
 export type TransferPayload = { from: string; to: string; date: string; note: string; lines: { item_id: string; qty: number; lot_no: string | null }[]; send: "draft" | "send" | "now" };
