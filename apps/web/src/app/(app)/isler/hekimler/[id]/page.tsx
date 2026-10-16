@@ -12,6 +12,7 @@ import { deleteCustomer, deleteCustomerPrice, deleteDoctor, deletePayment, saveC
 import { addLabPayment, saveCustomerBook } from "@/lib/waybill-actions";
 import { saveContract } from "@/lib/pricing-actions";
 import { LANGS } from "@/lib/waybill";
+import { CariCheck, type CariLine } from "./CariCheck";
 import { BOOK_LABEL, PAY_METHOD, buildLedger, internalPays, type LedgerPayment } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
     supabase.from("jobs").select("id, no, patient, in_date, due_date, status, total, currency, delivered_at").eq("customer_id", id).order("no", { ascending: false }).limit(5000),
     supabase.from("portal_accounts").select("id, name, company").eq("status", "active").order("name"),
     supabase.from("lab_customers").select("portal_account_id").not("portal_account_id", "is", null),
-    supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note, book").eq("customer_id", id).order("paid_on"),
+    supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note, book, legacy_ref, currency").eq("customer_id", id).order("paid_on"),
     supabase.from("lab_products").select("id, name, price_try, price_eur").eq("is_active", true).order("sort").order("name"),
     supabase.from("lab_customer_prices").select("product_id, price_try, price_eur").eq("customer_id", id),
   ]);
@@ -59,6 +60,25 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const sumAll = billable.reduce((a, j) => a + j.total, 0);
   const ledger = buildLedger(list.map((j) => ({ ...j, patient: j.patient })), internalPays((pays ?? []) as LedgerPayment[], ib), null, null, ib ? { amount: Number(c.internal_opening ?? 0), date: c.internal_opening_date ?? null } : null);
   const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+  // Cari kontrol dökümü: bakiye nereden geliyor
+  const payList = (pays ?? []) as { id: string; amount: number; legacy_ref?: string | null; currency?: string | null }[];
+  const delivered = list.filter((j) => j.status === "delivered");
+  const devirJobs = delivered.filter((j) => j.patient === "DEVİR BAKİYESİ");
+  const adjPays = payList.filter((p) => p.legacy_ref === `dsis-adj:${c.id}`);
+  const otherCur = billable.filter((j) => j.currency && j.currency !== c.currency);
+  const sum = (a: { total?: number; amount?: number }[], k: "total" | "amount") => a.reduce((t, x) => t + Number(x[k] ?? 0), 0);
+  const yearOf = (j: { delivered_at: string | null; due_date: string | null; in_date: string }) => (j.delivered_at ?? j.due_date ?? j.in_date).slice(0, 4);
+  const realJobs = delivered.filter((j) => j.patient !== "DEVİR BAKİYESİ");
+  const years = [...new Set(realJobs.map(yearOf))].sort();
+  const cariLines: CariLine[] = [
+    ...(devirJobs.length ? [{ label: "Dentalsis devir kaydı (31.12.2025)", value: money(sum(devirJobs, "total"), c.currency), tone: "warn" as const }] : []),
+    ...years.map((y) => { const js = realJobs.filter((j) => yearOf(j) === y); return { label: `Teslim edilen işler ${y} (${js.length} iş)`, value: money(sum(js, "total"), c.currency) }; }),
+    { label: `Tahsilatlar (${payList.length - adjPays.length} kayıt)`, value: `−${money(sum(payList.filter((p) => !adjPays.includes(p)), "amount"), c.currency)}` },
+    ...(adjPays.length ? [{ label: "Dentalsis bakiye eşitleme mahsubu", value: `−${money(sum(adjPays, "amount"), c.currency)}`, tone: "warn" as const }] : []),
+    ...(otherCur.length ? [{ label: `Cari para biriminden (${c.currency}) farklı işler: ${otherCur.length} iş`, value: [...new Set(otherCur.map((j) => j.currency))].map((cur) => money(sum(otherCur.filter((j) => j.currency === cur), "total"), cur)).join(" + "), tone: "bad" as const }] : []),
+    { label: "Açık (teslim edilmemiş) işler — bakiyeye girmez", value: `${list.filter((j) => ["open", "tryin", "ready"].includes(j.status)).length} iş`, tone: "muted" },
+    { label: "= Bakiye", value: money(ledger.balance, c.currency) },
+  ];
 
   return (
     <>
@@ -125,6 +145,9 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             <label className="flex flex-col gap-1 text-xs font-semibold text-muted">Açılış tarihi<input type="date" name="internal_opening_date" defaultValue={c.internal_opening_date ?? ""} className="h-10 rounded-lg border border-[#D5DEE8] px-2 bg-white" /></label>
             <div className="lg:col-span-4"><button className="h-10 px-5 rounded-lg bg-brand-700 text-white font-semibold">Kaydet</button>{ib && <span className="ml-3 text-xs text-muted">Resmi cari açılış bakiyesi Finans › Cari kartlar’dan girilir.</span>}</div>
           </form>
+        </Card>
+        <Card title="Cari kontrol — bakiye nereden geliyor?">
+          <CariCheck customerId={c.id} lines={cariLines} hasDsis={devirJobs.length > 0 || adjPays.length > 0} />
         </Card>
         <Card title={ib ? "İç cari hesap" : "Cari hesap"} action={<span className="flex gap-4 text-sm font-semibold">{ib && <Link href="/isler/irsaliye" className="text-brand-700">İrsaliyeler</Link>}<Link href={`/yazdir/ekstre/${c.id}`} className="text-brand-700">Ekstre yazdır</Link></span>}>
           <form action={addLabPayment} className="grid gap-2 md:grid-cols-4 lg:grid-cols-8 items-end rounded-xl bg-[#F3F6F9] p-3">
