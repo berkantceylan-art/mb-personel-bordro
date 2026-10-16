@@ -28,5 +28,6 @@ export async function GET(req: Request) {
     const r = await sendSupplierNotice({ partyId: it.party_id, subject: `Ödeme bilgilendirmesi · ${d}`, text, email: true, whatsapp: true, path: "/tedarikci/odemeler" });
     sent.push(`${it.party}: ${r.via.join("+") || r.errors.join(" | ")}`);
   }
-  return NextResponse.json({ today, notified: res.notified, supplier: sent });
+  const { data: digest } = await admin.rpc("pay_center_digest", { p_today: today });
+  return NextResponse.json({ today, notified: res.notified, supplier: sent, digest });
 }
