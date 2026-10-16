@@ -42,7 +42,7 @@ export default async function MonthlyBilling({ searchParams }: { searchParams: P
   return (
     <>
       <PageHeader title="Aylık faturalama" subtitle="Ay boyunca her gün kesilen irsaliyeler ay sonunda müşteri başına tek faturada toplanır. Fatura müşterinin dilinde (TR / EN / FR) basılır."
-        actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/isler/irsaliye" className="text-brand-700">Günlük irsaliyeler</Link><Link href="/isler/cari" className="text-brand-700">Cari hesaplar</Link></span>} />
+        actions={<span className="flex flex-wrap items-center gap-4 text-sm font-semibold"><Link href={`/isler/aylik-fatura/sihirbaz?ay=${ym}`} className="h-10 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white">🧭 Sihirbazla başla</Link><Link href="/isler/irsaliye" className="text-brand-700">Günlük irsaliyeler</Link><Link href="/isler/cari" className="text-brand-700">Cari hesaplar</Link></span>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1320px]">
         {error && <Notice tone="bad">{waybillError(error.message)}</Notice>}
         <div className="flex flex-wrap items-center gap-2">
@@ -99,6 +99,7 @@ export default async function MonthlyBilling({ searchParams }: { searchParams: P
             {statements.some((x) => x.status === "issued") && <>
               <Link href={`/yazdir/ic-fatura/toplu?ay=${ym}`} className="h-10 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white text-sm font-semibold">🖨 Hepsini yazdır ({statements.filter((x) => x.status === "issued").length})</Link>
               <Link href={`/yazdir/ic-fatura/toplu?ay=${ym}&ozet=1`} className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold text-brand-700">Hepsini özet yazdır</Link>
+              <a href={`/isler/belge-excel?tur=fatura&ay=${ym}`} className="h-10 px-4 inline-flex items-center rounded-[10px] border border-line text-sm font-semibold text-brand-700">⬇ Excel</a>
             </>}
           </div>
           <table className="w-full text-sm min-w-[820px] mt-2">
