@@ -223,6 +223,7 @@ export const NAV: Group[] = [
       { label: "Hekim / hastane kaydı", href: "/isler/hekimler", module: "lab", desc: "Hekim ve klinik kartları, yeni hekim ekleme, özel fiyatlar" },
       { label: "Protez / ürün ve fiyatlar", href: "/isler/urunler", module: "lab", desc: "Ürün listesi, TL / € fiyatlar, fiyat listesinden aktarma" },
       { label: "Laboratuvar listeleri", href: "/isler/ayarlar", module: "lab", desc: "Teslim şekilleri, prova türleri, banka bilgileri" },
+      { label: "Dentalsis'ten aktar", href: "/isler/dentalsis-aktar", roles: ["owner"], desc: "Eski programdaki 2026 iş kayıtları, hekimler ve tahsilatları ERP'ye aktar (şirket sahibi)" },
     ],
   },
   {
