@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { Notice } from "@/components/erp";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
-import { deleteCamera, saveCamera, setCamAccess } from "@/lib/camera-actions";
+import { bulkAddCameras, deleteCamera, saveCamera, setCamAccess } from "@/lib/camera-actions";
+import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
 import { CamGrid } from "./CamGrid";
 
 export const dynamic = "force-dynamic";
@@ -32,9 +34,11 @@ export default async function CamerasPage() {
         {error && <Notice tone="bad">Supabase&apos;de 20270113000000_cameras.sql çalıştırılmalı.</Notice>}
         {!list.length && !error && <Notice tone="info">{admin ? "Henüz kamera eklenmedi. Şirkette kamera kayıt cihazına bağlı bir ağ geçidi (ör. go2rtc) kurulduktan sonra her kameranın https izleme adresini aşağıdan ekleyin." : "İzleme yetkiniz olan kamera yok."}</Notice>}
         {!!list.length && <CamGrid cams={list} />}
+        {!!list.length && <p className="text-xs text-muted">Ofis TV&apos;si / ikinci ekran için yalnız duvar sayfası: <Link href="/kameralar/duvar" className="font-semibold text-brand-700">/kameralar/duvar</Link></p>}
         {admin && (
           <details className="rounded-[16px] border border-line bg-white p-4" open={!list.length}>
-            <summary className="cursor-pointer font-semibold">Kamera ve erişim yönetimi (sahip)</summary>
+            <summary className="cursor-pointer font-semibold">✎ Kamera ekle / düzenle / sil · erişim yönetimi (sahip)</summary>
+            <h3 className="mt-3 font-semibold">Yeni kamera</h3>
             <form action={saveCamera} className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_2fr_80px_auto]">
               <input name="name" placeholder="Kamera adı" required className={inp} />
               <input name="group_name" placeholder="Grup (Atölye, Depo, Giriş)" list="cam-groups" className={inp} />
@@ -43,8 +47,33 @@ export default async function CamerasPage() {
               <button className="h-11 rounded-[10px] bg-brand-700 px-4 font-semibold text-white">Ekle</button>
               <datalist id="cam-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
             </form>
-            <ul className="mt-3 flex flex-col gap-1 text-sm">
-              {list.map((c) => <li key={c.id} className="flex items-center gap-3"><b>{c.name}</b><span className="text-muted">{c.group_name}</span><span className="flex-1 truncate text-xs text-muted">{c.embed_url}</span><form action={deleteCamera}><input type="hidden" name="id" value={c.id} /><button className="text-xs font-semibold text-bad">Sil</button></form></li>)}
+            <h3 className="mt-4 font-semibold">Toplu ekle <span className="text-xs font-normal text-muted">· kayıt cihazındaki kanalları tek seferde ekler (ör. 1–30); adları sonra aşağıdan değiştirebilirsiniz</span></h3>
+            <form action={bulkAddCameras} className="mt-2 grid gap-2 md:grid-cols-[2fr_80px_80px_1fr_1fr_auto]">
+              <input name="base" placeholder="https://berkant-mac-mini.tail000047.ts.net" defaultValue={list[0]?.embed_url.replace(/\/stream\.html.*$/, "") ?? ""} required className={`${inp} font-mono text-xs`} />
+              <input name="from" defaultValue="1" aria-label="İlk kanal" inputMode="numeric" className={inp} />
+              <input name="to" defaultValue="30" aria-label="Son kanal" inputMode="numeric" className={inp} />
+              <input name="prefix" defaultValue="Kamera" aria-label="Ad öneki" className={inp} />
+              <input name="group_name" placeholder="Grup" defaultValue="Genel" list="cam-groups" className={inp} />
+              <PendingSubmit className="h-11 rounded-[10px] bg-brand-700 px-4 font-semibold text-white">Kanalları ekle</PendingSubmit>
+            </form>
+            {!!list.length && <h3 className="mt-4 font-semibold">Eklenen kameralar <span className="text-xs font-normal text-muted">· adı, grubu, adresi ya da sırası değiştirilip Kaydet&apos;e basılır</span></h3>}
+            <ul className="mt-2 flex flex-col gap-2 text-sm">
+              {list.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-[12px] border border-line p-2">
+                  <form action={saveCamera} className="grid flex-1 gap-2 md:grid-cols-[1fr_1fr_2fr_80px_auto]">
+                    <input type="hidden" name="id" value={c.id} />
+                    <input name="name" defaultValue={c.name} aria-label="Kamera adı" required className={inp} />
+                    <input name="group_name" defaultValue={c.group_name} aria-label="Grup" list="cam-groups" className={inp} />
+                    <input name="embed_url" defaultValue={c.embed_url} aria-label="İzleme adresi" required className={`${inp} font-mono text-xs`} />
+                    <input name="sort" defaultValue={String(c.sort)} aria-label="Sıra" inputMode="numeric" className={inp} />
+                    <PendingSubmit className="h-11 rounded-[10px] border border-brand-700 px-4 font-semibold text-brand-700">Kaydet</PendingSubmit>
+                  </form>
+                  <form action={deleteCamera}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <ConfirmSubmit label="Sil" question={`"${c.name}" silinsin mi?`} className="h-11 px-3 text-sm font-semibold text-bad" />
+                  </form>
+                </li>
+              ))}
             </ul>
             <h3 className="mt-4 font-semibold">Kim hangi grubu izleyebilir?</h3>
             <form action={setCamAccess} className="mt-2 flex flex-wrap gap-2">
