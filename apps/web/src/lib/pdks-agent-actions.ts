@@ -13,7 +13,7 @@ export async function createPdksAgent(name: string): Promise<{ ok: boolean; mess
   const n = (name || "Ofis bilgisayarı").trim().slice(0, 80);
   const token = randomBytes(32).toString("hex");
   const { error } = await createAdminClient().from("pdks_agents").insert({ company_id: s.companyId, name: n, token_hash: createHash("sha256").update(token).digest("hex"), created_by: s.userId });
-  if (error) return { ok: false, message: /pdks_agents/.test(error.message) ? "Supabase'de mbdental-pdks-otomatik.sql çalıştırılmalı." : error.message };
+  if (error) return { ok: false, message: /pdks_agents/.test(error.message) ? "Supabase'de 20270238000000_pdks_agent.sql çalıştırılmalı." : error.message };
   revalidatePath("/puantaj/otomatik");
   return { ok: true, token };
 }

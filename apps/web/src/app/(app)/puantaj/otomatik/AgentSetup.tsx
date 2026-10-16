@@ -6,7 +6,7 @@ import { createPdksAgent, setPdksAgentActive } from "@/lib/pdks-agent-actions";
 /** Yeni anahtar oluştur → ayar dosyasını indir (anahtar yalnız bu ekranda bir kez görünür) */
 export function NewAgent({ origin }: { origin: string }) {
   const [name, setName] = useState("Ofis bilgisayarı");
-  const [file, setFile] = useState("C:\\EROM\\data.txt");
+  const [file, setFile] = useState("C:\\Program Files (x86)\\EromPDKS\\Bilgi Aktar ZK\\hareketler.txt");
   const [busy, setBusy] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -41,7 +41,7 @@ export function NewAgent({ origin }: { origin: string }) {
           <label className="flex flex-col gap-1">Erom&apos;un okutmaları yazdığı dosya (tam yol)
             <input value={file} onChange={(e) => setFile(e.target.value)} className="h-10 rounded-[10px] border border-[#D5DEE8] px-3 font-mono text-xs" />
           </label>
-          <p className="text-xs text-muted">Dosya yolunu bilmiyorsanız boş bırakmayın; ayar.json içinde sonra da düzeltebilirsiniz. Klasördeki birden çok dosya için *.txt gibi yazabilirsiniz.</p>
+          <p className="text-xs text-muted">Varsayılan yol Erom&apos;un Bilgi Aktar ZK programının yazdığı dosyadır; gerekirse ayar.json içinde sonra da düzeltebilirsiniz.</p>
           <button type="button" onClick={download} className="h-10 px-4 self-start rounded-[10px] bg-brand-700 text-white text-sm font-semibold">⬇ ayar.json indir</button>
         </div>
       )}

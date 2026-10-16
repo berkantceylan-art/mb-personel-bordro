@@ -32,16 +32,16 @@ export default async function PdksAutoPage() {
     <>
       <PageHeader title="PDKS otomatik aktarım" subtitle="Erom cihazlarının okutmaları 5 dakikada bir kendiliğinden puantaja gelir" actions={<Link href="/puantaj" className="text-sm font-semibold text-brand-700">← Puantaj</Link>} />
       <div className="p-4 md:p-6 flex flex-col gap-4 max-w-[1000px]">
-        {error && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">{/pdks_agents/.test(error.message) ? "Supabase'de mbdental-pdks-otomatik.sql çalıştırılmalı." : error.message}</p>}
+        {error && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">{/pdks_agents/.test(error.message) ? "Supabase'de 20270238000000_pdks_agent.sql çalıştırılmalı." : error.message}</p>}
 
         <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-2 text-sm">
           <h2 className="font-display text-lg font-bold">Nasıl çalışır?</h2>
           <ol className="list-decimal pl-5 flex flex-col gap-1">
-            <li>Erom programı cihazlardan (giriş 192.168.1.190, çıkış 192.168.1.189) okutmaları çekip bir dosyaya yazar — bugün elle yüklediğiniz dosya.</li>
-            <li>Erom programının kurulu olduğu bilgisayara <b>MB Dental PDKS aktarıcı</b> kurulur. 5 dakikada bir o dosyanın yeni satırlarını ERP&apos;ye gönderir.</li>
+            <li>Erom&apos;un <b>Bilgi Aktar ZK</b> programı 5 dakikada bir cihazlardan (giriş 192.168.1.201, çıkış 192.168.1.224) okutmaları çekip <span className="font-mono text-xs">hareketler.txt</span> dosyasına yazar. Bu program açık kalmalıdır.</li>
+            <li>Aynı bilgisayardaki <b>MB Dental PDKS aktarıcı</b> 5 dakikada bir bu dosyayı ERP&apos;ye gönderir.</li>
             <li>Aynı okutma iki kez eklenmez; bilgisayar kapalı kalsa bile açılınca eksikler gelir.</li>
           </ol>
-          <p className="text-muted">Kurulum: aşağıdan anahtar oluşturun, <b>ayar.json</b> dosyasını indirin, aktarıcı klasörüne koyup <b>kurulum.cmd</b>&apos;yi çalıştırın.</p>
+          <p className="text-muted">Kurulum: aşağıdan anahtar oluşturup <b>ayar.json</b>&apos;ı indirin; aktarıcı dosyalarını (<a className="text-brand-700 font-semibold" href="/pdks-aktarici/kurulum.cmd" download>kurulum.cmd</a>, <a className="text-brand-700 font-semibold" href="/pdks-aktarici/aktarici.ps1" download>aktarici.ps1</a>, <a className="text-brand-700 font-semibold" href="/pdks-aktarici/gizli.vbs" download>gizli.vbs</a>) aynı klasöre indirip <b>kurulum.cmd</b>&apos;ye çift tıklayın. Kurulum, Bilgi Aktar&apos;ı da Windows açılışına ekler.</p>
         </section>
 
         <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
