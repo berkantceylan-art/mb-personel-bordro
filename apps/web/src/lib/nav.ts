@@ -184,6 +184,8 @@ export const NAV: Group[] = [
       { label: "İstekten sipariş", href: "/satinalma/istekten-siparis", module: ["purchases", "stock"], level: 2, desc: "Onaylı istek satırlarını tedarikçiye göre grupla, tek tıkla sipariş" },
       { label: "Teklifler (fiyat karşılaştırma)", href: "/satinalma/teklifler", module: ["purchases", "stock"], desc: "Birden çok tedarikçiden teklif iste, karşılaştır, en iyisini siparişe dönüştür" },
       { label: "Tedarikçi karnesi", href: "/satinalma/tedarikciler", module: ["purchases", "stock"], desc: "Zamanında teslim, gecikme, hasar, teklif yanıtı ve tedarikçi puanı" },
+      { label: "Tedarikçi merkezi", href: "/satinalma/tedarikci-merkezi", module: ["purchases", "finance"], desc: "Tedarikçi portalı: mesaj, belge, fiyat listesi onayı, cari, ödemeler; tedarikçi gözüyle önizleme" },
+      { label: "Ödeme takvimi", href: "/satinalma/odeme-takvimi", module: ["purchases", "finance"], desc: "Fatura vadeleri, verilen çek / senet, planlı ödemeler; vadeden önce alarm, tedarikçiye hatırlatma" },
       { label: "3'lü eşleştirme", href: "/satinalma/eslestirme", module: ["purchases", "finance"], desc: "Sipariş ↔ mal kabul ↔ alış faturası: fazla faturalanan miktar ve fiyat farklarını ödeme öncesi yakala" },
       { label: "Satın alma bütçesi", href: "/satinalma/butce", module: ["purchases", "finance"], desc: "Gider türü × ay bütçe; gerçekleşen + taahhüt; aşan sipariş yönetici onayına düşer" },
       { label: "Satın alma raporları", href: "/satinalma/raporlar", module: ["purchases", "finance"], desc: "Harcama, tedarikçi, gider türü, fiyatı artan ürünler, teslim ve onay süreleri, Excel" },

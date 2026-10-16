@@ -14,6 +14,7 @@ import { POForm } from "../POForm";
 import { closePO } from "@/lib/purchasing-actions";
 import { mrNo } from "@/lib/material";
 import { setPOCategory } from "@/lib/purchasing3-actions";
+import { setPOBilling } from "@/lib/supplier-portal-actions";
 import { MONTHS } from "@/lib/purchasing3";
 
 export const dynamic = "force-dynamic";
@@ -180,6 +181,7 @@ async function BudgetCard({ id, categoryId, canEdit, matchLink }: { id: string; 
         </select>
         {canEdit && <PendingSubmit className="h-9 px-3 rounded-[10px] border border-line text-sm font-semibold">Kaydet</PendingSubmit>}
       </form>
+      <BillingForm id={id} canEdit={canEdit} />
       {bud && (bud.budget != null ? (
         <div className="flex items-center gap-2 flex-1 min-w-[260px]">
           <span className="text-muted whitespace-nowrap">{MONTHS[bud.month - 1]} bütçesi</span>
@@ -189,5 +191,24 @@ async function BudgetCard({ id, categoryId, canEdit, matchLink }: { id: string; 
       ) : <span className="text-muted">Bu gider türüne {MONTHS[bud.month - 1]} için bütçe girilmemiş. <Link href="/satinalma/butce" className="font-semibold text-brand-700">Bütçe</Link></span>)}
       {matchLink && <Link href={`/satinalma/eslestirme/${id}`} className="ml-auto font-semibold text-brand-700">3&apos;lü eşleştirme →</Link>}
     </section>
+  );
+}
+
+/** Faturalı / faturasız (fişli) alım yöntemi */
+async function BillingForm({ id, canEdit }: { id: string; canEdit: boolean }) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("pur_orders").select("billing").eq("id", id).maybeSingle();
+  if (error || !data) return null; // portal SQL'i çalışmamışsa görünmez
+  const b = (data as { billing: string }).billing;
+  return (
+    <form action={setPOBilling} className="flex items-center gap-2">
+      <input type="hidden" name="id" value={id} />
+      <span className="font-semibold">Alım</span>
+      <select name="billing" defaultValue={b} disabled={!canEdit} className={`h-9 rounded-[10px] border px-2 text-sm ${b === "slip" ? "border-warn bg-warn-bg text-warn" : "border-[#D5DEE8]"}`}>
+        <option value="invoice">Faturalı</option>
+        <option value="slip">Faturasız (fişli)</option>
+      </select>
+      {canEdit && <PendingSubmit className="h-9 px-3 rounded-[10px] border border-line text-sm font-semibold">Kaydet</PendingSubmit>}
+    </form>
   );
 }

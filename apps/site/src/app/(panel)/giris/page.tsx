@@ -17,6 +17,7 @@ const DOORS = [
   { name: "Klinik", note: "Çok hekimli klinik ve hastaneler" },
   { name: "Aracı kuruluş", note: "Hekimlerden vaka toplayan kuruluşlar" },
   { name: "Personel", note: "Bordro, izin, avans, puantaj: kendi ekranınız" },
+  { name: "Tedarikçi", note: "Siparişler, mesaj, belge, fiyat listesi, cari ve ödemeler" },
   { name: "Yönetim ve ERP", note: "Laboratuvar yönetimi" },
 ];
 
