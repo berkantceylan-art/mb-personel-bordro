@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui";
 import { getSession } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import { NewAgent, ToggleAgent } from "./AgentSetup";
+import { NewAgent, NewCardRule, RemoveCardRule, ToggleAgent } from "./AgentSetup";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "PDKS otomatik aktarım" };
@@ -27,6 +27,11 @@ export default async function PdksAutoPage() {
   const sb = await createClient();
   const { data, error } = await sb.from("pdks_agents").select("id, name, is_active, last_seen_at, last_result, created_at").order("created_at");
   const agents = (data ?? []) as Agent[];
+  const { data: ruleRows, error: rulesErr } = await sb.from("pdks_card_rules").select("id, card_no, action, note, employee_id").order("card_no");
+  const { data: empRows } = await sb.from("employees").select("id, first_name, last_name, status").eq("company_id", s.companyId).order("first_name");
+  const empName = new Map((empRows ?? []).map((e) => [e.id as string, `${e.first_name} ${e.last_name}`]));
+  const activeEmps = (empRows ?? []).filter((e) => e.status !== "terminated").map((e) => ({ id: e.id as string, name: `${e.first_name} ${e.last_name}` }));
+  const rules = (ruleRows ?? []) as { id: string; card_no: string; action: "IGNORE" | "MAP"; note: string | null; employee_id: string | null }[];
 
   return (
     <>
@@ -47,6 +52,28 @@ export default async function PdksAutoPage() {
         <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
           <h2 className="font-display text-lg font-bold">Yeni bilgisayar bağla</h2>
           <NewAgent origin={origin} />
+        </section>
+
+        <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
+          <h2 className="font-display text-lg font-bold">Kart kuralları</h2>
+          <p className="text-sm text-muted">Personel olmayan kartların okutmaları hiç alınmaz; cihaz yöneticisi gibi başka numarayla okutanlar ilgili personele bağlanır.</p>
+          {rulesErr && /pdks_card_rules/.test(rulesErr.message) && <p className="text-sm text-bad">Supabase&apos;de 20270239000000_pdks_card_rules.sql çalıştırılmalı.</p>}
+          {rules.length > 0 && (
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-muted"><th className="py-2 pr-3">Kart no</th><th className="pr-3">İşlem</th><th className="pr-3">Not</th><th /></tr></thead>
+              <tbody>
+                {rules.map((r) => (
+                  <tr key={r.id} className="border-t border-[#EEF2F6]">
+                    <td className="py-2 pr-3 font-mono">{r.card_no.padStart(5, "0")}</td>
+                    <td className="pr-3">{r.action === "IGNORE" ? "Hiç alınmaz" : `→ ${empName.get(r.employee_id ?? "") ?? "personel"}`}</td>
+                    <td className="pr-3 text-muted">{r.note ?? ""}</td>
+                    <td><RemoveCardRule id={r.id} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <NewCardRule employees={activeEmps} />
         </section>
 
         {agents.length > 0 && (

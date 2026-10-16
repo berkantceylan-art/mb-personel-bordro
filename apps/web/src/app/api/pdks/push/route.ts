@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: true, read: 0, inserted: 0 });
   }
   const r = await importPunchText(admin, agent.company_id as string, text, `Otomatik · ${fileName}`, null, { skipEmptyLog: true });
-  const result = { at, ok: r.ok, read: r.read, inserted: r.inserted, dup: r.dup, errors: r.errors.length, unknown: [...r.unknown.keys()].slice(0, 20), message: r.message };
+  const result = { at, ok: r.ok, read: r.read, inserted: r.inserted, dup: r.dup, ignored: r.ignored, errors: r.errors.length, unknown: [...r.unknown.keys()].slice(0, 20), message: r.message };
   await admin.from("pdks_agents").update({ last_seen_at: at, last_result: result }).eq("id", agent.id);
   return Response.json(result, { status: r.ok || r.read === 0 ? 200 : 500 });
 }
