@@ -32,14 +32,14 @@ export async function importPunches(_: ImportPunchResult | null, f: FormData): P
   await supabase.rpc("link_punches_to_employees", { p_company: s.companyId });
   const parsed = { punches: r.punches, errors: r.errors };
   const byCard = new Set(r.punches.filter((p) => !r.unknown.has(p.cardNo)).map((p) => p.cardNo));
-  const unknown = r.unknown, inserted = r.inserted, dup = r.dup;
+  const unknown = r.unknown;
 
   const known = parsed.punches.filter((p) => byCard.has(p.cardNo));
   const pr = pairPunches(known);
   revalidatePath("/puantaj");
   return {
     ok: true,
-    message: `${parsed.punches.length} okutma okundu · ${inserted} yeni kayıt · ${dup} kayıt zaten vardı.`,
+    message: r.message,
     unknown: [...unknown.entries()].map(([cardNo, count]) => ({ cardNo, count })),
     anomalies: pr.anomalies.filter((a) => a.kind === "MISSING_IN" || a.kind === "MISSING_OUT").length,
     errors: parsed.errors.slice(0, 10).map((e) => `Satır ${e.line}: ${e.reason}`),
