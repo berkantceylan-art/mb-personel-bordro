@@ -48,24 +48,30 @@ export function PostponeList({ jobs, preselect }: { jobs: PJob[]; preselect?: st
 
   return (
     <section className="rounded-[16px] border border-line bg-white">
-      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-line bg-white/95 p-3 backdrop-blur rounded-t-[16px]">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="İş no, hasta, hekim ara" className="h-10 rounded-[10px] border border-[#D5DEE8] px-3 text-sm w-56" />
-        <span className="text-sm text-muted">{sel.size ? `${sel.size} iş seçili` : "Ertelenecek işleri seçin"}</span>
-        <div className="ml-auto"><PostponeForm ids={[...sel]} onDone={() => setSel(new Set())} /></div>
-      </div>
       {custs.length > 0 && (
-        <div className="flex flex-col gap-2 px-3 pt-3">
-          <div className="text-xs font-semibold text-muted">İşi kalan hekimler ({custs.length}) — birine tıklayın, o hekimin tüm işleri seçilsin, sonra yukarıdan erteleyin</div>
-          <div className="flex flex-wrap gap-1.5">
-            <button type="button" onClick={() => pickCust(null)} className={`h-9 px-3 rounded-full text-xs font-semibold border ${!cust ? "bg-brand-700 text-white border-brand-700" : "bg-white border-line text-brand-700"}`}>Tümü ({jobs.length})</button>
+        <div className="flex flex-col gap-2 p-3 border-b border-line">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-display text-base font-bold mr-auto">İşi kalan hekim / şirketler ({custs.length})</h2>
+            <span className="text-xs text-muted">Birine tıklayın: o şirketin tüm işleri seçilir, sonra aşağıdan tarih verip erteleyin</span>
+          </div>
+          <div className="grid gap-2 grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+            <button type="button" onClick={() => pickCust(null)} className={`rounded-xl border px-3 py-2 text-left ${!cust ? "bg-brand-700 text-white border-brand-700" : "bg-white border-line"}`}>
+              <div className="text-sm font-semibold">Tümü</div><div className="text-xs opacity-80">{jobs.length} iş</div>
+            </button>
             {custs.map(([c, x]) => (
-              <button key={c} type="button" onClick={() => pickCust(cust === c ? null : c)} className={`h-9 px-3 rounded-full text-xs font-semibold border ${cust === c ? "bg-[#C2410C] text-white border-[#C2410C]" : "bg-white border-line text-ink"}`}>
-                {c} <b>{x.n}</b>{x.late > 0 && <span className={cust === c ? "" : "text-bad"}> · {x.late} gecikmiş</span>}
+              <button key={c} type="button" onClick={() => pickCust(cust === c ? null : c)} className={`rounded-xl border px-3 py-2 text-left ${cust === c ? "bg-[#C2410C] text-white border-[#C2410C]" : "bg-white border-line hover:border-[#F2C38B]"}`}>
+                <div className="text-sm font-semibold truncate" title={c}>{c}</div>
+                <div className="text-xs"><b>{x.n}</b> iş{x.late > 0 && <span className={cust === c ? "" : "text-bad"}> · {x.late} gecikmiş</span>}</div>
               </button>
             ))}
           </div>
         </div>
       )}
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-line bg-white/95 p-3 backdrop-blur rounded-t-[16px]">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="İş no, hasta, hekim ara" className="h-10 rounded-[10px] border border-[#D5DEE8] px-3 text-sm w-56" />
+        <span className="text-sm text-muted">{sel.size ? `${sel.size} iş seçili` : "Ertelenecek işleri seçin"}</span>
+        <div className="ml-auto"><PostponeForm ids={[...sel]} onDone={() => setSel(new Set())} /></div>
+      </div>
       <div className="flex flex-wrap items-center gap-2 px-3 pt-3 text-sm">
         <span className="text-muted">Görünüm:</span>
         {([["grup", "Hekime göre grupla"], ["liste", "Düz liste"]] as const).map(([k, l]) => (
