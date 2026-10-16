@@ -18,7 +18,8 @@ const kur = (v: number) => (v / 100).toLocaleString("tr-TR", { minimumFractionDi
 const tone = (m: number | null) => (m == null ? "text-muted" : m < 10 ? "text-bad" : m < 25 ? "text-warn" : "text-ok");
 
 /** Ürün maliyetleri: reçete (malzeme) + işçilik + genel giderler → tam maliyet, fiyat ve kâr marjı */
-export default async function CostingPage() {
+export default async function CostingPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q } = await searchParams;
   const s = await getSession();
   const lvl = Math.max(s.modules.production ?? 0, s.modules.stock ?? 0, s.modules.finance ?? 0, s.modules.sales ?? 0);
   if (lvl < 1) redirect("/");
@@ -28,7 +29,9 @@ export default async function CostingPage() {
     sb.from("prd_cost_settings").select("labor_rate_min, overhead_per_unit, remake_pct, marketing_pct, admin_pct, finance_pct, note, updated_at").maybeSingle(),
     sb.from("lab_products").select("id, name").eq("is_active", true).order("sort").order("name"),
   ]);
-  const rows = (data ?? []) as Row[];
+  const norm = (v: string) => v.toLocaleLowerCase("tr").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ı/g, "i");
+  const terms = norm(q ?? "").split(/\s+/).filter(Boolean);
+  const rows = ((data ?? []) as Row[]).filter((r) => !terms.length || terms.every((t) => norm(`${r.name} ${r.code ?? ""} ${r.material ?? ""}`).includes(t)));
   const withRecipe = rows.filter((r) => r.lines > 0 || r.steps > 0);
   const without = rows.filter((r) => r.lines === 0 && r.steps === 0);
   const cfg: Set = (set as Set | null) ?? { labor_rate_min: 600, overhead_per_unit: 20000, remake_pct: 4, marketing_pct: 7, admin_pct: 10, finance_pct: 2, note: null };
@@ -58,6 +61,11 @@ export default async function CostingPage() {
           </form>
         )}
 
+        <form className="flex flex-wrap items-center gap-2">
+          <input name="q" type="search" defaultValue={q} placeholder="Ürün ara: ad, kod, malzeme" className="h-10 flex-1 min-w-[240px] max-w-xl rounded-[10px] border border-[#D5DEE8] px-3" />
+          <button className="h-10 px-4 rounded-[10px] border border-line bg-white font-semibold text-sm">Ara</button>
+          {q && <Link href="/uretim/maliyet" className="text-sm font-semibold text-muted">Temizle</Link>}
+        </form>
         <section className="rounded-[20px] border border-line bg-white overflow-x-auto">
           <table className="w-full text-sm min-w-[1100px]">
             <thead><tr className="text-left text-xs text-muted bg-[#F7F9FB]"><th className="p-3">Ürün</th><th className="p-3 text-right">Süre</th><th className="p-3 text-right">Malzeme</th><th className="p-3 text-right">İşçilik</th><th className="p-3 text-right">Üretim maliyeti</th><th className="p-3 text-right">Tam maliyet</th><th className="p-3 text-right">Fiyat (TL)</th><th className="p-3 text-right">Marj</th><th className="p-3 text-right">Fiyat (€)</th><th className="p-3 text-right">Marj</th></tr></thead>

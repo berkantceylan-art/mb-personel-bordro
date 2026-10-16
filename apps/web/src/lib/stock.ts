@@ -11,6 +11,9 @@ export const MOVE_KIND: Record<string, [string, "green" | "red" | "blue" | "ambe
 export const TRANSFER_STATUS: Record<string, [string, "gray" | "amber" | "green" | "red"]> = { draft: ["Taslak", "gray"], in_transit: ["Yolda", "amber"], received: ["Teslim alındı", "green"], cancelled: ["İptal", "red"] };
 export const COUNT_STATUS: Record<string, [string, "amber" | "green" | "red"]> = { open: ["Sayım sürüyor", "amber"], closed: ["Kapandı", "green"], cancelled: ["İptal", "red"] };
 
+/** Stok kartı resminin herkese açık adresi (stock-images deposu) */
+export const stockImageUrl = (p: string | null | undefined) => (p ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/stock-images/${p}` : null);
+
 /** 12.5 → "12,5" (en fazla 3 ondalık) */
 export const qty = (v: number | string | null | undefined) => Number(v ?? 0).toLocaleString("tr-TR", { maximumFractionDigits: 3 });
 export const parseQty = (s: string | null | undefined) => {
@@ -24,7 +27,7 @@ export const parseQty = (s: string | null | undefined) => {
 export type Item = {
   id: string; code: string; barcode: string | null; name: string; kind: string; category_id: string | null; unit: string; brand: string | null; supplier_party_id: string | null;
   purchase_price: number | null; purchase_currency: string; sale_price: number | null; sale_currency: string; vat_rate: number; min_qty: number | null; max_qty: number | null; reorder_qty: number | null;
-  track_lot: boolean; track_expiry: boolean; uts_tracked?: boolean; uts_product_no?: string | null; uts_kind?: "lot" | "serial"; uts_flow?: "use" | "transfer"; shelf: string | null; lab_product_id: string | null; default_warehouse_id: string | null; note: string | null; is_active: boolean;
+  track_lot: boolean; track_expiry: boolean; uts_tracked?: boolean; uts_product_no?: string | null; uts_kind?: "lot" | "serial"; uts_flow?: "use" | "transfer"; shelf: string | null; lab_product_id: string | null; image_path?: string | null; default_warehouse_id: string | null; note: string | null; is_active: boolean;
 };
 export type Warehouse = { id: string; code: string | null; name: string; kind: string; address: string | null; responsible: string | null; is_default: boolean; is_active: boolean };
 
