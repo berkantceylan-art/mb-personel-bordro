@@ -10,6 +10,7 @@ import { saveStockCategory } from "@/lib/stock-actions";
 import { ITEM_KIND, qty } from "@/lib/stock";
 import { fmt } from "@/lib/fin";
 import { ItemForm } from "../_parts/ItemForm";
+import { syncProductStockCards } from "@/lib/product-stock-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function ItemsPage({ searchParams }: { searchParams: Promis
   const canEdit = (s.modules.stock ?? 0) >= 2;
   return (
     <>
-      <PageHeader title="Ürün / malzeme kartları" subtitle={`${rows.length} kart`} actions={<Link href={`/yazdir/stok-etiket?ids=${shown.slice(0, 60).map((i) => i.id).join(",")}`} className="text-sm font-semibold text-brand-700">Etiket yazdır</Link>} />
+      <PageHeader title="Ürün / malzeme kartları" subtitle={`${rows.length} kart`} actions={<span className="flex flex-wrap items-center gap-3">{canEdit && <form action={syncProductStockCards}><PendingSubmit className="h-9 px-3 rounded-[10px] bg-brand-700 text-white text-sm font-semibold">Protezleri stok kartına aktar</PendingSubmit></form>}<Link href="/isler/urunler" className="text-sm font-semibold text-brand-700">Protez ürünleri (Türkçe adlar)</Link><Link href={`/yazdir/stok-etiket?ids=${shown.slice(0, 60).map((i) => i.id).join(",")}`} className="text-sm font-semibold text-brand-700">Etiket yazdır</Link></span>} />
       <div className={page}>
         {error && <Notice tone="bad">Stok tabloları yok: Supabase&apos;de 20261203000000_stock.sql çalıştırın.</Notice>}
         <form className="flex flex-wrap gap-2">
