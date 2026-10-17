@@ -94,12 +94,14 @@ export function EmployeeForm({
   departments,
   isNew,
   next,
+  shifts,
 }: {
   values: EmployeeFormValues;
   branches: Array<{ id: string; name: string }>;
   departments: Array<{ id: string; name: string }>;
   isNew: boolean;
   next?: string;
+  shifts?: Array<{ id: string; name: string; code: string; start_time: string; end_time: string }>;
 }) {
   const { state, pending, formProps: actionProps } = useActionForm(saveEmployee);
   return (
@@ -124,6 +126,14 @@ export function EmployeeForm({
         </label>
         <label className="flex flex-col gap-1.5 text-sm text-muted">veya yeni bölüm<input name="new_department" placeholder="Yeni bölüm adı" className={input} /></label>
         <label className="flex flex-col gap-1.5 text-sm text-muted">Görevi / ünvanı<input name="position_title" defaultValue={String(values.position_title ?? "")} className={input} /></label>
+        {shifts && (
+          <label className="flex flex-col gap-1.5 text-sm text-muted">Vardiyası
+            <select name="default_shift_id" defaultValue={String(values.default_shift_id ?? "")} className={input}>
+              <option value="">— Vardiya atanmadı —</option>
+              {shifts.map((x) => <option key={x.id} value={x.id}>{x.code} · {x.name} ({x.start_time.slice(0, 5)}–{x.end_time.slice(0, 5)})</option>)}
+            </select>
+          </label>
+        )}
         <label className="flex flex-col gap-1.5 text-sm text-muted">İşe giriş tarihi *<input type="date" name="hire_date" required defaultValue={String(values.hire_date ?? "")} className={input} /></label>
         <label className="flex gap-2.5 items-center text-sm md:col-span-2 min-h-11">
           <input type="checkbox" name="is_retired" defaultChecked={values.is_retired === true} className="w-5 h-5 accent-[#0A3D73]" />

@@ -12,9 +12,9 @@ import { dur, shiftSummary } from "@/lib/shift-summary";
 const DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const sum = (s: ShiftRow) => shiftSummary({ start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5), crossesMidnight: s.crosses_midnight, breakMinutes: s.break_minutes, breakPaid: s.break_paid, weekdays: s.weekdays });
 
-export default async function ShiftsPage({ searchParams }: { searchParams: Promise<{ duzenle?: string }> }) {
+export default async function ShiftsPage({ searchParams }: { searchParams: Promise<{ duzenle?: string; personel?: string }> }) {
   await getSession();
-  const { duzenle } = await searchParams;
+  const { duzenle, personel } = await searchParams;
   const supabase = await createClient();
   const [{ data: shifts }, { data: emps }, { data: departments }] = await Promise.all([
     supabase.from("shifts").select("*").order("active", { ascending: false }).order("code"),
@@ -95,7 +95,7 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
 
         <div id="form" className="flex flex-col gap-2">
           <h2 className="font-display font-semibold text-brand-800">{editing ? `${editing.name} vardiyasını düzenle` : "Yeni vardiya / özel vardiya"}</h2>
-          <ShiftForm key={editing?.id ?? "new"} shift={editing} employees={(emps ?? []).map((e) => ({ id: e.id, name: `${e.first_name} ${e.last_name}` }))} />
+          <ShiftForm key={editing?.id ?? `new-${personel ?? ""}`} shift={editing} forEmployee={personel} employees={(emps ?? []).map((e) => ({ id: e.id, name: `${e.first_name} ${e.last_name}` }))} />
         </div>
       </div>
     </>

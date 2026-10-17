@@ -91,3 +91,19 @@ export async function savePlan(changes: Array<{ employeeId: string; date: string
   revalidatePath("/puantaj");
   return { message: `${changes.length} değişiklik kaydedildi.` };
 }
+
+/** Personel kartından varsayılan vardiya ataması */
+export async function setEmployeeShift(f: FormData) {
+  const { done, fail } = await import("@/lib/flash");
+  const sess = await getSession();
+  if (!canPlan(sess.role)) await fail("Vardiya atamak için yetkiniz yok.");
+  const employeeId = s(f, "employee_id");
+  const shiftId = s(f, "shift_id") || null;
+  const supabase = await createClient();
+  const { error } = await supabase.from("employees").update({ default_shift_id: shiftId }).eq("id", employeeId);
+  if (error) await fail(error.message);
+  revalidatePath(`/personel/${employeeId}`);
+  revalidatePath("/vardiyalar");
+  revalidatePath("/puantaj");
+  await done(shiftId ? "Vardiya atandı; puantaj bu vardiyaya göre hesaplanır." : "Vardiya kaldırıldı.");
+}
