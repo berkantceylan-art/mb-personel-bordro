@@ -14,14 +14,14 @@ type L = { step_id: string; station_id: string; station: string; minutes: number
 type C = {
   product: { id: string; name: string; code: string | null; price_try: number | null; price_eur: number | null };
   settings: { labor_rate_min: number; overhead_per_unit: number; remake_pct: number; marketing_pct: number; admin_pct: number; finance_pct: number };
-  materials: M[]; labor: L[]; minutes: number; material: number; labor_total: number; overhead: number; remake: number; production: number; marketing: number; admin: number; finance: number; total: number;
+  materials: M[]; labor: L[]; minutes: number; material: number; labor_total: number; piece?: number; overhead: number; remake: number; production: number; marketing: number; admin: number; finance: number; total: number;
   price_try: number | null; price_eur_try: number | null; eur_rate: number | null; margin_try: number | null; margin_eur: number | null; missing_prices: number;
 };
 
 const tl = (v: number) => money(v, "TRY");
 const kur = (v: number) => (v / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const num = (v: number) => Number(v).toLocaleString("tr-TR", { maximumFractionDigits: 3 });
-const PARTS: [keyof C, string, string][] = [["material", "Saf malzeme", "#0f4c8a"], ["labor_total", "İşçilik", "#7C5CC4"], ["overhead", "Üretim genel gideri", "#2E9C82"], ["remake", "Tekrar / fire", "#E08A2E"], ["marketing", "Pazarlama", "#D4A800"], ["admin", "Genel yönetim", "#C0453A"], ["finance", "Finansman", "#7A8699"]];
+const PARTS: [keyof C, string, string][] = [["material", "Saf malzeme", "#0f4c8a"], ["labor_total", "İşçilik", "#7C5CC4"], ["piece", "Parça başı", "#B05FB0"], ["overhead", "Üretim genel gideri", "#2E9C82"], ["remake", "Tekrar / fire", "#E08A2E"], ["marketing", "Pazarlama", "#D4A800"], ["admin", "Genel yönetim", "#C0453A"], ["finance", "Finansman", "#7A8699"]];
 
 /** Ürün maliyet kartı: reçete satırları, işçilik adımları, gider dağılımı, fiyat ve marj */
 export default async function ProductCostPage({ params }: { params: Promise<{ id: string }> }) {
@@ -51,7 +51,7 @@ export default async function ProductCostPage({ params }: { params: Promise<{ id
             <div className="font-display text-4xl font-bold tabular-nums">{tl(c.total)}</div>
             <div className="text-sm text-white/75">Üretim maliyeti {tl(c.production)} + pazarlama, genel yönetim, finansman {tl(c.marketing + c.admin + c.finance)}</div>
             <div className="flex h-3 rounded-full overflow-hidden gap-0.5 mt-4 bg-white/10">{PARTS.map(([k, l, col]) => Number(c[k]) > 0 && <div key={k} title={`${l}: ${tl(Number(c[k]))}`} style={{ width: `${(Number(c[k]) / c.total) * 100}%`, background: col }} />)}</div>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-white/80">{PARTS.map(([k, l, col]) => <span key={k} className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: col }} />{l} %{c.total ? Math.round((Number(c[k]) / c.total) * 100) : 0}</span>)}</div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-white/80">{PARTS.filter(([k]) => k !== "piece" || Number(c.piece ?? 0) > 0).map(([k, l, col]) => <span key={k} className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: col }} />{l} %{c.total ? Math.round((Number(c[k]) / c.total) * 100) : 0}</span>)}</div>
           </div>
           <div className="rounded-[20px] border border-line bg-white p-5">
             <div className="text-xs font-semibold text-muted">Satış fiyatı</div>
@@ -152,6 +152,7 @@ export default async function ProductCostPage({ params }: { params: Promise<{ id
               {([
                 ["Saf malzeme", c.material, ""],
                 ["İşçilik", c.labor_total, `${c.minutes} dk`],
+                ...(Number(c.piece ?? 0) > 0 ? [["Parça başı işçilik payı", Number(c.piece), "son 90 gün, üye başına"] as [string, number, string]] : []),
                 ["Üretim genel gideri", c.overhead, "üye başına sabit"],
                 ["Tekrar / fire payı", c.remake, `%${Number(c.settings.remake_pct)} (malzeme + işçilik)`],
                 ["Üretim maliyeti", c.production, ""],
