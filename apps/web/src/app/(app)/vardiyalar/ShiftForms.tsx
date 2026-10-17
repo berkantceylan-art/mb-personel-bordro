@@ -1,5 +1,8 @@
 "use client";
+import { useState } from "react";
 import { useActionForm } from "@/lib/use-action-form";
+import { shiftSummary, type ShiftInput } from "@/lib/shift-summary";
+import { ShiftSummaryView } from "./ShiftSummaryView";
 import { assignDefaultShift, saveShift } from "./actions";
 import type { ShiftRow } from "@/lib/timekeeping";
 
@@ -10,8 +13,19 @@ const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white w-full"
 export function ShiftForm({ shift, employees }: { shift?: ShiftRow; employees: Array<{ id: string; name: string }> }) {
   const { state, pending, formProps: actionProps } = useActionForm(saveShift);
   const wd = new Set(shift?.weekdays ?? [1, 2, 3, 4, 5, 6]);
+  const read = (f: HTMLFormElement): ShiftInput => {
+    const d = new FormData(f);
+    return {
+      start: String(d.get("start_time") || "08:30"), end: String(d.get("end_time") || "18:00"), crossesMidnight: d.get("crosses_midnight") === "on",
+      breakMinutes: Number(d.get("break_minutes") || 0), breakPaid: d.get("break_paid") === "on", weekdays: d.getAll("weekdays").map(Number),
+    };
+  };
+  const [live, setLive] = useState<ShiftInput>({
+    start: shift?.start_time?.slice(0, 5) ?? "08:30", end: shift?.end_time?.slice(0, 5) ?? "18:00", crossesMidnight: !!shift?.crosses_midnight,
+    breakMinutes: shift?.break_minutes ?? 60, breakPaid: !!shift?.break_paid, weekdays: [...wd],
+  });
   return (
-    <form {...actionProps} className="bg-white border border-line rounded-2xl p-5 flex flex-col gap-4">
+    <form {...actionProps} onInput={(e) => setLive(read(e.currentTarget))} onChange={(e) => setLive(read(e.currentTarget))} className="bg-white border border-line rounded-2xl p-5 flex flex-col gap-4">
       {shift && <input type="hidden" name="id" value={shift.id} />}
       <div className="grid gap-4 md:grid-cols-4">
         <label className="flex flex-col gap-1.5 text-sm text-muted md:col-span-2">Vardiya adı *<input name="name" required defaultValue={shift?.name} placeholder="ör. Gündüz" className={input} /></label>
@@ -40,6 +54,10 @@ export function ShiftForm({ shift, employees }: { shift?: ShiftRow; employees: A
           ))}
         </div>
       </fieldset>
+      <section className="rounded-xl border border-[#E3EAF2] bg-[#FAFCFE] p-3 flex flex-col gap-2">
+        <h3 className="text-sm font-semibold text-brand-800">Bu vardiyanın özeti (siz yazdıkça hesaplanır)</h3>
+        <ShiftSummaryView s={shiftSummary(live)} />
+      </section>
       <fieldset className="grid gap-4 md:grid-cols-3 border-t border-line pt-4">
         <legend className="text-sm font-semibold text-brand-800">Özel vardiya (isteğe bağlı)</legend>
         <label className="flex flex-col gap-1.5 text-sm text-muted">Sadece bu personel için
