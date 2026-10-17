@@ -140,7 +140,10 @@ export async function bulkFixAtt(f: FormData) {
     }
   }
   try {
-    for (const t of touched) { const [emp, p] = t.split("|") as [string, string]; await syncAttMonth(sb, s.companyId, p, emp); }
+    const emps = new Set([...touched].map((t) => t.split("|")[0]));
+    const periods = new Set([...touched].map((t) => t.split("|")[1]!));
+    if (emps.size > 3) for (const p of periods) await syncAttMonth(sb, s.companyId, p);           // çok kişi: ay tek seferde
+    else for (const t of touched) { const [emp, p] = t.split("|") as [string, string]; await syncAttMonth(sb, s.companyId, p, emp); }
   } catch { /* gece yeniden hesaplanır */ }
   refresh();
   const errTxt = [...errs.entries()].map(([m, n]) => `${n} gün: ${m}`).join(" · ");
@@ -184,4 +187,103 @@ export async function saveAttSettings(f: FormData) {
   if (error) await fail(errText(error.message));
   refresh();
   await done("Ayar kaydedildi.");
+}
+
+// ---------------------------------------------------------------------
+// Sayfa yenilemeden çalışan (satır içi) işlemler
+// ---------------------------------------------------------------------
+export type AttRowData = {
+  employee_id: string; work_date: string; shift_code: string | null; shift_start: string | null; shift_end: string | null; status: string; leave_code: string | null;
+  first_in: string | null; last_out: string | null; worked_min: number; late_min: number; early_min: number; overtime_min: number; punch_count: number;
+  issues: string[]; state: string; resolution: string | null;
+  employees: { first_name: string; last_name: string; department_id: string | null; departments: { name: string } | null } | null;
+};
+export type AttPunch = { id: string; direction: "IN" | "OUT"; punched_at: string; source: string; reason: string | null; device_code: string | null };
+export type InlineResult = { ok: boolean; message: string; row?: AttRowData | null; punches?: AttPunch[] };
+
+const ROW_SELECT = "employee_id, work_date, shift_code, shift_start, shift_end, status, leave_code, first_in, last_out, worked_min, late_min, early_min, overtime_min, punch_count, issues, state, resolution, employees(first_name, last_name, department_id, departments(name))";
+const plusDay = (d: string, n: number) => new Date(Date.parse(d + "T00:00:00Z") + n * 86_400_000).toISOString().slice(0, 10);
+
+async function freshRow(sb: Awaited<ReturnType<typeof createClient>>, companyId: string, emp: string, date: string): Promise<AttRowData | null> {
+  // Tek personelin ayı; önceki ay yalnız ayın ilk haftasında
+  await syncAttMonth(sb, companyId, date.slice(0, 7), emp, { withPrev: Number(date.slice(8, 10)) <= 7 });
+  const { data } = await sb.from("att_days").select(ROW_SELECT).eq("employee_id", emp).eq("work_date", date).maybeSingle();
+  return (data as unknown as AttRowData) ?? null;
+}
+
+async function punchesOf(sb: Awaited<ReturnType<typeof createClient>>, emp: string, date: string): Promise<AttPunch[]> {
+  // Gece vardiyası için ertesi gün öğlene kadar
+  const { data } = await sb.from("attendance_punches").select("id, direction, punched_at, source, reason, device_code")
+    .eq("employee_id", emp).gte("punched_at", `${date}T00:00:00`).lte("punched_at", `${plusDay(date, 1)}T12:00:00`).order("punched_at");
+  return (data ?? []) as AttPunch[];
+}
+
+/** Satırdaki düğme: düzelt, güncel satırı döndür */
+export async function fixAttInline(input: { employee_id: string; date: string; action: string; reason?: string; time_in?: string; time_out?: string; ot_hours?: string; leave_type?: string; shift_id?: string }): Promise<InlineResult> {
+  const s = await getSession();
+  if (!CAN.includes(s.role)) return { ok: false, message: "Yetkiniz yok." };
+  const { employee_id: emp, date, action } = input;
+  const reason = (input.reason ?? "").trim();
+  if (!UUID.test(emp) || !DATE.test(date)) return { ok: false, message: "Geçersiz gün." };
+  if (["forgot_card", "shift_fill", "absent", "leave", "shift_change"].includes(action) && !reason) return { ok: false, message: "Sebep yazın (ör. “kartını evde unuttu”, “raporlu”)." };
+  const f = new FormData();
+  for (const [k, v] of Object.entries(input)) if (typeof v === "string") f.set(k, v);
+  const sb = await createClient();
+  try {
+    const msg = await applyFix(sb, await loadDay(sb, emp, date), action, f, reason || (action === "accept" ? "Kontrol edildi, uygun" : action === "overtime" ? "Fazla mesai" : ""));
+    const row = await freshRow(sb, s.companyId, emp, date);
+    return { ok: true, message: msg, row };
+  } catch (e) {
+    return { ok: false, message: errText((e as Error).message) };
+  }
+}
+
+/** Günün okutmaları (satır içinde açılır) */
+export async function attDayPunches(emp: string, date: string): Promise<AttPunch[]> {
+  const s = await getSession();
+  if (!CAN.includes(s.role) || !UUID.test(emp) || !DATE.test(date)) return [];
+  return punchesOf(await createClient(), emp, date);
+}
+
+/** Okutma ekle (giriş / çıkış, saat, sebep); güncel satır + okutmalar */
+export async function addPunchInline(input: { employee_id: string; date: string; direction: string; time: string; next_day?: boolean; reason: string }): Promise<InlineResult> {
+  const s = await getSession();
+  if (!CAN.includes(s.role) || s.role === "accountant") return { ok: false, message: "Yetkiniz yok." };
+  const { employee_id: emp, date } = input;
+  if (!UUID.test(emp) || !DATE.test(date) || !TIME.test(input.time)) return { ok: false, message: "Saat girin." };
+  if (!input.reason?.trim()) return { ok: false, message: "Sebep yazın." };
+  const sb = await createClient();
+  const { data: e } = await sb.from("employees").select("card_no, branch_id").eq("id", emp).maybeSingle();
+  if (!e) return { ok: false, message: "Personel bulunamadı." };
+  const day = input.next_day ? plusDay(date, 1) : date;
+  const { error } = await sb.from("attendance_punches").insert({
+    company_id: s.companyId, branch_id: e.branch_id, card_no: e.card_no ?? `M-${emp.slice(0, 8)}`, employee_id: emp, device_code: "KONTROL",
+    direction: input.direction === "OUT" ? "OUT" : "IN", punched_at: `${day} ${input.time}:00`, source: "MANUAL", reason: input.reason.trim().slice(0, 300),
+  });
+  if (error) return { ok: false, message: error.message.includes("duplicate") ? "Bu saatte aynı yönde okutma zaten var." : errText(error.message) };
+  try {
+    const row = await freshRow(sb, s.companyId, emp, date);
+    return { ok: true, message: "Okutma eklendi.", row, punches: await punchesOf(sb, emp, date) };
+  } catch (err) {
+    return { ok: true, message: `Okutma eklendi (yeniden hesap: ${errText((err as Error).message)}).`, punches: await punchesOf(sb, emp, date) };
+  }
+}
+
+/** Okutma sil (yalnız elle girilenler; cihaz okutması silinmez) */
+export async function deletePunchInline(id: string, emp: string, date: string): Promise<InlineResult> {
+  const s = await getSession();
+  if (!["owner", "hr", "branch_manager"].includes(s.role)) return { ok: false, message: "Yetkiniz yok." };
+  if (!UUID.test(id) || !UUID.test(emp) || !DATE.test(date)) return { ok: false, message: "Geçersiz kayıt." };
+  const sb = await createClient();
+  const { data: p } = await sb.from("attendance_punches").select("source").eq("id", id).maybeSingle();
+  if (!p) return { ok: false, message: "Okutma bulunamadı." };
+  if (p.source !== "MANUAL") return { ok: false, message: "Cihazdan gelen okutma silinmez; eksik olanı ekleyin ya da günü kabul edin." };
+  const { error } = await sb.from("attendance_punches").delete().eq("id", id);
+  if (error) return { ok: false, message: errText(error.message) };
+  try {
+    const row = await freshRow(sb, s.companyId, emp, date);
+    return { ok: true, message: "Okutma silindi.", row, punches: await punchesOf(sb, emp, date) };
+  } catch (err) {
+    return { ok: true, message: `Okutma silindi (yeniden hesap: ${errText((err as Error).message)}).`, punches: await punchesOf(sb, emp, date) };
+  }
 }

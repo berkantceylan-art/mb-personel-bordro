@@ -6,18 +6,7 @@ import type { createClient } from "@/lib/supabase/server";
 
 type SB = Awaited<ReturnType<typeof createClient>>;
 
-/** Hata kodları ve Türkçe karşılıkları */
-export const ISSUE: Record<string, { label: string; tone: "red" | "amber" | "blue" | "gray" }> = {
-  MISSING_OUT: { label: "Çıkış okutması yok", tone: "red" },
-  MISSING_IN: { label: "Giriş okutması yok", tone: "red" },
-  ABSENT: { label: "Gelmedi", tone: "red" },
-  LATE: { label: "Geç geldi", tone: "amber" },
-  EARLY: { label: "Erken çıktı", tone: "amber" },
-  OVERTIME: { label: "Fazla mesai işlenmedi", tone: "blue" },
-  LEAVE_PRESENT: { label: "İzinliyken geldi", tone: "amber" },
-  NO_SHIFT: { label: "Vardiyası yok ama geldi", tone: "amber" },
-  LONG_DAY: { label: "11 saati aştı", tone: "red" },
-};
+export { ISSUE } from "@/lib/att-issues";
 
 export const prevPeriod = (p: string) => {
   const [y, m] = p.split("-").map(Number) as [number, number];
@@ -60,8 +49,10 @@ export function buildAttRows(m: MonthData, prev: MonthData | null, today = istan
 }
 
 /** Ayın kayıtlarını hesaplayıp yazar. companyId: personelin şirketi (tek şirket) */
-export async function syncAttMonth(sb: SB, companyId: string, period: string, employeeId?: string): Promise<number> {
-  const [m, prev] = await Promise.all([loadMonth(sb, period, { employeeId }), loadMonth(sb, prevPeriod(period), { employeeId }).catch(() => null)]);
+export async function syncAttMonth(sb: SB, companyId: string, period: string, employeeId?: string, opts: { withPrev?: boolean } = {}): Promise<number> {
+  // Önceki ay yalnız haftalık fazla mesainin ay başındaki yarım haftası için gerekir; tek gün düzeltmesinde ayın ilk haftası dışında atlanır
+  const withPrev = opts.withPrev ?? true;
+  const [m, prev] = await Promise.all([loadMonth(sb, period, { employeeId }), withPrev ? loadMonth(sb, prevPeriod(period), { employeeId }).catch(() => null) : Promise.resolve(null)]);
   const rows = buildAttRows(m, prev);
   let n = 0;
   for (let i = 0; i < rows.length; i += 400) {
