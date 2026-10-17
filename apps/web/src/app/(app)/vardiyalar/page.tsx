@@ -6,8 +6,11 @@ import { getSession } from "@/lib/session";
 import { hhmm, toShiftDef, type ShiftRow } from "@/lib/timekeeping";
 import { DefaultShiftForm, ShiftForm } from "./ShiftForms";
 import { setShiftActive } from "./actions";
+import { ShiftSummaryView } from "./ShiftSummaryView";
+import { dur, shiftSummary } from "@/lib/shift-summary";
 
 const DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+const sum = (s: ShiftRow) => shiftSummary({ start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5), crossesMidnight: s.crosses_midnight, breakMinutes: s.break_minutes, breakPaid: s.break_paid, weekdays: s.weekdays });
 
 export default async function ShiftsPage({ searchParams }: { searchParams: Promise<{ duzenle?: string }> }) {
   await getSession();
@@ -29,7 +32,36 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
     <>
       <PageHeader title="Vardiyalar" subtitle="Vardiyaları tanımlayın, personele varsayılan vardiya atayın, haftalık planı düzenleyin." actions={<PrimaryLink href="/vardiyalar/plan">Haftalık plan</PrimaryLink>} />
       <div className="p-4 md:p-8 flex flex-col gap-6 max-w-[1240px]">
-        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
+        {rows.some((r) => r.active) && (
+          <Card title="Vardiya özeti">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[760px]">
+                <thead><tr className="text-left text-xs text-muted"><th className="py-2 pr-3">Vardiya</th><th className="py-2 pr-3">Saat</th><th className="py-2 pr-3 text-right">Günlük net</th><th className="py-2 pr-3 text-right">Mola</th><th className="py-2 pr-3 text-right">Vardiyalar arası dinlenme</th><th className="py-2 pr-3 text-right">Haftalık çalışma</th><th className="py-2 pr-3 text-right">Haftalık dinlenme</th><th className="py-2 pr-3 text-right">45 saate göre</th><th className="py-2 text-right">Personel</th></tr></thead>
+                <tbody>
+                  {rows.filter((r) => r.active).map((r) => {
+                    const x = sum(r);
+                    return (
+                      <tr key={r.id} className="border-t border-[#EEF2F6]">
+                        <td className="py-2 pr-3 font-semibold">{r.code} · {r.name}{x.warnings.length > 0 && <span className="ml-1.5 text-xs text-warn" title={x.warnings.join("\n")}>{x.warnings.length} uyarı</span>}</td>
+                        <td className="py-2 pr-3 num">{r.start_time.slice(0, 5)}–{r.end_time.slice(0, 5)}</td>
+                        <td className="py-2 pr-3 num text-right">{dur(x.netMin)}</td>
+                        <td className="py-2 pr-3 num text-right">{x.breakMin} dk</td>
+                        <td className={`py-2 pr-3 num text-right ${x.restBetweenMin < 660 ? "text-warn font-semibold" : ""}`}>{dur(x.restBetweenMin)}</td>
+                        <td className={`py-2 pr-3 num text-right ${x.weeklyNetMin > 2700 ? "text-warn font-semibold" : ""}`}>{dur(x.weeklyNetMin)} <span className="text-xs text-muted">({x.days} gün)</span></td>
+                        <td className="py-2 pr-3 num text-right">{dur(x.weeklyRestMin)} <span className="text-xs text-muted">({x.offDays} gün tatil)</span></td>
+                        <td className={`py-2 pr-3 num text-right font-semibold ${x.overUnder45Min > 0 ? "text-warn" : "text-ok"}`}>{x.overUnder45Min === 0 ? "tam" : `${x.overUnder45Min > 0 ? "+" : ""}${dur(x.overUnder45Min)}`}</td>
+                        <td className="py-2 num text-right">{usage.get(r.id) ?? 0}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-muted mt-2">Haftalık dinlenme = haftanın 168 saatinden işyerinde geçen süre çıkarılarak bulunur. Yasal sınırlar: günde en çok 11 saat, haftada 45 saat (aşan kısım fazla mesai), gece en çok 7,5 saat, mola 4 saate kadar 15 dk / 7,5 saate kadar 30 dk / üstü 1 saat.</p>
+          </Card>
+        )}
+
+        <section className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
           {rows.map((s) => (
             <article key={s.id} className={`bg-white border border-line rounded-2xl p-4 flex flex-col gap-2 ${s.active ? "" : "opacity-50"}`}>
               <div className="flex items-center gap-3">
@@ -40,6 +72,7 @@ export default async function ShiftsPage({ searchParams }: { searchParams: Promi
                 </div>
               </div>
               <span className="text-xs text-muted">{s.weekdays.map((d) => DAYS[d - 1]).join(" ")} · mola {s.break_minutes} dk{s.break_paid ? " (ücretli)" : ""} · tolerans {s.late_tolerance_min} dk · FM eşiği {s.overtime_threshold_min} dk</span>
+              <ShiftSummaryView s={sum(s)} compact />
               {s.employee_id && <span className="text-xs font-semibold text-[#5B3A9A]">Özel: {empName.get(s.employee_id) ?? "—"}</span>}
               <div className="flex justify-between items-center mt-1">
                 <span className="text-xs text-muted">{usage.get(s.id) ?? 0} personelin varsayılanı</span>
