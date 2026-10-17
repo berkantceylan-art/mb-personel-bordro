@@ -12,6 +12,8 @@ import { callToOffice, cancelOfficeCall, deleteDocument, forceSignOut, uploadDoc
 import { OfficeCallButton } from "./OfficeCallButton";
 import { cellStyle, loadCompliance } from "@/lib/compliance";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
+import { dur, shiftSummary } from "@/lib/shift-summary";
+import { setEmployeeShift } from "../../vardiyalar/actions";
 
 function yearsSince(iso: string) {
   const d = new Date(iso);
@@ -102,6 +104,32 @@ export default async function EmployeeProfile({
     supabase.from("garnishment_balances").select("kind, office, file_no, remaining, monthly_amount, status").eq("employee_id", id),
     supabase.from("bes_enrollments").select("status, rate, enrolled_on").eq("employee_id", id).order("enrolled_on", { ascending: false }).limit(1),
   ]);
+
+  // Vardiya: varsayılan vardiya + önümüzdeki 14 günün planı
+  const canPlan = ["owner", "hr", "branch_manager", "accountant"].includes(s.role);
+  const today = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const in14 = new Date(Date.parse(today) + 13 * 86400000).toISOString().slice(0, 10);
+  type ShiftRow = { id: string; name: string; code: string; color: string; start_time: string; end_time: string; crosses_midnight: boolean; break_minutes: number; break_paid: boolean; weekdays: number[]; late_tolerance_min: number; employee_id: string | null; active: boolean };
+  const [{ data: empShift }, { data: shiftList }, { data: planRows }] = await Promise.all([
+    supabase.from("employees").select("default_shift_id").eq("id", id).maybeSingle(),
+    supabase.from("shifts").select("id, name, code, color, start_time, end_time, crosses_midnight, break_minutes, break_paid, weekdays, late_tolerance_min, employee_id, active").order("start_time"),
+    supabase.from("shift_assignments").select("work_date, day_type, shift_id").eq("employee_id", id).gte("work_date", today).lte("work_date", in14),
+  ]);
+  const shifts = ((shiftList ?? []) as ShiftRow[]).filter((x) => !x.employee_id || x.employee_id === id);
+  const curShift = shifts.find((x) => x.id === empShift?.default_shift_id) ?? null;
+  const curSum = curShift ? shiftSummary({ start: curShift.start_time.slice(0, 5), end: curShift.end_time.slice(0, 5), crossesMidnight: curShift.crosses_midnight, breakMinutes: curShift.break_minutes, breakPaid: curShift.break_paid, weekdays: curShift.weekdays }) : null;
+  const planBy = new Map((planRows ?? []).map((r) => [r.work_date as string, r]));
+  const shiftById = new Map(shifts.map((x) => [x.id, x]));
+  const WD = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+  const next14 = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(Date.parse(today) + i * 86400000);
+    const iso = d.toISOString().slice(0, 10);
+    const wd = ((d.getUTCDay() + 6) % 7) + 1;
+    const a = planBy.get(iso);
+    const sh = a ? (a.shift_id ? shiftById.get(a.shift_id as string) ?? null : null) : curShift && curShift.weekdays.includes(wd) ? curShift : null;
+    const label = a && !a.shift_id ? "Tatil" : sh ? sh.code : "—";
+    return { iso, n: d.getUTCDate(), wd: WD[wd - 1]!, label, color: sh?.color ?? "#F3F6F9", planned: !!a, title: sh ? `${sh.name} ${sh.start_time.slice(0, 5)}–${sh.end_time.slice(0, 5)}` : a ? "Hafta tatili / izin" : "Çalışma yok" };
+  });
 
   const showHealth = ["owner", "hr", "safety"].includes(s.role);
   const [isgData, healthData] = await Promise.all([
@@ -413,6 +441,48 @@ export default async function EmployeeProfile({
         </div>
 
         <aside className="flex-[1_1_340px] min-w-0 flex flex-col gap-5">
+          <Card title="Vardiya" action={canPlan ? <Link href="/vardiyalar/plan" className="text-[13px] font-semibold text-brand-700">Haftalık plan →</Link> : undefined}>
+            {curShift && curSum ? (
+              <div className="rounded-[12px] p-3.5 flex flex-col gap-1.5" style={{ background: curShift.color }}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <b className="text-brand-800">{curShift.code} · {curShift.name}</b>
+                  <span className="num font-display text-lg font-bold text-brand-800">{curShift.start_time.slice(0, 5)}–{curShift.end_time.slice(0, 5)}</span>
+                </div>
+                <span className="text-xs text-[#33414F]">{curShift.weekdays.map((d) => WD[d - 1]).join(" ")} · mola {curShift.break_minutes} dk{curShift.break_paid ? " (ücretli)" : ""} · geç tolerans {curShift.late_tolerance_min} dk</span>
+                <div className="grid grid-cols-3 gap-2 text-xs mt-1">
+                  <span className="bg-white/70 rounded-lg px-2 py-1.5">Günlük net<b className="num block text-sm">{dur(curSum.netMin)}</b></span>
+                  <span className="bg-white/70 rounded-lg px-2 py-1.5">Haftalık<b className="num block text-sm">{dur(curSum.weeklyNetMin)}</b></span>
+                  <span className="bg-white/70 rounded-lg px-2 py-1.5">Dinlenme / hf<b className="num block text-sm">{dur(curSum.weeklyRestMin)}</b></span>
+                </div>
+                {curSum.warnings.length > 0 && <span className="text-xs text-warn font-semibold">⚠ {curSum.warnings[0]}</span>}
+              </div>
+            ) : (
+              <div className="rounded-[12px] bg-warn-bg text-warn p-3.5 text-sm font-semibold">Vardiya atanmamış — puantajda geç kalma / erken çıkış / eksik okutma kontrolü yapılamaz.</div>
+            )}
+            {canPlan && e.status !== "terminated" && (
+              <form action={setEmployeeShift} className="flex gap-2">
+                <input type="hidden" name="employee_id" value={id} />
+                <select name="shift_id" defaultValue={curShift?.id ?? ""} aria-label="Vardiya" className="h-11 flex-1 min-w-0 rounded-[10px] border border-[#D5DEE8] bg-white px-2 text-sm">
+                  <option value="">— Vardiya yok —</option>
+                  {shifts.filter((x) => x.active || x.id === curShift?.id).map((x) => <option key={x.id} value={x.id}>{x.code} · {x.name} ({x.start_time.slice(0, 5)}–{x.end_time.slice(0, 5)}){x.employee_id ? " · kişiye özel" : ""}</option>)}
+                </select>
+                <button className="h-11 px-4 rounded-[10px] bg-brand-700 text-white font-semibold text-sm">Ata</button>
+              </form>
+            )}
+            {canPlan && <Link href={`/vardiyalar?personel=${id}#form`} className="text-xs font-semibold text-brand-700">+ Bu personele özel vardiya tanımla</Link>}
+            <div>
+              <span className="text-xs text-muted">Önümüzdeki 14 gün</span>
+              <div className="grid grid-cols-7 gap-1 mt-1.5">
+                {next14.map((d) => (
+                  <span key={d.iso} title={d.title} className={`rounded-md text-center py-1 text-[11px] ${d.planned ? "ring-1 ring-brand-700/40" : ""}`} style={{ background: d.label === "—" || d.label === "Tatil" ? "#F3F6F9" : d.color }}>
+                    <span className="block text-muted">{d.wd} {d.n}</span>
+                    <b className={`num ${d.label === "Tatil" ? "text-warn" : "text-brand-800"}`}>{d.label}</b>
+                  </span>
+                ))}
+              </div>
+              <span className="text-[11px] text-muted">Çerçeveli günler haftalık plandan, diğerleri varsayılan vardiyadan.</span>
+            </div>
+          </Card>
           {hr && (
             <Card title="Kişisel bilgiler" action={<Link href={`/personel/${id}/duzenle`} className="text-[13px] font-semibold text-brand-700">Düzenle</Link>}>
               {INFO.map((sec) => (

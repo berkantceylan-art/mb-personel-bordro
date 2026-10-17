@@ -10,7 +10,7 @@ const DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const COLORS = ["#E7F1FB", "#1E3550", "#E0F5FB", "#F1ECFA", "#E6F4EC", "#FFF4E0", "#FCE7F3"];
 const input = "h-11 rounded-[10px] border border-[#D5DEE8] px-3 bg-white w-full";
 
-export function ShiftForm({ shift, employees }: { shift?: ShiftRow; employees: Array<{ id: string; name: string }> }) {
+export function ShiftForm({ shift, employees, forEmployee }: { shift?: ShiftRow; employees: Array<{ id: string; name: string }>; forEmployee?: string }) {
   const { state, pending, formProps: actionProps } = useActionForm(saveShift);
   const wd = new Set(shift?.weekdays ?? [1, 2, 3, 4, 5, 6]);
   const read = (f: HTMLFormElement): ShiftInput => {
@@ -61,7 +61,7 @@ export function ShiftForm({ shift, employees }: { shift?: ShiftRow; employees: A
       <fieldset className="grid gap-4 md:grid-cols-3 border-t border-line pt-4">
         <legend className="text-sm font-semibold text-brand-800">Özel vardiya (isteğe bağlı)</legend>
         <label className="flex flex-col gap-1.5 text-sm text-muted">Sadece bu personel için
-          <select name="employee_id" defaultValue={shift?.employee_id ?? ""} className={input}>
+          <select name="employee_id" defaultValue={shift?.employee_id ?? forEmployee ?? ""} className={input}>
             <option value="">— Genel vardiya —</option>
             {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>

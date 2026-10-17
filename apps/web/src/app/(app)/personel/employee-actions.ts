@@ -81,6 +81,7 @@ export async function saveEmployee(_: EmployeeSaveResult | null, f: FormData): P
     hire_date: hireDate,
     is_retired: f.get("is_retired") === "on",
     notes: str(f, "notes"),
+    ...(f.has("default_shift_id") ? { default_shift_id: str(f, "default_shift_id") } : {}),
     updated_at: new Date().toISOString(),
   };
 

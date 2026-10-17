@@ -14,11 +14,12 @@ export default async function EditEmployeePage({ params, searchParams }: { param
   const s = await getSession();
   if (!["owner", "accountant", "hr"].includes(s.role)) redirect(`/personel/${id}`);
   const supabase = await createClient();
-  const [{ data: e }, { data: p }, { data: branches }, { data: departments }] = await Promise.all([
+  const [{ data: e }, { data: p }, { data: branches }, { data: departments }, { data: shiftRows }] = await Promise.all([
     supabase.from("employees").select("*").eq("id", id).maybeSingle(),
     supabase.from("employee_private").select("*").eq("employee_id", id).maybeSingle(),
     supabase.from("branches").select("id, name").order("name"),
     supabase.from("departments").select("id, name").order("name"),
+    supabase.from("shifts").select("id, name, code, start_time, end_time, employee_id").eq("active", true).order("start_time"),
   ]);
   if (!e) notFound();
 
@@ -29,7 +30,7 @@ export default async function EditEmployeePage({ params, searchParams }: { param
         actions={<Link href={`/personel/${id}`} className="text-sm font-semibold text-brand-700">← Profile dön</Link>}
       />
       <div className="p-4 md:p-8 max-w-5xl flex flex-col gap-6">
-        <EmployeeForm values={{ ...(p ?? {}), ...e }} branches={branches ?? []} departments={departments ?? []} isNew={false} next={sonra === "kayit" ? `/personel/${id}/kayit?adim=1` : undefined} />
+        <EmployeeForm values={{ ...(p ?? {}), ...e }} branches={branches ?? []} departments={departments ?? []} shifts={(shiftRows ?? []).filter((x) => !x.employee_id || x.employee_id === id)} isNew={false} next={sonra === "kayit" ? `/personel/${id}/kayit?adim=1` : undefined} />
 
         <section className="bg-white border border-line rounded-2xl p-5 flex flex-col gap-3">
           <h2 className="font-display font-semibold text-brand-800">İşten çıkış</h2>
