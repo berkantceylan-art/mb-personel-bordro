@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: { "/**": ["./src/templates/**", "./src/sgk-robot/**"] },
   experimental: {
     serverActions: { bodySizeLimit: "10mb" },
+    // Geri / ileri dönüşte sayfa 30 sn hafızadan gelir (işlem yapılınca yenilenir)
+    staleTimes: { dynamic: 30 },
   },
 };
 
