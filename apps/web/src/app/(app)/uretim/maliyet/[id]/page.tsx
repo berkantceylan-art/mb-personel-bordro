@@ -43,7 +43,7 @@ export default async function ProductCostPage({ params }: { params: Promise<{ id
   return (
     <>
       <PageHeader title={c.product.name} subtitle={`Maliyet kartı · 1 ${"üye"} · ${c.minutes} dk standart süre`}
-        actions={<span className="flex gap-4 text-sm font-semibold"><Link href={`/stok/receteler?urun=${id}`} className="text-brand-700">Malzeme ekle / çıkar</Link><Link href="/uretim/ayarlar" className="text-brand-700">Rota</Link><Link href="/uretim/maliyet" className="text-brand-700">← Tüm ürünler</Link></span>} />
+        actions={<span className="flex gap-4 text-sm font-semibold"><a href={`/yazdir/uretim-recete/${id}`} target="_blank" rel="noreferrer" className="text-brand-700">🖨 Reçeteyi yazdır</a><Link href={`/stok/receteler?urun=${id}`} className="text-brand-700">Malzeme ekle / çıkar</Link><Link href="/uretim/ayarlar" className="text-brand-700">Rota</Link><Link href="/uretim/maliyet" className="text-brand-700">← Tüm ürünler</Link></span>} />
       <div className="p-4 md:p-6 flex flex-col gap-5 max-w-[1300px]">
         <section className="grid gap-3 md:grid-cols-4">
           <div className="rounded-[20px] p-5 text-white bg-gradient-to-br from-[#06213f] via-[#0a3d73] to-[#13649f] md:col-span-2">
