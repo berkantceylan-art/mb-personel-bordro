@@ -237,6 +237,7 @@ export const NAV: Group[] = [
       { label: "Teknisyen primi", href: "/uretim/prim", module: ["production", "payroll"], level: 2, desc: "Birim, geri dönüş ve zamanında teslime göre aylık prim; bordroya aktarım" },
       { label: "Parça başı", href: "/uretim/parca-basi", module: ["production", "payroll", "finance"], desc: "Yoğunlukta personele / dış ustaya parça başı ödenen işler: giriş, onay, maaşa ve gidere aktarım, rapor" },
       { label: "Reçete sihirbazı", href: "/uretim/recete-sihirbazi", module: ["production", "stock", "finance", "sales"], desc: "Tüm protez ürünlerine Fransızca / Türkçe adına göre otomatik üretim reçetesi (malzeme + adımlar)" },
+      { label: "Müşteri fiyatları ve kârlılık", href: "/uretim/maliyet/musteri", module: ["production", "stock", "finance", "sales"], desc: "Hangi müşteriye kaça satıyoruz (CCM / metal porselen ve tüm ürünler), maliyete göre üye başı ve toplam kâr / zarar" },
       { label: "Ürün maliyetleri (reçete)", href: "/uretim/maliyet", module: ["production", "stock", "finance", "sales"], desc: "Üretim reçetesi: malzeme + işçilik + genel giderler → üye başına tam maliyet, fiyat ve kâr marjı" },
       { label: "Akış ekibi", href: "/uretim/ekip", module: "production", desc: "Teknisyen, şef, kontrol sorumlusu ve pazarlama rolleri" },
       { label: "Üretim panosu", href: "/uretim", module: "production", desc: "İstasyon istasyon işler, okutarak başla / bitir, gecikenler" },
