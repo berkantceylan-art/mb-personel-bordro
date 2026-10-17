@@ -1,4 +1,6 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { PunchGate } from "@/components/attendance/PunchGate";
+import { gateItems, istanbulNow, type GateItem } from "@/lib/punch-watch";
 import { ReminderPoller } from "@/components/ReminderPoller";
 import { VoiceGreeter } from "@/components/VoiceGreeter";
 import { redirect } from "next/navigation";
@@ -46,6 +48,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     supabase.from("employees").select("first_name, last_name").eq("user_id", s.userId).maybeSingle(),
     supabase.from("announcements").select("id, title, body").eq("speak", true).gte("published_at", sinceAnn).order("published_at").limit(5),
   ]);
+  // Eksik okutma kilidi (yalnız personel rolü): saat bildirilmeden uygulama kullanılamaz
+  let gate: GateItem[] = [];
+  if (s.role === "employee" && emp) {
+    try {
+      const { data: meEmp } = await supabase.from("employees").select("id").eq("user_id", s.userId).maybeSingle();
+      const skip = (await cookies()).get("att_gate_skip")?.value;
+      if (meEmp) gate = await gateItems(supabase, meEmp.id as string, new Set(skip ? [skip] : []));
+    } catch { gate = []; }
+  }
   const v = (voice ?? { enabled: true, template: "{selam} {ad}, hoş geldin. Günün iyi geçmesini dilerim.", announce: true, rate: 1 }) as { enabled: boolean; template: string; announce: boolean; rate: number };
   const myName = (who as { display_name?: string | null } | null)?.display_name || (emp ? `${emp.first_name} ${emp.last_name}` : (s.email?.split("@")[0] ?? ""));
   const unreadMsg = (convs ?? []).filter((c) => {
@@ -66,6 +77,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <ReminderPoller />
         <VoiceGreeter userId={s.userId} name={myName} company={s.companyName} template={v.template} enabled={v.enabled} rate={Number(v.rate) || 1} announcements={v.announce ? ((spoken ?? []) as { id: string; title: string; body: string }[]) : []} />
         {children}
+        {gate.length > 0 && <PunchGate items={gate} today={istanbulNow().slice(0, 10)} />}
       </main>
     </div>
   );
