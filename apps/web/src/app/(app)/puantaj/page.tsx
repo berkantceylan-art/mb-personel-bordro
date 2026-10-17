@@ -59,6 +59,7 @@ export default async function TimesheetPage({ searchParams }: { searchParams: Pr
           <div className="flex gap-2 flex-wrap">
             <Link href={q(previousPeriod(period))} className="h-11 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">←</Link>
             <Link href={q(nextPeriod(period))} className="h-11 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">→</Link>
+            <Link href={`/puantaj/kontrol?ay=${period}`} className="h-11 px-3 inline-flex items-center rounded-[10px] bg-[#0a3d73] text-white font-semibold">Kontrol merkezi</Link>
             <Link href="/puantaj/otomatik" className="h-11 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">⟳ Otomatik aktarım</Link>
             <PrimaryLink href="/puantaj/yukle">Cihaz dosyası yükle</PrimaryLink>
           </div>

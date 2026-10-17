@@ -4,6 +4,7 @@ import { currentPeriod, formatDate, periodLabel } from "@/lib/session";
 import { me, MyHeader, NotLinked, td, th } from "../_shared";
 import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
 import { cancelOvertimeRequest, cancelPunchRequest, requestOvertime, requestPunch } from "./actions";
+import { attReport } from "@/lib/att-report";
 
 export default async function MyTimesheetPage({ searchParams }: { searchParams: Promise<{ donem?: string; eksik?: string }> }) {
   const { supabase, me: e } = await me();
@@ -16,6 +17,9 @@ export default async function MyTimesheetPage({ searchParams }: { searchParams: 
     supabase.from("attendance_punches").select("direction, punched_at, source").eq("employee_id", e.id).gte("punched_at", `${period}-01T00:00:00`).lt("punched_at", `${end}T00:00:00`).order("punched_at"),
     supabase.from("punch_requests").select("id, on_date, direction, at_time, status, decision_note").eq("employee_id", e.id).gte("on_date", `${period}-01`).lte("on_date", end).order("on_date", { ascending: false }),
   ]);
+  const myErr = await attReport(supabase, period, e.id).then((r) => r[0] ?? null).catch(() => null);
+  const { data: attSet } = await supabase.from("att_settings").select("forgot_free").maybeSingle();
+  const forgotFree = (attSet as { forgot_free?: number } | null)?.forgot_free ?? 2;
   const { data: ots } = await supabase.from("overtime_records").select("id, work_date, minutes, status, source, note, amount").eq("employee_id", e.id).eq("period", period).order("work_date", { ascending: false });
   const otApproved = (ots ?? []).filter((o) => o.status === "approved").reduce((a, o) => a + o.minutes, 0) / 60;
   const pendingReq = new Set((reqs ?? []).filter((r) => r.status === "pending").map((r) => `${r.on_date}|${r.direction}`));
@@ -69,6 +73,17 @@ export default async function MyTimesheetPage({ searchParams }: { searchParams: 
           <Stat label="Toplam saat" value={hours.toFixed(1)} sub="mola dahil" />
           <Stat label="Onaylı fazla mesai" value={`${otApproved.toFixed(1)} sa`} />
         </div>
+        {myErr && (
+          <section className="bg-white border border-line rounded-[14px] p-4 flex flex-col gap-2">
+            <h2 className="font-semibold text-brand-800">Bu ayki puantaj hatalarım</h2>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+              {([["Kart unuttu", `${myErr.forgot}/${forgotFree}`], ["Eksik okutma", myErr.missing], ["Geç gelme", myErr.late], ["Erken çıkma", myErr.early], ["Devamsız", myErr.absent], ["Toplam", myErr.total]] as [string, string | number][]).map(([l, v]) => (
+                <div key={l} className="rounded-lg bg-[#F5F8FB] px-2 py-2"><div className="text-[11px] text-muted">{l}</div><div className="num font-bold text-brand-800">{v}</div></div>
+              ))}
+            </div>
+            <p className="text-xs text-muted">Kart unuttu hakkınız ayda {forgotFree}; bu hak içindeki bildirimleriniz otomatik işlenir, aşan kısmı yöneticinizin onayına gider.</p>
+          </section>
+        )}
         <details className="bg-white border border-line rounded-[14px] p-4">
           <summary className="font-semibold text-brand-800 cursor-pointer">Fazla mesai bildir</summary>
           <form action={requestOvertime} className="grid gap-3 grid-cols-2 mt-3">

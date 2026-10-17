@@ -9,6 +9,7 @@ import { openPeriod } from "@/lib/periods";
 import { formatDate, periodLabel, todayIso } from "@/lib/session";
 import { loadMonth } from "@/lib/timekeeping";
 import { fetchTcmb } from "@/lib/tcmb";
+import { prevPeriod as attPrev, syncAttMonth } from "@/lib/att-control";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -77,6 +78,25 @@ export async function GET(req: Request) {
     } catch (e) {
       report[fn] = { error: e instanceof Error ? e.message : String(e) };
     }
+  }
+  // Puantaj kontrol merkezi: dünü (ayın ilk günlerinde önceki ayı da) yeniden hesapla, açık hataları İK'ya bildir
+  try {
+    const y = new Date(Date.parse(today + "T00:00:00Z") - 86_400_000).toISOString().slice(0, 10);
+    const periods = [...new Set([y.slice(0, 7), ...(Number(today.slice(8, 10)) <= 3 ? [attPrev(today.slice(0, 7))] : [])])];
+    const att: Record<string, unknown> = {};
+    for (const c of companies ?? []) {
+      for (const p of periods) att[`${c.id}:${p}`] = await syncAttMonth(admin as unknown as Parameters<typeof syncAttMonth>[0], c.id, p);
+      const { count } = await admin.from("att_days").select("employee_id", { count: "exact", head: true }).eq("company_id", c.id).eq("work_date", y).eq("state", "open");
+      if (count) {
+        const { data: mem } = await admin.from("memberships").select("user_id").eq("company_id", c.id).in("role", ["owner", "hr"]);
+        const rows = (mem ?? []).map((m) => ({ company_id: c.id, user_id: m.user_id as string, title: "Puantaj kontrolü bekliyor", body: `Dün (${y.split("-").reverse().join(".")}) ${count} personel-gün hatalı / eksik puantaj var.`, link: `/puantaj/kontrol?tarih=${y}` }));
+        if (rows.length) await admin.from("notifications").insert(rows);
+      }
+      att[`${c.id}:open_yesterday`] = count ?? 0;
+    }
+    report.att = att;
+  } catch (e) {
+    report.att = { error: e instanceof Error ? e.message : String(e) };
   }
   return NextResponse.json({ ok: true, today, report });
 }

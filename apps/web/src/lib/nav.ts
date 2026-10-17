@@ -78,6 +78,7 @@ export const NAV: Group[] = [
     group: "Puantaj ve izin", slug: "puantaj-izin",
     items: [
       { label: "Puantaj", href: "/puantaj", module: "attendance", roles: MANAGERS },
+      { label: "Puantaj kontrol merkezi", href: "/puantaj/kontrol", module: "attendance", roles: MANAGERS, desc: "Hatalı, eksik, gelmeyen günleri düzelt: kart unuttu, vardiyasına göre işle, mesai işle; aylık hata raporu, ay kapanışı" },
       { label: "Vardiyalar", href: "/vardiyalar", module: "attendance", roles: MANAGERS },
       { label: "Yıllık izin", href: "/yillik-izin", module: "attendance", roles: HRM },
       { label: "İzin kayıtları", href: "/izin", module: "attendance", roles: MANAGERS },
