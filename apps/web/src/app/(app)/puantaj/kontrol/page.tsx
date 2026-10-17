@@ -21,7 +21,7 @@ type Row = {
 };
 
 
-export default async function AttControlPage({ searchParams }: { searchParams: Promise<{ ay?: string; tarih?: string; hata?: string; durum?: string; bolum?: string; q?: string }> }) {
+export default async function AttControlPage({ searchParams }: { searchParams: Promise<{ ay?: string; tarih?: string; tur?: string; durum?: string; bolum?: string; q?: string }> }) {
   const s = await getSession();
   if (!["owner", "hr", "accountant", "branch_manager"].includes(s.role)) redirect("/");
   const sp = await searchParams;
@@ -51,7 +51,7 @@ export default async function AttControlPage({ searchParams }: { searchParams: P
   else if (durum === "done") q = q.in("state", ["fixed", "accepted"]);
   else q = q.neq("state", "ok");
   if (/^\d{4}-\d{2}-\d{2}$/.test(sp.tarih ?? "")) q = q.eq("work_date", sp.tarih!);
-  if (sp.hata && ISSUE[sp.hata]) q = q.contains("issues", [sp.hata]);
+  if (sp.tur && ISSUE[sp.tur]) q = q.contains("issues", [sp.tur]);
   const [{ data, error }, { data: leaveTypes }, { data: shifts }, { data: depts }, { data: set }, { data: allOpen }] = await Promise.all([
     q,
     sb.from("leave_types").select("id, name, code").order("name"),
@@ -69,7 +69,7 @@ export default async function AttControlPage({ searchParams }: { searchParams: P
   const missingSql = /att_days|schema cache|does not exist/.test(error?.message ?? syncErr ?? "");
   const link = (o: Record<string, string | undefined>) => {
     const u = new URLSearchParams();
-    const m = { ay: period, durum, hata: sp.hata, bolum: sp.bolum, q: sp.q, tarih: sp.tarih, ...o };
+    const m = { ay: period, durum, tur: sp.tur, bolum: sp.bolum, q: sp.q, tarih: sp.tarih, ...o };
     for (const [k, v] of Object.entries(m)) if (v) u.set(k, v);
     return `/puantaj/kontrol?${u.toString()}`;
   };
@@ -97,22 +97,22 @@ export default async function AttControlPage({ searchParams }: { searchParams: P
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <Stat label="Açık hatalı gün" value={open.length} warn={open.length > 0} href={link({ durum: "open", hata: undefined, tarih: undefined })} />
-            <Stat label="Dünkü açık" value={open.filter((r) => r.work_date === yesterday).length} href={link({ durum: "open", tarih: yesterday, hata: undefined })} />
-            <Stat label="Eksik okutma" value={(byIssue.get("MISSING_OUT") ?? 0) + (byIssue.get("MISSING_IN") ?? 0)} href={link({ durum: "open", hata: "MISSING_OUT" })} />
-            <Stat label="Gelmeyen" value={byIssue.get("ABSENT") ?? 0} href={link({ durum: "open", hata: "ABSENT" })} />
-            <Stat label="İşlenmemiş fazla mesai" value={byIssue.get("OVERTIME") ?? 0} href={link({ durum: "open", hata: "OVERTIME" })} />
+            <Stat label="Açık hatalı gün" value={open.length} warn={open.length > 0} href={link({ durum: "open", tur: undefined, tarih: undefined })} />
+            <Stat label="Dünkü açık" value={open.filter((r) => r.work_date === yesterday).length} href={link({ durum: "open", tarih: yesterday, tur: undefined })} />
+            <Stat label="Eksik okutma" value={(byIssue.get("MISSING_OUT") ?? 0) + (byIssue.get("MISSING_IN") ?? 0)} href={link({ durum: "open", tur: "MISSING_OUT" })} />
+            <Stat label="Gelmeyen" value={byIssue.get("ABSENT") ?? 0} href={link({ durum: "open", tur: "ABSENT" })} />
+            <Stat label="İşlenmemiş fazla mesai" value={byIssue.get("OVERTIME") ?? 0} href={link({ durum: "open", tur: "OVERTIME" })} />
           </div>
         </section>
 
         <form className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="ay" value={period} />
           <select name="durum" defaultValue={durum} className={`${selectCls} w-44 h-10`}><option value="open">Açık hatalar</option><option value="done">Düzeltilen / kabul</option><option value="all">Tümü</option></select>
-          <select name="hata" defaultValue={sp.hata ?? ""} className={`${selectCls} w-52 h-10`}><option value="">Tüm hata türleri</option>{Object.entries(ISSUE).map(([k, v]) => <option key={k} value={k}>{v.label}{byIssue.get(k) ? ` (${byIssue.get(k)})` : ""}</option>)}</select>
+          <select name="tur" defaultValue={sp.tur ?? ""} className={`${selectCls} w-52 h-10`}><option value="">Tüm hata türleri</option>{Object.entries(ISSUE).map(([k, v]) => <option key={k} value={k}>{v.label}{byIssue.get(k) ? ` (${byIssue.get(k)})` : ""}</option>)}</select>
           <select name="bolum" defaultValue={sp.bolum ?? ""} className={`${selectCls} w-44 h-10`}><option value="">Tüm bölümler</option>{(depts ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
           <input type="date" name="tarih" defaultValue={sp.tarih} className={`${inputCls} w-40 h-10`} />
           <button className={`${btnSecondary} h-10`}>Filtrele</button>
-          {(sp.hata || sp.bolum || sp.tarih) && <Link href={link({ q: undefined, hata: undefined, bolum: undefined, tarih: undefined })} className="text-sm font-semibold text-muted">Temizle</Link>}
+          {(sp.tur || sp.bolum || sp.tarih) && <Link href={link({ q: undefined, tur: undefined, bolum: undefined, tarih: undefined })} className="text-sm font-semibold text-muted">Temizle</Link>}
         </form>
 
         {durum === "open" && rows.length > 0 && !closed && (
@@ -132,7 +132,7 @@ export default async function AttControlPage({ searchParams }: { searchParams: P
         )}
 
         {!missingSql && (
-          <ControlList key={`${period}|${durum}|${sp.hata ?? ""}|${sp.bolum ?? ""}|${sp.tarih ?? ""}|${last?.computed_at ?? ""}`} rows={rows} closed={!!closed} durum={durum} initialQuery={sp.q ?? ""}
+          <ControlList key={`${period}|${durum}|${sp.tur ?? ""}|${sp.bolum ?? ""}|${sp.tarih ?? ""}|${last?.computed_at ?? ""}`} rows={rows} closed={!!closed} durum={durum} initialQuery={sp.q ?? ""}
             leaveTypes={(leaveTypes ?? []).map((t) => ({ id: t.id as string, name: t.name as string }))}
             shifts={(shifts ?? []).map((x) => ({ id: x.id as string, code: x.code as string, start: String(x.start_time).slice(0, 5), end: String(x.end_time).slice(0, 5) }))}
             names={[...new Set(rows.map((r) => (r.employees ? `${r.employees.first_name} ${r.employees.last_name}` : "")).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"))} />
