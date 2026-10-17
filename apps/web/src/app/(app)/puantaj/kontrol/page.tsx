@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui";
-import { Chip, Notice, btnSecondary, inputCls, selectCls } from "@/components/erp";
+import { Notice, btnSecondary, inputCls, selectCls } from "@/components/erp";
 import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
 import { createClient } from "@/lib/supabase/server";
 import { currentPeriod, getSession, periodLabel } from "@/lib/session";
 import { ISSUE, syncAttMonth } from "@/lib/att-control";
-import { bulkFixAtt, closeAttMonth, fixAttDay, reopenAttMonth, resyncAtt, saveAttSettings } from "@/lib/att-control-actions";
+import { bulkFixAtt, closeAttMonth, reopenAttMonth, resyncAtt, saveAttSettings } from "@/lib/att-control-actions";
+import { ControlList } from "./ControlList";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -19,13 +20,6 @@ type Row = {
   employees: { first_name: string; last_name: string; department_id: string | null; departments: { name: string } | null } | null;
 };
 
-const WD = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
-const dLabel = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)} ${WD[new Date(d + "T12:00:00Z").getUTCDay()]}`;
-const hm = (ts: string | null) => (ts ? ts.slice(11, 16) : "—");
-const dur = (m: number) => (m ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}` : "—");
-const STATE: Record<string, [string, "red" | "green" | "blue" | "gray"]> = { open: ["Açık", "red"], fixed: ["Düzeltildi", "green"], accepted: ["Kabul edildi", "blue"], ok: ["Sorunsuz", "gray"] };
-const RES: Record<string, string> = { forgot_card: "kart unuttu", shift_fill: "vardiyaya göre", overtime: "mesai onaya", leave: "izinli", absent: "devamsız", accept: "kabul", shift_change: "vardiya değişti" };
-const btn = "h-8 px-2.5 rounded-lg text-xs font-semibold border";
 
 export default async function AttControlPage({ searchParams }: { searchParams: Promise<{ ay?: string; tarih?: string; hata?: string; durum?: string; bolum?: string; q?: string }> }) {
   const s = await getSession();
@@ -66,10 +60,7 @@ export default async function AttControlPage({ searchParams }: { searchParams: P
     sb.from("att_settings").select("forgot_free").maybeSingle(),
     sb.from("att_days").select("work_date, issues").eq("state", "open").gte("work_date", from).lt("work_date", to).limit(5000),
   ]);
-  const norm = (v: string) => v.toLocaleLowerCase("tr");
-  const rows = ((data ?? []) as unknown as Row[]).filter((r) =>
-    (!sp.bolum || r.employees?.department_id === sp.bolum) &&
-    (!sp.q || norm(`${r.employees?.first_name ?? ""} ${r.employees?.last_name ?? ""}`).includes(norm(sp.q))));
+  const rows = ((data ?? []) as unknown as Row[]).filter((r) => !sp.bolum || r.employees?.department_id === sp.bolum);
   const open = (allOpen ?? []) as { work_date: string; issues: string[] }[];
   const yesterday = new Date(Date.now() + 3 * 3600 * 1000 - 86_400_000).toISOString().slice(0, 10);
   const byIssue = new Map<string, number>();
@@ -82,7 +73,6 @@ export default async function AttControlPage({ searchParams }: { searchParams: P
     for (const [k, v] of Object.entries(m)) if (v) u.set(k, v);
     return `/puantaj/kontrol?${u.toString()}`;
   };
-  const shown = rows.slice(0, 300);
 
   return (
     <>
@@ -117,17 +107,15 @@ export default async function AttControlPage({ searchParams }: { searchParams: P
 
         <form className="flex flex-wrap items-center gap-2">
           <input type="hidden" name="ay" value={period} />
-          <input name="q" defaultValue={sp.q} placeholder="Personel ara" className={`${inputCls} w-52 h-10`} />
           <select name="durum" defaultValue={durum} className={`${selectCls} w-44 h-10`}><option value="open">Açık hatalar</option><option value="done">Düzeltilen / kabul</option><option value="all">Tümü</option></select>
           <select name="hata" defaultValue={sp.hata ?? ""} className={`${selectCls} w-52 h-10`}><option value="">Tüm hata türleri</option>{Object.entries(ISSUE).map(([k, v]) => <option key={k} value={k}>{v.label}{byIssue.get(k) ? ` (${byIssue.get(k)})` : ""}</option>)}</select>
           <select name="bolum" defaultValue={sp.bolum ?? ""} className={`${selectCls} w-44 h-10`}><option value="">Tüm bölümler</option>{(depts ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
           <input type="date" name="tarih" defaultValue={sp.tarih} className={`${inputCls} w-40 h-10`} />
           <button className={`${btnSecondary} h-10`}>Filtrele</button>
-          {(sp.q || sp.hata || sp.bolum || sp.tarih) && <Link href={link({ q: undefined, hata: undefined, bolum: undefined, tarih: undefined })} className="text-sm font-semibold text-muted">Temizle</Link>}
-          <span className="ml-auto text-sm text-muted">{rows.length} gün{rows.length > shown.length ? ` (ilk ${shown.length})` : ""}</span>
+          {(sp.hata || sp.bolum || sp.tarih) && <Link href={link({ q: undefined, hata: undefined, bolum: undefined, tarih: undefined })} className="text-sm font-semibold text-muted">Temizle</Link>}
         </form>
 
-        {durum === "open" && shown.length > 0 && !closed && (
+        {durum === "open" && rows.length > 0 && !closed && (
           <form id="toplu" action={bulkFixAtt} className="rounded-[14px] border border-line bg-[#F8FAFC] p-3 flex flex-wrap items-center gap-2 text-sm">
             <b className="text-brand-800">Seçilenlere toplu işlem:</b>
             <select name="action" className={`${selectCls} w-56 h-9`}>
@@ -143,63 +131,12 @@ export default async function AttControlPage({ searchParams }: { searchParams: P
           </form>
         )}
 
-        <div className="flex flex-col gap-2">
-          {shown.map((r) => {
-            const name = r.employees ? `${r.employees.first_name} ${r.employees.last_name}` : "?";
-            const missing = r.issues.includes("MISSING_IN") || r.issues.includes("MISSING_OUT");
-            const key = `${r.employee_id}|${r.work_date}`;
-            const editable = !closed && (r.state === "open");
-            return (
-              <article key={key} className={`rounded-[14px] border bg-white p-3 flex flex-col gap-2 ${r.state === "open" ? "border-[#F3C7C7]" : "border-line"}`}>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  {editable && durum === "open" && <input type="checkbox" name="sel" value={key} form="toplu" className="w-4 h-4" aria-label="Seç" />}
-                  <span className="font-semibold">{name}</span>
-                  <span className="text-xs text-muted">{r.employees?.departments?.name ?? "Bölümsüz"}</span>
-                  <span className="num text-sm">{dLabel(r.work_date)}</span>
-                  <span className="text-xs text-muted">{r.shift_code ? `Vardiya ${r.shift_code} ${r.shift_start?.slice(0, 5) ?? ""}–${r.shift_end?.slice(0, 5) ?? ""}` : "Vardiya yok"}</span>
-                  <span className="num text-xs">Giriş <b>{hm(r.first_in)}</b> · Çıkış <b>{hm(r.last_out)}</b> · Net {dur(r.worked_min)}{r.late_min ? ` · geç ${r.late_min} dk` : ""}{r.early_min ? ` · erken ${r.early_min} dk` : ""}{r.overtime_min ? ` · FM ${dur(r.overtime_min)}` : ""}</span>
-                  <span className="flex flex-wrap gap-1">{r.issues.map((i) => <Chip key={i} tone={ISSUE[i]?.tone ?? "gray"}>{ISSUE[i]?.label ?? i}</Chip>)}</span>
-                  <span className="ml-auto flex items-center gap-2 text-xs"><Chip tone={STATE[r.state]?.[1]}>{STATE[r.state]?.[0]}</Chip>{r.resolution && <span className="text-muted">{RES[r.resolution] ?? r.resolution}</span>}<Link href={`/puantaj/${r.employee_id}/${r.work_date}`} className="text-brand-700 font-semibold">Okutmalar</Link></span>
-                </div>
-                {editable && (
-                  <form action={fixAttDay} className="flex flex-wrap items-center gap-1.5">
-                    <input type="hidden" name="employee_id" value={r.employee_id} />
-                    <input type="hidden" name="date" value={r.work_date} />
-                    <input name="reason" placeholder="Sebep (ör. kartını unuttu)" maxLength={300} className="h-8 rounded-lg border border-[#D5DEE8] px-2 text-xs w-52" />
-                    {missing && (
-                      <>
-                        {r.issues.includes("MISSING_IN") && <input type="time" name="time_in" title="Giriş saati (boşsa vardiya başlangıcı)" className="h-8 rounded-lg border border-[#D5DEE8] px-1 text-xs" />}
-                        {r.issues.includes("MISSING_OUT") && <input type="time" name="time_out" title="Çıkış saati (boşsa vardiya bitişi)" className="h-8 rounded-lg border border-[#D5DEE8] px-1 text-xs" />}
-                        <PendingSubmit name="action" value="forgot_card" className={`${btn} bg-brand-700 text-white border-brand-700`}>Kart unuttu</PendingSubmit>
-                      </>
-                    )}
-                    {(missing || r.issues.includes("ABSENT")) && <PendingSubmit name="action" value="shift_fill" className={`${btn} border-brand-600 text-brand-700`}>Vardiyasına göre işle</PendingSubmit>}
-                    {r.issues.includes("OVERTIME") && (
-                      <>
-                        <input name="ot_hours" inputMode="decimal" placeholder={`${(r.overtime_min / 60).toLocaleString("tr-TR", { maximumFractionDigits: 2 })} sa`} title="Saat (boşsa hesaplanan)" className="h-8 w-16 rounded-lg border border-[#D5DEE8] px-1 text-xs text-right" />
-                        <PendingSubmit name="action" value="overtime" className={`${btn} bg-[#0F766E] text-white border-[#0F766E]`}>Mesai işle</PendingSubmit>
-                      </>
-                    )}
-                    {(r.issues.includes("ABSENT") || r.issues.includes("LEAVE_PRESENT") || missing) && (
-                      <>
-                        <select name="leave_type" className="h-8 rounded-lg border border-[#D5DEE8] px-1 text-xs max-w-[150px]" aria-label="İzin türü"><option value="">İzin türü…</option>{(leaveTypes ?? []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
-                        <PendingSubmit name="action" value="leave" className={`${btn} border-line`}>İzinli say</PendingSubmit>
-                      </>
-                    )}
-                    {r.issues.includes("ABSENT") && <PendingSubmit name="action" value="absent" className={`${btn} border-[#F3C7C7] text-bad`}>Devamsız onayla</PendingSubmit>}
-                    <select name="shift_id" className="h-8 rounded-lg border border-[#D5DEE8] px-1 text-xs max-w-[140px]" aria-label="Vardiya"><option value="">Vardiya…</option><option value="off">Hafta tatili</option>{(shifts ?? []).map((x) => <option key={x.id} value={x.id}>{x.code} {String(x.start_time).slice(0, 5)}–{String(x.end_time).slice(0, 5)}</option>)}</select>
-                    <PendingSubmit name="action" value="shift_change" className={`${btn} border-line`}>Vardiya değiştir</PendingSubmit>
-                    <PendingSubmit name="action" value="accept" className={`${btn} border-line text-muted`}>Kabul et</PendingSubmit>
-                  </form>
-                )}
-                {!closed && (r.state === "fixed" || r.state === "accepted") && (
-                  <form action={fixAttDay} className="flex"><input type="hidden" name="employee_id" value={r.employee_id} /><input type="hidden" name="date" value={r.work_date} /><input type="hidden" name="action" value="reopen" /><PendingSubmit className="text-xs font-semibold text-muted underline">Yeniden aç</PendingSubmit></form>
-                )}
-              </article>
-            );
-          })}
-          {!shown.length && !missingSql && <div className="rounded-[14px] border border-line bg-white p-8 text-center text-muted">{durum === "open" ? "Açık hatalı gün yok." : "Kayıt yok."}</div>}
-        </div>
+        {!missingSql && (
+          <ControlList key={`${period}|${durum}|${sp.hata ?? ""}|${sp.bolum ?? ""}|${sp.tarih ?? ""}|${last?.computed_at ?? ""}`} rows={rows} closed={!!closed} durum={durum} initialQuery={sp.q ?? ""}
+            leaveTypes={(leaveTypes ?? []).map((t) => ({ id: t.id as string, name: t.name as string }))}
+            shifts={(shifts ?? []).map((x) => ({ id: x.id as string, code: x.code as string, start: String(x.start_time).slice(0, 5), end: String(x.end_time).slice(0, 5) }))}
+            names={[...new Set(rows.map((r) => (r.employees ? `${r.employees.first_name} ${r.employees.last_name}` : "")).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"))} />
+        )}
 
         <section className="grid gap-3 md:grid-cols-2">
           <div className="rounded-[14px] border border-line bg-white p-4 text-sm flex flex-col gap-2">
