@@ -25,7 +25,7 @@ export default async function CustomerMarginPage({ searchParams }: { searchParam
   const sel = sp.urun === "tumu" ? null : summary.find((p) => p.id === sp.urun) ?? mp[0] ?? summary[0] ?? null;
   const selRows = sel ? rows.filter((r) => r.productId === sel.id) : rows;
   const qs = (o: Record<string, string>) => new URLSearchParams({ ay: String(months), ...(sel ? { urun: sel.id } : { urun: "tumu" }), ...o }).toString();
-  const missingSql = /prd_customer_margin|schema cache|does not exist/.test(error ?? "");
+  const missingSql = /prd_customer_margin|prd_cost_for|schema cache|does not exist/.test(error ?? "");
 
   const totQ = selRows.reduce((t, r) => t + r.qty, 0);
   const totR = selRows.reduce((t, r) => t + r.revTry, 0);
@@ -42,7 +42,7 @@ export default async function CustomerMarginPage({ searchParams }: { searchParam
         actions={<span className="flex gap-4 text-sm font-semibold"><a href={`/uretim/maliyet/musteri/excel?${qs({})}`} className="text-brand-700">⬇ Excel</a><Link href="/uretim/maliyet" className="text-brand-700">← Ürün maliyetleri</Link></span>}
       />
       <div className="p-4 md:p-6 flex flex-col gap-5 max-w-[1400px]">
-        {missingSql && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">Supabase&apos;de mbdental-musteri-karlilik.sql çalıştırılmalı.</p>}
+        {missingSql && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">Supabase&apos;de mbdental-maliyet-hiz.sql çalıştırılmalı.</p>}
         {!missingSql && error && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">{error}</p>}
 
         <form className="flex flex-wrap items-end gap-2">

@@ -28,20 +28,30 @@ export const MP = /metal.{0,3}porselen|metal.{0,3}seramik|ccm|c[ée]ramo.?m[ée]
 
 export async function loadCustomerMargin(sb: SupabaseClient, months: number): Promise<CmData> {
   const from = new Date(Date.now() - months * 30.44 * 86400000).toISOString().slice(0, 10);
-  const [{ data, error }, { data: costs, error: e2 }, { data: prods0 }] = await Promise.all([
+  const [{ data, error }, { data: prods0 }] = await Promise.all([
     sb.rpc("prd_customer_margin", { p_from: from }),
-    sb.rpc("prd_cost_list"),
     sb.from("lab_products").select("id, name, name_tr, price_try, price_eur"),
   ]);
   // name_tr sütunu yoksa onsuz
   const prods = prods0 ?? (await sb.from("lab_products").select("id, name, price_try, price_eur")).data;
-  const err = error?.message ?? e2?.message ?? null;
-  if (!data) return { rows: [], products: [], eur: 0, usd: 0, error: err };
+  if (!data) return { rows: [], products: [], eur: 0, usd: 0, error: error?.message ?? null };
   const raw = data as Raw;
   const eur = Number(raw.eur) || 0;
   const usd = Number(raw.usd) || 0;
   const rate = (cur: string) => (cur === "EUR" ? eur : cur === "USD" ? usd : 1);
-  const costBy = new Map(((costs ?? []) as { id: string; total: number | null; production: number | null }[]).map((c) => [c.id, c]));
+  // Maliyet: yalnız satılan / fiyatı olan ürünler, 25'erli parçalar halinde paralel (zaman aşımına düşmesin)
+  const ids = [...new Set([...raw.sales.map((x) => x.p), ...raw.prices.map((x) => x.p)])];
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += 25) chunks.push(ids.slice(i, i + 25));
+  const costBy = new Map<string, { total: number | null; production: number | null }>();
+  let err: string | null = null;
+  for (let i = 0; i < chunks.length; i += 6) {
+    const res = await Promise.all(chunks.slice(i, i + 6).map((c) => sb.rpc("prd_cost_for", { p_ids: c })));
+    for (const r of res) {
+      if (r.error) { err ??= r.error.message; continue; }
+      for (const [k, v] of Object.entries((r.data ?? {}) as Record<string, { total: number | null; production: number | null }>)) costBy.set(k, v);
+    }
+  }
   const products: CmProduct[] = ((prods ?? []) as { id: string; name: string; name_tr?: string | null; price_try: number | null; price_eur: number | null }[]).map((p) => {
     const c = costBy.get(p.id);
     return { id: p.id, name: p.name_tr ? `${p.name_tr} (${p.name})` : p.name, cost: c?.total != null ? Number(c.total) : null, production: c?.production != null ? Number(c.production) : null, listTry: p.price_try, listEur: p.price_eur };
