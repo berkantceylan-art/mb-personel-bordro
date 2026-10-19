@@ -34,7 +34,7 @@ export function ShipmentForm({ shipment, direction, accounts, cases }: { shipmen
         </label>
         <label className={label}>
           Takip numarası {carrier === "dhl" || carrier === "ups" ? "*" : ""}
-          <input name="tracking_no" defaultValue={shipment?.tracking_no ?? ""} placeholder={carrier === "ups" ? "1Z…" : carrier === "dhl" ? "10 haneli" : "varsa"} autoCapitalize="characters" className={`${input} font-mono`} />
+          <input name="tracking_no" defaultValue={shipment?.tracking_no ?? ""} placeholder={carrier === "ups" ? "1Z…" : carrier === "dhl" ? "10 haneli · boş bırakılırsa DHL’de oluşturulur" : "varsa"} autoCapitalize="characters" className={`${input} font-mono`} />
         </label>
         <label className={label}>
           Paket sayısı
