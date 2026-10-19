@@ -9,6 +9,7 @@ import { PARTY_KIND, dateOk, fmt, type Party } from "@/lib/fin";
 import { PartyForm } from "../../_parts/PartyForm";
 import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
 import { deleteParty, setPartyActive } from "@/lib/fin-actions";
+import { setNoInvoice } from "@/lib/waybill-actions";
 import { DateFilter } from "../../_parts/DateFilter";
 import { LedgerTable } from "../../_parts/LedgerTable";
 
@@ -35,6 +36,8 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
   const { data: twinRow } = await supabase.from("fin_parties").select("id, name").eq(p.slip_of ? "id" : "slip_of", p.slip_of ?? p.id).maybeSingle();
   const pairMain = p.slip_of ?? (twinRow ? p.id : null);
   const overLimit = p.credit_limit && led.balance > Number(p.credit_limit);
+  const { data: lcRow } = p.lab_customer_id ? await supabase.from("lab_customers").select("no_invoice").eq("id", p.lab_customer_id).maybeSingle() : { data: null };
+  const cash = (lcRow as { no_invoice?: boolean } | null)?.no_invoice === true;
   return (
     <>
       <PageHeader title={p.name} subtitle={`${PARTY_KIND[p.kind]} · ${p.currency}${p.tax_no ? ` · ${p.tax_no}` : ""}`} actions={<span className="flex gap-4 text-sm font-semibold">{canEdit && <a href="#duzenle" className="text-brand-700">✎ Düzenle</a>}{canEdit && <a href="#sil" className="text-bad">Sil</a>}<Link href="/finans/cariler" className="text-brand-700">← Cariler</Link></span>} />
@@ -60,6 +63,18 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
           {p.lab_customer_id && <Link href={`/isler/hekimler/${p.lab_customer_id}`} className="rounded-full border border-line bg-white px-3.5 py-1.5 font-semibold text-brand-700">Hekim kartı →</Link>}
           {p.phone && <a href={`https://wa.me/${p.phone.replace(/\D/g, "").replace(/^0/, "90")}`} target="_blank" rel="noreferrer" className="rounded-full border border-line bg-white px-3.5 py-1.5 font-semibold text-ok">WhatsApp</a>}
         </div>
+        {p.lab_customer_id && (
+          <div className={`rounded-[14px] border px-4 py-3 text-sm flex flex-wrap items-center gap-3 ${cash ? "border-[#FCD34D] bg-[#FFFBEB]" : "border-line bg-white"}`}>
+            <span className="flex-1 min-w-[240px]">{cash ? <><b>Faturasız (nakit) müşteri.</b> Tahsilatları yalnız hekim carisinde; bu kartta yalnız kesilen faturalar görünür.</> : <>Bu kartta <b>kesilen faturalar ve tahsilatlar</b> görünür; işler hekim carisindedir.</>}</span>
+            {canEdit && (
+              <form action={setNoInvoice} className="flex">
+                <input type="hidden" name="customer_id" value={p.lab_customer_id} />
+                <input type="hidden" name="on" value={cash ? "" : "on"} />
+                <ConfirmSubmit label={cash ? "Faturalıya çevir" : "Faturasız (nakit) yap"} question={cash ? "Bu müşteri faturalı olsun mu? Tahsilatları bu karta da işlenecek." : "Bu müşteri faturasız (nakit) olsun mu? Tahsilatları bu karttan çıkarılıp yalnız hekim carisinde kalacak."} className="h-9 px-3 rounded-lg border border-brand-600 bg-white text-brand-700 font-semibold" />
+              </form>
+            )}
+          </div>
+        )}
         <DateFilter from={from ?? undefined} to={to ?? undefined} />
         <LedgerTable rows={led.rows} currency={p.currency} canVoid={canPost} total={led} />
         {!p.is_active && <p className="text-sm rounded-[12px] px-4 py-3 bg-[#F1F5F9] text-muted">Bu cari kart pasif: yeni işlemlerde önerilmez, geçmiş kayıtları korunur.</p>}

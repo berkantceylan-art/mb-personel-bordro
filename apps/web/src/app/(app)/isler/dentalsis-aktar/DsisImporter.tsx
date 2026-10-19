@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { dsisCloseOld, dsisFixCountry, dsisFixCurrencyBatch, dsisFixCustomerCurrency, dsisFxBackfill, dsisImportBalance, dsisImportBatch, dsisImportYears, dsisImportRef, dsisPaymentsPreview, dsisPaymentsRebuild, type DsisPayPreview, dsisProductsToStock, dsisRevenueSummary, dsisTranslateProducts, type DsisFiles, type DsisStep } from "@/lib/dsis-actions";
+import { dsisCloseOld, dsisFixCountry, dsisFixCurrencyBatch, dsisFixCustomerCurrency, dsisFxBackfill, dsisImportBalance, dsisImportBatch, dsisImportYears, dsisImportRef, dsisPaymentsPreview, dsisPaymentsRebuild, type DsisPayPreview, cariModelPreview, cariModelApply, type CariPreview, dsisProductsToStock, dsisRevenueSummary, dsisTranslateProducts, type DsisFiles, type DsisStep } from "@/lib/dsis-actions";
 
 type Log = { ok: boolean; text: string };
 
@@ -92,6 +92,7 @@ export function DsisImporter({ files }: { files: DsisFiles }) {
         )}
       </section>
       {files.tahsilat && <DsisPayFix />}
+      <CariModel />
       <DsisFixes hasTahsilat={files.tahsilat} jobs={files.jobs} />
     </>
   );
@@ -222,6 +223,60 @@ function DsisPayFix() {
             <div className="rounded-lg border border-[#F3C3BE] bg-[#FFF6F5] p-2">
               <p className="font-semibold text-bad">Elle girilmiş ve Dentalsis&apos;ten gelen bir tahsilatla aynı tutar (±3 gün) — iki kez girilmiş olabilir, kontrol edin:</p>
               <ul className="text-xs grid gap-0.5 mt-1">{pv.manual_like.map((m, i) => <li key={i}>{m.hekim} · {m.tarih} · {payMoney(m.tutar, m.currency)}{m.not_ ? ` · ${m.not_}` : ""}</li>)}</ul>
+            </div>
+          )}
+        </div>
+      )}
+      {msg && <p className={`text-sm ${msg.ok ? "text-ok" : "text-bad"}`}>{msg.text}</p>}
+    </section>
+  );
+}
+
+/** Hekim carisi (işler + tahsilat) ve cari kart (fatura + tahsilat) düzenine geçiş */
+function CariModel() {
+  const [busy, setBusy] = useState(false);
+  const [pv, setPv] = useState<CariPreview | null>(null);
+  const [reset, setReset] = useState(true);
+  const [msg, setMsg] = useState<Log | null>(null);
+  const router = useRouter();
+  async function check() {
+    setBusy(true); setMsg(null);
+    const r = await cariModelPreview();
+    if (r.ok) setPv(r.data ?? null); else setMsg({ ok: false, text: r.message ?? "Hata" });
+    setBusy(false);
+  }
+  async function apply() {
+    if (!confirm("Tüm hekimler yeni düzene geçecek: işler ve tahsilatlar hekim carisinde, faturalar ve aynı tahsilatlar cari kartta. Devam edilsin mi?")) return;
+    setBusy(true); setMsg(null);
+    const r = await cariModelApply(reset);
+    setMsg({ ok: r.ok, text: `${r.message}${r.result ? " — " + fmt(r.result) : ""}` });
+    const p = await cariModelPreview();
+    if (p.ok) setPv(p.data ?? null);
+    setBusy(false); router.refresh();
+  }
+  return (
+    <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
+      <h2 className="font-display text-lg font-bold">Hekim carisi + cari kart düzeni</h2>
+      <ul className="text-sm text-muted list-disc pl-5 grid gap-1">
+        <li><b>Hekim carisi</b>: tüm işler + tüm tahsilatlar (bakiye Dentalsis&apos;le aynı).</li>
+        <li><b>Cari kart</b> (Finans › Cariler): kesilen faturalar + aynı tahsilatlar.</li>
+        <li><b>Faturasız (nakit)</b> işaretli müşteride tahsilat yalnız hekim carisinde kalır; işaret hekim kartından ya da cari karttan verilir.</li>
+      </ul>
+      <div className="flex flex-wrap gap-3 items-center">
+        <button disabled={busy} onClick={check} className="h-12 px-5 rounded-[12px] border border-[#D5DEE8] bg-white text-brand-700 font-bold disabled:opacity-50">Kontrol et</button>
+        <button disabled={busy || !pv} onClick={apply} className="h-12 px-5 rounded-[12px] bg-brand-700 text-white font-bold disabled:opacity-50">{busy ? "Çalışıyor…" : "Yeni düzene geç"}</button>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={reset} onChange={(e) => setReset(e.target.checked)} className="w-4 h-4" />Hekime bağlı cari kartların açılış bakiyesini sıfırla</label>
+      </div>
+      {pv && (
+        <div className="text-sm grid gap-1">
+          <p>Hekim: <b>{pv.customers}</b> · yeni düzende: <b>{pv.already}</b> · faturasız: <b>{pv.no_invoice}</b> · cari kartı olan: <b>{pv.parties_linked}</b>{pv.customers_without_party ? ` · cari kartı olmayan: ${pv.customers_without_party}` : ""}</p>
+          <p>Hekimlere kesilmiş satış faturası: <b>{pv.invoices}</b></p>
+          <p className="text-muted">Tahsilat defteri: iki cari {pv.payments_both} · yalnız cari kart {pv.payments_official} · yalnız hekim {pv.payments_internal}</p>
+          {pv.unlinked_parties.length > 0 && <p className="text-muted">Hekime bağlı olmayan müşteri cari kartları: {pv.unlinked_parties.map((x) => x.name).join(", ")}</p>}
+          {pv.openings.length > 0 && (
+            <div className="rounded-lg border border-line bg-[#F7F9FC] p-2">
+              <p className="font-semibold">Açılış bakiyesi olan cari kartlar ({pv.openings.length}):</p>
+              <ul className="text-xs grid gap-0.5 mt-1 max-h-40 overflow-auto">{pv.openings.map((o, i) => <li key={i}>{o.name} · {payMoney(o.amount, o.currency)}</li>)}</ul>
             </div>
           )}
         </div>
