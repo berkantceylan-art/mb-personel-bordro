@@ -1,5 +1,5 @@
 {
-  "last_checked": "2026-10-12",
+  "last_checked": "2026-10-19",
   "params": [
     {
       "key": "minWageGross",
@@ -163,6 +163,59 @@
     }
   ],
   "bulletin": [
+    {
+      "id": "2026-10-kdv-e-beyan-istanbul",
+      "date": "2026-10-14",
+      "title": "KDV beyannameleri İstanbul'da da yeni e-Beyan sisteminden (Ekim/2026 döneminden itibaren)",
+      "summary": "GİB duyurusu: KDV1, KDV2, KDV2B, KDV4 ve KDV9015 beyannameleri İstanbul hariç tüm illerde zaten yeni e-Beyan sisteminden alınıyordu (bkz. Mart 2026 pilot uygulama kaydı). 1 Kasım 2026'dan itibaren, yani Ekim/2026 vergilendirme döneminden başlayarak İstanbul'da da yeni sistem kullanılacak. Önceki dönemlerin ilk kez verilecek beyannameleri ve düzeltme beyannameleri eski e-Beyanname (BDP) sisteminden verilmeye devam edecek. Muhasebe programı e-Beyan'a entegre ise beyanname web servisiyle de gönderilebiliyor.",
+      "impact": "Bordro ve muhasebe hesaplarına etkisi yok. Genel muhasebe › Beyanname ekranındaki KDV1/KDV2 tutarları aynı kalır; yalnız beyanın verildiği sistem değişir. Şirket İstanbul'daysa Ekim/2026 KDV1 ve KDV2 (yurt dışı reklam hizmeti) beyanları yeni e-Beyan'dan verilecek; düzeltme beyanları eski sistemden.",
+      "category": "KDV",
+      "area": "muhasebe",
+      "severity": "aksiyon",
+      "status": "bilgi",
+      "action": "Şirket İstanbul'daysa Ekim/2026 KDV1 ve KDV2 beyanlarını yeni e-Beyan sisteminden verin; mali müşavirinizle hazırlığı teyit edin.",
+      "due": "2026-11-25",
+      "source": "https://www.alomaliye.com/2026/10/14/kdv-beyannamelerine-iliskin-onemli-duyuru-kdv1-kdv2-kdv2b-kdv4-kdv9015/"
+    },
+    {
+      "id": "2026-10-kvkk-kurumsal-eposta-ilke",
+      "date": "2026-10-08",
+      "title": "KVKK ilke kararı: çalışanların kurumsal e-posta ve iletişim kanallarının denetimi",
+      "summary": "Kişisel Verileri Koruma Kurulunun 16.09.2026 tarihli ve 2026/2035 sayılı ilke kararı (RG 08.10.2026, sayı 33394). İşveren kurumsal e-postayı ve iş amaçlı mesajlaşma, talep yönetimi, toplantı platformu gibi kanalları sınırsız denetleyemez. Çalışanlar denetimin amacı, hukuki sebebi, kapsamı, yöntemi ve saklama süresi konusunda önceden somut biçimde aydınlatılmalı; önce trafik/log denetimi yapılmalı, içerik denetimi ancak somut şüphe ve yazılı gerekçeyle istisnai olarak yapılmalı. Gizli izleme ve her şeyi kaydeden araçlar hukuka aykırı; açık rıza kural olarak dayanak olmamalı. Erişim yetkili kişilerle sınırlanıp loglanmalı; ayrılan çalışanın hesabı kapatılmalı, yönlendirme süreli ve sınırlı olmalı; toplantı kaydı ve otomatik özet varsayılan olarak kapalı tutulmalı. Aykırılıkta 6698 sayılı Kanun m.18 kapsamında idari yaptırım uygulanabilir.",
+      "impact": "Bordro hesabına etkisi yok. Uygulamadaki mesajlaşma (sohbet) ve personel kayıtları da kurumsal iletişim kanalı sayılır: çalışan aydınlatma metnini, kişisel veri envanterini, saklama ve imha politikasını ve kabul edilebilir kullanım politikasını bu karara göre güncelleyin; ayrılan personelin hesabını çıkış tarihinde kapatın.",
+      "category": "KVKK",
+      "area": "diger",
+      "severity": "aksiyon",
+      "status": "bilgi",
+      "action": "Çalışan aydınlatma metnini ve e-posta/iletişim denetimi politikasını ilke kararına göre güncelleyin; ayrılan personelin hesaplarını çıkışta kapatın.",
+      "source": "https://www.cottgroup.com/tr/mevzuat/item/kurumsal-e-posta-hesaplarinin-ve-is-yeri-iletisim-kanallarinin-denetlenmesine-iliskin-kvkk-ilke-karari-isverenlerin-yukumlulukleri"
+    },
+    {
+      "id": "2026-10-tcmb-doviz-donusum-destegi",
+      "date": "2026-10-01",
+      "title": "TCMB döviz dönüşüm desteği: ihracat bedeline %3 destek (31.01.2027'ye kadar)",
+      "summary": "TCMB'nin Firmaların Yurt Dışı Kaynaklı Dövizlerinin Türk Lirasına Dönüşümünün Desteklenmesi uygulama talimatı 1 Ekim 2026'da yürürlüğe girdi. İhracatçılar ve döviz kazandırıcı hizmet sağlayanlar, belgeli yurt dışı kaynaklı dövizi TCMB'ye sattıklarında TL karşılığının %3'ü kadar destek alabiliyor; uygulama 31.01.2027'ye kadar geçerli. Şartlar: döviz pozisyonu oranı %10'u aşmamalı (SMMM/YMM onaylı, 15 gün geçerli EK-C formu); firma bazında satış limiti var; 01.10–31.12.2026 için yıllık limitin %25'i ve en fazla 25 milyon TL destek. İhracat bedelinin İBKB'ye bağlanması gerekir; reeskont kredisiyle mükerrer yararlanma yasak. Haksız yararlanmada geri ödeme, faiz ve 1–3 yıl yasak var.",
+      "impact": "Bordro ve muhasebe hesaplarına etkisi yok. Fransa ve diğer ihracat tahsilatlarında isteğe bağlı bir fırsat: yararlanmak isterseniz bankanız ve mali müşavirinizle döviz pozisyonu oranını ve belgeleri (gümrük beyannamesi/ETGB, İBKB) kontrol edin. Alınan destek gelir olarak muhasebeleştirilir.",
+      "category": "Gümrük ve ihracat",
+      "area": "dis-ticaret",
+      "severity": "bilgi",
+      "status": "bilgi",
+      "source": "https://www.dunya.com/kose-yazisi/doviz-donusum-desteginde-sartlar-degisti/843719"
+    },
+    {
+      "id": "2026-06-7582-uretim-kurumlar-vergisi",
+      "date": "2026-06-04",
+      "title": "7582 sayılı Kanun: üretim kazançlarına 2027'den itibaren %12,5 kurumlar vergisi",
+      "summary": "7582 sayılı Kanunla (RG 04.06.2026, sayı 33270) KVK 32/8 değişti: sanayi sicil belgesine sahip ve fiilen üretim yapan kurumların yalnız üretim faaliyetinden elde ettiği kazançlara 2027 ve sonraki dönemlerde %12,5 kurumlar vergisi uygulanacak; 2026 döneminde mevcut 1 puanlık indirim sürüyor. Kurumlar Vergisi Genel Tebliği (Seri No: 26; RG 04.07.2026, sayı 33300) uyarınca ihracat kazancına 5 puan indirim korunuyor, ancak aynı kazanç için üretim ve ihracat indirimi birlikte kullanılamıyor. Kanunla ayrıca amme alacağı tecil süresi 72 aya, teminatsız tecil sınırı 1.000.000 TL'ye çıktı. Bu kayıt önceki kontrollerde atlanmıştı; geriye dönük eklendi. Asgari kurumlar vergisiyle etkileşimi tebliğ metninde ayrıca teyit edilmeli (teyit edilmedi).",
+      "impact": "Geçici ve kurumlar vergisi ekranı (gl_cit_calc) şu an %25 genel oran, 601 satış payına göre ihracat için 5 puan indirim ve %10 asgari vergi ile hesaplıyor; sanayi sicilli üretim için 1 puanlık (2026) ve %12,5'lik (2027) oranı hesaplamıyor. 2027/1. dönem geçici vergisinden önce yazılım güncellemesi gerekecek; bu güncelleme sanayi sicil belgesinin varlığına ve üretim kazancının nasıl ayrılacağına bağlı olduğundan bu kontrolde PR açılmadı.",
+      "category": "Kurumlar ve gelir vergisi",
+      "area": "muhasebe",
+      "severity": "aksiyon",
+      "status": "bilgi",
+      "action": "Mali müşavirinizle sanayi sicil belgesi durumunu ve üretim kazancının ayrımını teyit edin; sonucu bildirin ki 2027 oranı için hesap güncellemesi (PR) hazırlansın. 2026 için 1 puanlık üretim indirimini beyannamede elle değerlendirin.",
+      "due": "2027-03-31",
+      "source": "https://www.gureli.com.tr/sirkuler/vergi-sirkuleri-45-cesitli-vergisel-duzenlemeler-iceren-7582-sayili-kanun-yayimlanmistir/"
+    },
     {
       "id": "2026-10-vuk-596-e-tebligat",
       "date": "2026-10-11",
