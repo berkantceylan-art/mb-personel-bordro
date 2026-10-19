@@ -39,6 +39,8 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   ]);
   // name_tr sütunu yoksa (eski veritabanı) Türkçe adsız listeye dön
   const prods = prods0 ?? (await supabase.from("lab_products").select("id, name, price_try, price_eur, is_active").order("sort").order("name")).data?.map((p) => ({ ...p, name_tr: null as string | null }));
+  const { data: ysum } = await supabase.from("dsis_year_summary").select("year, currency, revenue, collected, jobs, units").eq("customer_id", id).order("year", { ascending: false });
+  const yrows = (ysum ?? []) as { year: number; currency: string; revenue: number; collected: number; jobs: number; units: number }[];
   const [{ data: accRows }, { data: offi }] = await Promise.all([
     supabase.from("fin_accounts").select("id, name, currency, kind").in("kind", ["cash", "bank", "pos"]).eq("is_active", true).order("name"),
     supabase.from("fin_party_balances").select("party_id, balance").eq("lab_customer_id", id).maybeSingle(),
@@ -149,6 +151,25 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             <div className="lg:col-span-4"><button className="h-10 px-5 rounded-lg bg-brand-700 text-white font-semibold">Kaydet</button>{ib && <span className="ml-3 text-xs text-muted">Resmi cari açılış bakiyesi Finans › Cari kartlar’dan girilir.</span>}</div>
           </form>
         </Card>
+        {yrows.length > 0 && (
+          <Card title="Dentalsis geçmişi · yıllık özet">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-muted"><th className="py-1.5 font-semibold">Yıl</th><th className="py-1.5 font-semibold text-right">İş</th><th className="py-1.5 font-semibold text-right">Üye</th><th className="py-1.5 font-semibold text-right">Ciro</th><th className="py-1.5 font-semibold text-right">Tahsilat</th></tr></thead>
+              <tbody>
+                {yrows.map((y) => (
+                  <tr key={`${y.year}${y.currency}`} className="border-t border-[#EEF2F6]">
+                    <td className="py-1.5 font-semibold">{y.year}</td>
+                    <td className="py-1.5 text-right num">{y.jobs ? y.jobs.toLocaleString("tr-TR") : "—"}</td>
+                    <td className="py-1.5 text-right num">{Number(y.units) ? Number(y.units).toLocaleString("tr-TR") : "—"}</td>
+                    <td className="py-1.5 text-right num">{money(Number(y.revenue), y.currency)}</td>
+                    <td className="py-1.5 text-right num">{money(Number(y.collected), y.currency)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-xs text-muted">2016–2025 yılları Dentalsis&apos;ten özet olarak alındı; bu yıllara ait bakiye 31.12.2025 devir kaydında.</p>
+          </Card>
+        )}
         <Card title="Cari kontrol — bakiye nereden geliyor?">
           <CariCheck customerId={c.id} lines={cariLines} hasDsis={devirJobs.length > 0 || adjPays.length > 0} />
         </Card>
