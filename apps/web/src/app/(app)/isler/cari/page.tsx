@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { allRows } from "@/lib/fetch-all";
 import { redirect } from "next/navigation";
 import { PageHeader, Stat } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -15,8 +16,8 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
   const supabase = await createClient();
   const [{ data: cs, error }, { data: jobs }, { data: pays, error: pe }, { data: offi }] = await Promise.all([
     supabase.from("lab_customers").select("id, name, kind, currency, city, is_active, internal_book, internal_opening").order("name"),
-    supabase.from("jobs").select("customer_id, total, status").eq("status", "delivered").limit(20000),
-    supabase.from("lab_payments").select("customer_id, amount, book").limit(20000),
+    allRows((a, b) => supabase.from("jobs").select("customer_id, total, status").eq("status", "delivered").order("id").range(a, b)),
+    allRows((a, b) => supabase.from("lab_payments").select("customer_id, amount, book").order("id").range(a, b)),
     supabase.from("fin_party_balances").select("lab_customer_id, balance").not("lab_customer_id", "is", null).limit(5000),
   ]);
   const { data: rl } = await supabase.rpc("lab_risk_list");
