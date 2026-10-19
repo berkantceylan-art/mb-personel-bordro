@@ -30,7 +30,7 @@ export async function dsisFiles(): Promise<DsisFiles> {
     const names = (data ?? []).map((f) => f.name.replace(/\.json$/, ""));
     const sb = await createClient();
     const { data: st } = await sb.rpc("dsis_import_status");
-    return { ok: true, ref: names.includes("ref"), tahsilat: names.includes("tahsilat"), years: names.includes("yillik"), jobs: names.filter((n) => /^jobs-\d+$/.test(n)).sort(), status: (st as Record<string, unknown>) ?? null };
+    return { ok: true, ref: names.includes("ref"), tahsilat: names.includes("tahsilat"), years: names.includes("yillik"), jobs: names.filter((n) => /^jobs-\d+$/.test(n)).sort((a, b) => Number(a.slice(5)) - Number(b.slice(5))), status: (st as Record<string, unknown>) ?? null };
   } catch (e) {
     return { ok: false, message: (e as Error).message, ref: false, tahsilat: false, years: false, jobs: [], status: null };
   }
