@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { allRows } from "@/lib/fetch-all";
 import { notFound, redirect } from "next/navigation";
 import { PrintButton } from "@/components/PrintButton";
 import { createClient } from "@/lib/supabase/server";
@@ -27,8 +28,8 @@ export default async function StatementPrint({ params, searchParams }: { params:
   const { data: c } = await supabase.from("lab_customers").select("id, name, currency, address, city, country, tax_office, tax_no, phone, internal_book, internal_opening, internal_opening_date, doc_lang").eq("id", id).maybeSingle();
   if (!c) notFound();
   const [{ data: jobs }, { data: pays }, { data: banks }] = await Promise.all([
-    supabase.from("jobs").select("id, no, in_date, patient, total, status, delivered_at").eq("customer_id", id).limit(20000),
-    supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note, book").eq("customer_id", id).limit(20000),
+    allRows((a, b) => supabase.from("jobs").select("id, no, in_date, patient, total, status, delivered_at").eq("customer_id", id).order("id").range(a, b)),
+    allRows((a, b) => supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note, book").eq("customer_id", id).order("id").range(a, b)),
     supabase.from("lab_options").select("value").eq("kind", "bank").order("sort"),
   ]);
   const ib = (c as { internal_book?: boolean }).internal_book === true;

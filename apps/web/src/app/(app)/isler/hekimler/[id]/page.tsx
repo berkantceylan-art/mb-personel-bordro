@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { allRows } from "@/lib/fetch-all";
 import { addActivity } from "@/lib/crm-actions";
 import { ACT_KIND, Q_CATEGORY, Q_STATUS } from "@/lib/quality";
 import { notFound, redirect } from "next/navigation";
@@ -30,10 +31,10 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const ib = c.internal_book === true;
   const [{ data: docs }, { data: jobs }, { data: accs }, { data: links }, { data: pays }, { data: prods0 }, { data: specials }] = await Promise.all([
     supabase.from("lab_customer_doctors").select("id, name").eq("customer_id", id).order("name"),
-    supabase.from("jobs").select("id, no, patient, in_date, due_date, status, total, currency, delivered_at").eq("customer_id", id).order("no", { ascending: false }).limit(5000),
+    allRows((a, b) => supabase.from("jobs").select("id, no, patient, in_date, due_date, status, total, currency, delivered_at").eq("customer_id", id).order("no", { ascending: false }).order("id").range(a, b)),
     supabase.from("portal_accounts").select("id, name, company").eq("status", "active").order("name"),
     supabase.from("lab_customers").select("portal_account_id").not("portal_account_id", "is", null),
-    supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note, book, legacy_ref, currency").eq("customer_id", id).order("paid_on"),
+    allRows((a, b) => supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note, book, legacy_ref, currency").eq("customer_id", id).order("paid_on").order("id").range(a, b)),
     supabase.from("lab_products").select("id, name, name_tr, price_try, price_eur, is_active").order("sort").order("name"),
     supabase.from("lab_customer_prices").select("product_id, price_try, price_eur").eq("customer_id", id),
   ]);

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { allRows } from "@/lib/fetch-all";
 import { redirect } from "next/navigation";
 import { Card, PageHeader } from "@/components/ui";
 import { EmptyRow, Field, KPI, Money, Notice, Table, Tabs, btnPrimary, btnSecondary, inputCls, page, selectCls, td, tdNum } from "@/components/erp";
@@ -41,8 +42,8 @@ export default async function CreditBook({ searchParams }: { searchParams: Promi
   const labIds = labAll.filter((x) => !ibSet.has(x));
   const [{ data: moves }, { data: jobs }, { data: pays }, { data: allParties }] = await Promise.all([
     ids.length ? supabase.from("fin_moves").select("party_id, amount, move_date, fin_txns!inner(voided_at)").in("party_id", ids).is("fin_txns.voided_at", null).limit(20000) : Promise.resolve({ data: [] }),
-    labIds.length ? supabase.from("jobs").select("customer_id, in_date, total, delivered_at").in("customer_id", labIds).eq("status", "delivered").limit(20000) : Promise.resolve({ data: [] }),
-    labIds.length ? supabase.from("lab_payments").select("customer_id, paid_on, amount").in("customer_id", labIds).is("fin_txn_id", null).limit(20000) : Promise.resolve({ data: [] }),
+    labIds.length ? allRows<{ customer_id: string; in_date: string; total: number; delivered_at: string | null }>((a, b) => supabase.from("jobs").select("customer_id, in_date, total, delivered_at").in("customer_id", labIds).eq("status", "delivered").order("id").range(a, b)) : Promise.resolve({ data: [] }),
+    labIds.length ? allRows<{ customer_id: string; paid_on: string; amount: number }>((a, b) => supabase.from("lab_payments").select("customer_id, paid_on, amount").in("customer_id", labIds).is("fin_txn_id", null).order("id").range(a, b)) : Promise.resolve({ data: [] }),
     supabase.from("fin_parties").select("id, name, currency").eq("is_active", true).in("kind", ["customer", "both", "other"]).order("name").limit(5000),
   ]);
   const rows = parties.map((p) => {
