@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const KEY_SHA256 = "25d49fcf4f266ddee9b8a03377dcbb41dba544b5b652ff107d2042105aab421e";
+const KEY_SHA256 = "6de945f06c565ca44379239dba8b9cfd27aff6f7f859ea3383ca2b94551902a3";
 const ORIGIN = "https://dentalsisplus.dentalofisi.com";
 const cors = { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "content-type", Vary: "Origin" };
 
