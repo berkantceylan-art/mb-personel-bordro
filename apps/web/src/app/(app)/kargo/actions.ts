@@ -36,7 +36,7 @@ export async function saveShipment(f: FormData) {
   const carrier = str(f, "carrier") as Carrier;
   if (!(carrier in CARRIER)) await fail("Kargo / taşıma türünü seçin.");
   const tracking = str(f, "tracking_no") ? normTracking(str(f, "tracking_no")) : null;
-  if ((carrier === "dhl" || carrier === "ups") && !tracking) await fail("DHL / UPS için takip numarası girin.");
+  if (carrier === "ups" && !tracking) await fail("UPS için takip numarası girin.");
   const accountId = str(f, "portal_account_id") || null;
   const party = str(f, "party_name") || null;
   if (!accountId && !party) await fail("Gönderen / alıcıyı seçin ya da adını yazın.");

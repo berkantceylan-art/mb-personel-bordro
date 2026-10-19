@@ -54,6 +54,7 @@ export default async function ShipmentsPage({ searchParams }: { searchParams: Pr
         subtitle="Gelen ölçüler ve giden işler: geldi mi, nerede?"
         actions={
           <div className="flex flex-wrap gap-2">
+            <Link href="/kargo/dhl" className="h-11 px-4 inline-flex items-center rounded-[10px] bg-[#FFCC00] text-[#D40511] font-bold">DHL</Link>
             <Link href="/kargo/okut" className="h-11 px-4 inline-flex items-center rounded-[10px] bg-brand-700 text-white font-semibold">Paket okut</Link>
             <Link href="/kargo/yeni?yon=in" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">+ Gelen</Link>
             <Link href="/kargo/yeni?yon=out" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">+ Giden</Link>

@@ -9,6 +9,9 @@ import { ShipmentForm } from "../ShipmentForm";
 import { DeliverySign, ShipmentUploader } from "../ShipmentUploader";
 import { addShipmentNote, deleteShipment, setShipmentStatus } from "../actions";
 import { formOptions } from "../data";
+import { DhlCreate } from "../DhlCreate";
+import { countryCode, dhlApiReady, dhlImportReady, dhlTrackingReady } from "@/lib/dhl";
+import { dhlCreateShipment, dhlQuote, loadDhlSettings, trackNow } from "@/lib/dhl-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +50,10 @@ export default async function ShipmentPage({ params, searchParams }: { params: P
   const who = account ? account.company || account.name : x.party_name || "—";
   const editing = sp.duzenle === "1";
   const opts = editing ? await formOptions() : null;
+  type Dhl = { country_code: string | null; postal_code: string | null; email: string | null; dhl_status: string | null; dhl_last_event: string | null; dhl_last_event_at: string | null; dhl_location: string | null; dhl_eta: string | null; dhl_checked_at: string | null; dhl_error: string | null; dhl_events: { at: string | null; text: string; place: string | null }[] | null; dhl_created: boolean | null; dhl_pickup_ref: string | null; dhl_cost: number | null; dhl_cost_currency: string | null };
+  const d = data as unknown as Dhl;
+  const isDhl = x.carrier === "dhl";
+  const dset = isDhl && !x.tracking_no && dhlApiReady() ? await loadDhlSettings() : null;
   const courierOpen = x.carrier === "our_courier" && !["delivered", "arrived", "opened", "job_created", "cancelled"].includes(x.status);
 
   return (
@@ -91,6 +98,40 @@ export default async function ShipmentPage({ params, searchParams }: { params: P
               </div>
             )}
           </Card>
+
+          {isDhl && (
+            <Card title="DHL" action={x.tracking_no && dhlTrackingReady() ? <form action={trackNow}><input type="hidden" name="id" value={x.id} /><button className="text-sm font-semibold text-brand-700">↻ Şimdi sorgula</button></form> : undefined}>
+              {x.tracking_no ? (
+                <div className="flex flex-col gap-2">
+                  {!dhlTrackingReady() && <p className="text-sm text-muted">Otomatik takip için Vercel&apos;e <b>DHL_TRACKING_KEY</b> eklenmeli; şimdilik takip numarasındaki bağlantıyı kullanın.</p>}
+                  {d.dhl_last_event ? (
+                    <div className="rounded-lg bg-[#FFF8D6] p-3 text-sm">
+                      <b className="text-[#8A6100]">{d.dhl_last_event}</b>
+                      <span className="block text-xs text-muted">{[d.dhl_location, d.dhl_last_event_at ? fmtDateTime(d.dhl_last_event_at) : null].filter(Boolean).join(" · ")}{d.dhl_eta ? ` · tahmini teslim ${formatDate(d.dhl_eta)}` : ""}</span>
+                    </div>
+                  ) : dhlTrackingReady() && <p className="text-sm text-muted">Henüz DHL bilgisi yok; saatte bir otomatik sorgulanır.</p>}
+                  {d.dhl_error && <p className="text-xs text-warn">{d.dhl_error}</p>}
+                  {d.dhl_events && d.dhl_events.length > 1 && (
+                    <details className="text-sm"><summary className="cursor-pointer text-brand-700 font-semibold text-xs">Tüm DHL hareketleri ({d.dhl_events.length})</summary>
+                      <ol className="mt-2 flex flex-col gap-1.5">{d.dhl_events.map((e, i) => <li key={i} className="border-l-2 border-[#FFCC00] pl-2"><span className="text-xs text-muted num">{e.at ? fmtDateTime(e.at) : ""}{e.place ? ` · ${e.place}` : ""}</span><span className="block">{e.text}</span></li>)}</ol>
+                    </details>
+                  )}
+                  <span className="text-xs text-muted">{d.dhl_checked_at ? `Son sorgu ${fmtDateTime(d.dhl_checked_at)}` : ""}{d.dhl_pickup_ref ? ` · kurye talebi ${d.dhl_pickup_ref}` : ""}{d.dhl_cost != null ? ` · DHL ücreti ${(d.dhl_cost / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ${d.dhl_cost_currency ?? ""}` : ""}</span>
+                </div>
+              ) : dset ? (
+                <DhlCreate quote={dhlQuote} create={dhlCreateShipment} p={{
+                  id: x.id, no: x.no, direction: x.direction,
+                  company: account?.company ?? x.party_name ?? "", name: account?.name ?? x.party_name ?? "",
+                  address1: (x.address ?? "").split("\n")[0] ?? "", address2: (x.address ?? "").split("\n")[1] ?? "", city: x.city ?? "", postal: d.postal_code ?? "",
+                  country: d.country_code ?? countryCode(x.country ?? account?.country) ?? "", phone: x.phone ?? "", email: d.email ?? account?.email ?? "",
+                  weight: Number(dset.default_weight), length: dset.length_cm, width: dset.width_cm, height: dset.height_cm, packages: x.package_count,
+                  value: Number(dset.default_value), currency: dset.currency, description: dset.item_desc, testMode: dset.test_mode, importReady: dhlImportReady(),
+                }} />
+              ) : (
+                <p className="text-sm text-muted">DHL&apos;de gönderi açıp etiket almak için Vercel&apos;e <b>DHL_API_USER</b>, <b>DHL_API_PASS</b>, <b>DHL_ACCOUNT_NO</b> eklenmeli. Hekim / DHL takip numarasını verdiyse <Link href={`/kargo/${x.id}?duzenle=1`} className="text-brand-700 font-semibold">Düzenle</Link>&apos;den girin; durum otomatik izlenir.</p>
+              )}
+            </Card>
+          )}
 
           {courierOpen && (
             <Card title={x.direction === "in" ? "Kurye: paketi teslim al" : "Kurye: teslim et"}>
