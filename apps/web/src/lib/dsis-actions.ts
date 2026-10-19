@@ -108,6 +108,38 @@ export async function dsisImportBalance(): Promise<DsisStep> {
   }
 }
 
+const payHint = (m: string) => (/dsis_payments_|dsis_day|schema cache/i.test(m) ? "Önce mbdental-dentalsis-tahsilat.sql dosyasını Supabase'de çalıştırın." : m);
+
+export type DsisPayPreview = { dsis_rows: number; dup_extra: number; dup_customers: number; dsis_total_eur: number; dsis_total_try: number; linked_to_finance: number; manual_2026: number;
+  manual_like: { hekim: string; tarih: string; tutar: number; currency: string; not_: string | null }[] };
+
+/** Dentalsis'ten gelen tahsilatlarda çift kayıt kontrolü (değişiklik yapmaz) */
+export async function dsisPaymentsPreview(): Promise<{ ok: boolean; message?: string; data?: DsisPayPreview }> {
+  try {
+    await owner();
+    const { data, error } = await (await createClient()).rpc("dsis_payments_preview");
+    if (error) return { ok: false, message: payHint(error.message) };
+    return { ok: true, data: data as DsisPayPreview };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Dentalsis tahsilatlarını silip her birini bir kez yeniden yazar, bakiyeleri yeniden eşitler */
+export async function dsisPaymentsRebuild(): Promise<DsisStep> {
+  try {
+    await owner();
+    const { data, error } = await (await createClient()).rpc("dsis_payments_reset");
+    if (error) return { ok: false, message: payHint(error.message) };
+    const del = Number((data as { deleted?: number } | null)?.deleted ?? 0);
+    const r = await dsisImportBalance();
+    if (!r.ok) return { ok: false, message: `${del} eski tahsilat silindi ama yeniden aktarım başarısız: ${r.message}. "Tahsilatları yeniden aktar" düğmesine tekrar basın.` };
+    return { ok: true, message: `${del.toLocaleString("tr-TR")} eski tahsilat kaydı silindi; tahsilatlar bir kez yeniden yazıldı ve bakiyeler Dentalsis'e eşitlendi`, result: r.result };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
 // ---------------------------------------------------------------------
 // Aktarım sonrası düzenlemeler (para birimi, toplu kapatma, kur, ürün çevirisi, stok)
 // ---------------------------------------------------------------------
