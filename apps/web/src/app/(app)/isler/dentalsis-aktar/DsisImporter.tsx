@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { dsisCloseOld, dsisFixCountry, dsisFixCurrencyBatch, dsisFixCustomerCurrency, dsisFxBackfill, dsisImportBalance, dsisImportBatch, dsisImportYears, dsisImportRef, dsisProductsToStock, dsisRevenueSummary, dsisTranslateProducts, type DsisFiles, type DsisStep } from "@/lib/dsis-actions";
+import { dsisCloseOld, dsisFixCountry, dsisFixCurrencyBatch, dsisFixCustomerCurrency, dsisFxBackfill, dsisImportBalance, dsisImportBatch, dsisImportYears, dsisImportRef, dsisPaymentsPreview, dsisPaymentsRebuild, type DsisPayPreview, dsisProductsToStock, dsisRevenueSummary, dsisTranslateProducts, type DsisFiles, type DsisStep } from "@/lib/dsis-actions";
 
 type Log = { ok: boolean; text: string };
 
@@ -91,6 +91,7 @@ export function DsisImporter({ files }: { files: DsisFiles }) {
           </ol>
         )}
       </section>
+      {files.tahsilat && <DsisPayFix />}
       <DsisFixes hasTahsilat={files.tahsilat} jobs={files.jobs} />
     </>
   );
@@ -176,6 +177,56 @@ function DsisFixes({ hasTahsilat, jobs }: { hasTahsilat: boolean; jobs: string[]
           </ul>
         </div>
       )}
+    </section>
+  );
+}
+
+const payMoney = (v: number, c: string) => `${(v / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${c === "EUR" ? "€" : c === "USD" ? "$" : "₺"}`;
+
+/** Çift girilmiş Dentalsis tahsilatlarını temizler */
+function DsisPayFix() {
+  const [busy, setBusy] = useState(false);
+  const [pv, setPv] = useState<DsisPayPreview | null>(null);
+  const [msg, setMsg] = useState<Log | null>(null);
+  const router = useRouter();
+  async function check() {
+    setBusy(true); setMsg(null);
+    const r = await dsisPaymentsPreview();
+    if (r.ok) setPv(r.data ?? null); else setMsg({ ok: false, text: r.message ?? "Hata" });
+    setBusy(false);
+  }
+  async function rebuild() {
+    if (!confirm("Dentalsis'ten gelen tüm tahsilatlar silinip her biri bir kez yeniden yazılacak, ardından bakiyeler Dentalsis'e eşitlenecek. Elle girilen tahsilatlara dokunulmaz. Devam edilsin mi?")) return;
+    setBusy(true); setMsg(null);
+    const r = await dsisPaymentsRebuild();
+    setMsg({ ok: r.ok, text: `${r.message}${r.result ? " — " + fmt(r.result) : ""}` });
+    const p = await dsisPaymentsPreview();
+    if (p.ok) setPv(p.data ?? null);
+    setBusy(false); router.refresh();
+  }
+  return (
+    <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
+      <h2 className="font-display text-lg font-bold">Tahsilat düzeltme (çift kayıt)</h2>
+      <p className="text-sm text-muted">Eski aktarım bazı tahsilatları iki kez yazmıştı. &quot;Kontrol et&quot; hiçbir şeyi değiştirmez; &quot;Tahsilatları yeniden aktar&quot; Dentalsis tahsilatlarını silip her birini bir kez, Dentalsis&apos;teki tarihle yazar ve bakiyeyi yeniden eşitler. Elle girilen ve finansa (kasa/banka) işlenmiş tahsilatlara dokunulmaz.</p>
+      <div className="flex flex-wrap gap-3">
+        <button disabled={busy} onClick={check} className="h-12 px-5 rounded-[12px] border border-[#D5DEE8] bg-white text-brand-700 font-bold disabled:opacity-50">Kontrol et</button>
+        <button disabled={busy || !pv} onClick={rebuild} className="h-12 px-5 rounded-[12px] bg-brand-700 text-white font-bold disabled:opacity-50">{busy ? "Çalışıyor…" : "Tahsilatları yeniden aktar"}</button>
+      </div>
+      {pv && (
+        <div className="text-sm grid gap-1">
+          <p>Dentalsis&apos;ten gelen tahsilat kaydı: <b>{pv.dsis_rows.toLocaleString("tr-TR")}</b> ({payMoney(pv.dsis_total_eur, "EUR")} · {payMoney(pv.dsis_total_try, "TRY")})</p>
+          <p className={pv.dup_extra ? "text-bad font-semibold" : "text-ok"}>Fazladan (çift) kayıt: {pv.dup_extra.toLocaleString("tr-TR")} · {pv.dup_customers} hekimde</p>
+          {pv.linked_to_finance > 0 && <p className="text-muted">Finansa işlenmiş {pv.linked_to_finance} Dentalsis tahsilatı silinmez.</p>}
+          <p className="text-muted">2026&apos;da elle girilmiş tahsilat: {pv.manual_2026.toLocaleString("tr-TR")}</p>
+          {pv.manual_like.length > 0 && (
+            <div className="rounded-lg border border-[#F3C3BE] bg-[#FFF6F5] p-2">
+              <p className="font-semibold text-bad">Elle girilmiş ve Dentalsis&apos;ten gelen bir tahsilatla aynı tutar (±3 gün) — iki kez girilmiş olabilir, kontrol edin:</p>
+              <ul className="text-xs grid gap-0.5 mt-1">{pv.manual_like.map((m, i) => <li key={i}>{m.hekim} · {m.tarih} · {payMoney(m.tutar, m.currency)}{m.not_ ? ` · ${m.not_}` : ""}</li>)}</ul>
+            </div>
+          )}
+        </div>
+      )}
+      {msg && <p className={`text-sm ${msg.ok ? "text-ok" : "text-bad"}`}>{msg.text}</p>}
     </section>
   );
 }
