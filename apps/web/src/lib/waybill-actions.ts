@@ -27,7 +27,21 @@ export async function saveCustomerBook(f: FormData) {
   if (error) await fail(waybillError(error.message));
   revalidatePath(`/isler/hekimler/${id}`);
   refresh();
-  await done(f.get("internal_book") === "on" ? "Kaydedildi. Bu müşteride çıkışlar günlük irsaliyeye eklenir, iç cariye işlenir; resmi cariye yalnız resmi fatura ve resmi tahsilat girer." : "Kaydedildi.");
+  await done("Kaydedildi.");
+}
+
+/** Faturasız (nakit) müşteri: tahsilat yalnız hekim carisinde; kapatınca tahsilatlar cari karta da işlenir */
+export async function setNoInvoice(f: FormData) {
+  const id = str(f, "customer_id");
+  const on = f.get("on") === "on";
+  if (!UUID.test(id)) await fail("Müşteri seçin.");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("lab_customer_set_no_invoice", { p_customer: id, p_on: on });
+  if (error) await fail(/lab_customer_set_no_invoice|schema cache/i.test(error.message) ? "Önce mbdental-cari-duzeni.sql dosyasını Supabase'de çalıştırın." : waybillError(error.message));
+  revalidatePath(`/isler/hekimler/${id}`);
+  revalidatePath("/finans/cariler");
+  refresh();
+  await done(on ? "Faturasız (nakit) yapıldı: tahsilatlar yalnız hekim carisinde." : "Faturalı yapıldı: tahsilatlar cari karta da işlendi.");
 }
 
 export async function createWaybill(f: FormData) {
@@ -142,7 +156,7 @@ export async function addLabPayment(f: FormData) {
   refresh();
   revalidatePath("/finans");
   const b = str(f, "book");
-  await done(b === "both" ? "Tahsilat resmi ve iç cariye işlendi." : b === "internal" ? "Tahsilat iç cariye işlendi." : "Tahsilat kaydedildi.");
+  await done(b === "both" ? "Tahsilat hekim carisine ve cari karta işlendi." : b === "internal" ? "Tahsilat hekim carisine işlendi (faturasız)." : "Tahsilat kaydedildi.");
 }
 
 /** Kurye: irsaliyeyi teslim et (teslim alan + imza) */

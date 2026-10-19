@@ -140,6 +140,40 @@ export async function dsisPaymentsRebuild(): Promise<DsisStep> {
   }
 }
 
+const cariHint = (m: string) => (/cari_model_|schema cache/i.test(m) ? "Önce mbdental-cari-duzeni.sql dosyasını Supabase'de çalıştırın." : m);
+
+export type CariPreview = { customers: number; already: number; no_invoice: number; parties_linked: number; customers_without_party: number; invoices: number;
+  unlinked_parties: { name: string; kind: string; currency: string }[]; openings: { name: string; amount: number; currency: string }[];
+  payments_both: number; payments_official: number; payments_internal: number };
+
+/** Hekim carisi + cari kart düzenine geçiş: önizleme (değişiklik yapmaz) */
+export async function cariModelPreview(): Promise<{ ok: boolean; message?: string; data?: CariPreview }> {
+  try {
+    await owner();
+    const { data, error } = await (await createClient()).rpc("cari_model_preview");
+    if (error) return { ok: false, message: cariHint(error.message) };
+    return { ok: true, data: data as CariPreview };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Geçişi uygula; ardından Dentalsis tahsilatlarını bu düzende yeniden yazıp bakiyeleri eşitler */
+export async function cariModelApply(resetOpening: boolean): Promise<DsisStep> {
+  try {
+    await owner();
+    const sb = await createClient();
+    const { data, error } = await sb.rpc("cari_model_apply", { p_reset_opening: resetOpening });
+    if (error) return { ok: false, message: cariHint(error.message) };
+    const r = data as { customers: number; payments: number; openings_reset: number };
+    const re = await dsisPaymentsRebuild();
+    revalidatePath("/finans/cariler");
+    return { ok: re.ok, message: `${r.customers} hekim yeni düzene geçti, ${r.payments} tahsilatın defteri ayarlandı${r.openings_reset ? `, ${r.openings_reset} cari kartın açılış bakiyesi sıfırlandı` : ""}. ${re.message}`, result: re.result };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
 // ---------------------------------------------------------------------
 // Aktarım sonrası düzenlemeler (para birimi, toplu kapatma, kur, ürün çevirisi, stok)
 // ---------------------------------------------------------------------

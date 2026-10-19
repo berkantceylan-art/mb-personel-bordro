@@ -1,4 +1,5 @@
 import "server-only";
+import { allRows } from "@/lib/fetch-all";
 import { createClient } from "@/lib/supabase/server";
 import type { Account, Category, Party } from "@/lib/fin";
 import { jobBillDate } from "@/lib/ledger";
@@ -96,13 +97,16 @@ export async function accountLedger(account: Account, from?: string | null, to?:
 /** Cari ekstre: borç (+) bize borçlandı, alacak (−); hekim kartına bağlıysa işler ve eski tahsilatlar da */
 export async function partyLedger(party: Party, from?: string | null, to?: string | null) {
   const supabase = await createClient();
-  // İç hesap kullanan müşteride resmi ekstreye işler ve iç tahsilatlar girmez (iç cari ayrı)
+  // Hekime bağlı cari kart: işler hekim carisinde kalır; cari kartta faturalar + tahsilatlar (kasaya işlenmemişler dahil, faturasız hariç)
   const { data: lc } = party.lab_customer_id ? await supabase.from("lab_customers").select("internal_book").eq("id", party.lab_customer_id).maybeSingle() : { data: null };
-  const labId = (lc as { internal_book?: boolean } | null)?.internal_book ? null : party.lab_customer_id;
-  const [{ data: moves }, jobsRes, paysRes] = await Promise.all([
-    supabase.from("fin_moves").select("id, amount, move_date, description, fin_txns(id, no, kind, description, doc_no, voided_at, ref_type, ref_id)").eq("party_id", party.id).order("move_date").limit(5000),
-    labId ? supabase.from("jobs").select("id, no, in_date, patient, total, status, delivered_at").eq("customer_id", labId).eq("status", "delivered").limit(5000) : Promise.resolve({ data: [] as { id: string; no: number; in_date: string; patient: string | null; total: number; status: string; delivered_at: string | null }[] }),
-    labId ? supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note").eq("customer_id", labId).is("fin_txn_id", null).limit(5000) : Promise.resolve({ data: [] as { id: string; paid_on: string; amount: number; method: string; ref: string | null; note: string | null }[] }),
+  const ibook = (lc as { internal_book?: boolean } | null)?.internal_book === true;
+  const labId = party.lab_customer_id;
+  type J = { id: string; no: number; in_date: string; patient: string | null; total: number; status: string; delivered_at: string | null };
+  type P = { id: string; paid_on: string; amount: number; method: string; ref: string | null; note: string | null };
+  const [moves, jobsRes, paysRes] = await Promise.all([
+    allRows((a, b) => supabase.from("fin_moves").select("id, amount, move_date, description, fin_txns(id, no, kind, description, doc_no, voided_at, ref_type, ref_id)").eq("party_id", party.id).order("move_date").order("id").range(a, b)).then((r) => r.data),
+    labId && !ibook ? allRows<J>((a, b) => supabase.from("jobs").select("id, no, in_date, patient, total, status, delivered_at").eq("customer_id", labId).eq("status", "delivered").order("id").range(a, b)) : Promise.resolve({ data: [] as J[] }),
+    labId ? allRows<P>((a, b) => { const q = supabase.from("lab_payments").select("id, paid_on, amount, method, ref, note").eq("customer_id", labId).is("fin_txn_id", null); return (ibook ? q.in("book", ["official", "both"]) : q).order("id").range(a, b); }) : Promise.resolve({ data: [] as P[] }),
   ]);
   const lines: Omit<LedgerLine, "balance">[] = [
     ...((moves ?? []) as unknown as MoveRow[])
@@ -113,7 +117,7 @@ export async function partyLedger(party: Party, from?: string | null, to?: strin
         voidable: m.fin_txns!.ref_type !== "invoice", href: m.fin_txns!.ref_type === "invoice" && m.fin_txns!.ref_id ? `/fatura/${m.fin_txns!.ref_id}` : undefined,
       })),
     ...(jobsRes.data ?? []).map((j) => ({ key: `j${j.in_date}${j.no}`, date: jobBillDate(j), label: `İş #${j.no}${j.patient ? ` · ${j.patient}` : ""}`, kind: "job", debit: Number(j.total) || 0, credit: 0, href: `/isler/${j.id}` })),
-    ...(paysRes.data ?? []).map((p) => ({ key: `p${p.paid_on}${p.id}`, date: p.paid_on, label: `Tahsilat (hekim kartından)${p.ref ? ` · ${p.ref}` : ""}${p.note ? ` · ${p.note}` : ""}`, kind: "collection", debit: 0, credit: Number(p.amount) || 0 })),
+    ...(paysRes.data ?? []).map((p) => ({ key: `p${p.paid_on}${p.id}`, date: p.paid_on, label: `Tahsilat${p.ref ? ` · ${p.ref}` : ""}${p.note ? ` · ${p.note}` : ""}`, kind: "collection", debit: 0, credit: Number(p.amount) || 0 })),
   ];
   return runLedger(Number(party.opening_balance), party.opening_date, lines, from, to);
 }
