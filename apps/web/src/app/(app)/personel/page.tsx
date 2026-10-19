@@ -56,6 +56,7 @@ export default async function EmployeesPage({
         subtitle={`${active} aktif çalışan · ${rows.length - active} ayrılan`}
         actions={
           <div className="flex gap-2 flex-wrap">
+            <Link href="/personel/dogum-gunleri" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-brand-700 font-semibold">🎂 Doğum günleri</Link>
             <Link href="/ice-aktar" className="h-11 px-4 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-brand-700 font-semibold">Excel&apos;den aktar</Link>
             <PrimaryLink href="/personel/yeni">+ Yeni personel</PrimaryLink>
           </div>

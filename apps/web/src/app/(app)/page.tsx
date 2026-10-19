@@ -83,7 +83,15 @@ export default async function Home() {
   if (d.finance?.loans_7?.n) alerts.push({ label: `${d.finance.loans_7.n} kredi taksiti (7 gün)`, href: "/finans/krediler", tone: "amber" });
   if (d.stock?.critical) alerts.push({ label: `${d.stock.critical} kritik stok`, href: "/alis/siparisler", tone: "red" });
   if (d.stock?.expiring) alerts.push({ label: `${d.stock.expiring} lot 30 günde bitiyor`, href: "/stok", tone: "amber" });
-  if (d.hr?.birthdays) alerts.push({ label: `${d.hr.birthdays} doğum günü 🎂`, href: "/personel", tone: "blue" });
+  if (d.hr?.birthdays) {
+    // Bugün doğum günü olanların adları (sayı yerine isim göster)
+    const md = new Date(Date.now() + 3 * 3600e3).toISOString().slice(5, 10);
+    const { data: bp } = await supabase.from("employee_private").select("birth_date, employees!inner(first_name, last_name, status)").not("birth_date", "is", null).eq("employees.status", "active");
+    const names = ((bp ?? []) as unknown as { birth_date: string; employees: { first_name: string; last_name: string } | null }[])
+      .filter((x) => String(x.birth_date).slice(5, 10) === md && x.employees).map((x) => `${x.employees!.first_name} ${x.employees!.last_name}`);
+    const label = names.length ? `🎂 Bugün doğum günü: ${names.slice(0, 3).join(", ")}${names.length > 3 ? ` +${names.length - 3}` : ""}` : `${d.hr.birthdays} doğum günü 🎂`;
+    alerts.push({ label, href: "/personel/dogum-gunleri", tone: "blue" });
+  }
   if (d.users?.no_account) alerts.push({ label: `${d.users.no_account} personelin hesabı yok`, href: "/yonetim?sekme=hesap-ac", tone: "blue" });
   const TONE = { red: "bg-[#FDECEC] text-[#B42318] border-[#F7C9C9]", amber: "bg-[#FFF6E5] text-[#8A5A00] border-[#F5D9A8]", blue: "bg-[#EAF2FB] text-brand-700 border-[#CFE0F3]" };
 
