@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { dsisCloseOld, dsisFixCountry, dsisFixCurrencyBatch, dsisFixCustomerCurrency, dsisFxBackfill, dsisImportBalance, dsisImportBatch, dsisImportRef, dsisProductsToStock, dsisRevenueSummary, dsisTranslateProducts, type DsisFiles, type DsisStep } from "@/lib/dsis-actions";
+import { dsisCloseOld, dsisFixCountry, dsisFixCurrencyBatch, dsisFixCustomerCurrency, dsisFxBackfill, dsisImportBalance, dsisImportBatch, dsisImportYears, dsisImportRef, dsisProductsToStock, dsisRevenueSummary, dsisTranslateProducts, type DsisFiles, type DsisStep } from "@/lib/dsis-actions";
 
 type Log = { ok: boolean; text: string };
 
@@ -12,6 +12,7 @@ const LABEL: Record<string, string> = {
   payments: "tahsilat", adjusted: "bakiye eşitlendi", unmatched_payments: "hekimi bulunamayan tahsilat",
   fixed: "iş düzeltildi", customers_fixed: "hekim para birimi düzeltildi", mixed_customers: "karışık para birimli hekim", closed: "iş kapatıldı",
   stock_items: "stok kartı açıldı", customers_foreign: "hekim yabancı olarak işaretlendi",
+  items_updated: "işin kalemleri güncellendi", cancelled: "Dentalsis'te silinen iş iptal edildi", status_updated: "iş durumu güncellendi", summary_rows: "yıllık özet satırı",
 };
 const fmt = (r?: Record<string, unknown>) => (r ? Object.entries(r).filter(([k, v]) => LABEL[k] && Number(v)).map(([k, v]) => `${Number(v).toLocaleString("tr-TR")} ${LABEL[k]}`).join(" · ") : "");
 
@@ -27,7 +28,7 @@ export function DsisImporter({ files }: { files: DsisFiles }) {
 
   async function run(withBalance: boolean) {
     setBusy(true); stop.current = false; setLog([]); setTotals({});
-    const total = files.jobs.length + 1 + (withBalance ? 1 : 0);
+    const total = files.jobs.length + 1 + (withBalance ? 1 + (files.years ? 1 : 0) : 0);
     let done = 0; setProg({ done, total });
     const step = async (p: Promise<DsisStep>) => { const r = await p.catch((e) => ({ ok: false, message: String(e) }) as DsisStep); add({ ok: r.ok, text: `${r.message}${r.result ? " — " + fmt(r.result) : ""}` }); setProg({ done: ++done, total }); return r; };
     const ref = await step(dsisImportRef());
@@ -40,7 +41,10 @@ export function DsisImporter({ files }: { files: DsisFiles }) {
       for (const [k, v] of Object.entries(r.result ?? {})) sum[k] = (sum[k] ?? 0) + Number(v || 0);
       setTotals({ ...sum });
     }
-    if (withBalance) await step(dsisImportBalance());
+    if (withBalance) {
+      await step(dsisImportBalance());
+      if (files.years) await step(dsisImportYears());
+    }
     add({ ok: true, text: "Aktarım tamamlandı." });
     setBusy(false); router.refresh();
   }
@@ -54,6 +58,7 @@ export function DsisImporter({ files }: { files: DsisFiles }) {
             <li>{files.ref ? "✅" : "❌"} Hekim / hastane ve ürün listesi</li>
             <li>{files.jobs.length ? "✅" : "❌"} İş kayıtları: {files.jobs.length} parti (yaklaşık {(files.jobs.length * 1000).toLocaleString("tr-TR")} iş)</li>
             <li>{files.tahsilat ? "✅" : "❌"} Tahsilatlar ve güncel cari bakiyeler</li>
+            <li>{files.years ? "✅" : "—"} 2016–2025 hekim bazında yıllık ciro / tahsilat özeti</li>
           </ul>
         )}
         {st && (

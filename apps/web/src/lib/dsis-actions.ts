@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/session";
 
 /** Dentalsis Plus'tan aktarım: dökümler documents/dentalsis/ altında (ref, jobs-NNN, tahsilat) */
-export type DsisFiles = { ok: boolean; message?: string; ref: boolean; tahsilat: boolean; jobs: string[]; status: Record<string, unknown> | null };
+export type DsisFiles = { ok: boolean; message?: string; ref: boolean; tahsilat: boolean; years: boolean; jobs: string[]; status: Record<string, unknown> | null };
 export type DsisStep = { ok: boolean; message: string; result?: Record<string, unknown> };
 
 async function owner() {
@@ -26,13 +26,13 @@ export async function dsisFiles(): Promise<DsisFiles> {
     await owner();
     const admin = createAdminClient();
     const { data, error } = await admin.storage.from("documents").list("dentalsis", { limit: 1000, sortBy: { column: "name", order: "asc" } });
-    if (error) return { ok: false, message: error.message, ref: false, tahsilat: false, jobs: [], status: null };
+    if (error) return { ok: false, message: error.message, ref: false, tahsilat: false, years: false, jobs: [], status: null };
     const names = (data ?? []).map((f) => f.name.replace(/\.json$/, ""));
     const sb = await createClient();
     const { data: st } = await sb.rpc("dsis_import_status");
-    return { ok: true, ref: names.includes("ref"), tahsilat: names.includes("tahsilat"), jobs: names.filter((n) => /^jobs-\d+$/.test(n)).sort(), status: (st as Record<string, unknown>) ?? null };
+    return { ok: true, ref: names.includes("ref"), tahsilat: names.includes("tahsilat"), years: names.includes("yillik"), jobs: names.filter((n) => /^jobs-\d+$/.test(n)).sort(), status: (st as Record<string, unknown>) ?? null };
   } catch (e) {
-    return { ok: false, message: (e as Error).message, ref: false, tahsilat: false, jobs: [], status: null };
+    return { ok: false, message: (e as Error).message, ref: false, tahsilat: false, years: false, jobs: [], status: null };
   }
 }
 
@@ -57,12 +57,38 @@ export async function dsisImportBatch(name: string): Promise<DsisStep> {
     const jobs = await readJson<unknown[]>(name);
     const sb = await createClient();
     const sum: Record<string, number> = {};
+    let syncOk = true;
     for (let i = 0; i < jobs.length; i += 150) {
-      const { data, error } = await sb.rpc("dsis_import_jobs", { p_jobs: jobs.slice(i, i + 150) });
+      const part = jobs.slice(i, i + 150);
+      const { data, error } = await sb.rpc("dsis_import_jobs", { p_jobs: part });
       if (error) return { ok: false, message: `${name} (${i}. kayıttan sonra): ${sqlHint(error.message)}`, result: sum };
       for (const [k, v] of Object.entries((data ?? {}) as Record<string, number>)) sum[k] = (sum[k] ?? 0) + Number(v || 0);
+      // Daha önce aktarılmış işleri Dentalsis'teki son haline getir (silinen → iptal, kalem / tutar, durum)
+      if (syncOk) {
+        const { data: d2, error: e2 } = await sb.rpc("dsis_sync_jobs", { p_jobs: part });
+        if (e2) syncOk = false;
+        else for (const [k, v] of Object.entries((d2 ?? {}) as Record<string, number>)) sum[k] = (sum[k] ?? 0) + Number(v || 0);
+      }
     }
-    return { ok: true, message: `${name}: ${sum.inserted ?? 0} iş eklendi`, result: sum };
+    return { ok: true, message: `${name}: ${sum.inserted ?? 0} iş eklendi${sum.items_updated ? `, ${sum.items_updated} iş güncellendi` : ""}${syncOk ? "" : " (güncelleme için mbdental-dentalsis-esitle.sql çalıştırılmalı)"}`, result: sum };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** 2016–2025 hekim bazında yıllık ciro / tahsilat özeti (yillik.json) */
+export async function dsisImportYears(): Promise<DsisStep> {
+  try {
+    await owner();
+    const rows = await readJson<unknown[]>("yillik");
+    const sb = await createClient();
+    const sum: Record<string, number> = {};
+    for (let i = 0; i < rows.length; i += 500) {
+      const { data, error } = await sb.rpc("dsis_set_year_summary", { p: rows.slice(i, i + 500) });
+      if (error) return { ok: false, message: /dsis_set_year_summary|schema cache|does not exist/.test(error.message) ? "Önce mbdental-dentalsis-esitle.sql dosyasını Supabase'de çalıştırın." : error.message };
+      for (const [k, v] of Object.entries((data ?? {}) as Record<string, number>)) sum[k] = (sum[k] ?? 0) + Number(v || 0);
+    }
+    return { ok: true, message: "2016–2025 yıllık özet aktarıldı", result: sum };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
