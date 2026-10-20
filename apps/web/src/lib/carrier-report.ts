@@ -87,7 +87,7 @@ export function carrierWorkbook(d: CarrierReport, carrier: "dhl" | "ups", kapsam
     ["Beyandan ağır", `Bizim beyan ettiğimiz ağırlık (ve varsa hacim ağırlığı) 0,5 kg'a yuvarlandığında faturalanması gereken kg'dan daha ağır faturalanan gönderiler. ${N}'den tartı / ölçü (boyut) kanıtı ve düzeltme istenir.`, heavy],
     ["Mükerrer", "Aynı konşimento birden fazla faturada ücretlendirilmiş. İkinci faturalama iade edilmeli.", dup],
     ["Ek hizmet", "Sipariş etmediğimiz ya da gerekçesi belirsiz ek hizmet ücretleri (saatli teslim, ikamet adresi, adres düzeltme, uzak bölge vb.). Gerekçe ve kanıt istenir.", premium],
-    ["Ortalamanın üstünde", "Aynı ülkeye kg başı ücret, diğer gönderilerin ortancasından %30'dan fazla yüksek. Tarife / indirim uygulaması sorgulanır.", pick("high")],
+    ["Ortalamanın üstünde", "Aynı ülkeye benzer ağırlıktaki (0-1 / 1-3 / 3-7 / 7-15 / 15+ kg) gönderilere göre kg başı ücret, ortancadan %30'dan fazla yüksek. Tarife / indirim uygulaması sorgulanır.", pick("high")],
     ["Tahmini ücretten fazla", "Fatura tutarı (EUR karşılığı), gönderi oluşturulurken gösterilen tahmini ücretten %10'dan fazla yüksek.", fark],
     ["Faturada var listede yok", "Faturada ücretlendirilmiş ama bizim konşimento listemizde (oluşturduğumuz gönderiler) bulunmayan takip numaraları. Bize ait olmayan gönderi olabilir.", yok],
     ...(internal ? [
