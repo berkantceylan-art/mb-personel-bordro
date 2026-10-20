@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   transpilePackages: ["@mb/core"],
   // SGK SOAP istemcisi node modülleriyle çalışır; paketlenmeden sunucuda kullanılır
-  serverExternalPackages: ["soap"],
+  serverExternalPackages: ["soap", "unpdf"],
   // Banka şablon dosyaları sunucu fonksiyonuna dahil edilsin
   outputFileTracingIncludes: { "/**": ["./src/templates/**", "./src/sgk-robot/**"] },
   experimental: {

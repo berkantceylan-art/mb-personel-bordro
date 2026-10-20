@@ -259,6 +259,7 @@ export const NAV: Group[] = [
       { label: "Kurye ekranı", href: "/kurye", module: "lab", desc: "Bugünün teslimatları ve ölçü almaları: harita, arama, WhatsApp, imzayla teslim" },
       { label: "Kargo, gümrük, kurye", href: "/kargo", module: "lab", desc: "Gelen ve giden paketler, DHL / UPS / gümrük takibi" },
       { label: "Paket okut", href: "/kargo/okut", module: "lab", desc: "Telefon kamerasıyla barkod okutup teslim al" },
+      { label: "Kargo faturaları", href: "/kargo/faturalar", module: "lab", desc: "DHL / UPS faturaları konşimento bazında: mükerrer, fazla ücret, ek hizmet kontrolü" },
       { label: "Kurye rotası", href: "/kargo/kurye", module: "lab", desc: "Kuryenin bugünkü alım ve teslimleri" },
     ],
   },
