@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { allRows } from "@/lib/fetch-all";
-import { FLAG_LABEL, billable, flagItems, loadCarrierItems, loadCarrierShipments, type Flag } from "@/lib/carrier-check";
+import { FLAG_LABEL, type Flag } from "@/lib/carrier-check";
+import { carrierReport, disputeMail } from "@/lib/carrier-report";
+import { DisputeMail } from "./DisputeMail";
 import { CarrierTools } from "./CarrierTools";
 
 const tl = (k: number) => `${(k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`;
 const day = (d: string | null) => (d ? d.split("-").reverse().join(".") : "—");
 type Inv = { id: string; carrier: string; invoice_no: string; invoice_date: string | null; due_date: string | null; bill_type: string | null; total: number; detail_total: number; shipments: number; status: string; source: string };
 
-export type CarrierSp = { uyari?: string; ay?: string; rapor?: string };
+export type CarrierSp = { uyari?: string; ay?: string; rapor?: string; mail?: string };
 const NAME = { dhl: "DHL", ups: "UPS" } as const;
 
 /** Tek kargo firmasının faturaları: konşimento eşleştirme, mükerrer / fazla fatura kontrolü */
@@ -23,32 +24,9 @@ export async function CarrierView({ carrier, sp }: { carrier: "dhl" | "ups"; sp:
     return (<><PageHeader title={`${NAME[carrier]} faturaları`} /><div className="p-4 md:p-8"><p className="rounded-[12px] bg-warn-bg text-warn px-4 py-3 text-sm">{/carrier_/.test(error.message) ? "Önce mbdental-kargo-fatura.sql dosyasını Supabase'de çalıştırın." : error.message}</p></div></>);
   }
   const list = (invs ?? []) as Inv[];
-  const items = await flagItems((await loadCarrierItems(from, undefined, carrier)).data);
-  const awbSet = new Set(items.map((i) => i.awb));
-  // faturası gelmemiş: 30–180 gün önce açılmış giden DHL / UPS gönderileri
-  const { data: ships } = await allRows<{ id: string; no: number; carrier: string; tracking_no: string; party_name: string | null; created_at: string }>((a, b) =>
-    sb.from("shipments").select("id, no, carrier, tracking_no, party_name, created_at").eq("carrier", carrier).eq("direction", "out").not("tracking_no", "is", null)
-      .lte("created_at", new Date(Date.now() - 30 * 86400000).toISOString()).gte("created_at", new Date(Date.now() - 180 * 86400000).toISOString()).order("id").range(a, b));
-  const noInvoice = ships.filter((x) => !awbSet.has(x.tracking_no.replace(/\s+/g, "").toUpperCase()));
-
-  // Konşimento raporu (DHL Gönderi Detay Raporu) ↔ fatura satırları
-  const repRes = await loadCarrierShipments(from, carrier).catch((e) => ({ data: [] as Awaited<ReturnType<typeof loadCarrierShipments>>["data"], error: { message: String(e) } }));
-  const rep = repRes.data;
-  const repMissing = !!repRes.error && /carrier_shipments|schema cache|does not exist/i.test(repRes.error.message);
-  const repActive = rep.filter((r) => !/iptal/i.test(r.status ?? ""));
-  const repSet = new Set(rep.map((r) => `${r.carrier}|${r.awb}`));
-  const itemBy = new Map(items.map((i) => [`${i.carrier_invoices?.carrier}|${i.awb}`, i]));
-  const repDates = repActive.map((r) => r.ship_date ?? "").filter(Boolean).sort();
-  const lag = new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10);
-  const eur = (i: (typeof items)[number]) => (i.carrier_invoices?.eur_rate ? Math.round(i.total / Number(i.carrier_invoices.eur_rate)) : null);
-  const R = {
-    faturasiz: repActive.filter((r) => !itemBy.has(`${r.carrier}|${r.awb}`) && (r.ship_date ?? "") <= lag),
-    yok: items.filter((i) => repDates.length && (i.ship_date ?? "") >= repDates[0]! && (i.ship_date ?? "") <= repDates[repDates.length - 1]! && !repSet.has(`${carrier}|${i.awb}`)),
-    fark: repActive.filter((r) => { const i = itemBy.get(`${r.carrier}|${r.awb}`); const e = i ? eur(i) : null; return i && e != null && r.est_amount && r.est_currency === "EUR" && e - r.est_amount > Math.max(200, r.est_amount * 0.1); }),
-    agirlik: repActive.filter((r) => { const i = itemBy.get(`${r.carrier}|${r.awb}`); const b = billable(r.weight, r.vol_weight); return i && i.weight && b && i.weight > b + 0.001; }),
-    saat: repActive.filter((r) => carrier === "dhl" ? /12:00|09:00|9:00|10:30/.test(r.service ?? "") : /^UPS Express( Plus)?$|Early/i.test(r.service ?? "")),
-  };
-  const RL: Record<keyof typeof R, string> = { faturasiz: "Faturası gelmemiş konşimento", yok: "Faturada var, raporda yok", fark: "Fatura tahmini ücretten %10+ fazla", agirlik: "Beyandan ağır faturalanmış", saat: carrier === "dhl" ? "Express 12:00 seçilmiş" : "UPS Express (Saver değil)" };
+  const d = await carrierReport(carrier, months);
+  const { items, noInvoice, rep, repActive, repMissing, repDates, itemBy, R, RL, eur } = d;
+  const mail = disputeMail(d, carrier);
   const rsel = (Object.keys(R) as (keyof typeof R)[]).includes(sp.rapor as keyof typeof R) ? (sp.rapor as keyof typeof R) : null;
   const flagCount = (f: Flag) => items.filter((i) => i.flags.includes(f)).length;
   const sel = (Object.keys(FLAG_LABEL) as Flag[]).includes(sp.uyari as Flag) ? (sp.uyari as Flag) : null;
@@ -85,7 +63,7 @@ export async function CarrierView({ carrier, sp }: { carrier: "dhl" | "ups"; sp:
             ))}
             <span className={`rounded-full border px-3 py-1.5 font-semibold ${noInvoice.length ? "border-[#F2D58A] bg-warn-bg text-warn" : "border-line text-muted"}`}>Faturası gelmemiş (30+ gün) · {noInvoice.length}</span>
             {sel && <Link href={`?ay=${months}`} className="px-2 py-1.5 text-brand-700 font-semibold">Temizle</Link>}
-            <a href={`/kargo/faturalar/excel?ay=${months}&firma=${carrier}`} className="ml-auto px-2 py-1.5 text-brand-700 font-semibold">İtiraz / uyarı listesi (Excel)</a>
+            <a href={`/kargo/faturalar/excel?ay=${months}&firma=${carrier}`} className="ml-auto px-2 py-1.5 text-brand-700 font-semibold">Tüm kontroller (Excel)</a>
           </div>
           {sel && (
             <div className="overflow-x-auto">
@@ -166,6 +144,11 @@ export async function CarrierView({ carrier, sp }: { carrier: "dhl" | "ups"; sp:
             </>
           )}
         </section>
+
+        <details className="rounded-[16px] border border-line bg-white p-4" open={sp.mail === "1"}>
+          <summary className="cursor-pointer font-display text-lg font-bold">{NAME[carrier]}&apos;a itiraz e-postası <span className="text-sm font-normal text-muted">· beyandan ağır {mail.counts.heavy} · mükerrer {mail.counts.dup} · ek hizmet {mail.counts.premium} · ortalama üstü {mail.counts.high}{mail.counts.fark ? ` · tahminden fazla ${mail.counts.fark}` : ""}{mail.counts.yok ? ` · listede yok ${mail.counts.yok}` : ""}</span></summary>
+          <div className="mt-3"><DisputeMail carrier={carrier} months={months} subject={mail.subject} body={mail.text} to0={carrier === "ups" ? "upstrfaturalama@ups.com" : "finansaltalepler@dhl.com"} /></div>
+        </details>
 
         <div className="grid gap-5 lg:grid-cols-2">
           <section className="rounded-[16px] border border-line bg-white p-4">
