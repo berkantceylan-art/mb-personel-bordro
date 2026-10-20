@@ -179,3 +179,19 @@ export async function sendCarrierDispute(carrier: "dhl" | "ups", months: number,
     return { ok: false, message: isQuotaError(e) ? "Gmail kotası doldu, biraz sonra tekrar deneyin." : e instanceof Error ? e.message : String(e) };
   }
 }
+
+/** Alıcı adlarını hekime ata; "öğren" seçiliyse sonraki faturalarda aynı ad otomatik eşleşir */
+export async function assignCarrierCustomer(names: string[], customerId: string, remember = true): Promise<Res> {
+  try {
+    await guard();
+    if (!customerId || !names.length) return { ok: false, message: "Hekim seçin." };
+    const sb = await createClient();
+    const { data, error } = await sb.rpc("carrier_assign_customer", { p_names: names, p_customer: customerId, p_remember: remember });
+    if (error) return { ok: false, message: /carrier_assign_customer|carrier_party_alias|schema cache/.test(error.message) ? "Önce mbdental-kargo-hekim-eslestir.sql dosyasını Supabase'de çalıştırın." : error.message };
+    const r = data as { items: number; shipments: number };
+    revalidatePath("/kargo/faturalar/ups"); revalidatePath("/kargo/faturalar/dhl");
+    return { ok: true, message: `${r.items} fatura satırı ve ${r.shipments} konşimento hekime bağlandı${remember ? "; bu ad artık otomatik eşleşecek" : ""}.` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) };
+  }
+}
