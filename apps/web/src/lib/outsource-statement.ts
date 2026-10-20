@@ -4,14 +4,14 @@ import { allRows } from "@/lib/fetch-all";
 import { osNorm } from "@/lib/outsource-parse";
 
 export type OsPrice = { id: string; party_id: string; name: string; price: number; sort: number };
-export type OsFlag = "nojob" | "notsent" | "notback" | "dup" | "over" | "noprice" | "cust";
+export type OsFlag = "nojob" | "notsent" | "notback" | "dup" | "over" | "urun" | "noprice" | "cust";
 export const OS_FLAG: Record<OsFlag, string> = {
-  over: "Fiyat listesinden fazla", dup: "Aynı iş + ürün birden fazla faturalanmış", nojob: "İş kaydı bulunamadı", notsent: "Bu laboratuvara gönderilmemiş",
+  over: "Fiyat listesinden fazla", urun: "Bizim siparişteki üründen farklı", dup: "Aynı iş + ürün birden fazla faturalanmış", nojob: "İş kaydı bulunamadı", notsent: "Bu laboratuvara gönderilmemiş",
   notback: "Henüz geri gelmedi", noprice: "Fiyat listesinde karşılığı seçilmemiş", cust: "Hekim / hasta adı uyuşmuyor",
 };
 type Line = { id: string; statement_id: string | null; party_id: string; line_date: string | null; kind: string; product: string | null; ref: string | null; job_no: number | null; amount: number;
   job_id: string | null; outsource_id: string | null; disputed: boolean; note: string | null;
-  jobs: { no: number; patient: string | null; doctor_name: string | null; currency: string; total: number; lab_customers: { name: string } | null; job_items: { name: string; qty: number }[] } | null;
+  jobs: { no: number; patient: string | null; doctor_name: string | null; currency: string; total: number; lab_customers: { name: string } | null; job_items: { name: string; qty: number; lab_products: { name_tr: string | null } | null }[] } | null;
   job_outsource: { status: string; party_id: string; back_at: string | null } | null };
 
 // ekstre adlarındaki kısaltmalar → fiyat listesindeki karşılığı (öneri için)
@@ -42,7 +42,7 @@ export async function outsourceStatementData(months: number) {
     sb.from("fin_parties").select("id, name, email").eq("outsource_lab", true).order("name"),
     sb.from("outsource_prices").select("id, party_id, name, price, sort").order("sort"),
     sb.from("outsource_price_alias").select("party_id, norm_name, price_id"),
-    allRows<Line>((a, b) => sb.from("outsource_lines").select("id, statement_id, party_id, line_date, kind, product, ref, job_no, amount, job_id, outsource_id, disputed, note, jobs(no, patient, doctor_name, currency, total, lab_customers(name), job_items(name, qty)), job_outsource(status, party_id, back_at)")
+    allRows<Line>((a, b) => sb.from("outsource_lines").select("id, statement_id, party_id, line_date, kind, product, ref, job_no, amount, job_id, outsource_id, disputed, note, jobs(no, patient, doctor_name, currency, total, lab_customers(name), job_items(name, qty, lab_products(name_tr))), job_outsource(status, party_id, back_at)")
       .gte("line_date", from).order("line_date", { ascending: false }).order("id").range(a, b)),
     sb.from("outsource_statements").select("id, party_id, file_name, doc_date, total, lines, created_at, mail_ref").order("created_at", { ascending: false }).limit(40),
   ]);
@@ -61,7 +61,9 @@ export async function outsourceStatementData(months: number) {
     const exact = pl.find((p) => osNorm(p.name) === osNorm(l.product));
     const sug = !aid && !exact ? suggestPrice(l.product ?? "", pl) : null;
     const price = (aid ? priceBy.get(aid) : exact) ?? sug?.p ?? null;
-    const confirmed = !!(aid || exact);
+    const auto = !aid && !exact && !!sug && sug.s >= 0.85;      // güçlü benzerlik: otomatik kabul
+    const confirmed = !!(aid || exact) || auto;
+    const itemsTr = (l.jobs?.job_items ?? []).map((x) => ({ name: x.lab_products?.name_tr || x.name, qty: x.qty }));
     const f: OsFlag[] = [];
     if (l.kind === "charge") {
       if (!l.job_id) f.push("nojob");
@@ -70,13 +72,18 @@ export async function outsourceStatementData(months: number) {
       if (l.job_no && (cnt.get(`${l.party_id}|${l.job_no}|${osNorm(l.product)}`) ?? 0) > 1) f.push("dup");
       if (price && l.amount > price.price) f.push("over");
       if (!confirmed) f.push("noprice");
+      // bizim iş kaydındaki ürün (Türkçe adı) fiyat listesinde başka bir kaleme denk geliyorsa
+      if (price && itemsTr.length) {
+        const ours = itemsTr.map((x) => suggestPrice(x.name, pl)).filter((x): x is NonNullable<typeof x> => !!x && x.s >= 0.6);
+        if (ours.length && !ours.some((x) => x.p.id === price.id)) f.push("urun");
+      }
       if (l.jobs && l.ref) {
         const hay = osNorm(`${l.jobs.lab_customers?.name ?? ""} ${l.jobs.patient ?? ""} ${l.jobs.doctor_name ?? ""}`);
         const toks = l.ref.split(/\s+/).map(osNorm).filter((t) => t.length >= 2);
         if (toks.length && !toks.some((t) => hay.includes(t))) f.push("cust");
       }
     }
-    return { ...l, price, confirmed, suggested: !!sug, flags: f, over: price && l.amount > price.price ? l.amount - price.price : 0 };
+    return { ...l, price, confirmed, auto, itemsTr, suggested: !!sug && !auto, flags: f, over: price && l.amount > price.price ? l.amount - price.price : 0 };
   });
   // geldi ama ekstrede yok: 5 günden önce gelmiş, hiçbir satırda yok
   const linked = new Set(lines.map((l) => l.outsource_id).filter(Boolean));

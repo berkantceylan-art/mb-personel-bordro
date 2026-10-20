@@ -112,7 +112,7 @@ export default async function OutsourcePage({ searchParams }: { searchParams: Pr
                 </tbody></table>
               </section>
               <section className="rounded-[16px] border border-line bg-white p-4 overflow-x-auto">
-                <h2 className="font-display text-lg font-bold mb-2">Gönderim listeleri</h2>
+                <h2 className="font-display text-lg font-bold mb-2 flex items-center gap-3">Gönderim listeleri <Link href={`/yazdir/ortodonti/gun${lab ? `?lab=${lab}` : ""}`} className="ml-auto text-sm font-semibold text-[#5B21B6]">Bugünün listesini yazdır</Link></h2>
                 <table className="w-full text-sm"><tbody>
                   {batches.map((b) => (
                     <tr key={b.id}>

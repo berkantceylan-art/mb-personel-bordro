@@ -20,6 +20,7 @@ import {
   type JobStep,
 } from "@/lib/jobs";
 import { saveJob, type JobPayload } from "./actions";
+import { outsourceSend } from "@/lib/outsource-actions";
 
 export type CustomerOpt = { id: string; name: string; currency: string; discount_pct: number; doctors: string[]; prices?: Record<string, { try: number | null; eur: number | null }> };
 export type ProductOpt = { id: string; name: string; material: string | null; price_try: number | null; price_eur: number | null };
@@ -41,6 +42,7 @@ export function JobEditor({
   tryins,
   prefill,
   nextNo,
+  outsource,
 }: {
   job?: Job;
   initialItems?: JobItem[];
@@ -51,8 +53,11 @@ export function JobEditor({
   tryins: string[];
   prefill?: Prefill;
   nextNo?: number;
+  outsource?: { labs: { id: string; name: string }[]; productLab: Record<string, string> };
 }) {
   const router = useRouter();
+  const [osManual, setOsManual] = useState<boolean | null>(null);
+  const [osLabSel, setOsLabSel] = useState<string>("");
   const [no, setNo] = useState<string>(job ? String(job.no) : "");
   const [slip, setSlip] = useState(job?.slip_no ?? "");
   const [customerId, setCustomerId] = useState(job?.customer_id ?? prefill?.customer_id ?? "");
@@ -75,6 +80,10 @@ export function JobEditor({
   const [delTime, setDelTime] = useState(job?.delivery_time ?? "");
   const [status, setStatus] = useState<string>(job?.status ?? "open");
   const [items, setItems] = useState<JobItem[]>(initialItems.length || !prefill?.items?.length ? initialItems : prefill.items);
+  // ürünlerden biri dışarıda yapılıyorsa (Ürünler › Nerede yapılır) kutu kendiliğinden işaretlenir; elle değiştirilebilir
+  const osAuto = items.map((i) => (i.product_id ? outsource?.productLab[i.product_id] : undefined)).find(Boolean) ?? null;
+  const osSend = osManual ?? !!osAuto;
+  const osLab = osLabSel || osAuto || outsource?.labs[0]?.id || "";
   const [steps, setSteps] = useState<JobStep[]>(initialSteps);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -207,6 +216,11 @@ export function JobEditor({
     setBusy(false);
     setMsg({ ok: r.ok, text: r.message });
     if (!r.ok || !r.id) return;
+    // yeni kayıtta "dış laboratuvara gönder" işaretliyse iş hemen gönderildi listesine düşer
+    if (!job && osSend && osLab) {
+      const o = await outsourceSend([r.id], osLab, "").catch(() => null);
+      if (o && !o.ok) setMsg({ ok: false, text: `${r.message} · Dış laba gönderilemedi: ${o.message}` });
+    }
     if (print) router.push(`/yazdir/is/${r.id}?yazdir=1`);
     else if (!job) router.replace(`/isler/${r.id}?tamam=${encodeURIComponent(r.message)}`);
     else router.refresh();
@@ -472,6 +486,12 @@ export function JobEditor({
       <div className="fixed inset-x-0 bottom-0 md:left-62 z-20 bg-white/95 backdrop-blur border-t border-line px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))] mb-[72px] md:mb-0 flex flex-wrap items-center gap-2">
         <button type="button" disabled={busy} onClick={() => save(false)} className="h-12 px-6 rounded-[10px] bg-[#E53935] text-white font-bold disabled:opacity-60">{busy ? "Kaydediliyor…" : "Kaydet"}</button>
         <button type="button" disabled={busy} onClick={() => save(true)} className="h-12 px-5 rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-ink disabled:opacity-60">Kaydet ve yazdır</button>
+        {!job && outsource && outsource.labs.length > 0 && (
+          <label className={`h-12 px-3 inline-flex items-center gap-2 rounded-[10px] border text-sm font-semibold ${osSend ? "border-[#C4B5FD] bg-[#F5F3FF] text-[#5B21B6]" : "border-[#D5DEE8] bg-white text-muted"}`}>
+            <input type="checkbox" checked={osSend} onChange={(e) => setOsManual(e.target.checked)} />
+            {outsource.labs.length > 1 ? <>Dış laba gönder <select value={osLab} onChange={(e) => setOsLabSel(e.target.value)} className="h-8 rounded border border-[#D5DEE8] px-1 font-normal">{outsource.labs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></> : <>{outsource.labs[0]!.name}&apos;e gönder</>}
+          </label>
+        )}
         {job && <Link href="/isler/yeni" className="h-12 px-5 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white font-semibold text-brand-700">+ Yeni iş</Link>}
         {msg && <span className={`text-sm font-semibold ${msg.ok ? "text-ok" : "text-bad"}`}>{msg.text}</span>}
         {!job && <span className="text-xs text-muted ml-auto">Fotoğraf çekme ve yükleme kayıttan sonra açılır.</span>}

@@ -97,7 +97,7 @@ export default async function NewJobPage({ searchParams }: { searchParams: Promi
             Önce <Link href="/isler/hekimler" className="font-semibold underline">Hekim / hastane</Link> kartı açın; ürün fiyatları için <Link href="/isler/urunler" className="font-semibold underline">Protez / ürün</Link> listesini doldurun.
           </p>
         )}
-        <JobEditor customers={opts.customers} products={opts.products} delivery={opts.delivery} tryins={opts.tryins} prefill={prefill} nextNo={opts.nextNo} />
+        <JobEditor customers={opts.customers} products={opts.products} delivery={opts.delivery} tryins={opts.tryins} prefill={prefill} nextNo={opts.nextNo} outsource={opts.outsource} />
       </div>
     </>
   );

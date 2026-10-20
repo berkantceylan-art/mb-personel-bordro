@@ -64,9 +64,9 @@ export default async function OutsourceStatementPage({ searchParams }: { searchP
                   <tr key={r.id} className={r.disputed ? "bg-[#FFF6F5]" : r.kind === "payment" ? "bg-[#F3FAF6]" : ""}>
                     <td className={td}>{day(r.line_date)}</td>
                     <td className={td}>{r.job_id ? <Link href={`/isler/${r.job_id}`} className="font-semibold text-brand-700">#{r.job_no}</Link> : r.job_no ? <span className="text-bad font-semibold">#{r.job_no}</span> : "—"}<span className="block text-xs text-muted">{r.ref}</span></td>
-                    <td className={`${td} text-xs`}>{r.jobs ? <><b>{r.jobs.lab_customers?.name}</b>{r.jobs.patient ? ` · ${r.jobs.patient}` : ""}<span className="block text-muted">{r.jobs.job_items.map((x) => `${x.name}${x.qty > 1 ? ` ×${x.qty}` : ""}`).join(", ")} · satış {money(r.jobs.total, r.jobs.currency)}</span></> : r.kind === "payment" ? "Ödeme" : "—"}</td>
+                    <td className={`${td} text-xs`}>{r.jobs ? <><b>{r.jobs.lab_customers?.name}</b>{r.jobs.patient ? ` · ${r.jobs.patient}` : ""}<span className="block text-muted">{r.itemsTr.map((x) => `${x.name}${x.qty > 1 ? ` ×${x.qty}` : ""}`).join(", ")} · satış {money(r.jobs.total, r.jobs.currency)}</span></> : r.kind === "payment" ? "Ödeme" : "—"}</td>
                     <td className={td}>{r.product}</td>
-                    <td className={td}>{r.kind === "charge" && r.product ? <AliasSelect party={lab.id} product={r.product} prices={prices.map((p) => ({ id: p.id, name: p.name }))} value={r.price?.id ?? ""} confirmed={r.confirmed} /> : null}</td>
+                    <td className={td}>{r.kind === "charge" && r.product ? <AliasSelect party={lab.id} product={r.product} prices={prices.map((p) => ({ id: p.id, name: p.name }))} value={r.price?.id ?? ""} confirmed={r.confirmed} /> : null}{r.auto && <span className="block text-[11px] text-muted">otomatik eşleşti</span>}</td>
                     <td className={`${td} text-right num`}>{r.price ? tl(r.price.price) : "—"}</td>
                     <td className={`${td} text-right num font-semibold ${r.over ? "text-bad" : ""}`}>{tl(r.amount)}{r.over ? <span className="block text-xs">+{tl(r.over)}</span> : null}</td>
                     <td className={`${td} text-xs`}>{r.flags.map((f) => OS_FLAG[f]).join(" · ")}</td>
@@ -77,7 +77,7 @@ export default async function OutsourceStatementPage({ searchParams }: { searchP
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-muted">&quot;Fiyat listesi karşılığı&quot; gri yazılıysa sistemin tahminidir; doğruysa seçip onaylayın, aynı ürün adı bundan sonra kendiliğinden eşleşir. Satış tutarı hekime kesilen iş bedelidir (karşılaştırma için).</p>
+          <p className="text-xs text-muted">Ekstredeki ürün adı fiyat listesindeki karşılığıyla otomatik eşleştirilir (&quot;otomatik eşleşti&quot;). Emin olunamayanlar kesik çizgili gri görünür: doğruysa Onayla, değilse listeden seçin; seçim öğrenilir. &quot;Bizdeki kayıt&quot; sütununda iş kaydındaki ürünler Türkçe adıyla görünür. Satış tutarı hekime kesilen iş bedelidir (karşılaştırma için).</p>
         </section>
 
         <div className="grid gap-5 lg:grid-cols-2">

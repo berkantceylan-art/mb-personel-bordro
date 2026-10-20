@@ -20,5 +20,11 @@ export async function editorOptions() {
   const products: ProductOpt[] = (ps ?? []).map((p) => ({ id: p.id, name: p.name, material: p.material, price_try: p.price_try, price_eur: p.price_eur }));
   const delivery = (os ?? []).filter((o) => o.kind === "delivery").map((o) => o.value as string);
   const tryins = (os ?? []).filter((o) => o.kind === "tryin").map((o) => o.value as string);
-  return { customers, products, delivery, tryins, nextNo: last?.no ? Number(last.no) + 1 : 1, missing: !!error };
+  // dış laboratuvar (ortodonti): SQL çalıştırılmadıysa boş döner
+  const [{ data: ol }, { data: op }] = await Promise.all([
+    supabase.from("fin_parties").select("id, name").eq("outsource_lab", true).order("name"),
+    supabase.from("lab_products").select("id, outsource_party_id").not("outsource_party_id", "is", null),
+  ]);
+  const outsource = { labs: (ol ?? []) as { id: string; name: string }[], productLab: Object.fromEntries(((op ?? []) as { id: string; outsource_party_id: string }[]).map((x) => [x.id, x.outsource_party_id])) as Record<string, string> };
+  return { customers, products, delivery, tryins, nextNo: last?.no ? Number(last.no) + 1 : 1, missing: !!error, outsource };
 }
