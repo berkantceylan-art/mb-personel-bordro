@@ -9,7 +9,7 @@ export type CItem = { id: string; invoice_id: string; awb: string; ship_date: st
 export type Flag = "dup" | "noship" | "nocust" | "premium" | "high";
 export const FLAG_LABEL: Record<Flag, string> = {
   dup: "Mükerrer faturalanmış", noship: "Konşimento listesinde / kargo kaydında yok", nocust: "Hekim bulunamadı",
-  premium: "Ek hizmet (saatli teslim, ikamet, adres düzeltme…)", high: "Ortalamanın üstünde",
+  premium: "Ek hizmet (saatli teslim, ikamet, adres düzeltme…)", high: "Benzer ağırlıkta ortalamanın üstünde",
 };
 export const PREMIUM = /12:00|09:00|10:30|IKAMET|İKAMET|RESIDENTIAL|ADRES D[UÜ]ZELT|ADDRESS CORR|UZAK B[OÖ]LGE|REMOTE|EXTENDED AREA|OVERSIZE|A[SŞ]IRI|SATURDAY|CUMARTES|KOL[Iİ] [Iİ]ADE|RETURN|SIGNATURE|[Iİ]MZA/i;
 
@@ -42,8 +42,10 @@ export async function flagItems(items: CItem[]) {
     for (const d of (data ?? []) as { awb: string }[]) inReport.add(d.awb);
   }
   // kg başı ortanca (taşıyıcı + ülke)
+  // kg başı fiyat ağırlıkla düştüğü için yalnız benzer ağırlıktakilerle kıyaslanır
+  const band = (w: number | null) => (!w ? 0 : w <= 1 ? 1 : w <= 3 ? 3 : w <= 7 ? 7 : w <= 15 ? 15 : 99);
   const groups = new Map<string, number[]>();
-  for (const i of items) if (i.weight && i.weight > 0) { const k = `${i.carrier_invoices?.carrier}|${i.dest_country ?? i.dest}`; (groups.get(k) ?? groups.set(k, []).get(k)!).push(i.total / i.weight); }
+  for (const i of items) if (i.weight && i.weight > 0) { const k = `${i.carrier_invoices?.carrier}|${i.dest_country ?? i.dest}|${band(i.weight)}`; (groups.get(k) ?? groups.set(k, []).get(k)!).push(i.total / i.weight); }
   const median = new Map<string, number>();
   for (const [k, v] of groups) if (v.length >= 4) { const s = [...v].sort((a, b) => a - b); median.set(k, s[Math.floor(s.length / 2)]!); }
   return items.map((i) => {
@@ -52,7 +54,7 @@ export async function flagItems(items: CItem[]) {
     if (!i.shipment_id && !inReport.has(i.awb)) f.push("noship");
     if (!i.customer_id) f.push("nocust");
     if (i.extras.some((x) => PREMIUM.test(x.name))) f.push("premium");
-    const m = median.get(`${i.carrier_invoices?.carrier}|${i.dest_country ?? i.dest}`);
+    const m = median.get(`${i.carrier_invoices?.carrier}|${i.dest_country ?? i.dest}|${band(i.weight)}`);
     if (m && i.weight && i.total / i.weight > m * 1.3) f.push("high");
     return { ...i, flags: f };
   });
