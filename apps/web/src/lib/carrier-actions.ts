@@ -4,13 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/session";
 import { accessToken, getAttachment, getMessageAttachments, gmailConfigured, isQuotaError, listMessageIds } from "@/lib/gmail";
-import { parseCarrierFile, type CarrierInvoice } from "@/lib/carrier-parse";
+import { parseCarrierFile, parseDhlShipmentReport, type CarrierInvoice } from "@/lib/carrier-parse";
 
 type Res = { ok: boolean; message: string; lines?: string[] };
-const missing = (m: string) => (/carrier_|schema cache/i.test(m) ? "Önce mbdental-kargo-fatura.sql dosyasını Supabase'de çalıştırın." : m);
+const missing = (m: string) => (/carrier_shipments/i.test(m) ? "Önce mbdental-kargo-konsimento.sql dosyasını Supabase'de çalıştırın." : /carrier_|schema cache/i.test(m) ? "Önce mbdental-kargo-fatura.sql dosyasını Supabase'de çalıştırın." : m);
 const tl = (k: number) => (k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const MAIL_FROM = "2026-01-01";
-const CARRIER_MAIL_QUERY = `has:attachment after:${MAIL_FROM.replace(/-/g, "/")} (from:dhl.com OR from:ups.com OR from:finansaltalepler@dhl.com OR from:upstrfaturalama@ups.com)`;
+const CARRIER_MAIL_QUERY = { dhl: "(from:dhl.com OR from:finansaltalepler@dhl.com)", ups: "(from:ups.com OR from:upstrfaturalama@ups.com)" };
 
 async function guard() {
   const s = await getSession();
@@ -39,18 +39,29 @@ export async function uploadCarrierFiles(f: FormData): Promise<Res> {
     for (const file of files.slice(0, 30)) {
       if (file.size > 15 * 1024 * 1024) { lines.push(`${file.name}: dosya çok büyük`); bad++; continue; }
       try {
+        if (/\.csv$/i.test(file.name)) {
+          const rows = parseDhlShipmentReport(new Uint8Array(await file.arrayBuffer()));
+          const sb = await createClient();
+          for (let k = 0; k < rows.length; k += 500) {
+            const { error } = await sb.rpc("carrier_shipments_save", { p_carrier: "dhl", p: rows.slice(k, k + 500), p_file: file.name });
+            if (error) throw new Error(missing(error.message));
+          }
+          const d = rows.map((r) => r.ship_date).filter(Boolean).sort();
+          lines.push(`✓ ${file.name}: DHL konşimento raporu · ${rows.length} konşimento${d.length ? ` (${d[0]!.split("-").reverse().join(".")} – ${d[d.length - 1]!.split("-").reverse().join(".")})` : ""}`);
+          continue;
+        }
         const inv = await parseCarrierFile(file.name, new Uint8Array(await file.arrayBuffer()));
         const r = await save(inv, { source: "upload", file_name: file.name, detail_only: /\.xlsx?$/i.test(file.name) });
         lines.push(`✓ ${file.name}: ${label(inv, r.items)}`);
       } catch (e) { bad++; lines.push(`✗ ${file.name}: ${(e as Error).message}`); }
     }
-    revalidatePath("/kargo/faturalar");
+    revalidatePath("/kargo/faturalar", "layout");
     return { ok: bad === 0, message: `${files.length - bad} dosya işlendi${bad ? `, ${bad} dosya okunamadı` : ""}.`, lines };
   } catch (e) { return { ok: false, message: (e as Error).message }; }
 }
 
 /** Bağlı Gmail kutusundan DHL / UPS faturalarını çek (banka e-postası için seçilen hesap) */
-export async function fetchCarrierMail(): Promise<Res> {
+export async function fetchCarrierMail(carrier: "dhl" | "ups"): Promise<Res> {
   try {
     await guard();
     if (!gmailConfigured()) return { ok: false, message: "Gmail bağlantısı ayarlı değil." };
@@ -64,7 +75,7 @@ export async function fetchCarrierMail(): Promise<Res> {
     const ids: string[] = [];
     let next: string | null = null;
     do {
-      const r = await listMessageIds(token, { q: CARRIER_MAIL_QUERY, max: 50, ...(next ? { pageToken: next } : {}) });
+      const r = await listMessageIds(token, { q: `has:attachment after:${MAIL_FROM.replace(/-/g, "/")} ${CARRIER_MAIL_QUERY[carrier === "ups" ? "ups" : "dhl"]}`, max: 50, ...(next ? { pageToken: next } : {}) });
       ids.push(...r.ids); next = r.next;
     } while (next && ids.length < 1000);
     const { data: seen } = await sb.from("carrier_invoices").select("mail_ref").not("mail_ref", "is", null);
@@ -79,7 +90,7 @@ export async function fetchCarrierMail(): Promise<Res> {
           try {
             const buf = await getAttachment(token, m.id, a.id);
             const inv = await parseCarrierFile(a.name, new Uint8Array(buf));
-            if (inv.invoice_date && inv.invoice_date < MAIL_FROM) continue;   // 01.01.2026 öncesi alınmaz
+            if (inv.carrier !== carrier || (inv.invoice_date && inv.invoice_date < MAIL_FROM)) continue;   // diğer firma / 01.01.2026 öncesi alınmaz
             const r = await save(inv, { source: "mail", file_name: a.name, mail_ref: `${id}:${a.name}`.slice(0, 300), detail_only: /\.xlsx?$/i.test(a.name) });
             lines.push(`✓ ${label(inv, r.items)}`); n++;
           } catch { /* fatura olmayan ek */ }
@@ -89,7 +100,7 @@ export async function fetchCarrierMail(): Promise<Res> {
         lines.push(`✗ ${(e as Error).message}`.slice(0, 160));
       }
     }
-    revalidatePath("/kargo/faturalar");
+    revalidatePath("/kargo/faturalar", "layout");
     return { ok: true, message: `${todo.length} e-posta incelendi, ${n} fatura alındı${ids.length > todo.length + done.size ? " (kalanlar için tekrar basın)" : ""}.`, lines };
   } catch (e) { return { ok: false, message: missing((e as Error).message) }; }
 }
@@ -99,7 +110,7 @@ export async function rematchCarrier(): Promise<Res> {
     await guard();
     const { data, error } = await (await createClient()).rpc("carrier_rematch");
     if (error) return { ok: false, message: missing(error.message) };
-    revalidatePath("/kargo/faturalar");
+    revalidatePath("/kargo/faturalar", "layout");
     return { ok: true, message: `${Number(data ?? 0)} satır yeniden eşleştirildi.` };
   } catch (e) { return { ok: false, message: (e as Error).message }; }
 }
@@ -113,7 +124,7 @@ export async function toggleDispute(f: FormData) {
   if (!data) return;
   await sb.from("carrier_invoice_items").update({ disputed: !data.disputed, note: String(f.get("note") ?? "").slice(0, 500) || null }).eq("id", id);
   revalidatePath(`/kargo/faturalar/${data.invoice_id}`);
-  revalidatePath("/kargo/faturalar");
+  revalidatePath("/kargo/faturalar", "layout");
 }
 
 export async function setCarrierInvoiceStatus(f: FormData) {
@@ -123,5 +134,5 @@ export async function setCarrierInvoiceStatus(f: FormData) {
   if (!["open", "checked", "disputed"].includes(st)) return;
   await (await createClient()).from("carrier_invoices").update({ status: st }).eq("id", id);
   revalidatePath(`/kargo/faturalar/${id}`);
-  revalidatePath("/kargo/faturalar");
+  revalidatePath("/kargo/faturalar", "layout");
 }

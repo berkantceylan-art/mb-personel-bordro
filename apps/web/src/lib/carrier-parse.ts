@@ -1,5 +1,6 @@
 import "server-only";
 
+
 import * as XLSX from "xlsx";
 
 /** DHL / UPS kargo faturası okuyucuları. Tutarlar kuruş (tam sayı). */
@@ -159,4 +160,41 @@ export async function parseCarrierFile(name: string, buf: Uint8Array): Promise<C
   if (/DHL/i.test(head)) return parseDhl(lines);
   if (/UPS/i.test(head)) return parseUpsPdf(lines);
   throw new Error("Dosya DHL ya da UPS faturası olarak tanınmadı.");
+}
+
+/** DHL "Gönderi Detay Raporu" (MyDHL+ CSV): konşimento listesi */
+export type CarrierShipment = { awb: string; ship_date: string | null; direction: "export" | "import" | "domestic" | null; service: string | null; service_code: string | null;
+  party_company: string | null; party_contact: string | null; party_city: string | null; party_country: string | null; pieces: number | null; weight: number | null;
+  vol_weight: number | null; est_amount: number | null; est_currency: string | null; account: string | null; status: string | null; reference: string | null;
+  contents: string | null; declared_value: number | null; declared_currency: string | null; incoterm: string | null };
+
+export function parseDhlShipmentReport(buf: Uint8Array): CarrierShipment[] {
+  let txt = new TextDecoder("utf-8").decode(buf);
+  if (txt.charCodeAt(0) === 0xfeff) txt = txt.slice(1);
+  const wb = XLSX.read(txt, { type: "string", raw: true });
+  const t = XLSX.utils.sheet_to_json<string[]>(wb.Sheets[wb.SheetNames[0]!]!, { header: 1, raw: false, defval: "" });
+  const h = (t[0] ?? []).map((x) => String(x).replace(/﻿/g, "").trim());
+  const c = (n: string) => h.indexOf(n);
+  if (c("Konşimento Numarası") < 0 || c("Toplam Ağırlık") < 0) throw new Error("DHL Gönderi Detay Raporu tanınmadı ('Konşimento Numarası' / 'Toplam Ağırlık' sütunu yok).");
+  const kg = (v: string) => { const n = Number(String(v).replace(/[^\d.,]/g, "").replace(",", ".")); return Number.isFinite(n) && n > 0 ? n : null; };
+  const out: CarrierShipment[] = [];
+  for (const r of t.slice(1)) {
+    const g = (n: string) => { const i = c(n); return i >= 0 ? String(r[i] ?? "").trim() : ""; };
+    const awb = g("Konşimento Numarası").replace(/\s/g, "");
+    if (!/^\d{8,12}$/.test(awb)) continue;   // kaydedilmiş ama konşimentosu oluşmamış taslaklar
+    const imp = /İthalat/i.test(g("Türü"));
+    const est = g("Tahmini Ücretler (KDV dahil, gerçek para birimiyle)");
+    out.push({
+      awb, ship_date: dmy(g("Gönderi tarihi")), direction: /Yurt içi/i.test(g("Uluslararası/Yerli")) ? "domestic" : imp ? "import" : "export",
+      service: g("Teslimat seçeneği Türü") || null, service_code: g("Teslimat seçeneği Kod") || null,
+      party_company: (imp ? g("Firma Adı (Gönderici)") : g("Firma Adı (Alıcı)")) || null, party_contact: (imp ? g("İrtibat (Gönderici)") : g("İrtibat (Alıcı)")) || null,
+      party_city: (imp ? g("Şehir (Gönderici)") : g("Şehir (Alıcı)")) || null, party_country: (imp ? g("Ülke kodu (Gönderici)") : g("Ülke kodu (Alıcı)")) || null,
+      pieces: Number(g("Toplam Parça")) || null, weight: kg(g("Toplam Ağırlık")), vol_weight: kg(g("Toplam Hacim Ağırlığı")),
+      est_amount: est ? Math.round(Number(est.replace(",", ".")) * 100) || null : null, est_currency: g("Tahmini Ücretler (gerçek para birimi kodu)") || null,
+      account: g("Ödeme Hesabı") || null, status: g("Durum") || null, reference: g("Gönderi Referansı 1") || null, contents: g("İçerik Açıklaması") || null,
+      declared_value: Number(g("Beyan Değeri").replace(",", ".")) || null, declared_currency: g("Beyan Para birimi") || null,
+      incoterm: g("Ticaret Koşulları") || null,
+    });
+  }
+  return out;
 }
