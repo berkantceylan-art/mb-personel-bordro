@@ -266,6 +266,10 @@ export async function saveProduct(f: FormData) {
   const supabase = await createClient();
   const { data: saved, error } = id ? await supabase.from("lab_products").update(row).eq("id", id).select("id").single() : await supabase.from("lab_products").insert(row).select("id").single();
   if (error) await fail(missing(error.message));
+  // dışarıda yapılan ürün (ortodonti vb.) — alan yoksa / SQL çalıştırılmadıysa sessizce geçilir
+  if (saved?.id && f.has("outsource_party_id")) {
+    await supabase.from("lab_products").update({ outsource_party_id: str(f, "outsource_party_id", 40) || null }).eq("id", saved.id);
+  }
   // Türkçe karşılık: elle yazıldıysa o, boşsa yapay zekâ ile otomatik çeviri (hata olursa kayıt yine geçerli)
   const nameTr = str(f, "name_tr", 160);
   if (saved?.id) {

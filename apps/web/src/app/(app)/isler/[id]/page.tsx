@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PostponeForm } from "@/components/PostponeForm";
 import { notFound, redirect } from "next/navigation";
 import { Card, PageHeader } from "@/components/ui";
+import { JobOutsourceButtons } from "../ortodonti/OutsourceClient";
 import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
@@ -65,6 +66,11 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     })),
     ...((nt ?? []) as { id: number; body: string; author: string; author_name: string | null; created_at: string }[]).map((n): ThreadItem => ({ key: `n${n.id}`, kind: "note", body: n.body, who: n.author_name ?? "", at: n.created_at, noteId: n.id, mine: n.author === s.userId })),
   ].sort((a, b) => a.at.localeCompare(b.at));
+  const [{ data: osLabs }, { data: osOpen }] = await Promise.all([
+    supabase.from("fin_parties").select("id, name").eq("outsource_lab", true).order("name"),
+    supabase.from("job_outsource").select("id, sent_at").eq("job_id", id).eq("status", "sent").maybeSingle(),
+  ]);
+  const os = osOpen as { id: string; sent_at: string } | null;
   const wa = waLink((cu as { phone?: string | null } | null)?.phone, `İş #${job.no}${job.patient ? ` (${job.patient})` : ""}: `);
   // Pasif hekim seçiliyse listede görünsün
   let customers = opts.customers;
@@ -90,6 +96,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
                 <button name="status" value={job.status === "ready" ? "delivered" : "ready"} className="h-10 px-3 rounded-[10px] bg-ok text-white text-sm font-semibold">{job.status === "ready" ? "Teslim edildi (cariye işle)" : "Hazır"}</button>
               </form>
             )}
+            {(os || ["open", "tryin", "ready"].includes(job.status)) && <JobOutsourceButtons jobId={job.id} jobNo={job.no} openId={os?.id ?? null} sentDays={os ? Math.floor((Date.now() - new Date(os.sent_at).getTime()) / 86400000) : null} labs={(osLabs ?? []) as { id: string; name: string }[]} />}
             {["open", "tryin", "ready"].includes(job.status) && <PostponeForm ids={[job.id]} compact />}
             {Number((job as { postpone_count?: number }).postpone_count ?? 0) > 0 && <Link href="/isler/ertele?donem=ay" className="text-xs font-semibold rounded-full bg-[#FFEDD5] text-[#9A3412] px-2 py-1">↻ {(job as { postpone_count?: number }).postpone_count} kez ertelendi</Link>}
             <Link href={`/yazdir/is/${job.id}`} className="h-10 px-3 inline-flex items-center rounded-[10px] border border-[#D5DEE8] bg-white text-sm font-semibold text-brand-700">Yazdır</Link>
