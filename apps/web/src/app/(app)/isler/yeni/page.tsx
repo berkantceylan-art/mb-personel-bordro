@@ -86,6 +86,7 @@ export default async function NewJobPage({ searchParams }: { searchParams: Promi
           <div className="flex gap-3 text-sm font-semibold">
             <Link href="/isler" className="text-brand-700">İş listesi</Link>
             <Link href="/isler/hekimler" className="text-brand-700">+ Hekim / hastane</Link>
+            <Link href="/isler/ortodonti" className="text-[#5B21B6]">Ortodonti: gönder / iş geldi</Link>
           </div>
         }
       />

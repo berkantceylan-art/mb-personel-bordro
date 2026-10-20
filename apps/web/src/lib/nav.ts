@@ -223,6 +223,7 @@ export const NAV: Group[] = [
       { label: "Siparişler", href: "/isler/siparisler", module: "lab", desc: "Telefon, WhatsApp, e-posta, tarayıcı ve portal siparişleri; tek tuşla iş kaydı" },
       { label: "İş kayıt", href: "/isler/yeni", module: "lab", desc: "Yeni iş: hekim, hasta, diş şeması, ürünler, prova ve teslim" },
       { label: "İş listesi", href: "/isler", module: "lab", desc: "Tüm işler; duruma, hekime ve tarihe göre ara" },
+      { label: "Ortodonti / dış lab", href: "/isler/ortodonti", module: "lab", desc: "Dışarıda yaptırılan işler: günlük gönderim listesi, dışarıda bekleyenler, iş geldi" },
       { label: "Günlük irsaliyeler", href: "/isler/irsaliye", module: ["lab", "sales"], desc: "Her gün müşteriye giden işlerin irsaliyesi; yazdır, kesildi" },
       { label: "Aylık faturalama", href: "/isler/aylik-fatura", module: ["lab", "sales"], desc: "Ay sonunda irsaliyeleri müşteri başına tek faturada topla (TR / EN / FR)" },
       { label: "Prova / teslim listesi", href: "/isler/prova", module: "lab", desc: "Bugün ve önümüzdeki günlerde çıkacak prova ve teslimler" },
