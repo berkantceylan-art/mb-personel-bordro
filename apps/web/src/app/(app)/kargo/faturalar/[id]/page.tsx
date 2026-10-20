@@ -25,7 +25,7 @@ export default async function CarrierInvoicePage({ params }: { params: Promise<{
   const th = "py-2 px-2 font-semibold text-left text-xs text-muted";
   return (
     <>
-      <PageHeader title={`${String(inv.carrier).toUpperCase()} ${inv.invoice_no}`} subtitle={`${day(inv.invoice_date)}${inv.due_date ? ` · son ödeme ${day(inv.due_date)}` : ""}${inv.bill_type ? ` · ${inv.bill_type}` : ""} · ${tl(Number(inv.total))}`} actions={<Link href="/kargo/faturalar" className="text-sm font-semibold text-brand-700">← Kargo faturaları</Link>} />
+      <PageHeader title={`${String(inv.carrier).toUpperCase()} ${inv.invoice_no}`} subtitle={`${day(inv.invoice_date)}${inv.due_date ? ` · son ödeme ${day(inv.due_date)}` : ""}${inv.bill_type ? ` · ${inv.bill_type}` : ""} · ${tl(Number(inv.total))}`} actions={<Link href={`/kargo/faturalar/${inv.carrier}`} className="text-sm font-semibold text-brand-700">← {String(inv.carrier).toUpperCase()} faturaları</Link>} />
       <div className="p-4 md:p-8 flex flex-col gap-4 max-w-[1320px]">
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span>{items.length} gönderi · satır toplamı <b>{tl(items.reduce((a, i) => a + i.total, 0))}</b>{inv.eur_total ? ` · ${(Number(inv.eur_total) / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} € (kur ${inv.eur_rate})` : ""}</span>
