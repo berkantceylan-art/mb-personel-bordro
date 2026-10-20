@@ -159,8 +159,9 @@ export async function parseCarrierFile(name: string, buf: Uint8Array): Promise<C
   if (/\.xlsx?$/i.test(name)) return parseUpsDetail(buf);
   const lines = await pdfLines(buf);
   const head = lines.slice(0, 40).map(text).join(" ");
-  if (/DHL/i.test(head)) return parseDhl(lines);
-  if (/UPS/i.test(head)) return parseUpsPdf(lines);
+  // yalnız kargo firmasının kestiği fatura (kendi satış faturalarımızda geçen "DHL" / "UPS" kelimesi yanıltmasın)
+  if (/DHL Worldwide Express|2950010389/i.test(head)) return parseDhl(lines);
+  if (/UPS Hızlı Kargo|9170014856/i.test(head)) return parseUpsPdf(lines);
   throw new Error("Dosya DHL ya da UPS faturası olarak tanınmadı.");
 }
 
