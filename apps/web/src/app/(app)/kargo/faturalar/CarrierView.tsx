@@ -18,7 +18,7 @@ export async function CarrierView({ carrier, sp }: { carrier: "dhl" | "ups"; sp:
   const months = Math.min(24, Math.max(1, Number(sp.ay) || 6));
   const from = new Date(Date.now() - months * 31 * 86400000).toISOString().slice(0, 10);
   const sb = await createClient();
-  const { data: invs, error } = await sb.from("carrier_invoices").select("id, carrier, invoice_no, invoice_date, due_date, bill_type, total, detail_total, shipments, status, source").eq("carrier", carrier).gte("invoice_date", from).order("invoice_date", { ascending: false }).limit(500);
+  const { data: invs, error } = await sb.from("carrier_invoices").select("id, carrier, invoice_no, invoice_date, due_date, bill_type, total, detail_total, shipments, status, source").eq("carrier", carrier).or(`invoice_date.gte.${from},invoice_date.is.null`).order("invoice_date", { ascending: false }).limit(500);
   if (error) {
     return (<><PageHeader title={`${NAME[carrier]} faturaları`} /><div className="p-4 md:p-8"><p className="rounded-[12px] bg-warn-bg text-warn px-4 py-3 text-sm">{/carrier_/.test(error.message) ? "Önce mbdental-kargo-fatura.sql dosyasını Supabase'de çalıştırın." : error.message}</p></div></>);
   }
@@ -32,7 +32,9 @@ export async function CarrierView({ carrier, sp }: { carrier: "dhl" | "ups"; sp:
   const noInvoice = ships.filter((x) => !awbSet.has(x.tracking_no.replace(/\s+/g, "").toUpperCase()));
 
   // Konşimento raporu (DHL Gönderi Detay Raporu) ↔ fatura satırları
-  const { data: rep } = await loadCarrierShipments(from, carrier).catch(() => ({ data: [] as Awaited<ReturnType<typeof loadCarrierShipments>>["data"] }));
+  const repRes = await loadCarrierShipments(from, carrier).catch((e) => ({ data: [] as Awaited<ReturnType<typeof loadCarrierShipments>>["data"], error: { message: String(e) } }));
+  const rep = repRes.data;
+  const repMissing = !!repRes.error && /carrier_shipments|schema cache|does not exist/i.test(repRes.error.message);
   const repActive = rep.filter((r) => !/iptal/i.test(r.status ?? ""));
   const repSet = new Set(rep.map((r) => `${r.carrier}|${r.awb}`));
   const itemBy = new Map(items.map((i) => [`${i.carrier_invoices?.carrier}|${i.awb}`, i]));
@@ -117,7 +119,9 @@ export async function CarrierView({ carrier, sp }: { carrier: "dhl" | "ups"; sp:
 
         <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
           <h2 className="font-display text-lg font-bold">Konşimento raporu ↔ faturalar</h2>
-          {rep.length === 0 ? (
+          {repMissing ? (
+            <p className="rounded-[12px] bg-warn-bg text-warn px-4 py-3 text-sm">Konşimento listesi için önce <b>mbdental-kargo-konsimento.sql</b> dosyası Supabase&apos;de çalıştırılmalı; sonra listeyi tekrar yükleyin.</p>
+          ) : rep.length === 0 ? (
             <p className="text-sm text-muted">{carrier === "dhl" ? <>MyDHL+ › Raporlar › <b>Gönderi Detay Raporu</b>&apos;nu CSV olarak indirip yukarıdan yükleyin; oluşturduğunuz konşimentolar faturalarla karşılaştırılır.</> : <>ups.com › <b>UPS My Choice for Business / gönderilerim</b> listesini CSV olarak indirip yukarıdan yükleyin; gönderdiğiniz paketler faturalarla karşılaştırılır.</>}</p>
           ) : (
             <>
