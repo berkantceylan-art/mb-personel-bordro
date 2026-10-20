@@ -3,6 +3,7 @@ import "server-only";
 
 
 
+
 import * as XLSX from "xlsx";
 
 /** DHL / UPS kargo faturası okuyucuları. Tutarlar kuruş (tam sayı). */
@@ -78,7 +79,11 @@ export function parseDhl(lines: Tok[][]): CarrierInvoice {
     if (/^TARİH$/.test(t0) || /NET TOPLAM/.test(text(l))) { if (/NET TOPLAM/.test(text(l))) close(); continue; }
     if (/^GÖNDERİCİ REF/.test(t0) || /^GÖNDERİCİ :?$/.test(t0) || /^GÖNDERİCİ FİRMA/.test(t0)) {
       const ai = l.findIndex((t) => /^ALICI( FİRMA)? ?:?$/.test(t.s) || /^ALICI:$/.test(t.s));
-      if (ai >= 0) { const v = l.slice(ai + 1).map((t) => t.s).join(" ").trim(); if (/FİRMA/.test(l[ai]!.s)) cur.recipient_company = v; else cur.recipient = v; }
+      const imp = inv.bill_type === "Alıcı ödemeli";
+      // ithalatta (alıcı ödemeli) karşı taraf gönderendir
+      const v = imp ? l.slice(1, ai >= 0 ? ai : undefined).map((t) => t.s).join(" ").replace(/^:\s*/, "").trim()
+                    : ai >= 0 ? l.slice(ai + 1).map((t) => t.s).join(" ").trim() : "";
+      if (v && !/^GÖNDERİCİ REF/.test(t0)) { if (/FİRMA/.test(t0) || (ai >= 0 && /FİRMA/.test(l[ai]!.s) && !imp)) cur.recipient_company = v; else cur.recipient = v; }
       pending = ""; continue;
     }
     if (/^GÖNDERİCİ ADRES/.test(t0)) {
@@ -104,14 +109,14 @@ export function parseDhl(lines: Tok[][]): CarrierInvoice {
     }
   }
   close();
-  if (!inv.items.length && !inv.invoice_no) throw new Error("DHL faturası okunamadı.");
+  if (!/\d{6,}/.test(inv.invoice_no)) throw new Error("DHL faturası okunamadı (fatura numarası bulunamadı).");
   return inv;
 }
 
 export function parseUpsPdf(lines: Tok[][]): CarrierInvoice {
   const all = lines.map(text).join("\n");
   const no = all.match(/Fatura No:\s*([A-Z0-9]{10,20})/)?.[1] ?? "";
-  if (!no) throw new Error("UPS faturası okunamadı.");
+  if (!no || !/\d{6,}/.test(no)) throw new Error("UPS faturası okunamadı.");
   const tot = all.match(/Ödenecek Tutar\s*([\d.,]+)\s*TL/);
   const vat = all.match(/Hesaplanan Kdv Vergisi[^\d]*([\d.,]+)\s*TL/);
   const eur = all.match(/1 EUR:\s*([\d.,]+)/);

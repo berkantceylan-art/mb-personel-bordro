@@ -6,9 +6,9 @@ export type CItem = { id: string; invoice_id: string; awb: string; ship_date: st
   weight: number | null; weight_basis: string | null; base_amount: number; extras: { name: string; amount: number }[]; extras_total: number; total: number;
   recipient: string | null; recipient_company: string | null; shipment_id: string | null; customer_id: string | null; disputed: boolean; note: string | null;
   carrier_invoices: { carrier: string; invoice_no: string; invoice_date: string | null; eur_rate: number | null } | null; lab_customers: { name: string } | null };
-export type Flag = "dup" | "noship" | "nocust" | "measured" | "premium" | "high";
+export type Flag = "dup" | "noship" | "nocust" | "premium" | "high";
 export const FLAG_LABEL: Record<Flag, string> = {
-  dup: "Mükerrer faturalanmış", noship: "Gönderi kaydı yok", nocust: "Hekim bulunamadı", measured: "Kargo firması tarttı / ölçtü",
+  dup: "Mükerrer faturalanmış", noship: "Konşimento listesinde / kargo kaydında yok", nocust: "Hekim bulunamadı",
   premium: "Ek hizmet (saatli teslim, ikamet, adres düzeltme…)", high: "Ortalamanın üstünde",
 };
 export const PREMIUM = /12:00|09:00|10:30|IKAMET|İKAMET|RESIDENTIAL|ADRES D[UÜ]ZELT|ADDRESS CORR|UZAK B[OÖ]LGE|REMOTE|EXTENDED AREA|OVERSIZE|A[SŞ]IRI|SATURDAY|CUMARTES|KOL[Iİ] [Iİ]ADE|RETURN|SIGNATURE|[Iİ]MZA/i;
@@ -51,7 +51,6 @@ export async function flagItems(items: CItem[]) {
     if ((counts.get(i.awb) ?? 1) > 1) f.push("dup");
     if (!i.shipment_id && !inReport.has(i.awb)) f.push("noship");
     if (!i.customer_id) f.push("nocust");
-    if (i.weight_basis === "B" || i.weight_basis === "W") f.push("measured");
     if (i.extras.some((x) => PREMIUM.test(x.name))) f.push("premium");
     const m = median.get(`${i.carrier_invoices?.carrier}|${i.dest_country ?? i.dest}`);
     if (m && i.weight && i.total / i.weight > m * 1.3) f.push("high");
