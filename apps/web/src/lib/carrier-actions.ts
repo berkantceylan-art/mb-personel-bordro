@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/session";
@@ -138,4 +139,15 @@ export async function setCarrierInvoiceStatus(f: FormData) {
   await (await createClient()).from("carrier_invoices").update({ status: st }).eq("id", id);
   revalidatePath(`/kargo/faturalar/${id}`);
   revalidatePath("/kargo/faturalar", "layout");
+}
+
+/** Yanlış alınmış faturayı sil (satırlarıyla) */
+export async function deleteCarrierInvoice(f: FormData) {
+  await guard();
+  const id = String(f.get("id") ?? "");
+  const sb = await createClient();
+  const { data } = await sb.from("carrier_invoices").select("carrier").eq("id", id).maybeSingle();
+  await sb.from("carrier_invoices").delete().eq("id", id);
+  revalidatePath("/kargo/faturalar", "layout");
+  redirect(`/kargo/faturalar/${(data?.carrier as string | undefined) ?? "dhl"}`);
 }

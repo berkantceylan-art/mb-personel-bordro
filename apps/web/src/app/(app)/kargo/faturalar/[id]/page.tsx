@@ -4,7 +4,8 @@ import { PageHeader } from "@/components/ui";
 import { getSession } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { FLAG_LABEL, PREMIUM, flagItems, loadCarrierItems } from "@/lib/carrier-check";
-import { setCarrierInvoiceStatus, toggleDispute } from "@/lib/carrier-actions";
+import { deleteCarrierInvoice, setCarrierInvoiceStatus, toggleDispute } from "@/lib/carrier-actions";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function CarrierInvoicePage({ params }: { params: Promise<{
                 <button className={`h-9 px-3 rounded-lg border font-semibold ${inv.status === st ? "bg-brand-700 text-white border-brand-700" : "border-[#D5DEE8] bg-white text-brand-700"}`}>{st === "open" ? "Açık" : st === "checked" ? "Kontrol edildi" : "İtiraz"}</button>
               </form>
             ))}
+            <form action={deleteCarrierInvoice}><input type="hidden" name="id" value={id} /><ConfirmSubmit label="Sil" question="Bu fatura (satırlarıyla) silinsin mi?" className="h-9 px-3 rounded-lg border border-[#F3C3BE] text-bad font-semibold" /></form>
           </span>
         </div>
         <section className="rounded-[16px] border border-line bg-white p-2 overflow-x-auto">
