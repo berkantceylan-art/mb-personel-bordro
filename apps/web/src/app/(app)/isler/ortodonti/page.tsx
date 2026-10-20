@@ -43,7 +43,7 @@ export default async function OutsourcePage({ searchParams }: { searchParams: Pr
   return (
     <>
       <PageHeader title="Ortodonti / dış laboratuvar" subtitle="Dışarıda yaptırılan işler: gönderim listesi, dışarıda bekleyenler, iş geldi"
-        actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/isler/yeni" className="text-brand-700">İş kayıt</Link><Link href="/isler/urunler" className="text-brand-700">Ürünler</Link></span>} />
+        actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/isler/ortodonti/ekstre" className="text-[#5B21B6]">Ekstreler / fiyat kontrolü</Link><Link href="/isler/yeni" className="text-brand-700">İş kayıt</Link><Link href="/isler/urunler" className="text-brand-700">Ürünler</Link></span>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1320px]">
         {labs.length === 0 ? (
           <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
