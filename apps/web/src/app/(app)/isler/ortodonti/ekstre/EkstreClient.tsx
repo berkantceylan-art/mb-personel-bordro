@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { fetchOutsourceMail, relinkOutsourceLines, saveOutsourcePrices, setOutsourceAlias, toggleOutsourceDispute, uploadOutsourceStatements } from "@/lib/outsource-actions";
+import { setOutsourceEmail, fetchOutsourceMail, relinkOutsourceLines, saveOutsourcePrices, setOutsourceAlias, toggleOutsourceDispute, uploadOutsourceStatements } from "@/lib/outsource-actions";
 
 type R = { ok: boolean; message: string; lines?: string[] };
 function Msg({ m }: { m: R | null }) {
@@ -13,6 +13,7 @@ export function StatementTools({ party, email }: { party: string; email: string 
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<R | null>(null);
+  const [mail, setMail] = useState(email ?? "derindental@gmail.com");
   async function go(k: string, fn: () => Promise<R>) { setBusy(k); setMsg(null); try { setMsg(await fn()); } catch (e) { setMsg({ ok: false, message: String(e) }); } setBusy(null); router.refresh(); }
   return (
     <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
@@ -21,6 +22,10 @@ export function StatementTools({ party, email }: { party: string; email: string 
         <button disabled={!!busy} className="h-11 px-5 rounded-[12px] bg-brand-700 text-white font-bold disabled:opacity-50">{busy === "up" ? "Okunuyor…" : "Yükle"}</button>
         <button type="button" disabled={!!busy} onClick={() => go("mail", () => fetchOutsourceMail(party))} title={email ? `${email} adresinden gelenler` : "Önce bir ekstre yükleyin"} className="h-11 px-4 rounded-[12px] border border-[#D5DEE8] bg-white text-brand-700 font-semibold disabled:opacity-50">{busy === "mail" ? "E-postalar taranıyor…" : "E-postadan çek"}</button>
         <button type="button" disabled={!!busy} onClick={() => go("re", () => relinkOutsourceLines(party))} className="h-11 px-4 rounded-[12px] border border-[#D5DEE8] bg-white text-brand-700 font-semibold disabled:opacity-50">{busy === "re" ? "…" : "Yeniden eşleştir"}</button>
+      </form>
+      <form className="flex flex-wrap items-end gap-2 text-sm" onSubmit={(e) => { e.preventDefault(); void go("em", () => setOutsourceEmail(party, mail)); }}>
+        <label className="flex flex-col gap-1 font-semibold">Laboratuvarın e-posta adresi<input value={mail} onChange={(e) => setMail(e.target.value)} placeholder="ornek@gmail.com" className="h-10 w-[280px] rounded-[10px] border border-[#D5DEE8] px-3 font-normal" /></label>
+        <button disabled={!!busy || !mail.trim() || mail.trim() === (email ?? "")} className="h-10 px-4 rounded-[10px] border border-[#D5DEE8] bg-white text-brand-700 font-semibold disabled:opacity-40">{busy === "em" ? "…" : "Kaydet"}</button>
       </form>
       {email && <p className="text-xs text-muted">E-postadan çek: bağlı Gmail hesabında <b>{email}</b> adresinden 01.01.2026&apos;dan bu yana gelen PDF ekleri okunur.</p>}
       <Msg m={msg} />
