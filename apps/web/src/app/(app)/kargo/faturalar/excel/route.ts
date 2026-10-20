@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   const months = Math.min(24, Math.max(1, Number(u.get("ay")) || 6));
   const firma = u.get("firma") === "ups" ? "ups" : u.get("firma") === "dhl" ? "dhl" : undefined;
   const from = new Date(Date.now() - months * 31 * 86400000).toISOString().slice(0, 10);
-  const items = (await flagItems((await loadCarrierItems(from, undefined, firma)).data)).filter((i) => i.disputed || i.flags.some((f) => ["dup", "premium", "high", "measured"].includes(f)));
+  const items = (await flagItems((await loadCarrierItems(from, undefined, firma)).data)).filter((i) => i.disputed || i.flags.some((f) => ["dup", "premium", "high"].includes(f)));
   const rows = items.map((i) => ({
     "Firma": i.carrier_invoices?.carrier.toUpperCase(), "Fatura no": i.carrier_invoices?.invoice_no, "Gönderi tarihi": i.ship_date, "Konşimento": i.awb,
     "Alıcı": i.recipient_company ?? i.recipient, "Hekim": i.lab_customers?.name ?? "", "Ülke": i.dest_country ?? i.dest, "Kg": i.weight, "Kg kaynağı": i.weight_basis ?? "",
