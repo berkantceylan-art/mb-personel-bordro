@@ -282,6 +282,22 @@ export async function saveProduct(f: FormData) {
   redirect(`/isler/urunler?tamam=${encodeURIComponent("Ürün kaydedildi.")}`);
 }
 
+/** Ürünlerin nerede yapıldığını toplu ayarla (dış laboratuvar / bizde) */
+export async function bulkOutsourceProducts(f: FormData) {
+  await guard();
+  const back = str(f, "back", 300) || "/isler/urunler";
+  let ids = f.getAll("ids").map(String).filter((x) => /^[0-9a-f-]{36}$/.test(x));
+  if (f.get("all") === "1") ids = str(f, "shown", 200000).split(",").filter((x) => /^[0-9a-f-]{36}$/.test(x));
+  const sep = back.includes("?") ? "&" : "?";
+  if (!ids.length) redirect(`${back}${sep}hata=${encodeURIComponent("Ürün seçilmedi.")}`);
+  const party = str(f, "party", 40) || null;
+  const supabase = await createClient();
+  const { error } = await supabase.from("lab_products").update({ outsource_party_id: party }).in("id", ids.slice(0, 2000));
+  if (error) redirect(`${back}${sep}hata=${encodeURIComponent(missing(error.message))}`);
+  revalidatePath("/isler/urunler");
+  redirect(`${back}${sep}tamam=${encodeURIComponent(`${ids.length} ürün güncellendi.`)}`);
+}
+
 export async function deleteProduct(f: FormData) {
   await guard();
   const supabase = await createClient();
