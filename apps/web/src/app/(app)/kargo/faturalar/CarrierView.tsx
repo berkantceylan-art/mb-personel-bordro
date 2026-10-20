@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { FLAG_LABEL, type Flag } from "@/lib/carrier-check";
 import { carrierReport, disputeMail } from "@/lib/carrier-report";
 import { DisputeMail } from "./DisputeMail";
+import { NocustMatch } from "./NocustMatch";
+import { nocustGroups } from "@/lib/carrier-match";
 import { CarrierTools } from "./CarrierTools";
 
 const tl = (k: number) => `${(k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺`;
@@ -27,6 +29,7 @@ export async function CarrierView({ carrier, sp }: { carrier: "dhl" | "ups"; sp:
   const d = await carrierReport(carrier, months);
   const { items, noInvoice, rep, repActive, repMissing, repDates, itemBy, R, RL, eur } = d;
   const mail = disputeMail(d, carrier);
+  const nc = sp.uyari === "nocust" ? await nocustGroups(d) : null;
   const rsel = (Object.keys(R) as (keyof typeof R)[]).includes(sp.rapor as keyof typeof R) ? (sp.rapor as keyof typeof R) : null;
   const flagCount = (f: Flag) => items.filter((i) => i.flags.includes(f)).length;
   const sel = (Object.keys(FLAG_LABEL) as Flag[]).includes(sp.uyari as Flag) ? (sp.uyari as Flag) : null;
@@ -65,7 +68,8 @@ export async function CarrierView({ carrier, sp }: { carrier: "dhl" | "ups"; sp:
             {sel && <Link href={`?ay=${months}`} className="px-2 py-1.5 text-brand-700 font-semibold">Temizle</Link>}
             <a href={`/kargo/faturalar/excel?ay=${months}&firma=${carrier}`} className="ml-auto px-2 py-1.5 text-brand-700 font-semibold">Tüm kontroller (Excel)</a>
           </div>
-          {sel && (
+          {nc && <NocustMatch groups={nc.groups} customers={nc.customers} />}
+          {sel && sel !== "nocust" && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[900px]">
                 <thead><tr><th className={th}>Tarih</th><th className={th}>Konşimento</th><th className={th}>Fatura</th><th className={th}>Alıcı / hekim</th><th className={th}>Varış</th><th className={`${th} text-right`}>Kg</th><th className={`${th} text-right`}>Ek ücret</th><th className={`${th} text-right`}>Toplam</th><th className={th}>Uyarı</th></tr></thead>
