@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/session";
-import { accessToken, getAttachment, getMessageAttachments, gmailConfigured, isQuotaError, listMessageIds } from "@/lib/gmail";
+import { accessToken, getAttachment, getMessageAttachments, gmailConfigured, isQuotaError, listMessageIds, sendMail } from "@/lib/gmail";
 import { parseCarrierFile, parseDhlShipmentReport, parseUpsShipmentReport, type CarrierInvoice } from "@/lib/carrier-parse";
 
 type Res = { ok: boolean; message: string; lines?: string[] };
@@ -150,4 +150,32 @@ export async function deleteCarrierInvoice(f: FormData) {
   await sb.from("carrier_invoices").delete().eq("id", id);
   revalidatePath("/kargo/faturalar", "layout");
   redirect(`/kargo/faturalar/${(data?.carrier as string | undefined) ?? "dhl"}`);
+}
+
+/** İtiraz e-postasını (ekte itiraz Excel'i) seçili Gmail hesabından gönderir — yalnızca kullanıcı ekranda onaylayınca çağrılır */
+export async function sendCarrierDispute(carrier: "dhl" | "ups", months: number, m: { to: string; cc: string; subject: string; body: string }): Promise<Res> {
+  try {
+    await guard();
+    const to = m.to.split(/[,;\s]+/).filter(Boolean);
+    const cc = m.cc.split(/[,;\s]+/).filter(Boolean);
+    const bad = [...to, ...cc].filter((a) => !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(a));
+    if (!to.length || bad.length) return { ok: false, message: bad.length ? `Geçersiz adres: ${bad.join(", ")}` : "Alıcı adresi girin." };
+    if (!gmailConfigured()) return { ok: false, message: "Gmail bağlantısı yapılandırılmamış." };
+    const sb = await createClient();
+    const admin = createAdminClient();
+    const { data: set } = await sb.from("fin_bank_mail_settings").select("mail_account_id").limit(1).maybeSingle();
+    if (!set?.mail_account_id) return { ok: false, message: "Gönderecek e-posta hesabı seçilmemiş (Finans › Banka e-postası ayarından seçilir)." };
+    const { data: acc } = await admin.from("mail_accounts").select("id, user_id, display_name").eq("id", set.mail_account_id).maybeSingle();
+    if (!acc) return { ok: false, message: "E-posta hesabı bulunamadı." };
+    const { token, email } = await accessToken(acc.id as string, acc.user_id as string);
+    const { carrierReport, carrierWorkbook } = await import("@/lib/carrier-report");
+    const xlsx = carrierWorkbook(await carrierReport(carrier, Math.min(24, Math.max(1, months))), carrier, "itiraz");
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const html = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5">${m.body.split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("")}</div>`;
+    await sendMail(token, { from: email, fromName: (acc.display_name as string | null) ?? "MB Dental", to: to.join(", "), cc: cc.join(", ") || undefined, subject: m.subject, text: m.body, html,
+      attachments: [{ name: `${carrier.toUpperCase()}-itiraz-${new Date().toISOString().slice(0, 10)}.xlsx`, mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data: xlsx }] });
+    return { ok: true, message: `İtiraz e-postası ${email} hesabından ${to.join(", ")} adresine gönderildi (Excel ekli).` };
+  } catch (e) {
+    return { ok: false, message: isQuotaError(e) ? "Gmail kotası doldu, biraz sonra tekrar deneyin." : e instanceof Error ? e.message : String(e) };
+  }
 }
