@@ -18,7 +18,7 @@ export async function loadCarrierItems(from: string, invoiceId?: string, carrier
   const sel = "id, invoice_id, awb, ship_date, dest, dest_country, product, weight, weight_basis, base_amount, extras, extras_total, total, recipient, recipient_company, shipment_id, customer_id, disputed, note, carrier_invoices!inner(carrier, invoice_no, invoice_date, eur_rate), lab_customers(name)";
   const r = await allRows<CItem>((a, b) => {
     const q = sb.from("carrier_invoice_items").select(sel);
-    const q2 = invoiceId ? q.eq("invoice_id", invoiceId) : q.gte("carrier_invoices.invoice_date", from);
+    const q2 = invoiceId ? q.eq("invoice_id", invoiceId) : q.or(`invoice_date.gte.${from},invoice_date.is.null`, { referencedTable: "carrier_invoices" });
     return (carrier ? q2.eq("carrier_invoices.carrier", carrier) : q2).order("id").range(a, b);
   });
   return r;
