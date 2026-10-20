@@ -9,7 +9,8 @@ import { parseCarrierFile, type CarrierInvoice } from "@/lib/carrier-parse";
 type Res = { ok: boolean; message: string; lines?: string[] };
 const missing = (m: string) => (/carrier_|schema cache/i.test(m) ? "Önce mbdental-kargo-fatura.sql dosyasını Supabase'de çalıştırın." : m);
 const tl = (k: number) => (k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const CARRIER_MAIL_QUERY = "has:attachment newer_than:120d (from:dhl.com OR from:ups.com OR from:finansaltalepler@dhl.com OR from:upstrfaturalama@ups.com)";
+const MAIL_FROM = "2026-01-01";
+const CARRIER_MAIL_QUERY = `has:attachment after:${MAIL_FROM.replace(/-/g, "/")} (from:dhl.com OR from:ups.com OR from:finansaltalepler@dhl.com OR from:upstrfaturalama@ups.com)`;
 
 async function guard() {
   const s = await getSession();
@@ -65,7 +66,7 @@ export async function fetchCarrierMail(): Promise<Res> {
     do {
       const r = await listMessageIds(token, { q: CARRIER_MAIL_QUERY, max: 50, ...(next ? { pageToken: next } : {}) });
       ids.push(...r.ids); next = r.next;
-    } while (next && ids.length < 200);
+    } while (next && ids.length < 1000);
     const { data: seen } = await sb.from("carrier_invoices").select("mail_ref").not("mail_ref", "is", null);
     const done = new Set(((seen ?? []) as { mail_ref: string }[]).map((x) => x.mail_ref.split(":")[0]));
     const todo = ids.filter((i) => !done.has(i)).slice(0, 25);
@@ -78,6 +79,7 @@ export async function fetchCarrierMail(): Promise<Res> {
           try {
             const buf = await getAttachment(token, m.id, a.id);
             const inv = await parseCarrierFile(a.name, new Uint8Array(buf));
+            if (inv.invoice_date && inv.invoice_date < MAIL_FROM) continue;   // 01.01.2026 öncesi alınmaz
             const r = await save(inv, { source: "mail", file_name: a.name, mail_ref: `${id}:${a.name}`.slice(0, 300), detail_only: /\.xlsx?$/i.test(a.name) });
             lines.push(`✓ ${label(inv, r.items)}`); n++;
           } catch { /* fatura olmayan ek */ }
