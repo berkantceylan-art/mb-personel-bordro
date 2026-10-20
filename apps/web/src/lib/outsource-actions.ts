@@ -123,7 +123,7 @@ export async function fetchOutsourceMail(party: string): Promise<Res2> {
     const sb = await createClient();
     const { data: lab } = await sb.from("fin_parties").select("email").eq("id", party).maybeSingle();
     const email = (lab?.email as string | null)?.trim();
-    if (!email) return { ok: false, message: "Laboratuvarın e-posta adresi yok. Bir ekstreyi elle yükleyin (adres PDF'ten alınır) ya da cari kartına yazın." };
+    if (!email) return { ok: false, message: "Laboratuvarın e-posta adresi yok. Bu ekrandaki «Laboratuvarın e-posta adresi» kutusuna yazıp Kaydet'e basın." };
     const admin = createAdminClient();
     const { data: set } = await sb.from("fin_bank_mail_settings").select("mail_account_id").limit(1).maybeSingle();
     if (!set?.mail_account_id) return { ok: false, message: "Taranacak e-posta hesabı seçilmemiş (Finans › Banka e-postası ayarından seçilir)." };
@@ -206,5 +206,18 @@ export async function relinkOutsourceLines(party: string): Promise<Res2> {
     if (error) return { ok: false, message: miss2(error.message) };
     revalidatePath("/isler/ortodonti/ekstre");
     return { ok: true, message: `${Number(data ?? 0)} satır yeniden eşleştirildi.` };
+  } catch (e) { return { ok: false, message: (e as Error).message }; }
+}
+
+/** Laboratuvarın e-posta adresi (ekstreler bu adresten çekilir) */
+export async function setOutsourceEmail(party: string, email: string): Promise<Res2> {
+  try {
+    await guard();
+    const e = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(e)) return { ok: false, message: "Geçerli bir e-posta adresi yazın." };
+    const { error } = await (await createClient()).from("fin_parties").update({ email: e }).eq("id", party);
+    if (error) return { ok: false, message: error.message };
+    revalidatePath("/isler/ortodonti/ekstre");
+    return { ok: true, message: `E-posta kaydedildi: ${e}` };
   } catch (e) { return { ok: false, message: (e as Error).message }; }
 }
