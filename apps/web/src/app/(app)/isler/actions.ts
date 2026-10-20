@@ -286,8 +286,7 @@ export async function saveProduct(f: FormData) {
 export async function bulkOutsourceProducts(f: FormData) {
   await guard();
   const back = str(f, "back", 300) || "/isler/urunler";
-  let ids = f.getAll("ids").map(String).filter((x) => /^[0-9a-f-]{36}$/.test(x));
-  if (f.get("all") === "1") ids = str(f, "shown", 200000).split(",").filter((x) => /^[0-9a-f-]{36}$/.test(x));
+  const ids = f.getAll("ids").map(String).filter((x) => /^[0-9a-f-]{36}$/.test(x));
   const sep = back.includes("?") ? "&" : "?";
   if (!ids.length) redirect(`${back}${sep}hata=${encodeURIComponent("Ürün seçilmedi.")}`);
   const party = str(f, "party", 40) || null;

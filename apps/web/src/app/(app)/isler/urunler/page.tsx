@@ -7,6 +7,7 @@ import { getSession } from "@/lib/session";
 import { MATERIALS, money, type Product } from "@/lib/jobs";
 import { bulkOutsourceProducts, deleteProduct, importProductsFromPriceList, saveProduct } from "../actions";
 import { TranslateAll } from "./TranslateAll";
+import { SelectAll } from "./SelectAll";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -100,14 +101,13 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
               {labs.map((l) => <option key={l.id} value={l.id}>Dışarıda: {l.name}</option>)}
               <option value="">Bizde (laboratuvarda)</option>
             </select>
-            <input type="hidden" name="shown" value={shown.map((x) => x.id).join(",")} />
             <button className="h-9 px-4 rounded-[8px] bg-[#5B21B6] text-white font-semibold">Uygula</button>
-            <span className="text-xs text-muted">Aşağıdan kutucukları işaretleyin (ör. &quot;plak&quot; arayıp hepsini seçin).</span>
+            <span className="text-xs text-muted">Aşağıdan kutucukları işaretleyin; başlıktaki kutu görünenlerin hepsini seçer (ör. &quot;plak&quot; arayıp hepsini seçin).</span>
           </form>
         )}
         <section className="bg-white border border-line rounded-[14px] overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
-            <thead><tr className="text-xs text-muted text-left">{labs.length > 0 && <th className="py-2.5 pl-3 w-8"><input type="checkbox" form="toplu" name="all" value="1" title="Görünenlerin hepsi" /></th>}<th className="py-2.5 px-3">Kod</th><th className="py-2.5 px-3">Ürün</th><th className="py-2.5 px-3">Malzeme</th><th className="py-2.5 px-3 text-right">TL</th><th className="py-2.5 px-3 text-right">€</th><th className="py-2.5 px-3" /></tr></thead>
+            <thead><tr className="text-xs text-muted text-left">{labs.length > 0 && <th className="py-2.5 pl-3 w-8"><SelectAll /></th>}<th className="py-2.5 px-3">Kod</th><th className="py-2.5 px-3">Ürün</th><th className="py-2.5 px-3">Malzeme</th><th className="py-2.5 px-3 text-right">TL</th><th className="py-2.5 px-3 text-right">€</th><th className="py-2.5 px-3" /></tr></thead>
             <tbody>
               {shown.map((x) => (
                 <tr key={x.id} className={`border-t border-line ${x.is_active ? "" : "opacity-60"}`}>
