@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/session";
 import { accessToken, getAttachment, getMessageAttachments, gmailConfigured, isQuotaError, listMessageIds } from "@/lib/gmail";
-import { parseCarrierFile, parseDhlShipmentReport, type CarrierInvoice } from "@/lib/carrier-parse";
+import { parseCarrierFile, parseDhlShipmentReport, parseUpsShipmentReport, type CarrierInvoice } from "@/lib/carrier-parse";
 
 type Res = { ok: boolean; message: string; lines?: string[] };
 const missing = (m: string) => (/carrier_shipments/i.test(m) ? "Önce mbdental-kargo-konsimento.sql dosyasını Supabase'de çalıştırın." : /carrier_|schema cache/i.test(m) ? "Önce mbdental-kargo-fatura.sql dosyasını Supabase'de çalıştırın." : m);
@@ -40,14 +40,17 @@ export async function uploadCarrierFiles(f: FormData): Promise<Res> {
       if (file.size > 15 * 1024 * 1024) { lines.push(`${file.name}: dosya çok büyük`); bad++; continue; }
       try {
         if (/\.csv$/i.test(file.name)) {
-          const rows = parseDhlShipmentReport(new Uint8Array(await file.arrayBuffer()));
+          const buf = new Uint8Array(await file.arrayBuffer());
+          const head = new TextDecoder("utf-8").decode(buf.subarray(0, 600));
+          const ups = /Takip Numarası/.test(head);
+          const rows = ups ? parseUpsShipmentReport(buf) : parseDhlShipmentReport(buf);
           const sb = await createClient();
           for (let k = 0; k < rows.length; k += 500) {
-            const { error } = await sb.rpc("carrier_shipments_save", { p_carrier: "dhl", p: rows.slice(k, k + 500), p_file: file.name });
+            const { error } = await sb.rpc("carrier_shipments_save", { p_carrier: ups ? "ups" : "dhl", p: rows.slice(k, k + 500), p_file: file.name });
             if (error) throw new Error(missing(error.message));
           }
           const d = rows.map((r) => r.ship_date).filter(Boolean).sort();
-          lines.push(`✓ ${file.name}: DHL konşimento raporu · ${rows.length} konşimento${d.length ? ` (${d[0]!.split("-").reverse().join(".")} – ${d[d.length - 1]!.split("-").reverse().join(".")})` : ""}`);
+          lines.push(`✓ ${file.name}: ${ups ? "UPS" : "DHL"} konşimento listesi · ${rows.length} konşimento${d.length ? ` (${d[0]!.split("-").reverse().join(".")} – ${d[d.length - 1]!.split("-").reverse().join(".")})` : ""}`);
           continue;
         }
         const inv = await parseCarrierFile(file.name, new Uint8Array(await file.arrayBuffer()));

@@ -44,9 +44,9 @@ export async function CarrierView({ carrier, sp }: { carrier: "dhl" | "ups"; sp:
     yok: items.filter((i) => repDates.length && (i.ship_date ?? "") >= repDates[0]! && (i.ship_date ?? "") <= repDates[repDates.length - 1]! && !repSet.has(`${carrier}|${i.awb}`)),
     fark: repActive.filter((r) => { const i = itemBy.get(`${r.carrier}|${r.awb}`); const e = i ? eur(i) : null; return i && e != null && r.est_amount && r.est_currency === "EUR" && e - r.est_amount > Math.max(200, r.est_amount * 0.1); }),
     agirlik: repActive.filter((r) => { const i = itemBy.get(`${r.carrier}|${r.awb}`); const b = billable(r.weight, r.vol_weight); return i && i.weight && b && i.weight > b + 0.001; }),
-    saat: repActive.filter((r) => /12:00|09:00|9:00|10:30/.test(r.service ?? "")),
+    saat: repActive.filter((r) => carrier === "dhl" ? /12:00|09:00|9:00|10:30/.test(r.service ?? "") : /^UPS Express( Plus)?$|Early/i.test(r.service ?? "")),
   };
-  const RL: Record<keyof typeof R, string> = { faturasiz: "Faturası gelmemiş konşimento", yok: "Faturada var, raporda yok", fark: "Fatura tahmini ücretten %10+ fazla", agirlik: "Beyandan ağır faturalanmış", saat: "Express 12:00 seçilmiş" };
+  const RL: Record<keyof typeof R, string> = { faturasiz: "Faturası gelmemiş konşimento", yok: "Faturada var, raporda yok", fark: "Fatura tahmini ücretten %10+ fazla", agirlik: "Beyandan ağır faturalanmış", saat: carrier === "dhl" ? "Express 12:00 seçilmiş" : "UPS Express (Saver değil)" };
   const rsel = (Object.keys(R) as (keyof typeof R)[]).includes(sp.rapor as keyof typeof R) ? (sp.rapor as keyof typeof R) : null;
   const flagCount = (f: Flag) => items.filter((i) => i.flags.includes(f)).length;
   const sel = (Object.keys(FLAG_LABEL) as Flag[]).includes(sp.uyari as Flag) ? (sp.uyari as Flag) : null;
@@ -118,7 +118,7 @@ export async function CarrierView({ carrier, sp }: { carrier: "dhl" | "ups"; sp:
         <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
           <h2 className="font-display text-lg font-bold">Konşimento raporu ↔ faturalar</h2>
           {rep.length === 0 ? (
-            <p className="text-sm text-muted">{carrier === "dhl" ? <>MyDHL+ › Raporlar › <b>Gönderi Detay Raporu</b>&apos;nu CSV olarak indirip yukarıdan yükleyin; oluşturduğunuz konşimentolar faturalarla karşılaştırılır.</> : <>UPS gönderi listesi (konşimento raporu) okuyucusu henüz yok; örnek bir UPS gönderi geçmişi dosyası gönderirseniz eklenir.</>}</p>
+            <p className="text-sm text-muted">{carrier === "dhl" ? <>MyDHL+ › Raporlar › <b>Gönderi Detay Raporu</b>&apos;nu CSV olarak indirip yukarıdan yükleyin; oluşturduğunuz konşimentolar faturalarla karşılaştırılır.</> : <>ups.com › <b>UPS My Choice for Business / gönderilerim</b> listesini CSV olarak indirip yukarıdan yükleyin; gönderdiğiniz paketler faturalarla karşılaştırılır.</>}</p>
           ) : (
             <>
               <p className="text-sm text-muted">Raporda {repActive.length} konşimento ({repActive.filter((r) => r.direction === "export").length} ihracat · {repActive.filter((r) => r.direction === "import").length} ithalat){repDates.length ? ` · ${day(repDates[0]!)} – ${day(repDates[repDates.length - 1]!)}` : ""} · faturalanmış {repActive.filter((r) => itemBy.has(`${r.carrier}|${r.awb}`)).length}</p>

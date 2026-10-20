@@ -1,6 +1,7 @@
 import "server-only";
 
 
+
 import * as XLSX from "xlsx";
 
 /** DHL / UPS kargo faturası okuyucuları. Tutarlar kuruş (tam sayı). */
@@ -194,6 +195,38 @@ export function parseDhlShipmentReport(buf: Uint8Array): CarrierShipment[] {
       account: g("Ödeme Hesabı") || null, status: g("Durum") || null, reference: g("Gönderi Referansı 1") || null, contents: g("İçerik Açıklaması") || null,
       declared_value: Number(g("Beyan Değeri").replace(",", ".")) || null, declared_currency: g("Beyan Para birimi") || null,
       incoterm: g("Ticaret Koşulları") || null,
+    });
+  }
+  return out;
+}
+
+/** UPS "My Choice for Business / Quantum View" gönderi listesi (CSV): Takip Numarası, Hizmet, Gönderi Tarihi, Alıcı, Ağırlık */
+export function parseUpsShipmentReport(buf: Uint8Array): CarrierShipment[] {
+  let txt = new TextDecoder("utf-8").decode(buf);
+  if (txt.charCodeAt(0) === 0xfeff) txt = txt.slice(1);
+  const wb = XLSX.read(txt, { type: "string", raw: true });
+  const t = XLSX.utils.sheet_to_json<string[]>(wb.Sheets[wb.SheetNames[0]!]!, { header: 1, raw: false, defval: "" });
+  const h = (t[0] ?? []).map((x) => String(x).replace(/﻿/g, "").trim());
+  const c = (n: string) => h.indexOf(n);
+  if (c("Takip Numarası") < 0 || c("Hizmet") < 0) throw new Error("UPS gönderi listesi tanınmadı ('Takip Numarası' / 'Hizmet' sütunu yok).");
+  const out: CarrierShipment[] = [];
+  for (const r of t.slice(1)) {
+    const g = (n: string) => { const i = c(n); return i >= 0 ? String(r[i] ?? "").trim() : ""; };
+    const awb = g("Takip Numarası").replace(/\s/g, "").toUpperCase();
+    if (!/^1Z[0-9A-Z]{14,16}$/.test(awb)) continue;
+    const imp = g("Alıcı Ülkesi") === "TR" && g("Gönderici Ülke") !== "TR";
+    const dom = g("Alıcı Ülkesi") === "TR" && g("Gönderici Ülke") === "TR";
+    const w = Number(g("Ağırlık").replace(/[^\d.,]/g, "").replace(",", "."));
+    const L = Number(g("Paket Uzunluğu")), W = Number(g("Paket Genişliği")), H = Number(g("Paket Yüksekliği"));
+    out.push({
+      awb, ship_date: dmy(g("Gönderi Tarihi")), direction: dom ? "domestic" : imp ? "import" : "export",
+      service: g("Hizmet") || null, service_code: null,
+      party_company: (imp ? g("Hesap Adı") : g("Alıcı Adı")) || null, party_contact: (imp ? g("Gönderici İlgili Kişisi") : g("Alıcı İlgili Kişisi")) || null,
+      party_city: (imp ? g("Gönderici Şehir Bilgisi") : g("Alıcı Şehri")) || null, party_country: (imp ? g("Gönderici Ülke") : g("Alıcı Ülkesi")) || null,
+      pieces: 1, weight: Number.isFinite(w) && w > 0 ? w : null,
+      vol_weight: L > 0 && W > 0 && H > 0 ? Math.round((L * W * H) / 5000 * 1000) / 1000 : null,   // UPS hacim: cm³ / 5000
+      est_amount: null, est_currency: null, account: g("Hesap Numarası") || null, status: g("Durum") || null,
+      reference: g("Gönderi Referans Numarası 1") || null, contents: g("Malların Açıklaması") || null, declared_value: null, declared_currency: null, incoterm: null,
     });
   }
   return out;
