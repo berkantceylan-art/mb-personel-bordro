@@ -64,6 +64,7 @@ export default async function SlipPairsPage({ searchParams }: { searchParams: Pr
                   <td className="p-3 text-right whitespace-nowrap">
                     <Link href={`/finans/islem?tur=payment&cari=${r.main_id}&geri=/finans/fis-cari/${r.main_id}`} className="text-xs font-semibold text-brand-700">+ Ödeme</Link>
                     <Link href={`/finans/fis-cari/${r.main_id}`} className="ml-3 text-xs font-semibold text-brand-700">Ekstre →</Link>
+                    {canEdit && <Link href={`/finans/fis-cari/${r.main_id}?sil=1#sil`} className="ml-3 text-xs font-semibold text-bad">Sil</Link>}
                   </td>
                 </tr>
               ))}

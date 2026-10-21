@@ -186,4 +186,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270265000000_outsource_lab.sql", "t:job_outsource"],
   ["20270266000000_outsource_statements.sql", "t:outsource_lines"],
   ["20270267000000_supplier_cari_group.sql", "t:sup_import_keys"],
+  ["20270268000000_supplier_group_delete.sql", "f:sup_group_remove"],
 ];
