@@ -177,3 +177,16 @@ export async function setGroupCurrency(f: FormData) {
   const r = data as { parties: number; moves?: number };
   redirect(`/finans/fis-cari/${main}?tamam=${encodeURIComponent(r.parties ? `${r.parties} fişli cari ${cur} yapıldı (${r.moves ?? 0} hareket).` : "Fişli cariler zaten " + cur + ".")}`);
 }
+
+/** Aktarılan / girilen fişlerin stoğa girmemiş kalemlerini fiş tarihiyle stoğa al */
+export async function stockBackfill(f: FormData) {
+  const main = s(f, "main");
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("sup_slips_stock_backfill", { p_main: main, p_warehouse: s(f, "warehouse") || null });
+  done(main);
+  revalidatePath("/stok", "layout");
+  const { redirect } = await import("next/navigation");
+  if (error) redirect(`/finans/fis-cari/${main}?hata=${encodeURIComponent(/sup_slips_stock_backfill|schema cache/.test(error.message) ? "Supabase'de 20270270000000_supplier_stock_backfill.sql çalıştırılmalı." : /warehouse_required/.test(error.message) ? "Önce Stok › Depolar'dan bir depo tanımlayın." : err(error.message))}`);
+  const r = data as { lines: number; new_items: number; skipped: number };
+  redirect(`/finans/fis-cari/${main}?tamam=${encodeURIComponent(r.lines ? `${r.lines} fiş kalemi stoğa girdi${r.new_items ? `, ${r.new_items} yeni stok kartı açıldı` : ""}${r.skipped ? ` (${r.skipped} kalem eşleşmedi)` : ""}.` : "Stoğa girmemiş fiş kalemi kalmadı.")}`);
+}
