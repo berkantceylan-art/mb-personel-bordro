@@ -35,7 +35,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
   const total = Number(tot?.qty ?? 0);
   return (
     <>
-      <PageHeader title={item.name} subtitle={`${item.code} · ${ITEM_KIND[item.kind]} · ${item.unit}${item.barcode ? ` · ${item.barcode}` : ""}`} actions={<span className="flex gap-4"><Link href={`/yazdir/stok-etiket?ids=${item.id}`} className="text-sm font-semibold text-brand-700">Etiket</Link><Link href="/stok/urunler" className="text-sm font-semibold text-brand-700">← Kartlar</Link></span>} />
+      <PageHeader title={item.name} subtitle={`${item.code} · ${ITEM_KIND[item.kind]} · ${item.unit}${item.barcode ? ` · ${item.barcode}` : ""}`} actions={<span className="flex gap-4"><Link href={`/yazdir/stok-karti?ids=${item.id}`} className="h-9 px-3 inline-flex items-center rounded-[10px] bg-brand-700 text-white text-sm font-semibold">🖨 Yazdır</Link><Link href={`/yazdir/stok-etiket?ids=${item.id}`} className="text-sm font-semibold text-brand-700">Etiket</Link><Link href="/stok/urunler" className="text-sm font-semibold text-brand-700">← Kartlar</Link></span>} />
       <div className={page}>
         <div className="grid gap-4 md:grid-cols-[220px_1fr] items-start">
         <ItemImage itemId={item.id} url={stockImageUrl(item.image_path)} name={item.name} canEdit={canEdit} />
