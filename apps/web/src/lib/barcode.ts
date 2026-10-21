@@ -17,6 +17,7 @@ export function bcErrorText(m: string): string {
   if (/damaged_gt_qty/.test(m)) return "Hasarlı adet gelen adetten fazla olamaz.";
   if (/invoice_not_found/.test(m)) return "Fatura bulunamadı.";
   if (/lot_blocked/.test(m)) return "Bu malzemenin lotu karantinada / geri çağrılmış.";
+  if (/serial_scan_required/.test(m)) return "Bu ürün seri numarasıyla izleniyor: düz barkodu değil, kutudaki karekodu (UDI) okutun.";
   return m;
 }
 
