@@ -19,7 +19,8 @@ export default async function NewTxnPage({ searchParams }: { searchParams: Promi
   const { data: ibs } = await supabase.from("lab_customers").select("id, pay_book").eq("internal_book", true);
   const pname = new Map(parties.map((p) => [p.id, p.name]));
   const twinOf = new Map<string, string>();
-  for (const p of parties) if (p.slip_of) { twinOf.set(p.id, pname.get(p.slip_of) ?? ""); twinOf.set(p.slip_of, p.name); }
+  // yalnız klasik fişli cari yansır; iskontosuz fişli ve KDV carisi ödemeleri yansımaz
+  for (const p of parties) if (p.slip_of && !p.sub_kind) { twinOf.set(p.id, pname.get(p.slip_of) ?? ""); twinOf.set(p.slip_of, p.name); }
   const ib = new Map((ibs ?? []).map((x) => [x.id as string, x.pay_book as string]));
   return (
     <>
