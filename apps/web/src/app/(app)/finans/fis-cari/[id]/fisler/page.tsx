@@ -71,7 +71,7 @@ export default async function SlipLinesPage({ params, searchParams }: { params: 
         <section className="grid gap-3 md:grid-cols-3">
           <div className="rounded-[16px] border border-line bg-white p-4"><span className="text-xs text-muted">Fiş · {day(from)} – {day(to)}</span><b className="block text-2xl num mt-1">{slips.length}</b></div>
           <div className="rounded-[16px] border border-line bg-white p-4"><span className="text-xs text-muted">Kalem</span><b className="block text-2xl num mt-1">{slips.reduce((a, x) => a + x.sup_slip_lines.length, 0)}</b></div>
-          <div className="rounded-[16px] border border-line bg-white p-4"><span className="text-xs text-muted">Tutar (liste fiyatıyla)</span><b className="block text-2xl num mt-1">{[...tot.entries()].map(([c, v]) => `${f2(v)} ${SYM[c] ?? c}`).join(" · ") || "0"}</b></div>
+          <div className="rounded-[16px] border border-line bg-white p-4"><span className="text-xs text-muted">Bu aralıkta alınan malzeme (liste fiyatıyla) · borç değildir</span><b className="block text-2xl num mt-1">{[...tot.entries()].map(([c, v]) => `${f2(v)} ${SYM[c] ?? c}`).join(" · ") || "0"}</b></div>
         </section>
 
         <section className="flex flex-col gap-3">
