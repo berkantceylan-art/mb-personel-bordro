@@ -54,17 +54,17 @@ export default async function SlipPairPage({ params, searchParams }: { params: P
   const [{ data: mv }, { data: rc }, { data: slips }] = await Promise.all([
     supabase.from("fin_moves").select("amount, move_date, party_id, fin_txns!inner(id, kind, doc_no, description, ref_type, ref_id, voided_at, created_at)").in("party_id", [main.id, twin.id]).order("move_date").limit(3000),
     supabase.from("stk_receipts").select("id, year, no, supplier_doc, confirmed_at").eq("party_id", twin.id).eq("status", "confirmed").order("confirmed_at", { ascending: false }).limit(50),
-    supabase.from("sup_slips").select("id, receipt_id, photo, fin_txn_id").eq("party_id", twin.id).eq("cancelled", false),
+    supabase.from("sup_slips").select("id, receipt_id, photo, fin_txn_id, sup_slip_lines(name, qty, unit, amount, sort)").eq("party_id", twin.id).eq("cancelled", false),
   ]);
   const cur = main.currency;
   const tcur = twin.currency;
   const disc = Number(twin.discount_pct ?? 0);
-  const slipByTxn = new Map(((slips ?? []) as { id: string; fin_txn_id: string | null; photo: string | null }[]).filter((x) => x.fin_txn_id).map((x) => [x.fin_txn_id!, x]));
+  const slipByTxn = new Map(((slips ?? []) as { id: string; fin_txn_id: string | null; photo: string | null; sup_slip_lines?: { name: string; qty: number; unit: string | null; amount: number; sort: number }[] }[]).filter((x) => x.fin_txn_id).map((x) => [x.fin_txn_id!, x]));
   const used = new Set(((slips ?? []) as { receipt_id: string | null }[]).map((x) => x.receipt_id).filter(Boolean));
   const waiting = ((rc ?? []) as { id: string; year: number; no: number; supplier_doc: string | null; confirmed_at: string }[]).filter((r) => !used.has(r.id));
 
   // Aynı ödemenin iki carideki satırı tek satırda: yansıma (mirror) asıl işlemle birleşir
-  type Row = { key: string; date: string; created: string; kind: string; doc: string | null; desc: string | null; inv: number | null; slip: number | null; slipId?: string; photo?: string | null };
+  type Row = { key: string; date: string; created: string; kind: string; doc: string | null; desc: string | null; inv: number | null; slip: number | null; slipId?: string; photo?: string | null; items?: { name: string; qty: number; unit: string | null; amount: number; sort: number }[] };
   const rows = new Map<string, Row>();
   for (const x of ((mv ?? []) as unknown as Mv[]).filter((x) => !x.fin_txns.voided_at)) {
     const t = x.fin_txns;
@@ -74,7 +74,7 @@ export default async function SlipPairPage({ params, searchParams }: { params: P
     if (x.party_id === main.id) r.inv = (r.inv ?? 0) + Number(x.amount);
     else r.slip = (r.slip ?? 0) + Number(x.amount);
     const sl = slipByTxn.get(t.id);
-    if (sl) { r.slipId = sl.id; r.photo = sl.photo; }
+    if (sl) { r.slipId = sl.id; r.photo = sl.photo; r.items = [...(sl.sup_slip_lines ?? [])].sort((a, b) => a.sort - b.sort); }
     rows.set(key, r);
   }
   let bi = Number(main.opening_balance), bs = Number(twin.opening_balance);
@@ -84,6 +84,7 @@ export default async function SlipPairPage({ params, searchParams }: { params: P
     <>
       <PageHeader title={main.name} subtitle={`Faturalı ve fişli cari · ${cur} · B: borcumuz, A: alacağımız`}
         actions={<span className="flex flex-wrap gap-4 text-sm font-semibold">
+          <Link href={`/finans/fis-cari/${main.id}/fisler`} className="text-brand-700">Fişler / kalemler</Link>
           {canEdit && <Link href={`/finans/fis-cari/${main.id}/fis`} className="text-brand-700">+ Kalemli fiş</Link>}
           <Link href={`/finans/islem?tur=payment&cari=${main.id}&geri=/finans/fis-cari/${main.id}`} className="text-brand-700">+ Ödeme</Link>
           <Link href="/finans/cek-senet" className="text-brand-700">+ Çek / senet</Link>
@@ -138,7 +139,8 @@ export default async function SlipPairPage({ params, searchParams }: { params: P
                 <tr key={r.key} className={`border-b border-[#EEF2F6] ${r.kind === "purchase_slip" ? "bg-[#FFFBEB]" : r.kind === "purchase_invoice" ? "bg-[#F5F3FF]" : ""}`}>
                   <td className="p-3 whitespace-nowrap">{formatDate(r.date)}</td>
                   <td className="p-3 font-semibold">{TXN_KIND[r.kind] ?? r.kind}{r.inv !== null && r.slip !== null && <span className="block text-[11px] font-normal text-muted">iki cariye</span>}</td>
-                  <td className="p-3">{[r.doc, r.desc].filter(Boolean).join(" · ")}{r.photo && <a href={r.photo} target="_blank" rel="noopener" className="ml-2 text-xs font-semibold text-brand-700">foto</a>}</td>
+                  <td className="p-3">{[r.doc, r.desc].filter(Boolean).join(" · ")}{r.photo && <a href={r.photo} target="_blank" rel="noopener" className="ml-2 text-xs font-semibold text-brand-700">foto</a>}
+                    {!!r.items?.length && <details className="mt-1"><summary className="cursor-pointer text-xs font-semibold text-brand-700">{r.items.length} kalem</summary><ul className="mt-1 text-xs grid gap-0.5">{r.items.map((it, i) => <li key={i}>{it.name} · {Number(it.qty).toLocaleString("tr-TR")} {it.unit ?? ""} · <span className="num">{f2(Number(it.amount))}</span></li>)}</ul></details>}</td>
                   <td className="p-3 text-right num">{r.inv === null ? <span className="text-[#C5D0DB]">—</span> : <B v={r.inv} />}</td>
                   <td className="p-3 text-right num text-xs">{r.inv === null ? "" : <B v={r.bi} />}</td>
                   <td className="p-3 text-right num">{r.slip === null ? <span className="text-[#C5D0DB]">—</span> : <B v={r.slip} />}</td>
