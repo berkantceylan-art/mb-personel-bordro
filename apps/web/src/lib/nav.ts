@@ -66,6 +66,7 @@ export const NAV: Group[] = [
     items: [
       { label: "İK özeti", href: "/ik-ozet", module: "hr", roles: MANAGERS, desc: "Personel sayısı, maaş yükü, ödemeler, İSG uyarıları, bölümler" },
       { label: "Personel", href: "/personel", module: "hr", roles: MANAGERS },
+      { label: "Personel IBAN'ları", href: "/personel/ibanlar", module: "hr", roles: MANAGERS, desc: "Tüm personelin IBAN'ı; ad soyad + IBAN'ı WhatsApp ile gönder" },
       { label: "Özlük dijitalleştirme", href: "/ozluk-sihirbazi", module: "hr", roles: ["owner", "accountant", "hr"], desc: "Kâğıt özlük klasörlerini kamera / tarayıcıyla aktar: kimlik, işe giriş, evraklar, eski bordrolar, izinler" },
       { label: "İşe alım ve ilanlar", href: "/ise-alim", module: "hr", roles: HRM },
       { label: "Uyum süreci", href: "/uyum", module: "hr", roles: HRM },
@@ -223,7 +224,7 @@ export const NAV: Group[] = [
       { label: "Siparişler", href: "/isler/siparisler", module: "lab", desc: "Telefon, WhatsApp, e-posta, tarayıcı ve portal siparişleri; tek tuşla iş kaydı" },
       { label: "İş kayıt", href: "/isler/yeni", module: "lab", desc: "Yeni iş: hekim, hasta, diş şeması, ürünler, prova ve teslim" },
       { label: "İş listesi", href: "/isler", module: "lab", desc: "Tüm işler; duruma, hekime ve tarihe göre ara" },
-      { label: "Ortodonti / dış lab", href: "/isler/ortodonti", module: "lab", desc: "Dışarıda yaptırılan işler: günlük gönderim listesi, dışarıda bekleyenler, iş geldi" },
+      { label: "Dış laboratuvarlar (ortodonti, implant)", href: "/isler/ortodonti", module: "lab", desc: "Dışarıda yaptırılan işler: günlük gönderim listesi, dışarıda bekleyenler, iş geldi, ekstre kontrolü" },
       { label: "Günlük irsaliyeler", href: "/isler/irsaliye", module: ["lab", "sales"], desc: "Her gün müşteriye giden işlerin irsaliyesi; yazdır, kesildi" },
       { label: "Aylık faturalama", href: "/isler/aylik-fatura", module: ["lab", "sales"], desc: "Ay sonunda irsaliyeleri müşteri başına tek faturada topla (TR / EN / FR)" },
       { label: "Prova / teslim listesi", href: "/isler/prova", module: "lab", desc: "Bugün ve önümüzdeki günlerde çıkacak prova ve teslimler" },
