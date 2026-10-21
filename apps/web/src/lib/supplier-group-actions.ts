@@ -104,3 +104,44 @@ export async function vatBackfill(_: GroupState | null, f: FormData): Promise<Gr
   done(main);
   return { ok: true, message: data ? `${data} faturanın KDV'si KDV carisine yazıldı.` : "Yazılacak fatura bulunamadı (KDV'si zaten yazılmış ya da ekstreden aktarılmış)." };
 }
+
+// ---------------------------------------------------------------- silme
+const DEL_MIG = "20270268000000_supplier_group_delete.sql";
+function delErr(m: string): string {
+  if (/sup_row_delete|sup_import_undo|sup_group_remove/.test(m) && /function|does not exist|schema cache/.test(m)) return `Supabase'de ${DEL_MIG} çalıştırılmalı.`;
+  if (/use_invoice_cancel/.test(m)) return "Bu satır bir alış faturası: faturayı Alış faturaları ekranından iptal edin.";
+  if (/has_payments:(\d+)/.test(m)) return `Fişli carilere doğrudan girilmiş ${m.match(/has_payments:(\d+)/)![1]} ödeme (kasa / banka hareketi) var. Önce bu ödemeleri satırlarındaki "Sil" ile iptal edin, sonra tekrar deneyin.`;
+  if (/not_in_group/.test(m)) return "Bu kayıt bu firmanın carilerine ait değil.";
+  if (/violates foreign key/.test(m)) return "Bu carilere bağlı başka kayıtlar var (çek, sipariş, fatura vb.); önce onları iptal edin.";
+  return err(m);
+}
+const back = (main: string, msg: string, ok = true) => `/finans/fis-cari/${main}?${ok ? "tamam" : "hata"}=${encodeURIComponent(msg)}`;
+
+/** Ekstredeki tek satırı sil (fiş, ödeme, iskonto, aktarılan satır) */
+export async function deleteGroupRow(f: FormData) {
+  const main = s(f, "main"), txn = s(f, "txn");
+  const { redirect } = await import("next/navigation");
+  const { data, error } = await (await createClient()).rpc("sup_row_delete", { p_main: main, p_txn: txn });
+  done(main);
+  redirect(error ? back(main, delErr(error.message), false) : back(main, data === "already" ? "Bu satır zaten silinmiş." : "Satır silindi."));
+}
+
+/** Ekstre aktarımını geri al */
+export async function undoGroupImport(f: FormData) {
+  const main = s(f, "main");
+  const { redirect } = await import("next/navigation");
+  const { data, error } = await (await createClient()).rpc("sup_import_undo", { p_main: main });
+  done(main);
+  const r = data as { slips: number; txns: number } | null;
+  redirect(error ? back(main, delErr(error.message), false) : back(main, `Aktarım geri alındı: ${r?.slips ?? 0} fiş ve ${r?.txns ?? 0} hareket silindi. Ekstreyi yeniden yükleyebilirsiniz.`));
+}
+
+/** Firmanın fişli carilerini (fişli, iskontosuz fişli, KDV) sil; faturalı cari kalır */
+export async function removeGroupParties(f: FormData) {
+  const main = s(f, "main");
+  const { redirect } = await import("next/navigation");
+  const { data, error } = await (await createClient()).rpc("sup_group_remove", { p_main: main, p_force: true });
+  done(main);
+  const r = data as { removed: number; slips: number; txns: number } | null;
+  redirect(error ? back(main, delErr(error.message), false) : `/finans/fis-cari?tamam=${encodeURIComponent(`${r?.removed ?? 0} fişli cari silindi (${r?.slips ?? 0} fiş, ${r?.txns ?? 0} hareketle). Faturalı cari duruyor.`)}`);
+}

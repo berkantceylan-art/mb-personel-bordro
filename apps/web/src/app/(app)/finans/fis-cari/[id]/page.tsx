@@ -4,7 +4,9 @@ import { PageHeader } from "@/components/ui";
 import { Notice, page } from "@/components/erp";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
-import { cancelSlip, openSlipParty } from "@/lib/supplier-actions";
+import { openSlipParty } from "@/lib/supplier-actions";
+import { deleteGroupRow, removeGroupParties, undoGroupImport } from "@/lib/supplier-group-actions";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { TXN_KIND } from "@/lib/fin";
 import { PendingSubmit } from "@/components/ConfirmSubmit";
 import { SlipForm } from "./SlipForm";
@@ -20,8 +22,9 @@ const SYM: Record<string, string> = { TRY: "₺", EUR: "€", USD: "$", GBP: "£
 const B = ({ v }: { v: number }) => <span className={v < 0 ? "text-bad" : v > 0 ? "text-ok" : "text-muted"}>{f2(v)}{v < 0 ? " B" : v > 0 ? " A" : ""}</span>;
 
 /** Firma: faturalı cari ve fişli cari yan yana; fiş ekle, mal kabul tutarı gir, ortak ödeme hareketleri */
-export default async function SlipPairPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SlipPairPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sil?: string }> }) {
   const { id } = await params;
+  const sq = await searchParams;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const s = await getSession();
   if ((s.modules.finance ?? 0) < 1 && (s.modules.purchases ?? 0) < 1) redirect("/");
@@ -140,7 +143,7 @@ export default async function SlipPairPage({ params }: { params: Promise<{ id: s
                   <td className="p-3 text-right num text-xs">{r.inv === null ? "" : <B v={r.bi} />}</td>
                   <td className="p-3 text-right num">{r.slip === null ? <span className="text-[#C5D0DB]">—</span> : <B v={r.slip} />}</td>
                   <td className="p-3 text-right num text-xs">{r.slip === null ? "" : <B v={r.bs} />}</td>
-                  <td className="p-3 text-right">{r.slipId && canEdit && <form action={cancelSlip}><input type="hidden" name="id" value={r.slipId} /><button className="text-xs font-semibold text-bad">İptal</button></form>}</td>
+                  <td className="p-3 text-right">{canEdit && (r.kind === "purchase_invoice" ? <span className="text-[11px] text-muted" title="Faturayı Alış faturaları ekranından iptal edin">fatura</span> : <form action={deleteGroupRow}><input type="hidden" name="main" value={main.id} /><input type="hidden" name="txn" value={r.key} /><ConfirmSubmit label="Sil" question={r.inv !== null && r.slip !== null ? "İki caride de silinsin mi?" : "Silinsin mi?"} yes="Sil" /></form>)}</td>
                 </tr>
               ))}
               {!lines.length && <tr><td colSpan={8} className="p-6 text-center text-muted">Hareket yok.</td></tr>}
@@ -148,6 +151,23 @@ export default async function SlipPairPage({ params }: { params: Promise<{ id: s
           </table>
         </section>
         <p className="text-xs text-muted">Açılış bakiyeleri cari kartlardan girilir (Cari kart › Düzenle › Eski bakiye).</p>
+        {canEdit && (
+          <details open={sq.sil === "1"} className="rounded-[16px] border border-[#FECACA] bg-white p-4 md:p-5">
+            <summary className="cursor-pointer font-display text-lg font-bold text-bad">Silme işlemleri</summary>
+            <div className="mt-3 grid gap-4 md:grid-cols-2 text-sm">
+              <div className="flex flex-col gap-2">
+                <b>Ekstre aktarımını geri al</b>
+                <p className="text-xs text-muted">&quot;Ekstre aktar&quot; ile gelen tüm fiş ve hareketler dört cariden silinir; elle girdikleriniz kalır. Sonra dosyayı yeniden yükleyebilirsiniz.</p>
+                <form action={undoGroupImport}><input type="hidden" name="main" value={main.id} /><ConfirmSubmit label="Aktarımı geri al" question="Aktarılan tüm satırlar silinsin mi?" yes="Evet, geri al" className="h-10 px-4 rounded-[10px] border border-bad text-bad font-semibold" /></form>
+              </div>
+              <div className="flex flex-col gap-2">
+                <b>Fişli carileri sil</b>
+                <p className="text-xs text-muted">Bu firmanın fişli, iskontosuz fişli ve KDV carisi tüm fiş ve yansıma hareketleriyle kalıcı silinir. Faturalı cari ve faturaları kalır; mal kabuller faturalı cariye geçer. Fişli cariye doğrudan girilmiş ödeme varsa önce o silinmeli.</p>
+                <form action={removeGroupParties}><input type="hidden" name="main" value={main.id} /><ConfirmSubmit label="Fişli carileri sil" question="Fişli cariler ve tüm hareketleri kalıcı silinsin mi?" yes="Evet, sil" className="h-10 px-4 rounded-[10px] bg-bad text-white font-semibold" /></form>
+              </div>
+            </div>
+          </details>
+        )}
       </div>
     </>
   );
