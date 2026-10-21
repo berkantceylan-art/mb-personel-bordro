@@ -266,7 +266,9 @@ export async function closeCount(form: FormData) {
     revalidatePath("/stok/sayim");
     await done("Sayım iptal edildi.");
   }
-  const { data, error } = await supabase.rpc("stk_count_close", { p_count: id, p_zero_uncounted: form.get("zero") === "on" });
+  let { data, error } = await supabase.rpc("stk_count_close", { p_count: id, p_zero_uncounted: form.get("zero") === "on", p_short_as_consume: form.get("consume") === "on" });
+  // yeni SQL (20270270000000) çalıştırılmadıysa eski imzayla dene
+  if (error && /stk_count_close|schema cache|p_short_as_consume/.test(error.message)) ({ data, error } = await supabase.rpc("stk_count_close", { p_count: id, p_zero_uncounted: form.get("zero") === "on" }));
   if (error) await fail(stockError(error.message));
   revalidatePath("/stok", "layout");
   await done(`Sayım kapandı; ${data ?? 0} kalemde fark stoğa işlendi.`);

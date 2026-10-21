@@ -98,7 +98,8 @@ export default async function CountPage({ params, searchParams }: { params: Prom
               <span className={btnSecondary}><ConfirmSubmit label="Sayımı iptal et" name="op" value="cancel" question="Sayım iptal edilsin mi? Stoğa hiçbir şey işlenmez." /></span>
               <PendingSubmit name="op" value="close" className={btnPrimary}>Sayımı kapat ve farkları işle</PendingSubmit>
             </div>
-            <p className="basis-full text-xs text-muted">Fark, kapanış anındaki güncel stoğa göre hesaplanır; sayım sırasında yapılan giriş-çıkışlar doğru yansır.</p>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="consume" defaultChecked /> Eksik çıkan miktarı <b>üretimde kullanıldı</b> olarak düş</label>
+            <p className="basis-full text-xs text-muted">Fark, kapanış anındaki güncel stoğa göre hesaplanır; sayım sırasında yapılan giriş-çıkışlar doğru yansır. Eksikler üretim tüketimi, fazlalar sayım farkı olarak işlenir.</p>
           </form>
         )}
       </div>
