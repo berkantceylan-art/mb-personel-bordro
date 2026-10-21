@@ -33,7 +33,9 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
   const { data: usage, error: usageErr } = canEdit ? await supabase.rpc("fin_party_usage", { p_id: p.id }) : { data: null, error: null };
   const uses = Object.entries((usage ?? {}) as Record<string, number>);
   const deletable = !usageErr && !uses.length && !p.lab_customer_id;
-  const { data: twinRow } = await supabase.from("fin_parties").select("id, name").eq(p.slip_of ? "id" : "slip_of", p.slip_of ?? p.id).maybeSingle();
+  const { data: twinRow } = p.slip_of
+    ? await supabase.from("fin_parties").select("id, name").eq("id", p.slip_of).maybeSingle()
+    : await supabase.from("fin_parties").select("id, name").eq("slip_of", p.id).is("sub_kind", null).maybeSingle();
   const pairMain = p.slip_of ?? (twinRow ? p.id : null);
   const overLimit = p.credit_limit && led.balance > Number(p.credit_limit);
   const { data: lcRow } = p.lab_customer_id ? await supabase.from("lab_customers").select("no_invoice").eq("id", p.lab_customer_id).maybeSingle() : { data: null };
@@ -50,7 +52,11 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
         </div>
         {twinRow && (
           <Link href={`/finans/fis-cari/${pairMain}`} className={`rounded-[14px] border px-4 py-3 text-sm flex flex-wrap items-center gap-2 ${p.slip_of ? "border-[#FCD34D] bg-[#FFFBEB]" : "border-line bg-white"}`}>
-            <span>{p.slip_of ? "📄 Bu, fişli (faturasız) alım carisidir." : "🧾 Bu firmanın ayrıca fişli carisi var."} {p.slip_of ? "Faturalı cari" : "Fişli cari"}: <b>{twinRow.name as string}</b>. Ödeme ve çekler iki cariye de aynı tutarla düşer.</span>
+            <span>
+              {p.sub_kind === "vat" ? "🧾 Bu, firmanın KDV carisidir: faturalı cariye işlenen faturaların KDV'si buraya borç yazılır, nakit KDV ödemesi buradan düşer."
+                : p.sub_kind === "nodisc" ? "📄 Bu, firmanın iskontosuz fişli carisidir: ürün kuralına göre iskonto uygulanmayan fişler. Ödemeler yansımaz."
+                : <>{p.slip_of ? "📄 Bu, fişli (faturasız) alım carisidir." : "🧾 Bu firmanın ayrıca fişli carisi var."} {p.slip_of ? "Faturalı cari" : "Fişli cari"}: <b>{twinRow.name as string}</b>. Ödeme ve çekler iki cariye de düşer{p.discount_pct ? ` · iskonto %${Number(p.discount_pct)}` : ""}.</>}
+            </span>
             <span className="ml-auto font-semibold text-brand-700">İki cariyi yan yana gör →</span>
           </Link>
         )}

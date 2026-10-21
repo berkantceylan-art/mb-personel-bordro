@@ -8,12 +8,15 @@ import { cancelSlip, openSlipParty } from "@/lib/supplier-actions";
 import { TXN_KIND } from "@/lib/fin";
 import { PendingSubmit } from "@/components/ConfirmSubmit";
 import { SlipForm } from "./SlipForm";
+import { DiscountForm } from "./DiscountForm";
 
 export const dynamic = "force-dynamic";
 
-type P = { id: string; name: string; currency: string; opening_balance: number; slip_of: string | null };
+type P = { id: string; name: string; currency: string; opening_balance: number; slip_of: string | null; sub_kind?: string | null; discount_pct?: number | null };
+type G = { id: string; name: string; currency: string; balance: number; discount_pct?: number } | null;
 type Mv = { amount: number; move_date: string; party_id: string; fin_txns: { id: string; kind: string; doc_no: string | null; description: string | null; ref_type: string | null; ref_id: string | null; voided_at: string | null; created_at: string } };
 const f2 = (k: number) => (Math.abs(k) / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const SYM: Record<string, string> = { TRY: "₺", EUR: "€", USD: "$", GBP: "£", CHF: "CHF" };
 const B = ({ v }: { v: number }) => <span className={v < 0 ? "text-bad" : v > 0 ? "text-ok" : "text-muted"}>{f2(v)}{v < 0 ? " B" : v > 0 ? " A" : ""}</span>;
 
 /** Firma: faturalı cari ve fişli cari yan yana; fiş ekle, mal kabul tutarı gir, ortak ödeme hareketleri */
@@ -29,7 +32,10 @@ export default async function SlipPairPage({ params }: { params: Promise<{ id: s
   if (!p0) notFound();
   if ((p0 as P).slip_of) redirect(`/finans/fis-cari/${(p0 as P).slip_of}`);
   const main = p0 as P;
-  const { data: t0 } = await supabase.from("fin_parties").select("id, name, currency, opening_balance, slip_of").eq("slip_of", main.id).maybeSingle();
+  // yalnız klasik fişli cari (iskontosuz fişli ve KDV carisi grup kartlarında)
+  const { data: t0 } = await supabase.from("fin_parties").select("id, name, currency, opening_balance, slip_of, sub_kind, discount_pct").eq("slip_of", main.id).is("sub_kind", null).maybeSingle();
+  const { data: g0 } = await supabase.rpc("sup_group", { p_party: main.id });
+  const grp = (g0 ?? null) as { nodisc?: G; vat?: G; items?: number } | null;
   const twin = t0 as P | null;
   if (!twin) {
     return (
@@ -48,6 +54,8 @@ export default async function SlipPairPage({ params }: { params: Promise<{ id: s
     supabase.from("sup_slips").select("id, receipt_id, photo, fin_txn_id").eq("party_id", twin.id).eq("cancelled", false),
   ]);
   const cur = main.currency;
+  const tcur = twin.currency;
+  const disc = Number(twin.discount_pct ?? 0);
   const slipByTxn = new Map(((slips ?? []) as { id: string; fin_txn_id: string | null; photo: string | null }[]).filter((x) => x.fin_txn_id).map((x) => [x.fin_txn_id!, x]));
   const used = new Set(((slips ?? []) as { receipt_id: string | null }[]).map((x) => x.receipt_id).filter(Boolean));
   const waiting = ((rc ?? []) as { id: string; year: number; no: number; supplier_doc: string | null; confirmed_at: string }[]).filter((r) => !used.has(r.id));
@@ -72,17 +80,35 @@ export default async function SlipPairPage({ params }: { params: Promise<{ id: s
   return (
     <>
       <PageHeader title={main.name} subtitle={`Faturalı ve fişli cari · ${cur} · B: borcumuz, A: alacağımız`}
-        actions={<span className="flex gap-4 text-sm font-semibold"><Link href={`/finans/islem?tur=payment&cari=${main.id}&geri=/finans/fis-cari/${main.id}`} className="text-brand-700">+ Ödeme</Link><Link href="/finans/cek-senet" className="text-brand-700">+ Çek / senet</Link><Link href="/finans/fis-cari" className="text-brand-700">← Liste</Link></span>} />
+        actions={<span className="flex flex-wrap gap-4 text-sm font-semibold">
+          {canEdit && <Link href={`/finans/fis-cari/${main.id}/fis`} className="text-brand-700">+ Kalemli fiş</Link>}
+          <Link href={`/finans/islem?tur=payment&cari=${main.id}&geri=/finans/fis-cari/${main.id}`} className="text-brand-700">+ Ödeme</Link>
+          <Link href="/finans/cek-senet" className="text-brand-700">+ Çek / senet</Link>
+          {canEdit && <Link href={`/finans/fis-cari/${main.id}/aktar`} className="text-brand-700">Ekstre aktar</Link>}
+          {canEdit && <Link href={`/finans/fis-cari/${main.id}/grup`} className="text-brand-700">Grup ayarları</Link>}
+          <Link href="/finans/fis-cari" className="text-brand-700">← Liste</Link>
+        </span>} />
       <div className={`${page} max-w-[1200px]`}>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className={`grid gap-3 ${grp?.nodisc || grp?.vat ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-2"}`}>
           <Link href={`/finans/cariler/${main.id}`} className="rounded-[16px] border border-line bg-white p-4 hover:border-brand-600">
-            <span className="text-xs text-muted">🧾 Faturalı cari · {main.name}</span><b className="block text-3xl num mt-1"><B v={bi} /></b><span className="text-xs text-brand-700 font-semibold">Cari kart / ekstre →</span>
+            <span className="text-xs text-muted">🧾 Faturalı cari · {main.name}</span><b className="block text-3xl num mt-1"><B v={bi} /> <span className="text-base text-muted">{SYM[cur] ?? cur}</span></b><span className="text-xs text-brand-700 font-semibold">Cari kart / ekstre →</span>
           </Link>
           <Link href={`/finans/cariler/${twin.id}`} className="rounded-[16px] border border-[#FCD34D] bg-[#FFFBEB] p-4 hover:border-[#F59E0B]">
-            <span className="text-xs text-muted">📄 Fişli cari · {twin.name}</span><b className="block text-3xl num mt-1"><B v={bs} /></b><span className="text-xs text-brand-700 font-semibold">Cari kart / ekstre →</span>
+            <span className="text-xs text-muted">📄 Fişli cari · {twin.name}{disc ? ` · iskonto %${disc}` : ""}</span><b className="block text-3xl num mt-1"><B v={bs} /> <span className="text-base text-muted">{SYM[tcur] ?? tcur}</span></b><span className="text-xs text-brand-700 font-semibold">Cari kart / ekstre →</span>
           </Link>
+          {grp?.nodisc && (
+            <Link href={`/finans/cariler/${grp.nodisc.id}`} className="rounded-[16px] border border-[#FCD34D] bg-white p-4 hover:border-[#F59E0B]">
+              <span className="text-xs text-muted">📄 İskontosuz fişli cari · ödemesi ayrı girilir</span><b className="block text-3xl num mt-1"><B v={Number(grp.nodisc.balance)} /> <span className="text-base text-muted">{SYM[grp.nodisc.currency] ?? grp.nodisc.currency}</span></b><span className="text-xs text-brand-700 font-semibold">Cari kart / ekstre →</span>
+            </Link>
+          )}
+          {grp?.vat && (
+            <Link href={`/finans/cariler/${grp.vat.id}`} className="rounded-[16px] border border-[#C4B5FD] bg-white p-4 hover:border-[#8B5CF6]">
+              <span className="text-xs text-muted">🧾 KDV carisi · nakit KDV ödemesi buradan</span><b className="block text-3xl num mt-1"><B v={Number(grp.vat.balance)} /> <span className="text-base text-muted">{SYM[grp.vat.currency] ?? grp.vat.currency}</span></b><span className="text-xs text-brand-700 font-semibold">Cari kart / ödeme →</span>
+            </Link>
+          )}
         </div>
-        <Notice tone="info">Ödeme, çek ve senet iki cariye de aynı tutarla düşer; bu yüzden iki bakiye ayrı ayrı okunur. Faturalı alım için Alış faturası girin; fişli alım için mal kabulde “Fişli” seçin ya da aşağıdan fiş ekleyin.</Notice>
+        <Notice tone="info">Ödeme, çek ve senet faturalı ve fişli cariye birlikte düşer{tcur !== cur ? ` (fişli cariye ödeme günündeki TCMB döviz satış kuruyla ${tcur} olarak)` : ""}; bu yüzden iki bakiye ayrı ayrı okunur. Faturalı alım için Alış faturası girin; fişle gelen mal için “+ Kalemli fiş” kullanın (ürün kuralına göre doğru fişli cariye ayrılır).</Notice>
+        {canEdit && disc > 0 && <DiscountForm party={twin.id} main={main.id} currency={tcur} pct={disc} suggest={Math.max(0, Math.round(-bs * disc / 100))} />}
 
         {!!waiting.length && canEdit && (
           <section className="rounded-[16px] border border-[#FCD34D] bg-white p-4 md:p-5">
@@ -92,17 +118,17 @@ export default async function SlipPairPage({ params }: { params: Promise<{ id: s
               {waiting.map((r) => (
                 <li key={r.id} className="rounded-[12px] border border-line p-3">
                   <Link href={`/stok/mal-kabul/${r.id}`} className="text-sm font-semibold text-brand-700">MK-{r.year}-{String(r.no).padStart(4, "0")}</Link> <span className="text-xs text-muted">{r.supplier_doc ?? ""} · {formatDate(r.confirmed_at.slice(0, 10))}</span>
-                  <div className="mt-2"><SlipForm compact party={twin.id} currency={cur} receipt={r.id} defDoc={r.supplier_doc ?? ""} /></div>
+                  <div className="mt-2"><SlipForm compact party={twin.id} currency={tcur} receipt={r.id} defDoc={r.supplier_doc ?? ""} /></div>
                 </li>
               ))}
             </ul>
           </section>
         )}
-        {canEdit && <details className="rounded-[16px] border border-line bg-white p-4 md:p-5"><summary className="cursor-pointer font-display text-lg font-bold">+ Fiş ekle (mal kabulsüz)</summary><div className="mt-3"><SlipForm party={twin.id} currency={cur} /></div></details>}
+        {canEdit && <details className="rounded-[16px] border border-line bg-white p-4 md:p-5"><summary className="cursor-pointer font-display text-lg font-bold">+ Toplam tutarla fiş ekle (kalemsiz)</summary><div className="mt-3"><SlipForm party={twin.id} currency={tcur} /></div></details>}
 
         <section className="overflow-x-auto rounded-[16px] border border-line bg-white">
           <table className="w-full min-w-[900px] text-sm">
-            <thead><tr className="border-b border-line text-left text-xs text-muted bg-[#F7F9FB]"><th className="p-3">Tarih</th><th className="p-3">Hareket</th><th className="p-3">Belge / açıklama</th><th className="p-3 text-right">🧾 Faturalı</th><th className="p-3 text-right">Bakiye</th><th className="p-3 text-right">📄 Fişli</th><th className="p-3 text-right">Bakiye</th><th className="p-3" /></tr></thead>
+            <thead><tr className="border-b border-line text-left text-xs text-muted bg-[#F7F9FB]"><th className="p-3">Tarih</th><th className="p-3">Hareket</th><th className="p-3">Belge / açıklama</th><th className="p-3 text-right">🧾 Faturalı ({cur})</th><th className="p-3 text-right">Bakiye</th><th className="p-3 text-right">📄 Fişli ({tcur})</th><th className="p-3 text-right">Bakiye</th><th className="p-3" /></tr></thead>
             <tbody>
               {(Number(main.opening_balance) || Number(twin.opening_balance)) ? <tr className="border-b border-[#EEF2F6] bg-[#F7F9FC]"><td className="p-3" colSpan={3}>Açılış bakiyesi</td><td /><td className="p-3 text-right num"><B v={Number(main.opening_balance)} /></td><td /><td className="p-3 text-right num"><B v={Number(twin.opening_balance)} /></td><td /></tr> : null}
               {lines.map((r) => (

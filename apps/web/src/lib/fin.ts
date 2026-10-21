@@ -62,7 +62,7 @@ export type Party = {
   id: string; code: string | null; name: string; kind: string; person_type: string; tax_office: string | null; tax_no: string | null;
   phone: string | null; email: string | null; website: string | null; contact_name: string | null; address: string | null; district: string | null; city: string | null; country: string;
   iban: string | null; currency: string; opening_balance: number; opening_date: string | null; payment_term_days: number; credit_limit: number | null;
-  credit_sales: boolean; is_einvoice: boolean; einvoice_alias: string | null; lab_customer_id: string | null; note: string | null; is_active: boolean; source: string; slip_of?: string | null;
+  credit_sales: boolean; is_einvoice: boolean; einvoice_alias: string | null; lab_customer_id: string | null; note: string | null; is_active: boolean; source: string; slip_of?: string | null; sub_kind?: string | null; discount_pct?: number | null;
 };
 
 export type Account = {
