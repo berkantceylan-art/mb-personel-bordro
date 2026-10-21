@@ -40,7 +40,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Cari hesaplar" subtitle="İşler çıkışta borç, tahsilatlar alacak olarak işlenir. İç hesap kullanan müşteride resmi cari (fatura + resmi tahsilat) ayrıca gösterilir." actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/isler/irsaliye" className="text-brand-700">Günlük irsaliyeler</Link><Link href="/isler/aylik-fatura" className="text-brand-700">Aylık faturalama</Link></span>} />
+      <PageHeader title="Cari hesaplar" subtitle="İşler çıkışta borç, tahsilatlar alacak olarak işlenir. İç hesap kullanan müşteride resmi cari (fatura + resmi tahsilat) ayrıca gösterilir." actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/isler/alacaklar" className="text-brand-700">Alacak raporu (ay ay)</Link><Link href="/isler/irsaliye" className="text-brand-700">Günlük irsaliyeler</Link><Link href="/isler/aylik-fatura" className="text-brand-700">Aylık faturalama</Link></span>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1200px]">
         {(error || pe) && <p className="text-sm text-bad bg-bad-bg rounded-lg p-3">Tablolar eksik: Supabase&apos;de 20261125000000_lab_jobs.sql ve 20261127000000_lab_accounts.sql çalıştırın.</p>}
         <section className="grid gap-3 grid-cols-2 md:grid-cols-3">

@@ -164,6 +164,7 @@ export const NAV: Group[] = [
       { label: "Fişli / faturalı cariler", href: "/finans/fis-cari", module: ["finance", "purchases"], desc: "Aynı firmanın iki carisi: faturalı ve fişli (faturasız) alımlar; ödeme / çek iki cariye de düşer" },
       { label: "Cari kartlar (tedarikçi / müşteri)", href: "/finans/cariler", module: ["finance", "sales", "purchases"], desc: "Tüm cariler, para birimi, açılış bakiyesi, ekstre" },
       { label: "Hekim cari hesapları", href: "/isler/cari", module: "lab", desc: "Hekim bakiyeleri, tahsilat ve ekstre" },
+      { label: "Müşteri alacak raporu", href: "/isler/alacaklar", module: ["lab", "finance", "sales"], desc: "Müşteri bazında ciro, tahsilat, kalan ve kalanın ay ay dağılımı; tek sayfa çıktı ve Excel" },
       { label: "Hekim / hastane kartları", href: "/isler/hekimler", module: "lab" },
     ],
   },
