@@ -16,7 +16,10 @@ export function OutsourceSend({ labs, rows }: { labs: { id: string; name: string
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; message: string; batch?: string | null } | null>(null);
   const [extra, setExtra] = useState("");
-  const list = rows.filter((r) => !lab || labs.length < 2 || r.party === lab);
+  // laba göre süz: varsayılanı seçili laba ait olanlar önce, istenirse hepsi
+  const [allLabs, setAllLabs] = useState(false);
+  const list = rows.filter((r) => allLabs || !lab || labs.length < 2 || r.party === lab);
+  const labName = new Map(labs.map((l) => [l.id, l.name]));
   const toggle = (id: string) => { const n = new Set(sel); if (n.has(id)) n.delete(id); else n.add(id); setSel(n); };
   async function send(ids: string[]) {
     setBusy(true); setMsg(null);
@@ -29,7 +32,7 @@ export function OutsourceSend({ labs, rows }: { labs: { id: string; name: string
       {list.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[820px]">
-            <thead><tr className="text-left text-xs text-muted"><th className="py-2 px-2"><input type="checkbox" checked={list.every((r) => sel.has(r.id))} onChange={(e) => setSel(e.target.checked ? new Set(list.map((r) => r.id)) : new Set())} /></th><th className="py-2 px-2">İş</th><th className="py-2 px-2">Kayıt</th><th className="py-2 px-2">Hekim</th><th className="py-2 px-2">Hasta</th><th className="py-2 px-2">Ürün</th><th className="py-2 px-2">Teslim</th></tr></thead>
+            <thead><tr className="text-left text-xs text-muted"><th className="py-2 px-2"><input type="checkbox" checked={list.every((r) => sel.has(r.id))} onChange={(e) => setSel(e.target.checked ? new Set(list.map((r) => r.id)) : new Set())} /></th><th className="py-2 px-2">İş</th><th className="py-2 px-2">Kayıt</th><th className="py-2 px-2">Hekim</th><th className="py-2 px-2">Hasta</th><th className="py-2 px-2">Ürün</th>{labs.length > 1 && <th className="py-2 px-2">Varsayılan lab</th>}<th className="py-2 px-2">Teslim</th></tr></thead>
             <tbody>
               {list.map((r) => (
                 <tr key={r.id} className="border-t border-[#EEF2F6]">
@@ -39,6 +42,7 @@ export function OutsourceSend({ labs, rows }: { labs: { id: string; name: string
                   <td className="py-2 px-2">{r.customer}{r.doctor && r.doctor !== r.customer ? <span className="block text-xs text-muted">{r.doctor}</span> : null}</td>
                   <td className="py-2 px-2">{r.patient}</td>
                   <td className="py-2 px-2 text-xs">{r.items}</td>
+                  {labs.length > 1 && <td className="py-2 px-2 text-xs">{labName.get(r.party) ?? ""}</td>}
                   <td className="py-2 px-2">{r.due}</td>
                 </tr>
               ))}
@@ -47,7 +51,8 @@ export function OutsourceSend({ labs, rows }: { labs: { id: string; name: string
         </div>
       ) : <p className="text-sm text-muted">Gönderilecek iş yok. Ortodonti ürünlerine Ürünler ekranında &quot;Dışarıda yapılır&quot; seçilirse kayıtlı işler buraya kendiliğinden düşer.</p>}
       <div className="flex flex-wrap items-end gap-3 text-sm">
-        {labs.length > 1 && <label className="flex flex-col gap-1 font-semibold">Laboratuvar<select value={lab} onChange={(e) => setLab(e.target.value)} className="h-10 rounded-[10px] border border-[#D5DEE8] px-2 font-normal">{labs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>}
+        {labs.length > 1 && <label className="flex items-center gap-2 h-10"><input type="checkbox" checked={allLabs} onChange={(e) => setAllLabs(e.target.checked)} /> Başka laba ayrılmış işleri de göster</label>}
+        {labs.length > 1 && <label className="flex flex-col gap-1 font-semibold">Gönderilecek laboratuvar<select value={lab} onChange={(e) => setLab(e.target.value)} className="h-10 rounded-[10px] border border-[#D5DEE8] px-2 font-normal">{labs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>}
         <label className="flex flex-col gap-1 font-semibold flex-1 min-w-[200px]">Not (listeye yazılır)<input value={note} onChange={(e) => setNote(e.target.value)} className="h-10 rounded-[10px] border border-[#D5DEE8] px-3 font-normal" /></label>
         <button type="button" disabled={busy || !list.some((r) => sel.has(r.id))} onClick={() => send(list.filter((r) => sel.has(r.id)).map((r) => r.id))} className={btn}>{busy ? "…" : `Ortodontiye gitti (${list.filter((r) => sel.has(r.id)).length})`}</button>
       </div>

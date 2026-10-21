@@ -36,13 +36,13 @@ export default async function OutsourcePage({ searchParams }: { searchParams: Pr
   const back = ((backR.data ?? []) as unknown as Out[]).filter((o) => !lab || o.party_id === lab);
   const batches = (batchR.data ?? []) as unknown as { id: string; no: number; sent_at: string; note: string | null; fin_parties: { name: string } | null; job_outsource: { count: number }[] }[];
   const late = out.filter((o) => daysSince(o.sent_at) >= 7).length;
-  const { data: parties } = labs.length ? { data: [] } : await sb.from("fin_parties").select("id, name").in("kind", ["supplier", "both"]).order("name").limit(2000);
+  const { data: parties } = await sb.from("fin_parties").select("id, name").in("kind", ["supplier", "both"]).order("name").limit(2000);
   const th = "py-2 px-2 font-semibold text-left text-xs text-muted";
   const td = "py-2 px-2 border-t border-[#EEF2F6]";
 
   return (
     <>
-      <PageHeader title="Ortodonti / dış laboratuvar" subtitle="Dışarıda yaptırılan işler: gönderim listesi, dışarıda bekleyenler, iş geldi"
+      <PageHeader title="Dış laboratuvarlar" subtitle="Ortodonti, implant vb. dışarıda yaptırılan işler: gönderim listesi, dışarıda bekleyenler, iş geldi"
         actions={<span className="flex gap-4 text-sm font-semibold"><Link href="/isler/ortodonti/ekstre" className="text-[#5B21B6]">Ekstreler / fiyat kontrolü</Link><Link href="/isler/yeni" className="text-brand-700">İş kayıt</Link><Link href="/isler/urunler" className="text-brand-700">Ürünler</Link></span>} />
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1320px]">
         {labs.length === 0 ? (
@@ -53,6 +53,11 @@ export default async function OutsourcePage({ searchParams }: { searchParams: Pr
           </section>
         ) : (
           <>
+            <details className="rounded-[16px] border border-line bg-white p-4 text-sm">
+              <summary className="cursor-pointer font-semibold">Laboratuvarlar: {labs.map((l) => l.name).join(", ")} · + yeni dış laboratuvar ekle</summary>
+              <p className="text-muted my-2">Ör. implant için Sis İmplant ve Tolga İmplant&apos;ı ekleyin; ürünlerde &quot;Nerede yapılır&quot;dan varsayılan labı seçin. İş kayıtta ve gönderirken hangi laba gideceğini değiştirebilirsiniz.</p>
+              <LabPicker parties={((parties ?? []) as { id: string; name: string }[]).filter((p) => !labs.some((l) => l.id === p.id))} />
+            </details>
             <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
               {[["Gönderilecek", pend.length, "ortodonti ürünü olan, gönderilmemiş"], ["Dışarıda", out.length, late ? `${late} iş 7 günden fazla` : "geciken yok"], ["Son 7 günde gelen", back.filter((b) => b.status === "back").length, ""], ["Sorunlu gelen (7 gün)", back.filter((b) => b.status === "problem").length, ""]].map(([l, v, sub]) => (
                 <div key={String(l)} className="rounded-[14px] border border-line bg-white p-4"><p className="text-xs text-muted font-semibold">{l}</p><p className="text-xl font-bold num mt-1">{v}</p><p className={`text-xs mt-0.5 ${l === "Dışarıda" && late ? "text-bad font-semibold" : "text-muted"}`}>{sub}</p></div>
