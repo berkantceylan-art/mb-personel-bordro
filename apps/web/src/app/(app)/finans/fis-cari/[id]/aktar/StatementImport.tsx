@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { parseStatementWorkbook, sectionClosing, type StmtBook, type StmtParse } from "@mb/core";
 import { Notice, btnPrimary } from "@/components/erp";
-import { importStatement, statementOverlap, type ImportResult } from "@/lib/supplier-group-actions";
+import { importStatement, pdfStatementSheets, statementOverlap, type ImportResult } from "@/lib/supplier-group-actions";
 
 type Member = { name: string; currency: string } | null;
 type Opt = { on: boolean; opening: boolean; payments: boolean; invoices: boolean };
@@ -23,13 +23,27 @@ export function StatementImport({ main, members }: { main: string; members: Reco
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [res, setRes] = useState<ImportResult | null>(null);
 
-  async function read(f: File) {
-    setMsg(null); setRes(null); setParsed(null);
+  const [pdfInfo, setPdfInfo] = useState<{ name: string; book: string; title: string; closing: number | null }[] | null>(null);
+  async function read(list: File[]) {
+    setMsg(null); setRes(null); setParsed(null); setPdfInfo(null);
     try {
-      const XLSX = await import("xlsx");
-      const wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true });
-      const sheets: Record<string, unknown[][]> = {};
-      for (const n of wb.SheetNames) sheets[n] = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[n]!, { header: 1, raw: true, defval: "" });
+      let sheets: Record<string, unknown[][]> = {};
+      const pdfs = list.filter((f) => /\.pdf$/i.test(f.name));
+      if (pdfs.length) {
+        // her PDF bir cari: türü (fişli / iskontosuz / resmi / KDV) başlığından anlaşılır
+        setBusy(true);
+        const fd = new FormData();
+        for (const f of pdfs) fd.append("files", f);
+        const r0 = await pdfStatementSheets(fd);
+        setBusy(false);
+        if (!r0.ok || !r0.sheets) { setMsg({ ok: false, text: r0.message ?? "PDF okunamadı." }); return; }
+        sheets = r0.sheets; setPdfInfo(r0.files ?? null);
+      } else {
+        const f = list[0]!;
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true });
+        for (const n of wb.SheetNames) sheets[n] = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[n]!, { header: 1, raw: true, defval: "" });
+      }
       const r = parseStatementWorkbook(sheets);
       if (!r.sections.length) { setMsg({ ok: false, text: "Dosyada cari sayfası bulunamadı (Euro Cari, Peşin Cari, Resmi Cari, KDV Cari)." }); return; }
       const from = r.sections.map((s) => s.from).filter(Boolean).sort()[0]!;
@@ -64,10 +78,13 @@ export function StatementImport({ main, members }: { main: string; members: Reco
   return (
     <div className="flex flex-col gap-4">
       <section className="rounded-[16px] border border-line bg-white p-4 md:p-5 flex flex-col gap-3">
-        <label className="flex flex-col gap-1 text-sm font-semibold">Ekstre dosyası (Excel)
-          <input type="file" accept=".xlsx,.xls" onChange={(e) => e.target.files?.[0] && read(e.target.files[0])} className="text-sm" />
+        <label className="flex flex-col gap-1 text-sm font-semibold">Ekstre dosyaları (PDF ya da Excel)
+          <input type="file" multiple accept=".pdf,.xlsx,.xls" onChange={(e) => e.target.files?.length && read([...e.target.files])} className="text-sm" />
         </label>
-        <p className="text-xs text-muted">Sayfalar: <b>Euro Cari</b>, <b>Peşin Cari</b>, <b>Resmi Cari</b>, <b>KDV Cari</b> ve <b>Malzeme Kartları</b>. Her sayfada Tarih, Açıklama, Hareket Tipi, Ürün, Miktar, Birim, Liste Fiyatı, Borç, Alacak sütunları okunur. Aynı dosyayı tekrar yüklemek güvenlidir: daha önce aktarılan satırlar atlanır.</p>
+        <p className="text-xs text-muted"><b>PDF:</b> firmanın &quot;Cari Hareket Dökümü&quot; PDF&apos;lerini birlikte seçin (ör. Gözde: PEŞİN HESAP → fişli cari, İSKONTOSUZ ÜRÜN → iskontosuz fişli, A.Ş. → faturalı, KDV → KDV carisi). Her PDF&apos;in hangi cariye gittiği başlığından anlaşılır.</p>
+        {busy && !parsed && <p className="text-sm text-muted">PDF&apos;ler okunuyor…</p>}
+        {pdfInfo && <ul className="text-xs grid gap-0.5">{pdfInfo.map((p) => <li key={p.name}>✓ {p.name}: <b>{p.title}</b> → {LABEL[p.book as StmtBook] ?? p.book}{p.closing != null ? ` · ekstre bakiyesi ${f2(p.closing)}` : ""}</li>)}</ul>}
+        <p className="text-xs text-muted"><b>Excel:</b> sayfalar <b>Euro Cari</b>, <b>Peşin Cari</b>, <b>Resmi Cari</b>, <b>KDV Cari</b> ve <b>Malzeme Kartları</b>. Her sayfada Tarih, Açıklama, Hareket Tipi, Ürün, Miktar, Birim, Liste Fiyatı, Borç, Alacak sütunları okunur. Aynı dosyayı tekrar yüklemek güvenlidir: daha önce aktarılan satırlar atlanır.</p>
         {parsed?.warnings.map((w) => <Notice key={w}>{w}</Notice>)}
         {msg && <Notice tone={msg.ok ? "ok" : "bad"}>{msg.text}</Notice>}
       </section>

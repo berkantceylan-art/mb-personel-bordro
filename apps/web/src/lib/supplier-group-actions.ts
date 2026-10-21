@@ -145,3 +145,21 @@ export async function removeGroupParties(f: FormData) {
   const r = data as { removed: number; slips: number; txns: number } | null;
   redirect(error ? back(main, delErr(error.message), false) : `/finans/fis-cari?tamam=${encodeURIComponent(`${r?.removed ?? 0} fişli cari silindi (${r?.slips ?? 0} fiş, ${r?.txns ?? 0} hareketle). Faturalı cari duruyor.`)}`);
 }
+
+/** Tedarikçinin "Cari Hareket Dökümü" PDF'leri → ekstre aktarımının okuduğu sayfalar (her PDF bir cari) */
+export async function pdfStatementSheets(fd: FormData): Promise<{ ok: boolean; message?: string; sheets?: Record<string, unknown[][]>; files?: { name: string; book: string; title: string; closing: number | null }[] }> {
+  try {
+    const { parseSupplierPdf, pdfSheetsToWorkbook } = await import("@/lib/supplier-pdf");
+    const files = fd.getAll("files").filter((x): x is File => x instanceof File && x.size > 0 && /\.pdf$/i.test(x.name));
+    if (!files.length) return { ok: false, message: "PDF seçin." };
+    const list = [];
+    const info = [];
+    for (const f of files.slice(0, 8)) {
+      try {
+        const s = await parseSupplierPdf(new Uint8Array(await f.arrayBuffer()), f.name);
+        list.push(s); info.push({ name: f.name, book: s.book, title: s.title, closing: s.closing });
+      } catch (e) { return { ok: false, message: `${f.name}: ${e instanceof Error ? e.message : String(e)}` }; }
+    }
+    return { ok: true, sheets: pdfSheetsToWorkbook(list), files: info };
+  } catch (e) { return { ok: false, message: e instanceof Error ? e.message : String(e) }; }
+}
