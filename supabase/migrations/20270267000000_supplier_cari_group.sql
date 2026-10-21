@@ -55,6 +55,12 @@ alter table gl_settings alter column exclude_codes set default array['internal_c
 update gl_settings set exclude_codes = exclude_codes || array['vat_cari'] where not ('vat_cari' = any (exclude_codes));
 update gl_settings set exclude_codes = exclude_codes || array['stmt_import'] where not ('stmt_import' = any (exclude_codes));
 
+-- Tedarikçi iskontosu muhasebede satış hasılatına (600) değil 649 Diğer Olağan Gelir ve Kârlar'a gider
+-- (kategori türü 'income' olduğu için eşleme olmadan 600'e düşüyordu; mali müşavir gl_maps'ten değiştirebilir)
+insert into gl_maps (company_id, source, key, account_id)
+select a.company_id, 'category_code', 'purchase_discount', a.id from gl_accounts a where a.code = '649'
+on conflict do nothing;
+
 -- ---------------------------------------------------------------------
 -- 3) Tablolar
 -- ---------------------------------------------------------------------
@@ -140,6 +146,9 @@ select _mig_patch('sup_portal_ledger(uuid, text, date)',
   $x$  select opening_balance into v_open from fin_parties where id = v_id;$x$,
   $x$  select opening_balance into v_open from fin_parties where id = v_id;
   select * into v_p from fin_parties where id = v_id;  -- fişli cari para birimi$x$);
+select _mig_patch('gl_seed(uuid)',
+  $x$('category_code', 'income_other', '649'),$x$,
+  $x$('category_code', 'income_other', '649'), ('category_code', 'purchase_discount', '649'),$x$);
 drop function _mig_patch(text, text, text);
 
 create or replace function sup_twin_of(p_main uuid) returns uuid language sql stable security definer set search_path = public as $$
