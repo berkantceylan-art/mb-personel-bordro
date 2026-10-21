@@ -11,7 +11,8 @@ const s = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 function err(m: string): string {
   if (/sup_group|sup_slip_entry|sup_statement|sup_discount|sup_item_price|sub_kind|schema cache/.test(m) && /function|column|does not exist|schema cache/.test(m)) return `Supabase'de ${MIG} çalıştırılmalı.`;
   if (/not_allowed/.test(m)) return "Yetkiniz yok.";
-  if (/twin_has_moves|nodisc_has_moves/.test(m)) return "Hareketi olan carinin para birimi değiştirilemez. Fişli cari boşken para birimini seçin.";
+  if (/twin_has_moves|nodisc_has_moves/.test(m)) return "Fişli carinin hareketi olduğu için para birimi buradan değişmez. Firma ekstresindeki \"Fişli carileri EUR yap\" düğmesini kullanın.";
+  if (/has_mirror/.test(m)) return "Fişli cariye ERP'den girilmiş ödeme yansıması var; birim değişirse tutar bozulur. Önce o ödemeleri iptal edin, sonra tekrar deneyin.";
   if (/nodisc_missing/.test(m)) return "İskontosuz fişli cari açılmamış. Önce Grup ayarlarından açın.";
   if (/group_member_missing:(\w+)/.test(m)) return `Cari grubu eksik (${m.match(/group_member_missing:(\w+)/)![1]}). Önce Grup ayarlarından iskontosuz fişli ve KDV carisini açın.`;
   if (/rate_missing:(\w+)/.test(m)) return `${m.match(/rate_missing:(\w+)/)![1]} kuru yok. Finans › Döviz kurları'ndan TCMB kurlarını çekin.`;
@@ -162,4 +163,17 @@ export async function pdfStatementSheets(fd: FormData): Promise<{ ok: boolean; m
     }
     return { ok: true, sheets: pdfSheetsToWorkbook(list), files: info };
   } catch (e) { return { ok: false, message: e instanceof Error ? e.message : String(e) }; }
+}
+
+/** Fişli ve iskontosuz fişli cari yanlış para birimiyle (TL) açılıp hareket aldıysa EUR yap: tutarlar aynı kalır, birim düzelir */
+export async function setGroupCurrency(f: FormData) {
+  const main = s(f, "main");
+  const cur = s(f, "cur") || "EUR";
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("sup_group_set_currency", { p_main: main, p_cur: cur });
+  done(main);
+  const { redirect } = await import("next/navigation");
+  if (error) redirect(`/finans/fis-cari/${main}?hata=${encodeURIComponent(/sup_group_set_currency|schema cache/.test(error.message) ? "Supabase'de 20270269000000_supplier_currency_fix.sql çalıştırılmalı." : err(error.message))}`);
+  const r = data as { parties: number; moves?: number };
+  redirect(`/finans/fis-cari/${main}?tamam=${encodeURIComponent(r.parties ? `${r.parties} fişli cari ${cur} yapıldı (${r.moves ?? 0} hareket).` : "Fişli cariler zaten " + cur + ".")}`);
 }

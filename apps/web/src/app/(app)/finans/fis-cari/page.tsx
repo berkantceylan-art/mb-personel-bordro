@@ -10,7 +10,7 @@ import { PendingSubmit } from "@/components/ConfirmSubmit";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Fişli / faturalı cariler" };
 
-type Pair = { main_id: string; name: string; currency: string; invoice_balance: number; invoices: number; slip_id: string; slip_name: string; slip_balance: number; slips: number; payments: number; last_slip: string | null; receipts_waiting: number };
+type Pair = { main_id: string; name: string; currency: string; invoice_balance: number; invoices: number; slip_id: string; slip_name: string; slip_balance: number; slips: number; payments: number; last_slip: string | null; receipts_waiting: number; slip_currency?: string | null };
 const m = (k: number, cur: string) => `${(Math.abs(k) / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
 const Bal = ({ v, cur }: { v: number; cur: string }) => (v < 0 ? <span className="text-bad font-semibold">{m(v, cur)} <small className="font-normal">borcumuz</small></span> : v > 0 ? <span className="text-ok font-semibold">{m(v, cur)} <small className="font-normal">alacağımız</small></span> : <span className="text-muted">0</span>);
 
@@ -59,7 +59,7 @@ export default async function SlipPairsPage({ searchParams }: { searchParams: Pr
                     <span className="block text-xs text-muted">{r.last_slip ? `son fiş ${formatDate(r.last_slip)}` : "fiş yok"}{r.receipts_waiting ? ` · ⚠ ${r.receipts_waiting} mal kabulün tutarı girilmedi` : ""}</span>
                   </td>
                   <td className="p-3 text-right"><Bal v={r.invoice_balance} cur={r.currency} /><span className="block text-[11px] text-muted">fatura {m(r.invoices, r.currency)}</span></td>
-                  <td className="p-3 text-right"><Bal v={r.slip_balance} cur={r.currency} /><span className="block text-[11px] text-muted">fiş {m(r.slips, r.currency)}</span></td>
+                  <td className="p-3 text-right"><Bal v={r.slip_balance} cur={r.slip_currency ?? r.currency} /><span className="block text-[11px] text-muted">fiş {m(r.slips, r.slip_currency ?? r.currency)}</span></td>
                   <td className="p-3 text-right num">{m(r.payments, r.currency)}</td>
                   <td className="p-3 text-right whitespace-nowrap">
                     <Link href={`/finans/islem?tur=payment&cari=${r.main_id}&geri=/finans/fis-cari/${r.main_id}`} className="text-xs font-semibold text-brand-700">+ Ödeme</Link>

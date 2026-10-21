@@ -5,7 +5,7 @@ import { Notice, page } from "@/components/erp";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { openSlipParty } from "@/lib/supplier-actions";
-import { deleteGroupRow, removeGroupParties, undoGroupImport } from "@/lib/supplier-group-actions";
+import { deleteGroupRow, removeGroupParties, setGroupCurrency, undoGroupImport } from "@/lib/supplier-group-actions";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { TXN_KIND } from "@/lib/fin";
 import { PendingSubmit } from "@/components/ConfirmSubmit";
@@ -111,6 +111,13 @@ export default async function SlipPairPage({ params, searchParams }: { params: P
             </Link>
           )}
         </div>
+        {canEdit && (tcur === "TRY" || (grp?.nodisc && grp.nodisc.currency === "TRY")) && (
+          <form action={setGroupCurrency} className="flex flex-wrap items-center gap-3 rounded-[16px] border border-[#FCA5A5] bg-[#FEF2F2] p-4 text-sm">
+            <input type="hidden" name="main" value={main.id} /><input type="hidden" name="cur" value="EUR" />
+            <span className="flex-1 min-w-[260px]"><b>Fişli cariler TL olarak açılmış.</b> Gözde gibi euro ile çalışan firmada fişli ve iskontosuz fişli cari EUR olmalı. Düğmeye basınca tutarlar aynı kalır (ör. 19.984,50), yalnız birimi € olur; TL karşılıkları o günün TCMB kuruyla hesaplanır.</span>
+            <PendingSubmit className="h-10 rounded-[10px] bg-[#B91C1C] px-4 font-semibold text-white">Fişli carileri EUR yap</PendingSubmit>
+          </form>
+        )}
         <Notice tone="info">Ödeme, çek ve senet faturalı ve fişli cariye birlikte düşer{tcur !== cur ? ` (fişli cariye ödeme günündeki TCMB döviz satış kuruyla ${tcur} olarak)` : ""}; bu yüzden iki bakiye ayrı ayrı okunur. Faturalı alım için Alış faturası girin; fişle gelen mal için “+ Kalemli fiş” kullanın (ürün kuralına göre doğru fişli cariye ayrılır).</Notice>
         {canEdit && disc > 0 && <DiscountForm party={twin.id} main={main.id} currency={tcur} pct={disc} suggest={Math.max(0, Math.round(-bs * disc / 100))} />}
 
