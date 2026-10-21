@@ -14,7 +14,8 @@
 --  sup_slip_lines  : kalemli fiş satırları (fiş girişinden ya da ekstre aktarımından)
 --  sup_import_keys : ekstre aktarımında aynı satır iki kez işlenmesin
 --
--- Düzeltme: ödeme yansıtması para birimi farkını artık çevirir (önceden TL ödeme EUR cariye TL tutarıyla yazılıyordu).
+-- Düzeltme: ödeme yansıtması para birimi farkını artık çevirir (önceden TL ödeme EUR cariye TL tutarıyla yazılıyordu);
+-- fişli mal kabul tutarı da fişli carinin para birimine çevrilir (önceden TL tutar EUR diye yazılıyordu).
 -- Yansıtma, KDV carisi ve ekstre aktarımı karşılık hesapları muhasebe (GL) dışıdır.
 -- Tekrar çalıştırılabilir. Önce 20270266000000_outsource_statements.sql.
 -- =====================================================================
@@ -226,6 +227,39 @@ begin
   return v_txn;
 end $$;
 revoke execute on function sup_slip_post(uuid) from public, anon, authenticated;
+
+-- Mal kabul tutarı TL kuruş: döviz fiyatlı kartta liste fiyatı o günün kuruyla TL'ye çevrilir
+-- (önceden EUR cent TL kuruş gibi toplanıyordu)
+create or replace function sup_receipt_amount_int(p_receipt uuid) returns bigint language sql stable security definer set search_path = public as $$
+  select coalesce(sum(round((l.qty - l.damaged) * coalesce(l.unit_cost,
+           case when coalesce(i.purchase_currency, 'TRY') = 'TRY' then i.purchase_price
+                else round(i.purchase_price * coalesce(fx_rate(i.purchase_currency, current_date), 1)) end, 0))), 0)::bigint
+  from stk_receipt_lines l left join stk_items i on i.id = l.item_id where l.receipt_id = p_receipt and l.qty - l.damaged > 0;
+$$;
+revoke execute on function sup_receipt_amount_int(uuid) from public, anon, authenticated;
+
+-- Fişli cariye yapılan mal kabul onaylanınca tutar fişli carinin para birimine çevrilerek borç yazılır
+-- (önceden TL tutar EUR fişli cariye EUR diye yazılıyordu); TL karşılığı fişte saklanır
+create or replace function stk_rcv_slip_on_confirm() returns trigger language plpgsql security definer set search_path = public as $$
+declare v_try bigint; v_amt bigint; v_cur text; v_id uuid;
+begin
+  if new.status = 'confirmed' and old.status <> 'confirmed'
+     and exists (select 1 from fin_parties where id = new.party_id and slip_of is not null)
+     and not exists (select 1 from sup_slips where receipt_id = new.id and not cancelled) then
+    v_try := sup_receipt_amount_int(new.id);
+    if v_try > 0 then
+      select currency into v_cur from fin_parties where id = new.party_id;
+      v_amt := case when v_cur = 'TRY' then v_try else fin_conv(v_try, 'TRY', v_cur, current_date) end;
+      insert into sup_slips (company_id, party_id, slip_date, doc_no, amount, orig_amount, orig_currency, receipt_id, note, created_by, add_to_stock)
+      values (new.company_id, new.party_id, current_date, new.supplier_doc, v_amt,
+              case when v_cur <> 'TRY' then v_try end, case when v_cur <> 'TRY' then 'TRY' end,
+              new.id, left('Mal kabul ' || stk_rcv_no(new) || coalesce(' · ' || new.supplier_doc, ''), 300), auth.uid(), new.add_to_stock)
+      returning id into v_id;
+      perform sup_slip_post(v_id);
+    end if;
+  end if;
+  return new;
+end $$;
 
 -- Stoğa girmiş kalemli fiş iptal edilince stok geri alınır
 create or replace function sup_slip_stock_undo() returns trigger language plpgsql security definer set search_path = public as $$
