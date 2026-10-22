@@ -33,6 +33,8 @@ function base(ctx: SideContext) {
 export function overtimeSides(ctx: SideContext, minutes: number, rate: number): SideAmounts {
   const { params, gross, net, cash } = base(ctx);
   const factor = (minutes / 60) * rate / 225;
+  // sigortasız (resmi brüt yok): yalnız elden kısım
+  if (ctx.contract.insuranceType === "NONE" || gross <= 0) return { officialGross: 0, officialNet: 0, cash: roundKurus(cash * factor) };
   const otGross = roundKurus(gross * factor);
   const withOt = grossToNet({ gross: gross + otGross, month: ctx.month, cumulativeTaxBaseBefore: ctx.cumulativeTaxBaseBefore ?? 0, params });
   return { officialGross: otGross, officialNet: withOt.net - net, cash: roundKurus(cash * factor) };
@@ -42,6 +44,8 @@ export function overtimeSides(ctx: SideContext, minutes: number, rate: number): 
 export function absenceSides(ctx: SideContext, days: number): SideAmounts {
   const { params, gross, net, cash } = base(ctx);
   const d = Math.min(30, Math.max(0, days));
+  // sigortasız (resmi brüt yok): resmi tarafta kesinti olmaz, yalnız elden kısım düşer
+  if (ctx.contract.insuranceType === "NONE" || gross <= 0) return { officialGross: 0, officialNet: 0, cash: roundKurus((cash * d) / 30) };
   const remaining = 30 - d;
   const reducedGross = roundKurus((gross * remaining) / 30);
   const reduced = remaining

@@ -79,6 +79,7 @@ export function finError(message: string): string {
   if (/rate_missing/.test(message)) return "Döviz kuru bulunamadı: Finans > Kurlar sayfasından kur girin ya da formda kuru yazın.";
   if (/unbalanced/.test(message)) return "Kayıt dengesiz (borç ve alacak eşit değil).";
   if (/use_source_undo/.test(message)) return "Bu kayıt çek / kredi işlemine ait: Çek-senet ya da Krediler ekranından “geri al” ile iptal edin.";
+  if (/amount_below_principal/.test(message)) return "Ödenen toplam taksitin anaparasından az olamaz. Kısmi ödeme yapılmaz; tutarı anapara + faiz olarak girin.";
   if (/account_required/.test(message)) return "Hesap seçin (banka / kasa).";
   if (/party_required/.test(message)) return "Cari seçin.";
   if (/schedule_required/.test(message)) return "Ödeme planı boş.";
