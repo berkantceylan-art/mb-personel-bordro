@@ -43,6 +43,9 @@ export function glError(m: string): string {
   if (/(gl_checks|gl_check_ack|gl_check_acks)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270218000000_gl_checks.sql çalıştırılmalı.";
   if (/bad_period/.test(m)) return "Dönem YYYY-AA biçiminde olmalı.";
   if (/gl_pending_in_year/.test(m)) return "Bu yılda eşleştirme bekleyen fiş var: kapanıştan önce tamamlayın.";
+  if (/gl_drafts_in_year/.test(m)) return "Bu yılda onay bekleyen fiş var: kapanıştan önce gelen kutusundaki fişleri onaylayın ya da muhasebe dışı sayın.";
+  if (/gl_drafts_in_month/.test(m)) return "Bu ayda eşleştirme ya da onay bekleyen KDV'li fiş var: KDV mahsubundan önce gelen kutusunu tamamlayın.";
+  if (/gl_approved_voucher/.test(m)) return "Bu dönem fişi onaylanmış: yeniden üretmek için muhasebe onay yetkisi (Tam yetki) gerekir.";
   if (/gl_vat_open/.test(m)) return "191 / 391 hesaplarında bakiye var: önce son ayların KDV mahsubunu yapın.";
   if (/(gl_cit_|gl_kkeg|gl_tax_adj|kkeg_pct)/.test(m) && /function|relation|does not exist|schema cache|column/.test(m)) return "Supabase'de 20270213000000_corporate_tax.sql çalıştırılmalı.";
   if (/(gl_stamp|gl_vat2|gl_vat_refund|gl_tax_calendar|gl_filing|inv_set_export_doc|gl_stamp_docs|gl_tax_filings)/.test(m) && /function|relation|does not exist|schema cache/.test(m)) return "Supabase'de 20270212000000_tax_center.sql çalıştırılmalı.";
