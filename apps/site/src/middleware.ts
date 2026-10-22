@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "./lib/i18n";
-import { legacyRedirect } from "./lib/redirects";
+import { legacyGone, legacyRedirect } from "./lib/redirects";
 
 function preferredLocale(req: NextRequest): Locale {
   const header = req.headers.get("accept-language") ?? "";
@@ -37,6 +37,8 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   if (request.method === "GET") logBot(request, event);
   if (/^\/(robots\.txt|sitemap[^/]*\.xml|llms(-full)?\.txt|google[0-9a-f]+\.html)$/.test(pathname)) return NextResponse.next();
 
+  if (legacyGone(pathname)) return new NextResponse("Bu adres artık yok.", { status: 410, headers: { "content-type": "text/plain; charset=utf-8", "x-robots-tag": "noindex" } });
+
   // Eski WordPress adresleri → yeni adresler (kalıcı 301, arama sıralaması korunur)
   const legacy = legacyRedirect(pathname);
   if (legacy) {
@@ -54,7 +56,8 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   if (!isAppArea && !isLocale(first)) {
     const url = request.nextUrl.clone();
     url.pathname = `/${preferredLocale(request)}${pathname === "/" ? "" : pathname}`;
-    return NextResponse.redirect(url);
+    // Tarayıcı dili yoksa (Googlebot) kalıcı yönlendirme: Google /tr'yi asıl sayfa kabul eder
+    return NextResponse.redirect(url, request.headers.get("accept-language") ? 307 : 301);
   }
 
   // Sunucu bileşenleri (admin menüsü) mevcut yolu bilsin
