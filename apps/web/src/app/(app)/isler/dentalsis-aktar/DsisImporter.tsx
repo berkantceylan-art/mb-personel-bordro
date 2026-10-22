@@ -23,18 +23,22 @@ export function DsisImporter({ files }: { files: DsisFiles }) {
   const [totals, setTotals] = useState<Record<string, number>>({});
   const stop = useRef(false);
   const router = useRouter();
+  // yeni döküm partileri (9100+) yalnız son işler içindir; varsayılan olarak sadece onlar aktarılır
+  const newest = files.jobs.filter((n) => Number(n.slice(5)) >= 9100);
+  const [onlyNew, setOnlyNew] = useState(newest.length > 0);
   const st = files.status as Record<string, number | string | null> | null;
   const add = (l: Log) => setLog((x) => [l, ...x].slice(0, 200));
 
   async function run(withBalance: boolean) {
     setBusy(true); stop.current = false; setLog([]); setTotals({});
-    const total = files.jobs.length + 1 + (withBalance ? 1 + (files.years ? 1 : 0) : 0);
+    const batches = onlyNew && newest.length ? newest : files.jobs;
+    const total = batches.length + 1 + (withBalance ? 1 + (files.years ? 1 : 0) : 0);
     let done = 0; setProg({ done, total });
     const step = async (p: Promise<DsisStep>) => { const r = await p.catch((e) => ({ ok: false, message: String(e) }) as DsisStep); add({ ok: r.ok, text: `${r.message}${r.result ? " — " + fmt(r.result) : ""}` }); setProg({ done: ++done, total }); return r; };
     const ref = await step(dsisImportRef());
     if (!ref.ok) { setBusy(false); return; }
     const sum: Record<string, number> = {};
-    for (const name of files.jobs) {
+    for (const name of batches) {
       if (stop.current) { add({ ok: false, text: "Durduruldu. Tekrar başlatınca kaldığı yerden devam eder." }); setBusy(false); router.refresh(); return; }
       let r = await step(dsisImportBatch(name));
       if (!r.ok) { add({ ok: true, text: `${name} tekrar deneniyor…` }); r = await dsisImportBatch(name); add({ ok: r.ok, text: r.message }); if (!r.ok) { setBusy(false); router.refresh(); return; } }
@@ -75,6 +79,7 @@ export function DsisImporter({ files }: { files: DsisFiles }) {
           <li><b>Cari bakiye eşitleme</b> (ikinci düğme): 2026 tahsilatları eklenir, her hekimin bakiyesi Dentalsis&apos;teki güncel bakiyeye eşitlenir. Fark 31.12.2025 tarihli &quot;devir&quot; satırıyla kapanır, 2026 cirosunu etkilemez.</li>
         </ul>
         <div className="flex flex-wrap gap-3">
+          {newest.length > 0 && <label className="flex items-center gap-2 text-sm w-full"><input type="checkbox" checked={onlyNew} onChange={(e) => setOnlyNew(e.target.checked)} /> Yalnız son döküm ({newest.length} parti: {newest[0]} – {newest[newest.length - 1]}); eski partiler tekrar işlenmez</label>}
           <button disabled={busy || !files.jobs.length || !files.ref} onClick={() => run(true)} className="h-12 px-5 rounded-[12px] bg-brand-700 text-white font-bold disabled:opacity-50">İşleri aktar + cari bakiyeleri eşitle</button>
           <button disabled={busy || !files.jobs.length || !files.ref} onClick={() => run(false)} className="h-12 px-5 rounded-[12px] border border-[#D5DEE8] bg-white text-brand-700 font-bold disabled:opacity-50">Sadece işleri aktar</button>
           {busy && <button onClick={() => { stop.current = true; }} className="h-12 px-4 rounded-[12px] border border-[#F3C3BE] text-bad font-semibold">Durdur</button>}
