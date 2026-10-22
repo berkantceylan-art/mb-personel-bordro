@@ -84,10 +84,21 @@ const PRODUCTS: Record<string, [string, string]> = {
   "/fr/processus-de-controle-final": ["fr", "/kalite"],
 };
 
+/** Eski WordPress sistem dosyaları: kalıcı olarak yok (410) → Google listeden düşer */
+export function legacyGone(pathname: string): boolean {
+  return /^\/(wp-admin|wp-content|wp-includes|wp-json)(\/|$)|^\/(wp-login|xmlrpc|wp-cron)\.php$/.test(pathname);
+}
+
 export function legacyRedirect(pathname: string): Target | null {
   const key = pathname.replace(/\/+$/, "") || "/";
   // WordPress ürün/sepet kalıntıları
   if (/^\/(shop|cart|checkout|my-account)(\/|$)/.test(key)) return { pathname: "/tr" };
+  // Eski anasayfa adresleri
+  const home = /^(?:\/(tr|en|fr))?\/(anasayfa|home|accueil)$/.exec(key);
+  if (home) return { pathname: `/${home[1] ?? "tr"}` };
+  // WordPress yazar / kategori / etiket / akış / şablon sayfaları → blog
+  const wp = /^(?:\/(tr|en|fr))?\/(author|category|tag|feed|comments|blog-single|cultural)(\/|$)/.exec(key);
+  if (wp) return { pathname: `/${wp[1] ?? "tr"}/blog` };
   const product = PRODUCTS[key];
   if (product) {
     const [locale, rest] = product;

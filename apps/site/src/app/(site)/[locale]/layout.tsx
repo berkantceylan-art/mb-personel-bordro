@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     description,
     alternates: {
       canonical: `/${locale}`,
-      languages: Object.fromEntries(LOCALES.map((l) => [l, `/${l}`])),
+      languages: { ...Object.fromEntries(LOCALES.map((l) => [l, `/${l}`])), "x-default": "/tr" },
     },
     openGraph: { title, description, siteName: "MB Dental", locale, type: "website" },
     twitter: { card: "summary_large_image", title, description },
