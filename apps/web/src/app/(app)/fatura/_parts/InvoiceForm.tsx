@@ -23,9 +23,13 @@ export type InitialInvoice = Partial<Omit<InvoicePayload, "lines">> & { lines?: 
 type Ed = Record<string, string | boolean>;
 const isTR = (c?: string | null) => !c || ["TR", "TÜRKIYE", "TÜRKİYE", "TURKEY"].includes(c.trim().toLocaleUpperCase("tr-TR"));
 
-export function InvoiceForm({ direction, parties, items, products, warehouses, categories, rates, today, labVat, initial }: {
+export type PayAccount = { id: string; name: string; kind: string; currency: string };
+const PAY_KIND: Record<string, string> = { cash: "Kasa", bank: "Banka", credit_card: "Kredi kartı", pos: "POS" };
+
+export function InvoiceForm({ direction, parties, items, products, warehouses, categories, rates, today, labVat, initial, accounts = [] }: {
   direction: Direction; parties: FormParty[]; items: FormItem[]; products: FormProduct[]; warehouses: { id: string; name: string }[];
   categories: { id: string; name: string; kind: string; code: string }[]; rates: Record<string, number>; today: string; labVat: number; initial?: InitialInvoice;
+  accounts?: PayAccount[];
 }) {
   const router = useRouter();
   const D = DIRECTION[direction];
@@ -34,6 +38,7 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
   const [attach, setAttach] = useState<{ path: string; name: string } | null>(initial?.attach_path ? { path: initial.attach_path, name: initial.attach_name ?? "Fotoğraftan okunan fatura" } : null);
   const [upBusy, setUpBusy] = useState(false);
   const [partyId, setPartyId] = useState(initial?.party_id ?? "");
+  const [payAcc, setPayAcc] = useState<string>(() => (initial?.pay_default === "cash" ? accounts.find((a) => a.kind === "cash" && a.currency === (initial?.currency ?? "TRY"))?.id ?? "" : ""));
   const [pq, setPq] = useState("");
   const [newParty, setNewParty] = useState(!initial?.party_id && !!initial?.new_party?.name);
   const [np, setNp] = useState({ name: "", tax_no: "", tax_office: "", address: "", city: "", email: "", phone: "", is_einvoice: false, ...(initial?.new_party ?? {}) });
@@ -122,6 +127,7 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
       edoc: issuing ? { ...ed, online_sale: !!ed.online_sale } : null,
       ettn: initial?.ettn ?? null,
       attach_path: attach?.path ?? null, attach_name: attach?.name ?? null,
+      pay: post && canPay && payAcc ? { account_id: payAcc } : null,
       lines: rows.filter((x) => x.name.trim()).map((x) => { const l: Partial<Row> = { ...x }; delete l.key; delete l.open; return l as LineInput; }),
     });
     setBusy(false);
@@ -129,6 +135,8 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
     else setMsg({ ok: res.ok, text: res.message });
   }
 
+  const canPay = direction === "purchase" && type === "invoice" && !initial?.id && accounts.length > 0;
+  const payList = accounts.filter((a) => a.currency === currency);
   const stockWarn = direction === "sale" && type === "invoice" ? rows.filter((x) => x.item_id).map((x) => ({ x, it: items.find((i) => i.id === x.item_id) })).filter(({ x, it }) => it && it.kind !== "service" && it.qty < Number(x.qty)) : [];
 
   return (
@@ -379,6 +387,17 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
 
       {stockWarn.length > 0 && <Notice>Stok yetersiz görünüyor: {stockWarn.map(({ x, it }) => `${x.name} (eldeki ${fq(it!.qty)})`).join(", ")}. Fatura kesilirken seçili depodaki stok kontrol edilir.</Notice>}
       {msg && <Notice tone={msg.ok ? "ok" : "bad"}>{msg.text}</Notice>}
+      {canPay && (
+        <section className="bg-white border border-line rounded-[14px] p-4 flex flex-wrap items-end gap-3">
+          <Field label="Ödeme (Kaydet ve işle ile birlikte girilir)">
+            <select value={payAcc} onChange={(e) => setPayAcc(e.target.value)} className={selectCls}>
+              <option value="">Ödenmedi — tedarikçi carisine borç yazılır</option>
+              {payList.map((a) => <option key={a.id} value={a.id}>{PAY_KIND[a.kind] ?? a.kind}: {a.name} ({a.currency})</option>)}
+            </select>
+          </Field>
+          {payAcc && <span className="text-sm text-muted pb-2">{fmt(t.total, currency)} bu hesaptan ödenmiş olarak girilir; cari kapanır.</span>}
+        </section>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" disabled={busy} onClick={() => submit(true)} className={btnPrimary}>{busy ? "Kaydediliyor…" : direction === "sale" ? "Faturayı kes" : "Kaydet ve işle"}</button>
         <button type="button" disabled={busy} onClick={() => submit(false)} className={btnSecondary}>Taslak kaydet</button>

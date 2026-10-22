@@ -7,10 +7,11 @@ export type Out = {
   supplier_name?: string; supplier_tax_no?: string; supplier_tax_office?: string; supplier_address?: string; doc_no?: string; date?: string; due_date?: string; currency?: string;
   lines?: { name?: string; code?: string; qty?: number; unit?: string; unit_price?: number; discount_pct?: number; vat_rate?: number }[]; total?: number;
 };
+const RECEIPT_HINT = "Bu bir esnaf / tedarikçi fişi (yazar kasa fişi, perakende satış fişi ya da gider pusulası) — işletmenin yaptığı alış. Satıcı unvanı, adresi ve VKN fişin üst kısmındadır; fiş no doc_no'ya, tarih date'e. Fişteki fiyatlar KDV DAHİLDİR: unit_price'ı KDV hariç hesapla (KDV dahil birim fiyat ÷ (1 + oran/100)). KDV oranı yazmıyorsa toplam KDV'den bul, bulamazsan 20 yaz. Tek kalem okunabiliyorsa onu yaz; kalem okunamıyorsa fişin konusunu tek satır olarak yaz.";
 const norm = (s: string) => s.toLocaleLowerCase("tr-TR").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 
 /** Kağıt / PDF alış faturasını yapay zekâyla okuyup fatura formu için taslak üretir (receipts deposundaki kullanıcı dosyası) */
-export async function readPurchaseInvoice(path: string, userId: string): Promise<{ initial?: InitialInvoice; note: string; ok: boolean }> {
+export async function readPurchaseInvoice(path: string, userId: string, opts: { receipt?: boolean } = {}): Promise<{ initial?: InitialInvoice; note: string; ok: boolean }> {
   if (!path.startsWith(`${userId}/`) || path.includes("..")) return { ok: false, note: "Dosyaya erişim yok." };
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { ok: false, note: "Fotoğraftan okuma için Vercel'e ANTHROPIC_API_KEY eklenmeli." };
@@ -27,7 +28,7 @@ export async function readPurchaseInvoice(path: string, userId: string): Promise
   try {
     const res = await new Anthropic({ apiKey: key }).messages.create({
       model: aiModel(), max_tokens: 2500,
-      messages: [{ role: "user", content: [media, { type: "text", text: `Bu bir alış faturası (Türkiye ya da yurt dışı). Yalnız JSON döndür:
+      messages: [{ role: "user", content: [media, { type: "text", text: `${opts.receipt ? RECEIPT_HINT : "Bu bir alış faturası (Türkiye ya da yurt dışı)."} Yalnız JSON döndür:
 {"supplier_name":"satıcı unvanı","supplier_tax_no":"VKN/TCKN yalnız rakam","supplier_tax_office":"vergi dairesi","supplier_address":"adres","doc_no":"fatura no","date":"YYYY-MM-DD","due_date":"YYYY-MM-DD ya da boş","currency":"TRY|EUR|USD|GBP|CHF",
 "lines":[{"name":"mal / hizmet adı","code":"satıcı ürün kodu","qty":miktar,"unit":"adet|kg|gr|lt|m|kutu|paket","unit_price":KDV HARİÇ birim fiyat (ondalık nokta ile),"discount_pct":iskonto yüzdesi,"vat_rate":KDV oranı}],
 "total":KDV dahil genel toplam}
@@ -37,6 +38,10 @@ Okunamayan alanı boş bırak; satırları atlama.` }] }],
     d = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as Out;
   } catch (e) {
     return { ok: false, note: `Fatura okunamadı: ${(e as Error).message.slice(0, 120)}` };
+  }
+  if (opts.receipt) {
+    const r = await initialFromRead(supabase, d, "Esnaf / tedarikçi fişi — fotoğraftan yapay zekâ ile okundu, kontrol edin", { attach_path: path, pay_default: "cash" });
+    return { ...r, note: `Fiş okundu. ${r.note} Ödeme varsayılan olarak nakit (kasa) seçili; değiştirebilirsiniz.` };
   }
   return initialFromRead(supabase, d, "Fotoğraftan yapay zekâ ile okundu — kontrol edin", { attach_path: path });
 }

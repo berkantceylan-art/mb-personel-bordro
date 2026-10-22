@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSession } from "@/lib/session";
 import { done, fail } from "@/lib/flash";
 import { CURRENCIES, dateOk, parseRate } from "@/lib/fin";
-import { DIRECTION, invError, type Direction, type LineInput } from "@/lib/invoice";
+import { DIRECTION, calcTotals, invError, type Direction, type LineInput } from "@/lib/invoice";
 import type { ParsedInvoice, ParsedParty } from "@/lib/ubl";
 import { elogoConfigured } from "@/lib/elogo";
 import { checkParties } from "@/lib/einv-send";
@@ -34,6 +34,10 @@ export type InvoicePayload = {
   edoc?: Record<string, string | number | boolean | null> | null;
   ettn?: string | null;
   attach_path?: string | null; attach_name?: string | null;
+  /** Kaydet ve işle ile aynı anda ödeme (alış faturası / fiş): kasa, banka ya da kart hesabı */
+  pay?: { account_id: string } | null;
+  /** formda ödeme hesabının varsayılanı (fişten okumada nakit) */
+  pay_default?: "cash" | null;
 };
 
 /** Fatura formu: taslak kaydet (+ isteğe bağlı işle). Cari yoksa VKN ile açar. */
@@ -84,10 +88,32 @@ export async function saveInvoice(p: InvoicePayload): Promise<{ ok: boolean; id?
     const { error: pe } = await supabase.rpc("inv_post", { p_id: id });
     revalidate(direction, id as string);
     if (pe) return { ok: false, id: id as string, message: `Taslak kaydedildi ama işlenemedi: ${invError(pe.message)}` };
+    if (direction === "purchase" && body.type === "invoice" && p.pay?.account_id) {
+      const paid = await payNow(supabase, { partyId, accountId: p.pay.account_id, currency, date: body.invoice_date ?? null, docNo: body.doc_no, total: calcTotals(lines).total });
+      revalidate(direction, id as string);
+      return { ok: paid.ok, id: id as string, message: `Kaydedildi; cari, KDV ve stok işlendi. ${paid.message}` };
+    }
     return { ok: true, id: id as string, message: "Fatura kesildi; cari, KDV ve stok işlendi." };
   }
   revalidate(direction, id as string);
   return { ok: true, id: id as string, message: "Taslak kaydedildi." };
+}
+
+/** Alış faturası / fiş kaydedilirken ödemeyi de gir (kasa / banka / kart → tedarikçi carisi) */
+async function payNow(supabase: Awaited<ReturnType<typeof createClient>>, a: { partyId: string; accountId: string; currency: string; date: string | null; docNo: string | null; total: number }): Promise<{ ok: boolean; message: string }> {
+  if (a.total <= 0) return { ok: true, message: "Tutar sıfır olduğu için ödeme girilmedi." };
+  const s = await getSession();
+  if ((s.modules.finance ?? 0) < 2) return { ok: false, message: "Ödeme girilemedi: finans yetkiniz yok; ödemeyi Finans › İşlem gir'den girin." };
+  const { data: acc } = await supabase.from("fin_accounts").select("id, currency, name").eq("id", a.accountId).maybeSingle();
+  if (!acc) return { ok: false, message: "Ödeme girilemedi: hesap bulunamadı." };
+  const { data: pt } = await supabase.from("fin_parties").select("currency").eq("id", a.partyId).maybeSingle();
+  if (acc.currency !== a.currency || (pt?.currency && pt.currency !== a.currency)) return { ok: false, message: `Ödeme girilemedi: hesap / cari para birimi belgeden farklı (${acc.currency}); ödemeyi Finans › İşlem gir'den girin.` };
+  const { error } = await supabase.rpc("fin_collect_or_pay", {
+    p_kind: "payment", p_party: a.partyId, p_account: acc.id, p_date: a.date ?? new Date().toISOString().slice(0, 10), p_amount: a.total, p_party_amount: null, p_rate: null,
+    p_description: `Ödeme${a.docNo ? ` · belge ${a.docNo}` : ""}`.slice(0, 500), p_doc_no: a.docNo, p_method: null,
+  });
+  if (error) return { ok: false, message: `Ödeme girilemedi: ${error.message}` };
+  return { ok: true, message: `Ödeme ${acc.name} hesabından girildi; cari kapandı.` };
 }
 
 export async function postInvoice(form: FormData) {

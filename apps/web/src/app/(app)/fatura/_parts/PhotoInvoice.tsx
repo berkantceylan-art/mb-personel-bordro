@@ -9,7 +9,7 @@ export function PhotoInvoice({ userId }: { userId: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  async function go(f: File | undefined) {
+  async function go(f: File | undefined, fis = false) {
     if (!f) return;
     if (f.size > 8 * 1024 * 1024) { setErr("Dosya 8 MB'tan büyük."); return; }
     setErr(null); setBusy("Yükleniyor…");
@@ -25,11 +25,11 @@ export function PhotoInvoice({ userId }: { userId: string }) {
       } catch { blob = f; }
     }
     const ext = blob.type === "application/pdf" ? "pdf" : blob.type === "image/png" ? "png" : "jpg";
-    const path = `${userId}/alis-${new Date().toISOString().slice(0, 10)}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const path = `${userId}/${fis ? "fis" : "alis"}-${new Date().toISOString().slice(0, 10)}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
     const { error } = await createClient().storage.from("receipts").upload(path, blob, { contentType: blob.type || "image/jpeg" });
     if (error) { setBusy(null); setErr(`Yüklenemedi: ${error.message}`); return; }
-    setBusy("Fatura okunuyor (10-20 sn)…");
-    router.push(`/alis/yeni?foto=${encodeURIComponent(path)}`);
+    setBusy(fis ? "Fiş okunuyor (10-20 sn)…" : "Fatura okunuyor (10-20 sn)…");
+    router.push(`/alis/yeni?foto=${encodeURIComponent(path)}${fis ? "&fis=1" : ""}`);
   }
 
   return (
@@ -38,7 +38,11 @@ export function PhotoInvoice({ userId }: { userId: string }) {
         📷 {busy ?? "Kağıt faturayı fotoğraftan oku"}
         <input type="file" accept="image/*,application/pdf" capture="environment" className="sr-only" onChange={(e) => void go(e.target.files?.[0])} />
       </label>
-      <span className="text-xs text-muted">Tedarikçi, fatura no, tarih ve kalemler otomatik dolar; kaydetmeden önce kontrol edin.</span>
+      <label className={`h-10 px-4 inline-flex items-center rounded-[10px] border border-brand-700 bg-white text-brand-700 text-sm font-semibold cursor-pointer ${busy ? "opacity-60 pointer-events-none" : ""}`}>
+        🧾 Esnaf / tedarikçi fişi okut
+        <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => void go(e.target.files?.[0], true)} />
+      </label>
+      <span className="text-xs text-muted">Tedarikçi, belge no, tarih ve kalemler otomatik dolar; cari yoksa açılır. Fişte ödeme (nakit) de aynı anda girilir. Kaydetmeden önce kontrol edin.</span>
       {err && <span className="text-sm text-bad">{err}</span>}
     </div>
   );

@@ -6,6 +6,7 @@ import { getSession } from "@/lib/session";
 import { today } from "@/lib/fin";
 import { DIRECTION, type Direction } from "@/lib/invoice";
 import { loadInvoiceForm, loadInvoiceInitial } from "@/lib/invoice-data";
+import { createClient } from "@/lib/supabase/server";
 import { InvoiceForm, type InitialInvoice } from "./InvoiceForm";
 import { PhotoInvoice } from "./PhotoInvoice";
 
@@ -14,7 +15,13 @@ export async function NewInvoice({ direction, initial, title, fromId, asReturn, 
   const s = await getSession();
   const D = DIRECTION[direction];
   if ((s.modules[D.module] ?? 0) < 2) redirect(D.base);
-  const [f, from] = await Promise.all([loadInvoiceForm(direction), fromId && /^[0-9a-f-]{36}$/i.test(fromId) ? loadInvoiceInitial(fromId, asReturn ? "return" : "copy") : Promise.resolve(null)]);
+  const [f, from, accs] = await Promise.all([
+    loadInvoiceForm(direction),
+    fromId && /^[0-9a-f-]{36}$/i.test(fromId) ? loadInvoiceInitial(fromId, asReturn ? "return" : "copy") : Promise.resolve(null),
+    direction === "purchase" && (s.modules.finance ?? 0) >= 2
+      ? (async () => (await (await createClient()).from("fin_accounts").select("id, name, kind, currency").eq("is_active", true).in("kind", ["cash", "bank", "credit_card"]).order("kind").order("name")).data ?? [])()
+      : Promise.resolve([]),
+  ]);
   if (from && from.direction === direction) initial = { ...initial, ...from };
   return (
     <>
@@ -25,7 +32,7 @@ export async function NewInvoice({ direction, initial, title, fromId, asReturn, 
         {ocrNote && <Notice tone={ocrNote.ok ? "ok" : "bad"}>{ocrNote.note}</Notice>}
         {direction === "purchase" && <Notice tone="info">e-Fatura XML / ZIP dosyanız varsa <Link href="/alis/ice-aktar" className="font-semibold underline">e-Fatura içe aktar</Link> ile tedarikçi, kalemler ve tutarlar otomatik gelir.</Notice>}
         {!f.company?.tax_no && direction === "sale" && <Notice>Şirketin VKN ve adres bilgisi eksik: e-Fatura XML&apos;i için <Link href="/satis/ayarlar" className="font-semibold underline">Fatura ayarları</Link>ndan girin.</Notice>}
-        <InvoiceForm direction={direction} parties={f.parties} items={f.items} products={f.products} warehouses={f.warehouses} categories={f.categories} rates={f.rates} today={today()} labVat={f.company?.inv_lab_vat ?? 10} initial={initial} />
+        <InvoiceForm direction={direction} parties={f.parties} items={f.items} products={f.products} warehouses={f.warehouses} categories={f.categories} rates={f.rates} today={today()} labVat={f.company?.inv_lab_vat ?? 10} initial={initial} accounts={accs as { id: string; name: string; kind: string; currency: string }[]} />
       </div>
     </>
   );
