@@ -41,6 +41,18 @@ export async function bhSuggest(customers: { name: string; tax_no: string | null
   }
 }
 
+/** Yurt dışı müşterinin adresinden ülke kodu (bulunamazsa boş: sunucu "YURTDIŞI" yazar) */
+function guessCountry(address: string | null): string {
+  const a = ` ${(address ?? "").toLocaleUpperCase("tr-TR").replace(/[^A-ZÇĞİÖŞÜ]+/g, " ")} `;
+  const map: Array<[RegExp, string]> = [
+    [/ (FRANCE|FRANSA) /, "FR"], [/ (BELGIQUE|BELGIUM|BELÇİKA|BELGIE) /, "BE"], [/ (SUISSE|SWITZERLAND|SCHWEIZ|İSVİÇRE) /, "CH"],
+    [/ (DEUTSCHLAND|GERMANY|ALMANYA) /, "DE"], [/ (LUXEMBOURG|LÜKSEMBURG) /, "LU"], [/ (NETHERLANDS|NEDERLAND|HOLLANDA) /, "NL"],
+    [/ (UNITED KINGDOM|ENGLAND|İNGİLTERE) /, "GB"], [/ (ITALIA|ITALY|İTALYA) /, "IT"], [/ (ESPAÑA|ESPANA|SPAIN|İSPANYA) /, "ES"],
+    [/ (AUSTRIA|ÖSTERREICH|AVUSTURYA) /, "AT"],
+  ];
+  return map.find(([re]) => re.test(a))?.[1] ?? "";
+}
+
 /** choice: cari id | "new" (yeni cari kart) */
 export async function bhImport(invoices: BhInvoice[], choice: Record<string, string>): Promise<{ ok: boolean; message: string; errors?: { doc_no: string; error: string }[] }> {
   try {
@@ -48,7 +60,7 @@ export async function bhImport(invoices: BhInvoice[], choice: Record<string, str
     const sb = await createClient();
     const rows = invoices.filter((i) => choice[i.customer] && choice[i.customer] !== "skip").map((i) => ({
       ...(choice[i.customer] === "new"
-        ? { new_party: { name: i.customer, tax_no: i.tax_no, address: i.address, country: i.foreign ? "" : "TR", currency: i.currency } }
+        ? { new_party: { name: i.customer, tax_no: i.tax_no, address: i.address, country: i.foreign ? guessCountry(i.address) : "TR", currency: i.currency } }
         : { party_id: choice[i.customer] }),
       doc_no: i.doc_no, date: i.date, due: i.due, currency: i.currency, rate: i.rate, tax_no: i.tax_no,
       profile: i.vat > 0 || !i.foreign ? "TICARIFATURA" : "IHRACAT",
