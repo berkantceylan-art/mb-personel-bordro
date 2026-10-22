@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Card, PageHeader } from "@/components/ui";
 import { KPI, page } from "@/components/erp";
-import { getSession } from "@/lib/session";
+import { formatDate, getSession } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { partyLedger } from "@/lib/fin-data";
 import { PARTY_KIND, dateOk, fmt, type Party } from "@/lib/fin";
@@ -12,6 +12,8 @@ import { deleteParty, setPartyActive } from "@/lib/fin-actions";
 import { setNoInvoice } from "@/lib/waybill-actions";
 import { DateFilter } from "../../_parts/DateFilter";
 import { LedgerTable } from "../../_parts/LedgerTable";
+import { SendStatement } from "./SendStatement";
+import { waLink } from "@/lib/wa";
 
 export const dynamic = "force-dynamic";
 
@@ -40,9 +42,25 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
   const overLimit = p.credit_limit && led.balance > Number(p.credit_limit);
   const { data: lcRow } = p.lab_customer_id ? await supabase.from("lab_customers").select("no_invoice").eq("id", p.lab_customer_id).maybeSingle() : { data: null };
   const cash = (lcRow as { no_invoice?: boolean } | null)?.no_invoice === true;
+  // Ekstre gönderimi: kullanıcının bağlı Gmail hesapları + WhatsApp özet metni
+  const [{ data: accRows }, { data: coRow }] = await Promise.all([
+    supabase.from("mail_accounts").select("id, email").eq("user_id", s.userId).order("email"),
+    supabase.from("companies").select("name").eq("id", s.companyId).maybeSingle(),
+  ]);
+  const company = (coRow?.name as string) || "MB Dental";
+  const lastRows = led.rows.filter((r) => r.key !== "devir").slice(-5);
+  const waText = [
+    `Sayın ${p.contact_name || p.name},`,
+    `${formatDate(to ?? new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10))} itibarıyla ${company} nezdindeki cari hesap bakiyeniz: ${fmt(Math.abs(led.balance), p.currency)}${led.balance > 0 ? " (borç)" : led.balance < 0 ? " (alacak)" : ""}.`,
+    ...(lastRows.length ? ["", "Son hareketler:", ...lastRows.map((r) => `• ${formatDate(r.date)} ${r.label.slice(0, 60)} ${r.debit ? fmt(r.debit, p.currency) : `-${fmt(r.credit, p.currency)}`}`)] : []),
+    "",
+    "Saygılarımızla,",
+    company,
+  ].join("\n");
+  const waHref = waLink(p.phone, waText);
   return (
     <>
-      <PageHeader title={p.name} subtitle={`${PARTY_KIND[p.kind]} · ${p.currency}${p.tax_no ? ` · ${p.tax_no}` : ""}`} actions={<span className="flex gap-4 text-sm font-semibold"><Link href={`/yazdir/cari/${p.id}${from || to ? `?${new URLSearchParams({ ...(from ? { bas: from } : {}), ...(to ? { bit: to } : {}) })}` : ""}`} className="text-brand-700">🖨 Cari yazdır</Link>{canEdit && <a href="#duzenle" className="text-brand-700">✎ Düzenle</a>}{canEdit && <a href="#sil" className="text-bad">Sil</a>}<Link href="/finans/cariler" className="text-brand-700">← Cariler</Link></span>} />
+      <PageHeader title={p.name} subtitle={`${PARTY_KIND[p.kind]} · ${p.currency}${p.tax_no ? ` · ${p.tax_no}` : ""}`} actions={<span className="flex gap-4 text-sm font-semibold"><Link href={`/yazdir/cari/${p.id}${from || to ? `?${new URLSearchParams({ ...(from ? { bas: from } : {}), ...(to ? { bit: to } : {}) })}` : ""}`} className="text-brand-700">🖨 Cari yazdır</Link><a href="#gonder" className="text-brand-700">✉ Gönder</a>{canEdit && <a href="#duzenle" className="text-brand-700">✎ Düzenle</a>}{canEdit && <a href="#sil" className="text-bad">Sil</a>}<Link href="/finans/cariler" className="text-brand-700">← Cariler</Link></span>} />
       <div className={page}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KPI label="Bakiye" value={fmt(Math.abs(led.balance), p.currency)} sub={led.balance > 0 ? "bize borçlu" : led.balance < 0 ? "biz borçluyuz" : "kapalı"} tone={led.balance < 0 ? "bad" : undefined} />
@@ -83,6 +101,11 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
         )}
         <DateFilter from={from ?? undefined} to={to ?? undefined} />
         <LedgerTable rows={led.rows} currency={p.currency} canVoid={canPost} total={led} />
+        <div id="gonder" className="scroll-mt-20">
+          <Card title="Ekstreyi gönder (e-posta / WhatsApp)">
+            <SendStatement partyId={p.id} email={p.email} waHref={waHref} accounts={(accRows ?? []) as { id: string; email: string }[]} from={from} to={to} />
+          </Card>
+        </div>
         {!p.is_active && <p className="text-sm rounded-[12px] px-4 py-3 bg-[#F1F5F9] text-muted">Bu cari kart pasif: yeni işlemlerde önerilmez, geçmiş kayıtları korunur.</p>}
         {canEdit && (
           <div id="duzenle" className="scroll-mt-20"><Card title="Cari bilgilerini düzenle"><PartyForm party={p} /></Card></div>
