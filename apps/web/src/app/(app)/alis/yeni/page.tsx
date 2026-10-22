@@ -6,12 +6,12 @@ import { initialFromRead, readPurchaseInvoice, type Out } from "@/lib/invoice-oc
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ cari?: string; iade?: string; kaynak?: string; foto?: string; gelen?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ cari?: string; iade?: string; kaynak?: string; foto?: string; gelen?: string; fis?: string }> }) {
   const sp = await searchParams;
   if (sp.foto) {
     const s = await getSession();
-    const r = (s.modules.purchases ?? 0) >= 2 ? await readPurchaseInvoice(sp.foto, s.userId) : { ok: false, note: "Alış yetkiniz yok." };
-    return <NewInvoice direction="purchase" initial={r.initial ?? { type: "invoice" }} ocrNote={{ ok: r.ok, note: r.note }} />;
+    const r = (s.modules.purchases ?? 0) >= 2 ? await readPurchaseInvoice(sp.foto, s.userId, { receipt: sp.fis === "1" }) : { ok: false, note: "Alış yetkiniz yok." };
+    return <NewInvoice direction="purchase" title={sp.fis === "1" ? "Fişten alış kaydı" : undefined} initial={r.initial ?? { type: "invoice", pay_default: sp.fis === "1" ? "cash" : null }} ocrNote={{ ok: r.ok, note: r.note }} />;
   }
   // Gelen kutusundaki PDF'ten okunmuş e-Arşiv fatura → alış faturası formu (ETTN ile bağlanır)
   if (sp.gelen && /^[0-9a-f-]{36}$/i.test(sp.gelen)) {
