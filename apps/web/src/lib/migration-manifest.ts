@@ -189,4 +189,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270268000000_supplier_group_delete.sql", "f:sup_group_remove"],
   ["20270269000000_supplier_currency_fix.sql", "f:sup_group_set_currency"],
   ["20270270000000_supplier_stock_backfill.sql", "f:sup_slips_stock_backfill"],
+  ["20270271000000_dsis_auto_sync.sql", "t:dsis_sync_state"],
 ];

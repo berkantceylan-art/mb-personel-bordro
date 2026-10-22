@@ -56,6 +56,10 @@
     {
       "path": "/api/cron/dhl",
       "schedule": "5 4-19 * * *"
+    },
+    {
+      "path": "/api/cron/dentalsis",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
