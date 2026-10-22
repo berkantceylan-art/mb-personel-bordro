@@ -15,7 +15,7 @@
 --     kalır, irsaliye ve cari değişmez; yeniden çıkışta ilk teslim tarihi korunur).
 --  8) Paketteyken geri çevrilen iş paketten çıkar; paket kapanınca yalnız sevkiyattaki işler teslim olur.
 -- Fonksiyonların veritabanındaki geçerli tanımı yamalanır. Tekrar çalıştırılabilir.
--- Önce 20270266000000_outsource_statements.sql.
+-- Önce 20270270000000_supplier_stock_backfill.sql (sayım kapanışının yeni hâli de yamalanır).
 -- =====================================================================
 
 create or replace function _mig_patch(p_sig text, p_old text, p_new text) returns void language plpgsql as $$
@@ -52,10 +52,15 @@ select _mig_patch('inv_post(uuid)',
       end if;$x$);
 
 -- 2) Sayım: fark sayıldığı andaki stoğa göre
-select _mig_patch('stk_count_close(uuid, boolean)',
-  $x$    where item_id = l.item_id and warehouse_id = c.warehouse_id and lot_no is not distinct from l.lot_no;$x$,
-  $x$    where item_id = l.item_id and warehouse_id = c.warehouse_id and lot_no is not distinct from l.lot_no
+-- (fonksiyonun imzası sürüme göre değişebilir: (uuid, boolean) ya da (uuid, boolean, boolean); hangisi varsa yamalanır)
+do $d$ declare s text; begin
+  for s in select p.oid::regprocedure::text from pg_proc p where p.proname = 'stk_count_close' and p.pronamespace = 'public'::regnamespace loop
+    perform _mig_patch(s,
+      $x$    where item_id = l.item_id and warehouse_id = c.warehouse_id and lot_no is not distinct from l.lot_no;$x$,
+      $x$    where item_id = l.item_id and warehouse_id = c.warehouse_id and lot_no is not distinct from l.lot_no
       and created_at <= coalesce(l.counted_at, now());   -- sayımdan sonraki hareketler korunur$x$);
+  end loop;
+end $d$;
 
 -- 3) Lotsuz transfer: engelli lotlar kullanılabilir sayılmaz
 select _mig_patch('stk_transfer_send(uuid, boolean)',
