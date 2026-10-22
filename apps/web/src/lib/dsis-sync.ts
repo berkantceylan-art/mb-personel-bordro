@@ -176,7 +176,9 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
       openIds.sort((a, b) => (lastAt.get(a) ?? 0) - (lastAt.get(b) ?? 0));
       for (const id of openIds) { if (want.size >= DETAIL_BUDGET) break; want.set(id, { id } as Row); }
     }
-    steps.list = { total: list.length, new: isNew.length, changed: changed.length, fetched: want.size };
+    const t1s = list.map((r) => String(r.tarih1 ?? "")).sort();
+    const t2s = list.map((r) => String(r.tarih2 ?? "")).sort();
+    steps.list = { total: list.length, new: isNew.length, changed: changed.length, fetched: want.size, in_erp: inErp.size, max_id: Math.max(0, ...ids), tarih1_max: t1s[t1s.length - 1] ?? null, tarih2_min: t2s[0] ?? null, tarih2_max: t2s[t2s.length - 1] ?? null };
 
     const byId = new Map(list.map((r) => [Number(r.id), r]));
     const details = (await pool([...want.keys()], CONCURRENCY, async (id) => {
@@ -189,6 +191,7 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
         return null;
       }
     })).filter((x): x is Json => !!x);
+    steps.details_ok = details.length;
 
     const jobSum: Record<string, number> = {};
     for (let i = 0; i < details.length; i += 40) {
@@ -210,11 +213,15 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
     ]);
     steps.balance = bal.length ? await rpc(sb, "dsis_import_balance", { p_tahsilat: tah, p_balances: bal }) : { skipped: "bakiye listesi boş" };
     steps.payments_seen = tah.length;
+    steps.balances_seen = bal.length;
+    steps.samples = { tahsilat: tah[0] ? Object.keys(tah[0]).slice(0, 25) : null, bakiye: bal[0] ? Object.keys(bal[0]).slice(0, 25) : null, is: list[0] ? Object.keys(list[0]).slice(0, 25) : null };
 
     const j = steps.jobs as Record<string, number>;
     const msg = `${j.inserted ?? 0} yeni iş, ${(j.items_updated ?? 0) + (j.info_updated ?? 0) + (j.steps_updated ?? 0) + (j.status_updated ?? 0)} güncelleme`;
+    console.log("[dsis-sync]", JSON.stringify(steps));
     return await finish(true, msg);
   } catch (e) {
+    console.error("[dsis-sync] hata", (e as Error).message, JSON.stringify(steps));
     return await finish(false, "Eşitleme yapılamadı", (e as Error).message);
   } finally {
     await sb.from("dsis_sync_state").delete().eq("key", "lock");
