@@ -13,7 +13,7 @@
 --  6) Kasa / banka bakiyesi tarih itibarıyla (fin_account_balance_at) açılış bakiyesini yeniden içerir.
 --     Önceden kasa sayımı açılış tutarı kadar sahte "sayım fazlası" yazıyordu.
 -- Fonksiyonların veritabanındaki geçerli tanımı yamalanır. Tekrar çalıştırılabilir.
--- Önce 20270266000000_outsource_statements.sql.
+-- Önce 20270270000000_supplier_stock_backfill.sql.
 -- =====================================================================
 
 create or replace function _mig_patch(p_sig text, p_old text, p_new text) returns void language plpgsql as $$
