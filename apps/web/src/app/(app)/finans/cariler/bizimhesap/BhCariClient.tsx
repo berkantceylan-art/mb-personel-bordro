@@ -1,11 +1,14 @@
 "use client";
 import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { bhCariImport, bhCariRows, bhCariUndo, bhPartyMoves, type BhListItem, type BhMode, type BhParty, type BhRow } from "@/lib/bh-cari-actions";
+import { bhCariHide, bhCariImport, bhCariRows, bhCariUndo, bhPartyMoves, type BhListItem, type BhMode, type BhParty, type BhRow } from "@/lib/bh-cari-actions";
 
 const money = (k: number, c: string) => `${(k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${c === "TRY" ? "₺" : c === "EUR" ? "€" : c}`;
 const d = (s: string | null) => (s ? s.split("-").reverse().join(".") : "—");
 const MODE: Record<BhMode, string> = { rows: "Kart + tüm hareketler", balance: "Kart + yalnız bakiye (devir)", card: "Yalnız kart" };
+type View = "wait" | "done" | "hidden";
+const VIEW: Record<View, string> = { wait: "Aktarılacaklar", done: "ERP'ye aktarılanlar", hidden: "Listeden çıkarılanlar" };
+const viewOf = (it: BhListItem): View => (it.imported ? "done" : it.hidden ? "hidden" : "wait");
 const KIND: Record<string, string> = { customer: "Müşteri", supplier: "Tedarikçi", both: "Müşteri + tedarikçi", other: "Diğer" };
 const norm = (s: string) => s.toLocaleLowerCase("tr-TR").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 // Bizim Hesap adlarındaki alt hesap ekleri (MB, UPS, EURO…) aramaya katılmaz
@@ -27,6 +30,7 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
   const [picking, setPicking] = useState<string | null>(null);
   const [pq, setPq] = useState("");
   const [tMoves, setTMoves] = useState<Record<string, number>>({});
+  const [view, setView] = useState<View>("wait");
 
   const partyById = useMemo(() => new Map(parties.map((p) => [p.id, p])), [parties]);
   const tgt = (it: BhListItem) => target[it.guid] ?? it.match?.id ?? "new";
@@ -55,10 +59,21 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
   }
   const shown = useMemo(() => {
     const n = q.toLocaleLowerCase("tr-TR").trim();
-    return items.filter((it) => it.kind === tab && (!onlyBal || it.erp_balance !== 0) && (!n || `${it.name} ${it.info.tax_no ?? ""} ${it.group ?? ""}`.toLocaleLowerCase("tr-TR").includes(n)));
-  }, [items, tab, q, onlyBal]);
+    return items.filter((it) => it.kind === tab && viewOf(it) === view && (!onlyBal || it.erp_balance !== 0) && (!n || `${it.name} ${it.info.tax_no ?? ""} ${it.group ?? ""}`.toLocaleLowerCase("tr-TR").includes(n)));
+  }, [items, tab, q, onlyBal, view]);
   const allShown = shown.length > 0 && shown.every((it) => sel.has(it.guid));
-  const counts = { c: items.filter((i) => i.kind === "c").length, s: items.filter((i) => i.kind === "s").length };
+  const counts = { c: items.filter((i) => i.kind === "c" && viewOf(i) === view).length, s: items.filter((i) => i.kind === "s" && viewOf(i) === view).length };
+  const vCount = (v: View) => items.filter((i) => i.kind === tab && viewOf(i) === v).length;
+  function switchView(v: View) { setView(v); setSel(new Set()); setPicking(null); setOpen(null); setMsg(null); }
+  async function hide(h: boolean) {
+    const g = [...sel];
+    if (!g.length) return;
+    setBusy(true);
+    const r = await bhCariHide(g, h);
+    setMsg({ ok: r.ok, text: r.message });
+    if (r.ok) setSel(new Set());
+    setBusy(false); router.refresh();
+  }
 
   async function toggleRows(guid: string) {
     if (open === guid) { setOpen(null); return; }
@@ -93,6 +108,13 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ara: ad, VKN, grup…" className={`${input} w-64 ml-2`} />
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={onlyBal} onChange={(e) => setOnlyBal(e.target.checked)} /> Yalnız bakiyesi olanlar</label>
         <span className="text-sm text-muted ml-auto">{sel.size} seçili</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1 text-sm">
+        {(Object.keys(VIEW) as View[]).map((v) => (
+          <button key={v} type="button" onClick={() => switchView(v)} className={`px-3 py-1.5 rounded-lg border ${view === v ? "border-brand-700 text-brand-700 font-semibold bg-[#F3F8FD]" : "border-transparent text-muted"}`}>
+            {VIEW[v]} ({vCount(v)})
+          </button>
+        ))}
       </div>
       <div className="overflow-x-auto max-h-[65vh] overflow-y-auto border border-[#EEF2F6] rounded-lg">
         <table className="w-full text-sm min-w-[980px]">
@@ -180,8 +202,15 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
         </table>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" disabled={busy || sel.size === 0} onClick={run} className="h-12 px-5 rounded-[12px] bg-brand-700 text-white font-bold disabled:opacity-50">{busy ? "Aktarılıyor…" : `Seçilen ${sel.size} cariyi aktar`}</button>
-        <span className="text-xs text-muted">Aynı hareket ikinci kez aktarılmaz. ERP&apos;de zaten hareketi olan carilerde çift kayıt olmasın diye varsayılan &quot;yalnız bakiye&quot;dir. ERP&apos;deki hedef cariyi değiştirmek için &quot;ERP&apos;de&quot; sütunundaki kutuya tıklayın.</span>
+        {view !== "hidden" && <button type="button" disabled={busy || sel.size === 0} onClick={run} className="h-12 px-5 rounded-[12px] bg-brand-700 text-white font-bold disabled:opacity-50">{busy ? "Aktarılıyor…" : `Seçilen ${sel.size} cariyi aktar`}</button>}
+        {view === "wait" && <button type="button" disabled={busy || sel.size === 0} onClick={() => void hide(true)} className="h-12 px-4 rounded-[12px] border border-line bg-white font-semibold disabled:opacity-50">Seçilen {sel.size} cariyi listeden çıkar</button>}
+        {view === "hidden" && <button type="button" disabled={busy || sel.size === 0} onClick={() => void hide(false)} className="h-12 px-4 rounded-[12px] border border-line bg-white font-semibold disabled:opacity-50">Seçilen {sel.size} cariyi listeye geri al</button>}
+        <span className="text-xs text-muted">
+          {view === "wait" && <>Aktarılan cariler bu listeden &quot;ERP&apos;ye aktarılanlar&quot;a geçer; aktarmak istemediklerinizi &quot;listeden çıkar&quot; ile kaldırın (silinmez, geri alınabilir). </>}
+          {view === "done" && <>Bu cariler ERP&apos;ye aktarıldı. Yanlış aktarımı &quot;aktarımı geri al&quot; ile kaldırabilirsiniz; tekrar aktarmada aynı hareket ikinci kez yazılmaz. </>}
+          {view === "hidden" && <>Bu cariler aktarılmayacak olarak işaretlendi; ERP&apos;ye hiçbir şey yazılmadı. </>}
+          {view !== "hidden" && <>ERP&apos;de zaten hareketi olan carilerde çift kayıt olmasın diye varsayılan &quot;yalnız bakiye&quot;dir. Hedef cariyi değiştirmek için &quot;ERP&apos;de&quot; sütunundaki kutuya tıklayın.</>}
+        </span>
       </div>
       {msg && (
         <div className={`text-sm ${msg.ok ? "text-ok" : "text-bad"}`}>{msg.text}
