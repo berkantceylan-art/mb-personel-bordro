@@ -46,6 +46,20 @@ async function readAll(): Promise<BhCari[]> {
   return out;
 }
 
+/** Satırları ~size'lık parçalara böler; bir günün satırları hep aynı parçada kalır */
+function chunkByDate(rows: BhRow[], size: number): BhRow[][] {
+  const out: BhRow[][] = [];
+  let cur: BhRow[] = [];
+  // kararlı sıralama: aynı günün satırları yan yana gelir, kendi aralarındaki sıra korunur
+  const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
+  for (const r of sorted) {
+    if (cur.length >= size && cur[cur.length - 1]!.date !== r.date) { out.push(cur); cur = []; }
+    cur.push(r);
+  }
+  if (cur.length) out.push(cur);
+  return out.length ? out : [[]];
+}
+
 /** Listeden çıkarılan (aktarılmayacak) Bizim Hesap carileri: documents/dentalsis/bh-gizli.json (guid listesi) */
 const HIDDEN = "dentalsis/bh-gizli.json";
 async function readHidden(): Promise<Set<string>> {
@@ -186,13 +200,18 @@ export async function bhCariImport(picks: { guid: string; target: string; mode: 
           await sb.from("fin_parties").update({ bh_guid: c.guid }).eq("id", partyId).is("bh_guid", null);
           continue;
         }
-        const { data, error } = await sb.rpc("bh_statement_import", {
-          p_party: partyId,
-          p: p.mode === "balance" ? { guid: c.guid, mode: "balance", balance: c.erp_balance, date: new Date().toISOString().slice(0, 10) } : { guid: c.guid, mode: "rows", rows: c.rows },
-        });
-        if (error) throw new Error(/category_missing|function/.test(error.message) ? "Önce mbdental-bizimhesap-ekstre.sql dosyasını Supabase'de çalıştırın." : error.message);
-        moves += Number((data as { moves?: number })?.moves ?? 0);
-        skipped += Number((data as { skipped?: number })?.skipped ?? 0);
+        // Çok hareketli carilerde tek çağrı veritabanı süre sınırını aşar: parça parça gönder.
+        // Aynı gün aynı tutarlı satırlar SQL'de sırayla numaralanır (#1, #2…); bir gün iki parçaya bölünürse
+        // ikinci satır "zaten var" sanılıp atlanır — bu yüzden parça yalnız gün değişiminde kesilir.
+        const payloads = p.mode === "balance"
+          ? [{ guid: c.guid, mode: "balance", balance: c.erp_balance, date: new Date().toISOString().slice(0, 10) }]
+          : chunkByDate(c.rows, 400).map((rows) => ({ guid: c.guid, mode: "rows", rows }));
+        for (const pl of payloads) {
+          const { data, error } = await sb.rpc("bh_statement_import", { p_party: partyId, p: pl });
+          if (error) throw new Error(/category_missing|function/.test(error.message) ? "Önce mbdental-bizimhesap-ekstre.sql dosyasını Supabase'de çalıştırın." : error.message);
+          moves += Number((data as { moves?: number })?.moves ?? 0);
+          skipped += Number((data as { skipped?: number })?.skipped ?? 0);
+        }
       } catch (e) {
         errors.push({ name: c.name, error: (e as Error).message });
       }
