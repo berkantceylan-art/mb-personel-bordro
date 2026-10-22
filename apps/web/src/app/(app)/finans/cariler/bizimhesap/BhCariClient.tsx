@@ -1,14 +1,18 @@
 "use client";
 import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { bhCariImport, bhCariRows, bhCariUndo, type BhListItem, type BhMode, type BhRow } from "@/lib/bh-cari-actions";
+import { bhCariImport, bhCariRows, bhCariUndo, bhPartyMoves, type BhListItem, type BhMode, type BhParty, type BhRow } from "@/lib/bh-cari-actions";
 
 const money = (k: number, c: string) => `${(k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${c === "TRY" ? "₺" : c === "EUR" ? "€" : c}`;
 const d = (s: string | null) => (s ? s.split("-").reverse().join(".") : "—");
 const MODE: Record<BhMode, string> = { rows: "Kart + tüm hareketler", balance: "Kart + yalnız bakiye (devir)", card: "Yalnız kart" };
+const KIND: Record<string, string> = { customer: "Müşteri", supplier: "Tedarikçi", both: "Müşteri + tedarikçi", other: "Diğer" };
+const norm = (s: string) => s.toLocaleLowerCase("tr-TR").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+// Bizim Hesap adlarındaki alt hesap ekleri (MB, UPS, EURO…) aramaya katılmaz
+const seed = (name: string) => norm(name).split(" ").filter((w) => w.length > 1 && !["mb", "ups", "euro", "eur", "tl", "hesap", "hesabi", "hesabı", "cari", "kdv"].includes(w)).slice(0, 2).join(" ");
 
-/** Bizim Hesap carileri: seç, ekstreyi incele, aktar */
-export function BhCariClient({ items }: { items: BhListItem[] }) {
+/** Bizim Hesap carileri: seç, ekstreyi incele, ERP'deki hedef cariyi seç, aktar */
+export function BhCariClient({ items, parties }: { items: BhListItem[]; parties: BhParty[] }) {
   const router = useRouter();
   const [tab, setTab] = useState<"c" | "s">("s");
   const [q, setQ] = useState("");
@@ -20,8 +24,35 @@ export function BhCariClient({ items }: { items: BhListItem[] }) {
   const [rows, setRows] = useState<Record<string, BhRow[]>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string; errors?: { name: string; error: string }[] } | null>(null);
+  const [picking, setPicking] = useState<string | null>(null);
+  const [pq, setPq] = useState("");
+  const [tMoves, setTMoves] = useState<Record<string, number>>({});
 
-  const defMode = (it: BhListItem): BhMode => (it.match && it.match.moves > 0 ? "balance" : "rows");
+  const partyById = useMemo(() => new Map(parties.map((p) => [p.id, p])), [parties]);
+  const tgt = (it: BhListItem) => target[it.guid] ?? it.match?.id ?? "new";
+  // Hedef caride ERP'nin kendi hareketi varsa çift kayıt olmasın diye varsayılan "yalnız bakiye"
+  const defMode = (it: BhListItem): BhMode => {
+    const t = tgt(it);
+    if (t === "new") return "rows";
+    const n = t === it.match?.id ? it.match.moves : tMoves[t];
+    return (n ?? 0) > 0 ? "balance" : "rows";
+  };
+  const curOk = (it: BhListItem) => { const t = tgt(it); return t === "new" || (mode[it.guid] ?? defMode(it)) === "card" || partyById.get(t)?.currency === it.currency; };
+  const found = useMemo(() => {
+    const n = norm(pq);
+    if (!n) return [];
+    const ws = n.split(" ");
+    return parties.filter((p) => { const h = `${norm(p.name)} ${p.tax_no ?? ""}`; return ws.every((w) => h.includes(w)); }).slice(0, 40);
+  }, [pq, parties]);
+  async function choose(it: BhListItem, id: string) {
+    setTarget((x) => ({ ...x, [it.guid]: id }));
+    setMode((x) => { const y = { ...x }; delete y[it.guid]; return y; });
+    setPicking(null);
+    if (id !== "new" && id !== it.match?.id && tMoves[id] === undefined) {
+      const r = await bhPartyMoves(id);
+      setTMoves((x) => ({ ...x, [id]: r.moves }));
+    }
+  }
   const shown = useMemo(() => {
     const n = q.toLocaleLowerCase("tr-TR").trim();
     return items.filter((it) => it.kind === tab && (!onlyBal || it.erp_balance !== 0) && (!n || `${it.name} ${it.info.tax_no ?? ""} ${it.group ?? ""}`.toLocaleLowerCase("tr-TR").includes(n)));
@@ -36,7 +67,10 @@ export function BhCariClient({ items }: { items: BhListItem[] }) {
   }
   async function run() {
     setBusy(true); setMsg(null);
-    const picks = items.filter((it) => sel.has(it.guid)).map((it) => ({ guid: it.guid, target: target[it.guid] ?? it.match?.id ?? "new", mode: mode[it.guid] ?? defMode(it) }));
+    const chosen = items.filter((it) => sel.has(it.guid));
+    const bad = chosen.filter((it) => !curOk(it));
+    if (bad.length) { setMsg({ ok: false, text: `Para birimi tutmayan ${bad.length} cari seçili: ${bad.slice(0, 5).map((i) => i.name).join(", ")}` }); setBusy(false); return; }
+    const picks = chosen.map((it) => ({ guid: it.guid, target: tgt(it), mode: mode[it.guid] ?? defMode(it) }));
     const r = await bhCariImport(picks);
     setMsg({ ok: r.ok, text: r.message, errors: r.errors });
     if (r.ok) setSel(new Set());
@@ -81,12 +115,24 @@ export function BhCariClient({ items }: { items: BhListItem[] }) {
                   <td className="py-2 pr-2 text-right num whitespace-nowrap">{money(it.erp_balance, it.currency)}
                     <span className="block text-xs text-muted">{it.erp_balance > 0 ? "bize borçlu" : it.erp_balance < 0 ? "biz borçluyuz" : ""}</span>
                     {Math.abs(it.sum - it.erp_balance) > 1 && <span className="block text-xs text-warn">hareket toplamı {money(it.sum, it.currency)}</span>}</td>
-                  <td className="py-2 pl-3 text-xs max-w-[260px]">
-                    <select value={target[it.guid] ?? it.match?.id ?? "new"} onChange={(e) => setTarget({ ...target, [it.guid]: e.target.value })} className="h-9 w-full rounded-lg border border-[#D5DEE8] px-2 bg-white text-sm">
-                      <option value="new">➕ Yeni cari aç</option>
-                      {it.match && <option value={it.match.id}>Eşleşti: {it.match.name}</option>}
-                    </select>
-                    {it.match && <span className="block text-muted mt-1">{it.match.via} · ERP&apos;de {it.match.moves} hareket{it.match.moves > 0 && <> · <button type="button" onClick={() => void undo(it.match!.id, it.name)} className="underline">aktarımı geri al</button></>}</span>}
+                  <td className="py-2 pl-3 text-xs max-w-[280px]">
+                    {(() => {
+                      const t = tgt(it);
+                      const tp = t !== "new" ? partyById.get(t) : undefined;
+                      const auto = t !== "new" && t === it.match?.id;
+                      return (
+                        <>
+                          <button type="button" onClick={() => { setPicking(picking === it.guid ? null : it.guid); setPq(seed(it.name)); }}
+                            className={`h-9 w-full rounded-lg border px-2 bg-white text-sm text-left truncate ${tp && !curOk(it) ? "border-bad" : "border-[#D5DEE8]"}`}>
+                            {t === "new" ? "➕ Yeni cari aç" : `${auto ? "Eşleşti" : "Seçildi"}: ${tp?.name ?? it.match?.name ?? "?"}`}
+                          </button>
+                          {tp && <span className="block text-muted mt-1">{KIND[tp.kind] ?? tp.kind} · {tp.currency}{tp.tax_no ? ` · VKN ${tp.tax_no}` : ""}</span>}
+                          {tp && !curOk(it) && <span className="block text-bad mt-1">Para birimi farklı ({it.currency} → {tp.currency}): yalnız kart aktarılabilir</span>}
+                          {auto && it.match && <span className="block text-muted mt-1">{it.match.via} · ERP&apos;de {it.match.moves} hareket{it.match.moves > 0 && <> · <button type="button" onClick={() => void undo(it.match!.id, it.name)} className="underline">aktarımı geri al</button></>}</span>}
+                          {t !== "new" && !auto && tMoves[t] !== undefined && <span className="block text-muted mt-1">ERP&apos;de {tMoves[t]} hareket</span>}
+                        </>
+                      );
+                    })()}
                   </td>
                   <td className="py-2 pl-3">
                     <select value={mode[it.guid] ?? defMode(it)} onChange={(e) => setMode({ ...mode, [it.guid]: e.target.value as BhMode })} className="h-9 rounded-lg border border-[#D5DEE8] px-2 bg-white text-sm">
@@ -94,6 +140,27 @@ export function BhCariClient({ items }: { items: BhListItem[] }) {
                     </select>
                   </td>
                 </tr>
+                {picking === it.guid && (
+                  <tr className="bg-[#F7FAFD]"><td colSpan={6} className="p-3">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span className="text-sm font-semibold">{it.name} → ERP&apos;de hangi cari?</span>
+                      <input autoFocus value={pq} onChange={(e) => setPq(e.target.value)} placeholder="ERP carisi ara: ad veya VKN" className={`${input} w-72`} />
+                      <button type="button" onClick={() => void choose(it, "new")} className="h-10 px-3 rounded-lg border border-line bg-white text-sm font-semibold">➕ Yeni cari aç</button>
+                      {it.match && <button type="button" onClick={() => void choose(it, it.match!.id)} className="h-10 px-3 rounded-lg border border-line bg-white text-sm">Otomatik eşleşme: {it.match.name}</button>}
+                      <button type="button" onClick={() => setPicking(null)} className="h-10 px-3 text-sm text-muted underline">Kapat</button>
+                    </div>
+                    {!pq.trim() ? <span className="text-xs text-muted">Aramak için yazın.</span> : !found.length ? <span className="text-xs text-muted">Eşleşen ERP carisi yok.</span> : (
+                      <div className="flex flex-col max-h-72 overflow-y-auto border border-[#EEF2F6] rounded-lg bg-white">
+                        {found.map((p) => (
+                          <button key={p.id} type="button" onClick={() => void choose(it, p.id)} className={`text-left px-3 py-2 text-sm border-b border-[#EEF2F6] hover:bg-[#F3F8FD] ${tgt(it) === p.id ? "bg-[#F3F8FD] font-semibold" : ""}`}>
+                            {p.name}
+                            <span className={`ml-2 text-xs ${p.currency === it.currency ? "text-muted" : "text-bad"}`}>{KIND[p.kind] ?? p.kind} · {p.currency}{p.tax_no ? ` · VKN ${p.tax_no}` : ""}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </td></tr>
+                )}
                 {open === it.guid && (
                   <tr className="bg-[#FAFBFD]"><td colSpan={6} className="p-3">
                     {!rows[it.guid] ? <span className="text-sm text-muted">Yükleniyor…</span> : (
@@ -114,7 +181,7 @@ export function BhCariClient({ items }: { items: BhListItem[] }) {
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" disabled={busy || sel.size === 0} onClick={run} className="h-12 px-5 rounded-[12px] bg-brand-700 text-white font-bold disabled:opacity-50">{busy ? "Aktarılıyor…" : `Seçilen ${sel.size} cariyi aktar`}</button>
-        <span className="text-xs text-muted">Aynı hareket ikinci kez aktarılmaz. ERP&apos;de zaten hareketi olan carilerde çift kayıt olmasın diye varsayılan &quot;yalnız bakiye&quot;dir.</span>
+        <span className="text-xs text-muted">Aynı hareket ikinci kez aktarılmaz. ERP&apos;de zaten hareketi olan carilerde çift kayıt olmasın diye varsayılan &quot;yalnız bakiye&quot;dir. ERP&apos;deki hedef cariyi değiştirmek için &quot;ERP&apos;de&quot; sütunundaki kutuya tıklayın.</span>
       </div>
       {msg && (
         <div className={`text-sm ${msg.ok ? "text-ok" : "text-bad"}`}>{msg.text}
