@@ -21,7 +21,7 @@ export default async function Page() {
       <div className="p-4 md:p-8 flex flex-col gap-5 max-w-[1300px]">
         {!r.ok && <p className="text-sm text-bad">{r.message}</p>}
         {r.ok && !r.items?.length && <p className="text-sm text-muted">Henüz Bizim Hesap dökümü yok.</p>}
-        {r.items && r.items.length > 0 && <BhCariClient items={r.items} />}
+        {r.items && r.items.length > 0 && <BhCariClient items={r.items} parties={r.parties ?? []} />}
       </div>
     </>
   );
