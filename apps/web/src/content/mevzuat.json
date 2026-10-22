@@ -1,5 +1,5 @@
 {
-  "last_checked": "2026-10-19",
+  "last_checked": "2026-10-22",
   "params": [
     {
       "key": "minWageGross",
@@ -163,6 +163,31 @@
     }
   ],
   "bulletin": [
+    {
+      "id": "2026-10-tsrs-2026-muafiyet",
+      "date": "2026-10-22",
+      "title": "TSRS: 2026 dönemi sürdürülebilirlik raporlarında geçiş muafiyetleri uzatıldı",
+      "summary": "KGK’nın 19.10.2026 tarihli 01/46753 sayılı kararı (RG 22.10.2026, sayı 33408). TSRS kapsamındaki tüm işletmeler 2026 dönemi sürdürülebilirlik raporlarını finansal raporlarından sonra yayımlayabilecek (TSRS 1 E4). Yalnız iklim konularını raporlama muafiyeti (TSRS 1 E5) 2026 için sadece bu muafiyeti önceki dönemde kullananlara açık. Aynı tarihli 01/46754 sayılı kararla bazı banka ve finans kuruluşlarına tanınan ihtiyari raporlama hükmü kaldırıldı. TSRS zorunluluğu belirli büyüklük eşiklerini aşan işletmeler içindir; yaklaşık 100 çalışanlı şirket için kapsam, aktif ve net satış eşiklerine bağlı. Eşik değerleri bu kaynaktan teyit edilmedi.",
+      "impact": "Bordro ve muhasebe hesaplarına etkisi yok. Şirket TSRS kapsamında değilse yapılacak bir şey yok; kapsamdaysa 2026 raporunun yayım zamanlaması esnedi.",
+      "category": "Genel muhasebe",
+      "area": "muhasebe",
+      "severity": "bilgi",
+      "status": "bilgi",
+      "source": "https://www.alomaliye.com/2026/10/22/tsrs-2026-raporlarina-muafiyet-uzatildi/"
+    },
+    {
+      "id": "2026-10-kvkk-basvuru-cevap-usulu",
+      "date": "2026-10-01",
+      "title": "KVKK duyurusu: ilgili kişi başvurularına cevap yazılı veya elektronik verilmeli",
+      "summary": "Kişisel Verileri Koruma Kurumu kamuoyu duyurusu. Bazı veri sorumlularının başvuruları yalnız telefonla veya yüz yüze yanıtladığı tespit edildi. Başvurular en geç 30 gün içinde yazılı ya da elektronik ortamda, her talebin ne ölçüde karşılandığını gösteren ve ret gerekçesini açıklayan bir cevapla sonuçlandırılmalı. Telefon veya yüz yüze görüşme ek bilgi istemek ya da süreç hakkında bilgi vermek için kullanılabilir, cevap yerine geçmez. Aynı ay yayımlanan kurumsal e-posta ilke kararından (2026-10-kvkk-kurumsal-eposta-ilke) ayrı bir konudur.",
+      "impact": "Bordro ve muhasebe hesaplarına etkisi yok. Personel, hasta/hekim ve diğer ilgili kişilerden gelen KVKK başvurularının cevaplarını yazılı veya e-posta ile verin ve kaydını saklayın.",
+      "category": "KVKK",
+      "area": "diger",
+      "severity": "aksiyon",
+      "status": "bilgi",
+      "action": "KVKK başvuru prosedürünü gözden geçirin: cevaplar 30 gün içinde yazılı veya elektronik verilsin, gerekçeli olsun ve arşivlensin.",
+      "source": "https://www.kvkk.gov.tr/Icerik/9024/ilgili-kisilerin-basvurularina-verilecek-cevabin-bildirim-usulune-iliskin-kamuoyu-duyurusu"
+    },
     {
       "id": "2026-10-kdv-e-beyan-istanbul",
       "date": "2026-10-14",
