@@ -8,7 +8,10 @@ import { done, fail } from "@/lib/flash";
 import { ITEM_KIND, JOB_STATUS, LOWER, MATERIALS, METAL_BAND, RECEIVED, UPPER, lineAmount, parseMoney, type ItemKind, type JobStatus } from "@/lib/jobs";
 
 const str = (f: FormData, k: string, max = 400) => String(f.get(k) ?? "").trim().slice(0, max);
-const missing = (m: string) => (/(jobs|job_|lab_)/.test(m) && /exist|schema cache|relation/.test(m) ? "Supabase'de 20261125000000_lab_jobs.sql çalıştırılmalı." : m);
+const missing = (m: string) =>
+  /job_invoiced/.test(m) ? "Bu işin faturası kesilmiş. İşi iptal etmeden önce faturayı iptal edin ya da iade faturası kesin."
+  : /statement_issued/.test(m) ? "Bu iş kesilmiş bir dökümde (hesap özeti / fatura). Önce dökümü iptal edin, sonra işin durumunu değiştirin."
+  : (/(jobs|job_|lab_)/.test(m) && /exist|schema cache|relation/.test(m) ? "Supabase'de 20261125000000_lab_jobs.sql çalıştırılmalı." : m);
 const TEETH = new Set([...UPPER, ...LOWER].map(String));
 
 async function guard() {
