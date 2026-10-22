@@ -191,4 +191,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270270000000_supplier_stock_backfill.sql", "f:sup_slips_stock_backfill"],
   ["20270277000000_dsis_auto_sync.sql", "t:dsis_sync_state"],
   ["20270278000000_customer_qc_role.sql", "f:prd_pack_scan"],
+  ["20270279000000_bh_statement_import.sql", "f:bh_statement_import"],
 ];

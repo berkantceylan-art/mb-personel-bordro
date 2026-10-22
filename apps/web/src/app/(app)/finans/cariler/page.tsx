@@ -32,7 +32,7 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
   const qs = (t: string) => `/finans/cariler${t ? `?tur=${t}` : ""}`;
   return (
     <>
-      <PageHeader title="Cari kartlar" subtitle={`${rows.length} cari · tedarikçiler, müşteriler ve hekimler`} actions={canEdit ? <span className="flex gap-4"><Link href="/finans/cariler/aktar" className="text-sm font-semibold text-brand-700">⇪ Bizim Hesap&apos;tan aktar</Link><Link href="/finans/cariler?yeni=1#yeni" className="text-sm font-semibold text-brand-700">+ Yeni cari</Link></span> : undefined} />
+      <PageHeader title="Cari kartlar" subtitle={`${rows.length} cari · tedarikçiler, müşteriler ve hekimler`} actions={canEdit ? <span className="flex gap-4"><Link href="/finans/cariler/bizimhesap" className="text-sm font-semibold text-brand-700">⇪ Bizim Hesap carileri</Link><Link href="/finans/cariler?yeni=1#yeni" className="text-sm font-semibold text-brand-700">+ Yeni cari</Link></span> : undefined} />
       <div className={page}>
         {error && <Notice tone="bad">Finans tabloları yok: Supabase&apos;de 20261202000000_finance_core.sql çalıştırın.</Notice>}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
