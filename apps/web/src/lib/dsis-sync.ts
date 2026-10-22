@@ -161,6 +161,14 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
       for (const j of jobs ?? []) inErp.add(Number(j.legacy_id));
     }
     const isNew = list.filter((r) => !inErp.has(Number(r.id)) && String(r.tarih1 ?? "") >= "2026-01-01");
+    // ilk kez görülen (daha önce aktarılmış) işler için parmak izi temel alınır; ayrıntı çekilmez
+    const baseline = list.filter((r) => inErp.has(Number(r.id)) && !known.has(Number(r.id)));
+    if (baseline.length) {
+      const now0 = new Date().toISOString();
+      const rows = baseline.map((r) => ({ legacy_id: Number(r.id), fp: fp(r), seen_at: now0 }));
+      for (let i = 0; i < rows.length; i += 500) await sb.from("dsis_job_seen").upsert(rows.slice(i, i + 500), { onConflict: "legacy_id", ignoreDuplicates: true });
+      for (const r of baseline) known.set(Number(r.id), fp(r));
+    }
     const changed = list.filter((r) => inErp.has(Number(r.id)) && known.get(Number(r.id)) !== fp(r));
     const want = new Map<number, Row>();
     for (const r of [...isNew, ...changed]) if (want.size < DETAIL_BUDGET) want.set(Number(r.id), r);
@@ -178,7 +186,7 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
     }
     const t1s = list.map((r) => String(r.tarih1 ?? "")).sort();
     const t2s = list.map((r) => String(r.tarih2 ?? "")).sort();
-    steps.list = { total: list.length, new: isNew.length, changed: changed.length, fetched: want.size, in_erp: inErp.size, max_id: Math.max(0, ...ids), tarih1_max: t1s[t1s.length - 1] ?? null, tarih2_min: t2s[0] ?? null, tarih2_max: t2s[t2s.length - 1] ?? null };
+    steps.list = { total: list.length, new: isNew.length, changed: changed.length, baseline: baseline.length, fetched: want.size, in_erp: inErp.size, max_id: Math.max(0, ...ids), tarih1_max: t1s[t1s.length - 1] ?? null, tarih2_min: t2s[0] ?? null, tarih2_max: t2s[t2s.length - 1] ?? null };
 
     const byId = new Map(list.map((r) => [Number(r.id), r]));
     const details = (await pool([...want.keys()], CONCURRENCY, async (id) => {
