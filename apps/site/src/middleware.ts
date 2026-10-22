@@ -35,7 +35,7 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
   if (pathname === "/api/t") return NextResponse.next();
   if (request.method === "GET") logBot(request, event);
-  if (/^\/(robots\.txt|sitemap[^/]*\.xml|llms(-full)?\.txt)$/.test(pathname)) return NextResponse.next();
+  if (/^\/(robots\.txt|sitemap[^/]*\.xml|llms(-full)?\.txt|google[0-9a-f]+\.html)$/.test(pathname)) return NextResponse.next();
 
   // Eski WordPress adresleri → yeni adresler (kalıcı 301, arama sıralaması korunur)
   const legacy = legacyRedirect(pathname);
