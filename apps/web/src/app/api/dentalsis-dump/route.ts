@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Geçici: Dentalsis Plus'tan (eski iş takip programı) 2026 kayıtlarının ham dökümünü alır.
+ * Geçici: Dentalsis Plus'tan (eski iş takip programı) 2026 kayıtlarının ve Bizim Hesap carilerinin ham dökümünü alır.
  * Döküm, kullanıcının kendi Dentalsis oturumundan tarayıcıda okunup parça parça buraya gönderilir;
  * dosyalar documents/dentalsis/ altına yazılır ve "Dentalsis'ten aktar" ekranı bunları ERP'ye işler.
  * Tek seferlik anahtarın yalnız SHA-256 özeti kodda durur. Aktarım bitince bu uç kaldırılacak.
@@ -11,14 +11,19 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const KEY_SHA256 = "6de945f06c565ca44379239dba8b9cfd27aff6f7f859ea3383ca2b94551902a3";
-const ORIGIN = "https://dentalsisplus.dentalofisi.com";
-const cors = { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "content-type", Vary: "Origin" };
+// Dentalsis ve Bizim Hesap (cari / ekstre dökümü) oturumlarından gelen istekler
+const ORIGINS = ["https://dentalsisplus.dentalofisi.com", "https://uygulama.bizimhesap.com"];
+const corsFor = (req: Request) => {
+  const o = req.headers.get("origin") ?? "";
+  return { "Access-Control-Allow-Origin": ORIGINS.includes(o) ? o : ORIGINS[0]!, "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "content-type", Vary: "Origin" };
+};
 
-export function OPTIONS() {
-  return new Response(null, { status: 204, headers: cors });
+export function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: corsFor(req) });
 }
 
 export async function POST(req: Request) {
+  const cors = corsFor(req);
   const res = (status: number, body: unknown) => Response.json(body, { status, headers: cors });
   const text = await req.text();
   if (text.length > 4_000_000) return res(413, { ok: false, error: "too_large" });
