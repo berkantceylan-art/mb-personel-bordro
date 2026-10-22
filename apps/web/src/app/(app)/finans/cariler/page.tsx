@@ -8,18 +8,22 @@ import { PARTY_KIND, fmt } from "@/lib/fin";
 import { PartyForm } from "../_parts/PartyForm";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { deleteParty } from "@/lib/fin-actions";
+import { CariSearch, type CariHit } from "./CariSearch";
 
 export const dynamic = "force-dynamic";
 
 /** Cari kartlar: tedarikçiler, müşteriler (hekim kartları dahil) */
-export default async function PartiesPage({ searchParams }: { searchParams: Promise<{ tur?: string; q?: string; bakiye?: string; yeni?: string }> }) {
+export default async function PartiesPage({ searchParams }: { searchParams: Promise<{ tur?: string; q?: string; bakiye?: string; yeni?: string; pasif?: string }> }) {
   const s = await getSession();
   if (!["finance", "sales", "purchases"].some((m) => (s.modules[m] ?? 0) >= 1)) redirect("/");
   const sp = await searchParams;
   const [{ rows, error }, { rates }] = await Promise.all([loadParties(), latestRates()]);
   const tur = ["customer", "supplier", "lab", "other"].includes(sp.tur ?? "") ? sp.tur! : "";
   const q = (sp.q ?? "").toLocaleLowerCase("tr");
+  const pasif = sp.pasif === "1";
+  const passiveCount = rows.filter((p) => !p.is_active).length;
   const shown = rows.filter((p) => {
+    if (!pasif && !p.is_active) return false;
     if (tur === "lab" ? !p.lab_customer_id : tur === "customer" ? !(p.kind === "customer" || p.kind === "both") : tur === "supplier" ? !(p.kind === "supplier" || p.kind === "both") : tur === "other" ? p.kind !== "other" : false) return false;
     if (sp.bakiye === "alacak" && p.balance <= 0) return false;
     if (sp.bakiye === "borc" && p.balance >= 0) return false;
@@ -29,7 +33,17 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
   const receivable = rows.filter((p) => p.balance > 0).reduce((a, p) => a + toTry(p.balance, p.currency), 0);
   const payable = rows.filter((p) => p.balance < 0).reduce((a, p) => a + toTry(-p.balance, p.currency), 0);
   const canEdit = ["finance", "sales", "purchases"].some((m) => (s.modules[m] ?? 0) >= 2);
-  const qs = (t: string) => `/finans/cariler${t ? `?tur=${t}` : ""}`;
+  const link = (o: { tur?: string; pasif?: boolean }) => {
+    const u = new URLSearchParams();
+    if (o.tur) u.set("tur", o.tur);
+    if (sp.q) u.set("q", sp.q);
+    if (sp.bakiye) u.set("bakiye", sp.bakiye);
+    if (o.pasif) u.set("pasif", "1");
+    const t = u.toString();
+    return `/finans/cariler${t ? `?${t}` : ""}`;
+  };
+  const qs = (t: string) => `/finans/cariler${t ? `?tur=${t}` : ""}${pasif ? `${t ? "&" : "?"}pasif=1` : ""}`;
+  const hits: CariHit[] = rows.map((p) => ({ id: p.id, name: p.name, tax_no: p.tax_no, phone: p.phone, city: p.city, code: p.code, kind: PARTY_KIND[p.kind] ?? p.kind, active: p.is_active }));
   return (
     <>
       <PageHeader title="Cari kartlar" subtitle={`${rows.length} cari · tedarikçiler, müşteriler ve hekimler`} actions={canEdit ? <span className="flex gap-4"><Link href="/finans/cariler/bizimhesap" className="text-sm font-semibold text-brand-700">⇪ Bizim Hesap carileri</Link><Link href="/finans/cariler?yeni=1#yeni" className="text-sm font-semibold text-brand-700">+ Yeni cari</Link></span> : undefined} />
@@ -43,11 +57,13 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Tabs active={qs(tur)} items={[[qs(""), "Tümü"], [qs("supplier"), "Tedarikçiler"], [qs("customer"), "Müşteriler"], [qs("lab"), "Hekim kartları"], [qs("other"), "Diğer"]]} />
-          <form className="flex gap-2">
-            {tur && <input type="hidden" name="tur" value={tur} />}
-            <input name="q" defaultValue={sp.q} placeholder="Ad, VKN, telefon, şehir" className={`${inputCls} w-64`} />
-            <button className={btnPrimary}>Ara</button>
-          </form>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href={link({ tur, pasif: !pasif })} className="flex items-center gap-2 text-sm" role="checkbox" aria-checked={pasif}>
+              <span className={`inline-flex items-center justify-center w-4 h-4 rounded border ${pasif ? "bg-brand-700 border-brand-700 text-white" : "border-[#9AA7B4] bg-white"}`}>{pasif ? "✓" : ""}</span>
+              Pasifleri göster{passiveCount ? ` (${passiveCount})` : ""}
+            </Link>
+            <CariSearch items={hits} tur={tur} q={sp.q ?? ""} pasif={pasif} inputCls={inputCls} btnCls={btnPrimary} />
+          </div>
         </div>
         <Table head={canEdit ? ["Cari", "Tür", "VKN / TCKN", "Telefon", "Para", "Bakiye", "Durum", ""] : ["Cari", "Tür", "VKN / TCKN", "Telefon", "Para", "Bakiye", "Durum"]} min={980}>
           {shown.map((p) => (
@@ -62,6 +78,7 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
               {canEdit && (
                 <td className={`${td} whitespace-nowrap`}>
                   <span className="flex items-center gap-3">
+                    <Link href={`/finans/cariler/${p.id}#gonder`} className="text-xs font-semibold text-brand-700" title="Ekstreyi e-posta / WhatsApp ile gönder">✉ Gönder</Link>
                     <Link href={`/finans/cariler/${p.id}#duzenle`} className="text-xs font-semibold text-brand-700">✎ Düzenle</Link>
                     {!p.lab_customer_id && <form action={deleteParty}><input type="hidden" name="id" value={p.id} /><ConfirmSubmit label="Sil" question="Silinsin mi?" /></form>}
                   </span>
