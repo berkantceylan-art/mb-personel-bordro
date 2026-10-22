@@ -4,7 +4,8 @@ export function waLink(phone: string | null | undefined, text: string): string |
   if (!p) return null;
   if (p.startsWith("00")) p = p.slice(2);
   else if (p.startsWith("0")) p = `90${p.slice(1)}`;
-  else if (p.length === 10 && p.startsWith("5")) p = `90${p}`;
+  // başında 0 olmadan yazılmış 10 haneli Türkiye numarası (5xx cep, 2xx–4xx sabit hat)
+  else if (/^[2-5]\d{9}$/.test(p)) p = `90${p}`;
   if (p.length < 10) return null;
   return `https://wa.me/${p}?text=${encodeURIComponent(text)}`;
 }
