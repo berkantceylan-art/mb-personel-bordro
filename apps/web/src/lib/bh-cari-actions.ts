@@ -11,7 +11,13 @@ export type BhCari = {
   info: { tax_no: string | null; tax_office: string | null; phone: string | null; phone2: string | null; email: string | null; address: string | null; authorized: string | null; iban: string | null; due_days: string | null; code1: string | null; code2: string | null; note: string | null };
   rows: BhRow[];
 };
-export type BhListItem = Omit<BhCari, "rows"> & { n: number; from: string | null; to: string | null; match: { id: string; name: string; moves: number; via: string } | null };
+export type BhListItem = Omit<BhCari, "rows"> & {
+  n: number; from: string | null; to: string | null; match: { id: string; name: string; moves: number; via: string } | null;
+  /** ERP'ye aktarılmış (Bizim Hesap bağlantısı kurulmuş ya da eşleşen caride Bizim Hesap hareketi var) */
+  imported: boolean;
+  /** Kullanıcı "aktarılmayacak" diye listeden çıkardı */
+  hidden: boolean;
+};
 export type BhMode = "rows" | "balance" | "card";
 /** ERP'deki cari (aktarım hedefi seçimi için) */
 export type BhParty = { id: string; name: string; kind: string; currency: string; tax_no: string | null };
@@ -35,6 +41,28 @@ async function readAll(): Promise<BhCari[]> {
     out.push(...(JSON.parse(await blob.text()) as BhCari[]));
   }
   return out;
+}
+
+/** Listeden çıkarılan (aktarılmayacak) Bizim Hesap carileri: documents/dentalsis/bh-gizli.json (guid listesi) */
+const HIDDEN = "dentalsis/bh-gizli.json";
+async function readHidden(): Promise<Set<string>> {
+  const { data } = await createAdminClient().storage.from("documents").download(HIDDEN);
+  if (!data) return new Set();
+  try { return new Set(JSON.parse(await data.text()) as string[]); } catch { return new Set(); }
+}
+
+export async function bhCariHide(guids: string[], hide: boolean): Promise<{ ok: boolean; message: string }> {
+  try {
+    await guard();
+    const set = await readHidden();
+    for (const g of guids.slice(0, 2000)) { if (hide) set.add(g); else set.delete(g); }
+    const up = await createAdminClient().storage.from("documents").upload(HIDDEN, Buffer.from(JSON.stringify([...set])), { contentType: "application/json", upsert: true });
+    if (up.error) return { ok: false, message: up.error.message };
+    revalidatePath("/finans/cariler/bizimhesap");
+    return { ok: true, message: hide ? `${guids.length} cari listeden çıkarıldı.` : `${guids.length} cari listeye geri alındı.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
 }
 
 export async function bhCariList(): Promise<{ ok: boolean; message?: string; items?: BhListItem[]; parties?: BhParty[]; at?: string }> {
@@ -66,11 +94,15 @@ export async function bhCariList(): Promise<{ ok: boolean; message?: string; ite
         moves.set(key, (moves.get(key) ?? 0) + 1);
       }
     }
+    const hidden = await readHidden();
     const items: BhListItem[] = all.map(({ rows, ...c }) => {
       const m = matched.get(c.guid);
+      const bhDone = !!m && (moves.get(`${m.p.id}|bh`) ?? 0) > 0;
       return {
         ...c, n: rows.length, from: rows[0]?.date ?? null, to: rows[rows.length - 1]?.date ?? null,
-        match: m ? { id: m.p.id, name: m.p.name, moves: moves.get(m.p.id) ?? 0, via: m.via + ((moves.get(`${m.p.id}|bh`) ?? 0) > 0 ? " · Bizim Hesap hareketleri zaten aktarılmış" : "") } : null,
+        match: m ? { id: m.p.id, name: m.p.name, moves: moves.get(m.p.id) ?? 0, via: m.via + (bhDone ? " · Bizim Hesap hareketleri zaten aktarılmış" : "") } : null,
+        imported: byGuid.has(c.guid) || bhDone,
+        hidden: hidden.has(c.guid),
       };
     });
     const plist: BhParty[] = ps
