@@ -42,7 +42,7 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
   const cash = (lcRow as { no_invoice?: boolean } | null)?.no_invoice === true;
   return (
     <>
-      <PageHeader title={p.name} subtitle={`${PARTY_KIND[p.kind]} · ${p.currency}${p.tax_no ? ` · ${p.tax_no}` : ""}`} actions={<span className="flex gap-4 text-sm font-semibold">{canEdit && <a href="#duzenle" className="text-brand-700">✎ Düzenle</a>}{canEdit && <a href="#sil" className="text-bad">Sil</a>}<Link href="/finans/cariler" className="text-brand-700">← Cariler</Link></span>} />
+      <PageHeader title={p.name} subtitle={`${PARTY_KIND[p.kind]} · ${p.currency}${p.tax_no ? ` · ${p.tax_no}` : ""}`} actions={<span className="flex gap-4 text-sm font-semibold"><Link href={`/yazdir/cari/${p.id}${from || to ? `?${new URLSearchParams({ ...(from ? { bas: from } : {}), ...(to ? { bit: to } : {}) })}` : ""}`} className="text-brand-700">🖨 Cari yazdır</Link>{canEdit && <a href="#duzenle" className="text-brand-700">✎ Düzenle</a>}{canEdit && <a href="#sil" className="text-bad">Sil</a>}<Link href="/finans/cariler" className="text-brand-700">← Cariler</Link></span>} />
       <div className={page}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KPI label="Bakiye" value={fmt(Math.abs(led.balance), p.currency)} sub={led.balance > 0 ? "bize borçlu" : led.balance < 0 ? "biz borçluyuz" : "kapalı"} tone={led.balance < 0 ? "bad" : undefined} />
