@@ -10,7 +10,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const KEY_SHA256 = "6de945f06c565ca44379239dba8b9cfd27aff6f7f859ea3383ca2b94551902a3";
+// Dentalsis aktarımı anahtarı + Bizim Hesap cari dökümü anahtarı
+const KEY_SHA256 = ["6de945f06c565ca44379239dba8b9cfd27aff6f7f859ea3383ca2b94551902a3", "4d455b277d0ba7095a10d7cbc0ccc18d987bb69ad0f7ad7ce340b4a038ed1055"];
 // Dentalsis ve Bizim Hesap (cari / ekstre dökümü) oturumlarından gelen istekler
 const ORIGINS = ["https://dentalsisplus.dentalofisi.com", "https://uygulama.bizimhesap.com"];
 const corsFor = (req: Request) => {
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
   let p: { k?: string; name?: string; data?: unknown };
   try { p = JSON.parse(text); } catch { return res(400, { ok: false, error: "bad_json" }); }
   const got = createHash("sha256").update(String(p.k ?? "")).digest();
-  if (!timingSafeEqual(got, Buffer.from(KEY_SHA256, "hex"))) return res(403, { ok: false, error: "forbidden" });
+  if (!KEY_SHA256.some((h) => timingSafeEqual(got, Buffer.from(h, "hex")))) return res(403, { ok: false, error: "forbidden" });
   if (!p.name || !/^[a-z0-9][a-z0-9-]{0,60}$/.test(p.name) || p.data === undefined) return res(400, { ok: false, error: "bad_request" });
   const admin = createAdminClient();
   const up = await admin.storage.from("documents").upload(`dentalsis/${p.name}.json`, Buffer.from(JSON.stringify(p.data)), { contentType: "application/json", upsert: true });
