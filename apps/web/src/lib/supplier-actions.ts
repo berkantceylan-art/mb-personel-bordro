@@ -44,3 +44,23 @@ export async function openSlipParty(f: FormData) {
   revalidatePath("/finans/fis-cari", "layout");
   redirect(`/finans/fis-cari/${main}`);
 }
+
+/** Var olan cariyi firmanın fişli carisi olarak bağla */
+export async function linkSlipParty(f: FormData) {
+  const main = s(f, "main"), slip = s(f, "slip"), kind = s(f, "kind") === "nodisc" ? "nodisc" : "slip";
+  if (!main || !slip) redirect(`/finans/fis-cari?hata=${encodeURIComponent("Faturalı cariyi ve fişli cariyi seçin.")}`);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("sup_link_slip", { p_main: main, p_slip: slip, p_kind: kind });
+  if (error) {
+    const m = error.message;
+    const msg = /slip_exists/.test(m) ? "Bu firmanın zaten bir fişli carisi var: ikincisini “İskontosuz / ikinci fişli” olarak bağlayın."
+      : /nodisc_exists/.test(m) ? "Bu firmanın zaten iskontosuz / ikinci fişli carisi var."
+      : /same_party/.test(m) ? "Aynı cari seçildi."
+      : /main_is_slip/.test(m) ? "Faturalı cari olarak seçilen kart zaten başka firmanın fişli carisi."
+      : /slip_has_children/.test(m) ? "Fişli cari olarak seçilen kartın kendi fişli carileri var; önce onları ayırın."
+      : /sup_link_slip|does not exist|schema cache/.test(m) ? "Supabase'de 20270284000000_slip_link.sql çalıştırılmalı." : err(m);
+    redirect(`/finans/fis-cari?hata=${encodeURIComponent(msg)}`);
+  }
+  revalidatePath("/finans/fis-cari", "layout");
+  redirect(`/finans/fis-cari/${main}?tamam=${encodeURIComponent("Fişli cari bağlandı.")}`);
+}

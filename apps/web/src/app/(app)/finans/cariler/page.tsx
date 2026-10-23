@@ -9,40 +9,36 @@ import { PartyForm } from "../_parts/PartyForm";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { deleteParty } from "@/lib/fin-actions";
 import { CariSearch, type CariHit } from "./CariSearch";
+import { AccountFilter } from "@/components/AccountFilter";
+import { parseFilter, passes } from "@/lib/account-filter";
 
 export const dynamic = "force-dynamic";
 
 /** Cari kartlar: tedarikçiler, müşteriler (hekim kartları dahil) */
-export default async function PartiesPage({ searchParams }: { searchParams: Promise<{ tur?: string; q?: string; bakiye?: string; yeni?: string; pasif?: string }> }) {
+export default async function PartiesPage({ searchParams }: { searchParams: Promise<{ tur?: string; q?: string; bakiye?: string; yeni?: string; pasif?: string; g?: string }> }) {
   const s = await getSession();
   if (!["finance", "sales", "purchases"].some((m) => (s.modules[m] ?? 0) >= 1)) redirect("/");
   const sp = await searchParams;
   const [{ rows, error }, { rates }] = await Promise.all([loadParties(), latestRates()]);
   const tur = ["customer", "supplier", "lab", "other"].includes(sp.tur ?? "") ? sp.tur! : "";
   const q = (sp.q ?? "").toLocaleLowerCase("tr");
-  const pasif = sp.pasif === "1";
-  const passiveCount = rows.filter((p) => !p.is_active).length;
-  const shown = rows.filter((p) => {
-    if (!pasif && !p.is_active) return false;
-    if (tur === "lab" ? !p.lab_customer_id : tur === "customer" ? !(p.kind === "customer" || p.kind === "both") : tur === "supplier" ? !(p.kind === "supplier" || p.kind === "both") : tur === "other" ? p.kind !== "other" : false) return false;
-    if (sp.bakiye === "alacak" && p.balance <= 0) return false;
-    if (sp.bakiye === "borc" && p.balance >= 0) return false;
+  const flt = parseFilter(sp.g, { bakiye: sp.bakiye, pasif: sp.pasif });
+  const pasif = flt.has("pasif");
+  const ofTur = (p: (typeof rows)[number]) => !(tur === "lab" ? !p.lab_customer_id : tur === "customer" ? !(p.kind === "customer" || p.kind === "both") : tur === "supplier" ? !(p.kind === "supplier" || p.kind === "both") : tur === "other" ? p.kind !== "other" : false);
+  const inTur = rows.filter(ofTur);
+  const counts = {
+    aktif: inTur.filter((p) => p.is_active).length, pasif: inTur.filter((p) => !p.is_active).length,
+    borclu: inTur.filter((p) => p.balance > 0).length, alacakli: inTur.filter((p) => p.balance < 0).length, kapali: inTur.filter((p) => p.balance === 0).length,
+  };
+  const shown = inTur.filter((p) => {
+    if (!passes(flt, p.is_active, [p.balance])) return false;
     return !q || `${p.name} ${p.tax_no ?? ""} ${p.phone ?? ""} ${p.city ?? ""} ${p.code ?? ""}`.toLocaleLowerCase("tr").includes(q);
   });
   const toTry = (v: number, c: string) => v * (rates[c] ?? 1);
   const receivable = rows.filter((p) => p.balance > 0).reduce((a, p) => a + toTry(p.balance, p.currency), 0);
   const payable = rows.filter((p) => p.balance < 0).reduce((a, p) => a + toTry(-p.balance, p.currency), 0);
   const canEdit = ["finance", "sales", "purchases"].some((m) => (s.modules[m] ?? 0) >= 2);
-  const link = (o: { tur?: string; pasif?: boolean }) => {
-    const u = new URLSearchParams();
-    if (o.tur) u.set("tur", o.tur);
-    if (sp.q) u.set("q", sp.q);
-    if (sp.bakiye) u.set("bakiye", sp.bakiye);
-    if (o.pasif) u.set("pasif", "1");
-    const t = u.toString();
-    return `/finans/cariler${t ? `?${t}` : ""}`;
-  };
-  const qs = (t: string) => `/finans/cariler${t ? `?tur=${t}` : ""}${pasif ? `${t ? "&" : "?"}pasif=1` : ""}`;
+  const qs = (t: string) => { const u = new URLSearchParams(); if (t) u.set("tur", t); if (sp.g) u.set("g", sp.g); return `/finans/cariler${u.toString() ? `?${u}` : ""}`; };
   const hits: CariHit[] = rows.map((p) => ({ id: p.id, name: p.name, tax_no: p.tax_no, phone: p.phone, city: p.city, code: p.code, kind: PARTY_KIND[p.kind] ?? p.kind, active: p.is_active }));
   return (
     <>
@@ -50,21 +46,18 @@ export default async function PartiesPage({ searchParams }: { searchParams: Prom
       <div className={page}>
         {error && <Notice tone="bad">Finans tabloları yok: Supabase&apos;de 20261202000000_finance_core.sql çalıştırın.</Notice>}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <KPI label="Toplam alacak" value={fmt(Math.round(receivable))} sub="TL karşılığı" href="/finans/cariler?bakiye=alacak" />
-          <KPI label="Toplam borç" value={fmt(Math.round(payable))} sub="TL karşılığı" tone="bad" href="/finans/cariler?bakiye=borc" />
+          <KPI label="Toplam alacak" value={fmt(Math.round(receivable))} sub="TL karşılığı" href="/finans/cariler?g=aktif,borclu" />
+          <KPI label="Toplam borç" value={fmt(Math.round(payable))} sub="TL karşılığı" tone="bad" href="/finans/cariler?g=aktif,alacakli" />
           <KPI label="Tedarikçi" value={rows.filter((p) => p.kind === "supplier" || p.kind === "both").length} href="/finans/cariler?tur=supplier" />
           <KPI label="Müşteri / hekim" value={rows.filter((p) => p.kind === "customer" || p.kind === "both").length} href="/finans/cariler?tur=customer" />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Tabs active={qs(tur)} items={[[qs(""), "Tümü"], [qs("supplier"), "Tedarikçiler"], [qs("customer"), "Müşteriler"], [qs("lab"), "Hekim kartları"], [qs("other"), "Diğer"]]} />
           <div className="flex flex-wrap items-center gap-3">
-            <Link href={link({ tur, pasif: !pasif })} className="flex items-center gap-2 text-sm" role="checkbox" aria-checked={pasif}>
-              <span className={`inline-flex items-center justify-center w-4 h-4 rounded border ${pasif ? "bg-brand-700 border-brand-700 text-white" : "border-[#9AA7B4] bg-white"}`}>{pasif ? "✓" : ""}</span>
-              Pasifleri göster{passiveCount ? ` (${passiveCount})` : ""}
-            </Link>
-            <CariSearch items={hits} tur={tur} q={sp.q ?? ""} pasif={pasif} inputCls={inputCls} btnCls={btnPrimary} />
+            <CariSearch items={hits} tur={tur} q={sp.q ?? ""} pasif={pasif} g={sp.g} inputCls={inputCls} btnCls={btnPrimary} />
           </div>
         </div>
+        <div className="rounded-[12px] border border-line bg-white px-4 py-3 flex flex-wrap items-center gap-3"><b className="text-sm">Göster:</b><AccountFilter counts={counts} /><span className="ml-auto text-xs text-muted">{shown.length} cari listeleniyor</span></div>
         <Table head={canEdit ? ["Cari", "Tür", "VKN / TCKN", "Telefon", "Para", "Bakiye", "Durum", ""] : ["Cari", "Tür", "VKN / TCKN", "Telefon", "Para", "Bakiye", "Durum"]} min={980}>
           {shown.map((p) => (
             <tr key={p.id} className={p.is_active ? "" : "opacity-60"}>

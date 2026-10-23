@@ -7,7 +7,7 @@ export type CariHit = { id: string; name: string; tax_no: string | null; phone: 
 const norm = (s: string) => s.toLocaleLowerCase("tr-TR");
 
 /** Cari arama: 3 harf yazılınca eşleşen cariler açılır; Enter / Ara ile liste filtrelenir */
-export function CariSearch({ items, tur, q, pasif, inputCls, btnCls }: { items: CariHit[]; tur: string; q: string; pasif: boolean; inputCls: string; btnCls: string }) {
+export function CariSearch({ items, tur, q, pasif, g, inputCls, btnCls }: { items: CariHit[]; tur: string; q: string; pasif: boolean; g?: string; inputCls: string; btnCls: string }) {
   const [v, setV] = useState(q);
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(-1);
@@ -25,7 +25,7 @@ export function CariSearch({ items, tur, q, pasif, inputCls, btnCls }: { items: 
   return (
     <form className="flex gap-2" onBlur={(e) => { if (!box.current?.contains(e.relatedTarget as Node)) setOpen(false); }}>
       {tur && <input type="hidden" name="tur" value={tur} />}
-      {pasif && <input type="hidden" name="pasif" value="1" />}
+      {g && <input type="hidden" name="g" value={g} />}
       <div ref={box} className="relative">
         <input name="q" value={v} autoComplete="off" placeholder="Ad, VKN, telefon, şehir (3 harf)" className={`${inputCls} w-72`}
           onChange={(e) => { setV(e.target.value); setOpen(true); setHi(-1); }}
