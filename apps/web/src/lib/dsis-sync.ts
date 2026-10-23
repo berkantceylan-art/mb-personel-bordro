@@ -12,14 +12,14 @@ const API = "https://api.dentalofisi.com";
 const env = (k: string) => (process.env[k] ?? "").trim().replace(/^["'`]+|["'`]+$/g, "");
 export const dsisSyncReady = () => !!(env("DENTALSIS_EMAIL") && env("DENTALSIS_PASSWORD"));
 
-type Json = Record<string, unknown>;
-type Row = Json & { id: number };
+export type Json = Record<string, unknown>;
+export type Row = Json & { id: number };
 export type DsisSyncResult = { ok: boolean; at: string; ms: number; message: string; steps: Record<string, unknown>; error?: string };
 
 const DETAIL_BUDGET = 220; // bir çalışmada en çok bu kadar iş ayrıntısı çekilir
 const CONCURRENCY = 8;
 
-class TokenError extends Error {}
+export class TokenError extends Error {}
 
 async function post(path: string, body: Record<string, string>, timeoutMs = 45_000): Promise<Json> {
   const ctl = new AbortController();
@@ -38,11 +38,11 @@ async function post(path: string, body: Record<string, string>, timeoutMs = 45_0
   }
 }
 
-async function getState<T>(sb: SupabaseClient, key: string): Promise<T | null> {
+export async function getState<T>(sb: SupabaseClient, key: string): Promise<T | null> {
   const { data } = await sb.from("dsis_sync_state").select("val").eq("key", key).maybeSingle();
   return (data?.val as T) ?? null;
 }
-async function setState(sb: SupabaseClient, key: string, val: unknown) {
+export async function setState(sb: SupabaseClient, key: string, val: unknown) {
   await sb.from("dsis_sync_state").upsert({ key, val, updated_at: new Date().toISOString() });
 }
 
@@ -55,7 +55,7 @@ async function login(sb: SupabaseClient): Promise<string> {
 }
 
 /** Anahtarla çağır; anahtar geçersizse bir kez yeniden giriş yapıp tekrar dene */
-function client(sb: SupabaseClient, initial: string | null) {
+export function client(sb: SupabaseClient, initial: string | null) {
   let tok = initial;
   return async (path: string, extra: Record<string, string> = {}): Promise<Json> => {
     if (!tok) tok = await login(sb);
@@ -69,7 +69,7 @@ function client(sb: SupabaseClient, initial: string | null) {
   };
 }
 
-const arr = (j: Json): Row[] => {
+export const arr = (j: Json): Row[] => {
   const d = j.data as unknown;
   if (Array.isArray(d)) return d as Row[];
   if (d && typeof d === "object") {
@@ -101,7 +101,7 @@ export function slimJob(d: Json): Json {
 
 const fp = (r: Row) => [r.iskayitno, r.fisno, r.cariad, r.doktor, r.hasta, r.disrenk, r.disrenk1, r.disrenk2, r.provaturu, r.tarih1, r.tarih2].map((x) => String(x ?? "")).join("|");
 
-async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+export async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let i = 0;
   await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
@@ -110,13 +110,25 @@ async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Prom
   return out;
 }
 
-async function rpc(sb: SupabaseClient, fn: string, args: Json): Promise<Json> {
+export async function rpc(sb: SupabaseClient, fn: string, args: Json): Promise<Json> {
   const { data, error } = await sb.rpc(fn, args);
   if (error) throw new Error(`${fn}: ${error.message}`);
   return (data ?? {}) as Json;
 }
 
-const sum = (into: Record<string, number>, r: Json) => { for (const [k, v] of Object.entries(r)) if (typeof v === "number") into[k] = (into[k] ?? 0) + v; };
+export const sum = (into: Record<string, number>, r: Json) => { for (const [k, v] of Object.entries(r)) if (typeof v === "number") into[k] = (into[k] ?? 0) + v; };
+
+/** Bakiye eşitleme parça parça (zaman aşımına düşmesin): ilk parçada tahsilatlar da işlenir */
+export async function balanceChunks(sb: SupabaseClient, tah: Row[], bal: Row[]): Promise<Json> {
+  const out: Record<string, number> = {};
+  const names: string[] = [];
+  for (let i = 0; i < bal.length; i += 60) {
+    const r = await rpc(sb, "dsis_import_balance", { p_tahsilat: tah, p_balances: bal.slice(i, i + 60), p_pay: i === 0 });
+    for (const [k, v] of Object.entries(r)) if (typeof v === "number") out[k] = (out[k] ?? 0) + (k === "unmatched_payments" && i > 0 ? 0 : v);
+    if (i === 0 && Array.isArray(r.unmatched_names)) names.push(...(r.unmatched_names as string[]));
+  }
+  return { ...out, unmatched_names: names };
+}
 
 /** Bir eşitleme turu. sb: service role istemcisi */
 export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } = {}): Promise<DsisSyncResult> {
@@ -161,7 +173,8 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
       for (const s of seen ?? []) known.set(Number(s.legacy_id), String(s.fp ?? ""));
       for (const j of jobs ?? []) { inErp.add(Number(j.legacy_id)); erpStatus.set(Number(j.legacy_id), String(j.status)); }
     }
-    const isNew = list.filter((r) => !inErp.has(Number(r.id)) && String(r.tarih1 ?? "") >= "2026-01-01");
+    // ERP'de olmayan işler: 2026 kayıtları ve tarihi ne olursa olsun Dentalsis'te hâlâ açık olanlar
+    const isNew = list.filter((r) => !inErp.has(Number(r.id)) && (String(r.tarih1 ?? "") >= "2026-01-01" || String(r.provaturu ?? "") !== "BİTİM"));
     // ilk kez görülen (daha önce aktarılmış) işler için parmak izi temel alınır; ayrıntı çekilmez
     const baseline = list.filter((r) => inErp.has(Number(r.id)) && !known.has(Number(r.id)));
     if (baseline.length) {
@@ -232,7 +245,7 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
       call("/rapor-tahsilat", { f: JSON.stringify({ tarih1: from.toISOString(), tarih2: new Date().toISOString(), cariler: [], hekimgrup: false, sehirler: "" }), sube: "" }).then(arr),
       call("/cari-ekstre-toplam").then(arr),
     ]);
-    steps.balance = bal.length ? await rpc(sb, "dsis_import_balance", { p_tahsilat: tah, p_balances: bal }) : { skipped: "bakiye listesi boş" };
+    steps.balance = bal.length ? await balanceChunks(sb, tah, bal) : { skipped: "bakiye listesi boş" };
     steps.payments_seen = tah.length;
     steps.balances_seen = bal.length;
     steps.samples = { tahsilat: tah[0] ? Object.keys(tah[0]).slice(0, 25) : null, bakiye: bal[0] ? Object.keys(bal[0]).slice(0, 25) : null, is: list[0] ? Object.keys(list[0]).slice(0, 25) : null };

@@ -46,3 +46,57 @@ export async function dsisSyncNow(): Promise<DsisSyncResult | { ok: false; messa
     return { ok: false, message: (e as Error).message };
   }
 }
+
+// ---------------------------------------------------------------------
+// Dentalsis ↔ ERP denetimi
+// ---------------------------------------------------------------------
+export type DsisAuditReport = {
+  scanned_at?: string; cari_at?: string;
+  customers?: { remote: number; linked: number; missing: number; missing_list: Array<{ id: number; name: string }>; name_diff: Array<{ id: number; remote: string; erp: string }>; erp_only: Array<{ id: string; name: string }> };
+  balances?: { checked: number; mismatch: number; list: Array<{ id: string; name: string; currency: string; remote: number; erp: number; diff: number }> };
+  jobs?: {
+    remote: number; remote_open: number; erp_open: number; missing: number; should_close: number; should_open: number; erp_only: number;
+    missing_list: Array<{ id: number; no: number; cari: string; hasta: string; tarih: string; prova: string }>;
+    should_close_list: Array<{ id: number; no: number; cariad: string; hasta: string; status: string }>;
+    should_open_list: Array<{ id: number; no: number; cariad: string; hasta: string; provaturu: string; status: string }>;
+    erp_only_list: Array<{ id: string; no: number; legacy_id: number; patient: string; status: string }>;
+  };
+};
+export type DsisAuditState = { scan: { next: number; done: boolean; rows?: number; finished?: string } | null; report: DsisAuditReport | null; message?: string };
+
+export async function dsisAuditState(): Promise<DsisAuditState> {
+  try {
+    await owner();
+    const sb = createAdminClient();
+    const { data: st } = await sb.from("dsis_sync_state").select("val").eq("key", "audit_scan").maybeSingle();
+    const { data: rep, error } = await sb.rpc("dsis_audit_report");
+    if (error) return { scan: null, report: null, message: /dsis_audit_report|dsis_remote|schema cache/.test(error.message) ? "Önce mbdental-dentalsis-kontrol.sql dosyasını Supabase'de çalıştırın." : error.message };
+    return { scan: (st?.val ?? null) as DsisAuditState["scan"], report: rep as DsisAuditReport };
+  } catch (e) {
+    return { scan: null, report: null, message: (e as Error).message };
+  }
+}
+
+export async function dsisAuditScanAction(restart: boolean): Promise<{ ok: boolean; message: string }> {
+  try {
+    await owner();
+    const { dsisAuditScan } = await import("@/lib/dsis-audit");
+    const r = await dsisAuditScan(createAdminClient(), restart);
+    revalidatePath("/isler/dentalsis-aktar");
+    return { ok: r.ok, message: r.message };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+export async function dsisAuditFixAction(): Promise<{ ok: boolean; message: string }> {
+  try {
+    await owner();
+    const { dsisAuditFix } = await import("@/lib/dsis-audit");
+    const r = await dsisAuditFix(createAdminClient());
+    revalidatePath("/isler/dentalsis-aktar");
+    return { ok: r.ok, message: r.message };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
