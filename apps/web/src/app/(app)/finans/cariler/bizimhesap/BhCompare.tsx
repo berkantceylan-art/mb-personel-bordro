@@ -32,8 +32,13 @@ export function BhCompare({ items }: { items: BhListItem[] }) {
     if (!picks.length) return;
     if (!confirm(`${picks.length} carinin ERP bakiyesi Bizim Hesap'taki bakiyeye eşitlensin mi? Fark tek "Bizim Hesap bakiye eşitleme" kaydıyla kapanır.`)) return;
     setBusy(true); setMsg(null);
-    const r = await bhEqualize(picks);
-    setMsg({ ok: r.ok, text: r.message, errors: r.errors }); setSel(new Set()); setBusy(false); router.refresh();
+    let n = 0; const errors: { name: string; error: string }[] = [];
+    for (let i = 0; i < picks.length; i += 40) {
+      setMsg({ ok: true, text: `Eşitleniyor… ${Math.min(i + 40, picks.length)} / ${picks.length}` });
+      try { const r = await bhEqualize(picks.slice(i, i + 40)); n += Number(/^(\d+)/.exec(r.message)?.[1] ?? 0); errors.push(...(r.errors ?? [])); if (!r.ok && !r.errors?.length) errors.push({ name: "Eşitleme", error: r.message }); }
+      catch (e) { errors.push({ name: `${i + 1}-${i + 40}`, error: (e as Error).message }); }
+    }
+    setMsg({ ok: !errors.length, text: `${n} carinin bakiyesi Bizim Hesap'a eşitlendi.${errors.length ? ` ${errors.length} cari eşitlenemedi:` : ""}`, errors }); setSel(new Set()); setBusy(false); router.refresh();
   }
   const totalDiff = rows.filter((i) => stOf(i) === "diff").length;
   return (
@@ -47,7 +52,7 @@ export function BhCompare({ items }: { items: BhListItem[] }) {
         {(["diff", "none", "cur", "lab", "same", "all"] as const).map((k) => <button key={k} type="button" onClick={() => { setFilter(k); setSel(new Set()); }} className={`rounded-full px-3 py-1 border ${filter === k ? "bg-ink text-white border-ink" : "bg-[#F2F4F7] border-transparent"}`}>{k === "all" ? `Hepsi (${rows.length})` : `${ST[k]} (${count(k)})`}</button>)}
       </div>
       <p className="text-xs text-muted">Bakiye: + bize borçlu, − biz borçluyuz. “ERP&apos;de yok”: Bizim Hesap&apos;ta bakiyesi olan ama ERP&apos;de eşleşen kartı olmayan cari (aşağıdaki listeden aktarın). “Hekim”: bakiyesi Dentalsis&apos;ten eşitlenir. “Bakiye farklı” olanları seçip eşitleyebilirsiniz.</p>
-      {msg && <div className={`text-sm rounded-lg px-3 py-2 ${msg.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{msg.text}{msg.errors?.length ? <ul className="mt-1 text-xs">{msg.errors.slice(0, 20).map((e, i) => <li key={i}>{e.name}: {e.error}</li>)}</ul> : null}</div>}
+      {msg && <div className={`sticky top-0 z-20 text-sm rounded-lg px-3 py-2 ${msg.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{msg.text}{msg.errors?.length ? <ul className="mt-1 text-xs">{msg.errors.slice(0, 20).map((e, i) => <li key={i}>{e.name}: {e.error}</li>)}</ul> : null}</div>}
       <div className="overflow-x-auto max-h-[480px] overflow-y-auto border border-line rounded-[10px]">
         <table className="w-full text-sm min-w-[760px]">
           <thead className="sticky top-0 bg-[#F7F9FB]"><tr className="text-left text-xs text-muted">

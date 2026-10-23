@@ -168,7 +168,7 @@ export async function bhCariRows(guid: string): Promise<{ ok: boolean; rows?: Bh
 }
 
 /** Seçilen carileri aç / eşleşene bağla ve ekstreyi işle */
-export async function bhCariImport(picks: { guid: string; target: string; mode: BhMode }[]): Promise<{ ok: boolean; message: string; errors?: { name: string; error: string }[] }> {
+export async function bhCariImport(picks: { guid: string; target: string; mode: BhMode }[]): Promise<{ ok: boolean; message: string; errors?: { name: string; error: string }[]; counts?: { parties: number; moves: number; skipped: number } }> {
   try {
     await guard();
     if (!picks.length) return { ok: false, message: "Aktarılacak cari seçin." };
@@ -237,7 +237,7 @@ export async function bhCariImport(picks: { guid: string; target: string; mode: 
       }
     }
     revalidatePath("/finans/cariler", "layout");
-    return { ok: errors.length === 0, message: `${parties} cari işlendi, ${moves} hareket aktarıldı${skipped ? `, ${skipped} hareket zaten vardı (atlandı)` : ""}${errors.length ? `, ${errors.length} caride hata` : ""}.`, errors: errors.slice(0, 30) };
+    return { ok: errors.length === 0, message: `${parties} cari işlendi, ${moves} hareket aktarıldı${skipped ? `, ${skipped} hareket zaten vardı (atlandı)` : ""}${errors.length ? `, ${errors.length} caride hata` : ""}.`, errors: errors.slice(0, 30), counts: { parties, moves, skipped } };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
@@ -321,6 +321,38 @@ export async function bhSetPartyCurrency(partyId: string, currency: string): Pro
     }
     revalidatePath("/finans/cariler/bizimhesap");
     return { ok: true, message: `ERP carisinin para birimi ${currency} yapıldı.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Bizim Hesap carisi için kendi para biriminde ERP carisi aç (ör. TL carisi var, Bizim Hesap'taki Euro) — hemen açılır, hareket aktarılmaz */
+export async function bhCreateCurrencyParty(guid: string): Promise<{ ok: boolean; message: string; id?: string }> {
+  try {
+    await guard();
+    const c = (await readAll()).find((x) => x.guid === guid);
+    if (!c) return { ok: false, message: "Bizim Hesap carisi bulunamadı." };
+    const sb = await createClient();
+    const { data: ps } = await sb.from("fin_parties").select("id, name, currency, tax_no, bh_guid").limit(10000);
+    const all = (ps ?? []) as { id: string; name: string; currency: string; tax_no: string | null; bh_guid: string | null }[];
+    const tax = realTax(c.info.tax_no) ? c.info.tax_no! : null;
+    const same = all.find((p) => p.currency === c.currency && (p.bh_guid === c.guid || (tax && p.tax_no === tax) || N(p.name) === N(c.name)));
+    if (same) {
+      if (!same.bh_guid && !all.some((p) => p.bh_guid === c.guid)) await sb.from("fin_parties").update({ bh_guid: c.guid }).eq("id", same.id);
+      return { ok: true, id: same.id, message: `${c.currency} carisi zaten var: ${same.name}. Hedef olarak seçildi.` };
+    }
+    const nameTaken = all.some((p) => N(p.name) === N(c.name));
+    const taxTaken = !!tax && all.some((p) => p.tax_no === tax);
+    const guidTaken = all.some((p) => p.bh_guid === c.guid);
+    const name = (nameTaken ? `${c.name} (${c.currency})` : c.name).slice(0, 200);
+    const { data: ins, error } = await sb.from("fin_parties").insert({
+      name, kind: c.kind === "s" ? "supplier" : "customer", currency: c.currency, tax_no: taxTaken ? null : tax, tax_office: c.info.tax_office,
+      phone: c.info.phone ?? c.info.phone2, email: c.info.email, address: c.info.address, source: "import",
+      note: taxTaken ? `VKN ${tax} (aynı firmanın başka para birimli carisi ayrı kart)` : null, bh_guid: guidTaken ? null : c.guid,
+    }).select("id").single();
+    if (error) return { ok: false, message: error.message };
+    revalidatePath("/finans/cariler/bizimhesap");
+    return { ok: true, id: ins.id as string, message: `${name} (${c.currency}) carisi açıldı ve hedef olarak seçildi. Şimdi seçip “aktar”a basın.` };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }

@@ -94,7 +94,8 @@ async function fixInner(sb: SupabaseClient): Promise<{ ok: boolean; message: str
   steps.ref = await rpc(sb, "dsis_import_ref", { p_cari: cari, p_stok: arr(await call("/stok")) });
   steps.customers = await rpc(sb, "dsis_update_customers", { p_cari: cari });
 
-  const rep = (await rpc(sb, "dsis_audit_report", {})) as { jobs?: { missing_list?: Array<{ id: number }>; should_close_list?: Array<{ id: number }>; should_open_list?: Array<{ id: number }> } };
+  let rep: { jobs?: { missing_list?: Array<{ id: number }>; should_close_list?: Array<{ id: number }>; should_open_list?: Array<{ id: number }> } } = {};
+  try { rep = { jobs: (await rpc(sb, "dsis_audit_jobs", {})) as NonNullable<typeof rep.jobs> }; } catch { /* yalnız eksik işler aktarılır */ }
   // listelerde en çok 100 kayıt döner; eksiklerin tamamı için doğrudan sorgu
   const remote = await allRows<{ id: number }>((a, b) => sb.from("dsis_remote_jobs").select("id").or("durum.is.null,durum.eq.1").order("id", { ascending: false }).range(a, b));
   const remoteIds = remote.data.map((r) => Number(r.id));

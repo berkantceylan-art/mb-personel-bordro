@@ -1,7 +1,7 @@
 "use client";
 import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { bhCariHide, bhCariImport, bhCariRows, bhCariUndo, bhPartyMoves, bhSetPartyCurrency, type BhListItem, type BhMode, type BhParty, type BhRow } from "@/lib/bh-cari-actions";
+import { bhCariHide, bhCariImport, bhCariRows, bhCariUndo, bhCreateCurrencyParty, bhPartyMoves, bhSetPartyCurrency, type BhListItem, type BhMode, type BhParty, type BhRow } from "@/lib/bh-cari-actions";
 
 const money = (k: number, c: string) => `${(k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${c === "TRY" ? "₺" : c === "EUR" ? "€" : c}`;
 const d = (s: string | null) => (s ? s.split("-").reverse().join(".") : "—");
@@ -89,11 +89,32 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
     const good = chosen.filter((it) => curOk(it));
     if (!good.length) { setMsg({ ok: false, text: `Seçilen carilerin hepsinde para birimi farklı: hedefi “➕ Yeni cari aç” yapın ya da ERP carisinin para birimini çevirin.` }); setBusy(false); return; }
     const picks = good.map((it) => ({ guid: it.guid, target: tgt(it), mode: mode[it.guid] ?? defMode(it) }));
-    const r = await bhCariImport(picks);
-    const skippedErr = bad.map((i) => ({ name: i.name, error: `atlandı: para birimi farklı (${i.currency} → ${partyById.get(tgt(i))?.currency ?? "?"})` }));
-    setMsg({ ok: r.ok && !bad.length, text: `${r.message}${bad.length ? ` ${bad.length} cari para birimi farklı olduğu için atlandı.` : ""}`, errors: [...(r.errors ?? []), ...skippedErr] });
-    setSel(new Set(bad.map((i) => i.guid)));
+    // küçük partiler halinde (çok cari tek seferde gönderilince sunucu süre sınırına takılıyordu)
+    const tot = { parties: 0, moves: 0, skipped: 0 };
+    const errs: { name: string; error: string }[] = [];
+    const failed = new Set<string>();
+    for (let i = 0; i < picks.length; i += 5) {
+      const part = picks.slice(i, i + 5);
+      setMsg({ ok: true, text: `Aktarılıyor… ${Math.min(i + 5, picks.length)} / ${picks.length} cari` });
+      try {
+        const r = await bhCariImport(part);
+        if (r.counts) { tot.parties += r.counts.parties; tot.moves += r.counts.moves; tot.skipped += r.counts.skipped; }
+        else if (!r.ok) { errs.push({ name: `${i + 1}-${i + part.length}. cariler`, error: r.message }); part.forEach((x) => failed.add(x.guid)); }
+        for (const e of r.errors ?? []) { errs.push(e); const g = good.find((x) => x.name === e.name); if (g) failed.add(g.guid); }
+      } catch (e) {
+        errs.push({ name: `${i + 1}-${i + part.length}. cariler`, error: (e as Error).message }); part.forEach((x) => failed.add(x.guid));
+      }
+    }
+    const skippedErr = bad.map((i) => ({ name: i.name, error: `atlandı: para birimi farklı (${i.currency} → ${partyById.get(tgt(i))?.currency ?? "?"}) — satırdaki “${i.currency} carisi aç” ya da “ERP carisini ${i.currency} yap” ile düzeltin` }));
+    setMsg({ ok: !errs.length && !bad.length, text: `${tot.parties} cari işlendi, ${tot.moves} hareket aktarıldı${tot.skipped ? `, ${tot.skipped} hareket zaten vardı` : ""}.${bad.length ? ` ${bad.length} cari para birimi farklı olduğu için atlandı.` : ""}${errs.length ? ` ${errs.length} hata.` : ""}`, errors: [...errs, ...skippedErr] });
+    setSel(new Set([...bad.map((i) => i.guid), ...failed]));
     setBusy(false); router.refresh();
+  }
+  async function newCur(it: BhListItem) {
+    setBusy(true); setMsg({ ok: true, text: `${it.name}: ${it.currency} carisi açılıyor…` });
+    const r = await bhCreateCurrencyParty(it.guid);
+    if (r.ok && r.id) { setTarget((x) => ({ ...x, [it.guid]: r.id! })); setMode((x) => { const y = { ...x }; delete y[it.guid]; return y; }); setSel((x) => new Set(x).add(it.guid)); }
+    setMsg({ ok: r.ok, text: r.message }); setBusy(false); router.refresh();
   }
   async function setCur(id: string, cur: string) {
     if (!confirm(`ERP carisinin para birimi ${cur} yapılsın mı? (Kartta hareket yoksa yapılır.)`)) return;
@@ -116,6 +137,15 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ara: ad, VKN, grup…" className={`${input} w-64 ml-2`} />
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={onlyBal} onChange={(e) => setOnlyBal(e.target.checked)} /> Yalnız bakiyesi olanlar</label>
         <span className="text-sm text-muted ml-auto">{sel.size} seçili</span>
+      </div>
+      {msg && (
+        <div className={`sticky top-0 z-20 text-sm rounded-lg px-3 py-2 ${msg.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{msg.text}
+          {msg.errors?.length ? <ul className="list-disc pl-5 mt-1 max-h-40 overflow-y-auto">{msg.errors.map((e, i) => <li key={i}>{e.name}: {e.error}</li>)}</ul> : null}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <button type="button" onClick={() => setSel(new Set(shown.map((i) => i.guid)))} className="h-9 px-3 rounded-lg border border-brand-700 text-brand-700 font-semibold">Görünenlerin hepsini seç ({shown.length})</button>
+        <button type="button" onClick={() => setSel(new Set())} className="h-9 px-3 rounded-lg border border-line">Seçimi temizle</button>
       </div>
       <div className="flex flex-wrap items-center gap-1 text-sm">
         {(Object.keys(VIEW) as View[]).map((v) => (
@@ -158,7 +188,7 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
                           </button>
                           {tp && <span className="block text-muted mt-1">{KIND[tp.kind] ?? tp.kind} · {tp.currency}{tp.tax_no ? ` · VKN ${tp.tax_no}` : ""}</span>}
                           {tp && !curOk(it) && <span className="block text-bad mt-1">Para birimi farklı ({it.currency} → {tp.currency}).{" "}
-                            <button type="button" onClick={() => void choose(it, "new")} className="underline font-semibold">{it.currency} carisi aç</button>{" · "}
+                            <button type="button" onClick={() => void newCur(it)} className="underline font-semibold">{it.currency} carisi aç</button>{" · "}
                             <button type="button" onClick={() => void setCur(tp.id, it.currency)} className="underline font-semibold">ERP carisini {it.currency} yap</button></span>}
                           {auto && it.match && <span className="block text-muted mt-1">{it.match.via} · ERP&apos;de {it.match.moves} hareket{it.match.moves > 0 && <> · <button type="button" onClick={() => void undo(it.match!.id, it.name)} className="underline">aktarımı geri al</button></>}</span>}
                           {t !== "new" && !auto && tMoves[t] !== undefined && <span className="block text-muted mt-1">ERP&apos;de {tMoves[t]} hareket</span>}
@@ -222,11 +252,7 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
           {view !== "hidden" && <>ERP&apos;de zaten hareketi olan carilerde çift kayıt olmasın diye varsayılan &quot;yalnız bakiye&quot;dir. Hedef cariyi değiştirmek için &quot;ERP&apos;de&quot; sütunundaki kutuya tıklayın.</>}
         </span>
       </div>
-      {msg && (
-        <div className={`text-sm ${msg.ok ? "text-ok" : "text-bad"}`}>{msg.text}
-          {msg.errors?.length ? <ul className="list-disc pl-5 mt-1">{msg.errors.map((e) => <li key={e.name}>{e.name}: {e.error}</li>)}</ul> : null}
-        </div>
-      )}
+      {msg && <div className={`text-sm ${msg.ok ? "text-ok" : "text-bad"}`}>{msg.text}</div>}
     </section>
   );
 }

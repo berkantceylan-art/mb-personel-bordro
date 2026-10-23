@@ -62,18 +62,47 @@ export type DsisAuditReport = {
     erp_only_list: Array<{ id: string; no: number; legacy_id: number; patient: string; status: string }>;
   };
 };
-export type DsisAuditState = { scan: { next: number; done: boolean; rows?: number; finished?: string } | null; report: DsisAuditReport | null; message?: string };
+export type DsisAuditState = { scan: { next: number; done: boolean; rows?: number; finished?: string } | null; report: DsisAuditReport | null; message?: string; partErrors?: string[] };
+
+/** Rapor üç parçada hesaplanır ve saklanır (sayfa açılışında yeniden hesaplanmaz) */
+async function buildReport(sb: ReturnType<typeof createAdminClient>): Promise<{ report: DsisAuditReport; errors: string[] }> {
+  const parts: Array<[keyof DsisAuditReport | "jobs", string, string]> = [["customers", "dsis_audit_cust", "Cariler"], ["balances", "dsis_audit_bal", "Bakiyeler"], ["jobs", "dsis_audit_jobs", "İşler"]];
+  const errors: string[] = [];
+  const res = await Promise.all(parts.map(async ([, fn, label]) => {
+    const { data, error } = await sb.rpc(fn);
+    if (error) { errors.push(`${label}: ${/timeout/i.test(error.message) ? "zaman aşımı" : /function|schema cache/.test(error.message) ? "Supabase'de mbdental-dentalsis-kontrol-parcali.sql çalıştırılmalı" : error.message}`); return null; }
+    return data as Record<string, unknown>;
+  }));
+  const [cu, ba, jo] = res;
+  const report: DsisAuditReport = {
+    scanned_at: (jo?.scanned_at as string | undefined) ?? undefined, cari_at: (cu?.cari_at as string | undefined) ?? undefined,
+    customers: (cu ?? undefined) as DsisAuditReport["customers"], balances: (ba ?? undefined) as DsisAuditReport["balances"], jobs: (jo ?? undefined) as DsisAuditReport["jobs"],
+  };
+  await sb.from("dsis_sync_state").upsert({ key: "audit_report", val: { report, errors, at: new Date().toISOString() }, updated_at: new Date().toISOString() });
+  return { report, errors };
+}
 
 export async function dsisAuditState(): Promise<DsisAuditState> {
   try {
     await owner();
     const sb = createAdminClient();
-    const { data: st } = await sb.from("dsis_sync_state").select("val").eq("key", "audit_scan").maybeSingle();
-    const { data: rep, error } = await sb.rpc("dsis_audit_report");
-    if (error) return { scan: null, report: null, message: /dsis_audit_report|dsis_remote|schema cache/.test(error.message) ? "Önce mbdental-dentalsis-kontrol.sql dosyasını Supabase'de çalıştırın." : error.message };
-    return { scan: (st?.val ?? null) as DsisAuditState["scan"], report: rep as DsisAuditReport };
+    const { data: rows } = await sb.from("dsis_sync_state").select("key, val").in("key", ["audit_scan", "audit_report"]);
+    const get = (k: string) => (rows ?? []).find((r) => r.key === k)?.val ?? null;
+    const cached = get("audit_report") as { report: DsisAuditReport; errors: string[] } | null;
+    return { scan: get("audit_scan") as DsisAuditState["scan"], report: cached?.report ?? null, partErrors: cached?.errors ?? [] };
   } catch (e) {
     return { scan: null, report: null, message: (e as Error).message };
+  }
+}
+
+export async function dsisAuditRefresh(): Promise<{ ok: boolean; message: string }> {
+  try {
+    await owner();
+    const { errors } = await buildReport(createAdminClient());
+    revalidatePath("/isler/dentalsis-aktar");
+    return { ok: !errors.length, message: errors.length ? `Rapor kısmen hesaplanamadı: ${errors.join(" · ")}` : "Rapor güncellendi." };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
   }
 }
 
@@ -81,9 +110,12 @@ export async function dsisAuditScanAction(restart: boolean): Promise<{ ok: boole
   try {
     await owner();
     const { dsisAuditScan } = await import("@/lib/dsis-audit");
-    const r = await dsisAuditScan(createAdminClient(), restart);
+    const sb = createAdminClient();
+    const r = await dsisAuditScan(sb, restart);
+    let extra = "";
+    if (r.state.done) { const b = await buildReport(sb); if (b.errors.length) extra = ` Rapor: ${b.errors.join(" · ")}`; }
     revalidatePath("/isler/dentalsis-aktar");
-    return { ok: r.ok, message: r.message };
+    return { ok: r.ok, message: r.message + extra };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
@@ -93,7 +125,8 @@ export async function dsisAuditFixAction(): Promise<{ ok: boolean; message: stri
   try {
     await owner();
     const { dsisAuditFix } = await import("@/lib/dsis-audit");
-    const r = await dsisAuditFix(createAdminClient());
+    const sb = createAdminClient();
+    const r = await dsisAuditFix(sb);
     revalidatePath("/isler/dentalsis-aktar");
     return { ok: r.ok, message: r.message };
   } catch (e) {
