@@ -263,10 +263,11 @@ export async function dsisTranslateProducts(): Promise<DsisStep & { left?: numbe
 export async function dsisRevenueSummary(): Promise<Record<string, unknown> | null> {
   try {
     await owner();
-    const { data } = await (await createClient()).rpc("dsis_revenue_summary");
-    return (data as Record<string, unknown>) ?? null;
-  } catch {
-    return null;
+    const { data, error } = await (await createClient()).rpc("dsis_revenue_summary");
+    if (error) return { error: /timeout/i.test(error.message) ? "Ciro analizi zaman aşımına uğradı: Supabase'de 20270287000000_dsis_revenue_fast.sql çalıştırılmalı." : error.message };
+    return (data as Record<string, unknown>) ?? { error: "Ciro analizini yalnız şirket sahibi görebilir." };
+  } catch (e) {
+    return { error: (e as Error).message };
   }
 }
 
