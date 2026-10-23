@@ -189,6 +189,21 @@ export async function bhCariImport(picks: { guid: string; target: string; mode: 
         }
         // yer tutucu VKN ile yeni cari açılırken aynı sahte VKN'li başka cariye (ör. gümrük) bağlanmasın
         const info = { name: c.name, tax_no: realTax(c.info.tax_no) ? c.info.tax_no : null, tax_office: c.info.tax_office, phone: c.info.phone ?? c.info.phone2, email: c.info.email, address: c.info.address, currency: c.currency, source: "import" };
+        if (!partyId && info.tax_no && p.mode !== "card") {
+          // aynı VKN'li cari başka para biriminde varsa (ör. TL carisi var, Bizim Hesap'taki Euro): ayrı para birimli yeni kart açılır
+          const { data: same } = await sb.from("fin_parties").select("id, currency").eq("tax_no", info.tax_no).limit(5);
+          const rows = (same ?? []) as { id: string; currency: string }[];
+          const hit = rows.find((x) => x.currency === c.currency);
+          if (hit) partyId = hit.id;
+          else if (rows.length) {
+            const { data: ins, error: ie } = await sb.from("fin_parties").insert({
+              name: c.name.slice(0, 200), kind: c.kind === "s" ? "supplier" : "customer", currency: c.currency, tax_no: null, tax_office: info.tax_office,
+              phone: info.phone, email: info.email, address: info.address, note: `VKN ${info.tax_no} (aynı firmanın ${rows[0]!.currency} carisi ayrı kart)`, bh_guid: c.guid, source: "import",
+            }).select("id").single();
+            if (ie) throw new Error(ie.message);
+            partyId = ins.id as string;
+          }
+        }
         if (!partyId) {
           const { data, error } = await sb.rpc("fin_party_ensure", { p: info, p_role: c.kind === "s" ? "supplier" : "customer" });
           if (error) throw new Error(error.message);
@@ -286,6 +301,26 @@ export async function bhCashAccounts(list: { name: string; currency: string; bal
     revalidatePath("/finans/kasa");
     revalidatePath("/finans/cariler/bizimhesap");
     return { ok: true, message: `${made} kasa açıldı, ${upd} kasanın açılış bakiyesi güncellendi.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Hedef ERP carisinin para birimini Bizim Hesap'takine çevir (kartta hareket yoksa) */
+export async function bhSetPartyCurrency(partyId: string, currency: string): Promise<{ ok: boolean; message: string }> {
+  try {
+    await guard();
+    const { error } = await (await createClient()).rpc("fin_party_set_currency", { p_party: partyId, p_cur: currency });
+    if (error) {
+      const m = error.message;
+      return { ok: false, message: /has_moves:(\d+)/.test(m) ? `ERP carisinde ${m.match(/has_moves:(\d+)/)![1]} hareket var: para birimi değiştirilemez. “➕ Yeni cari aç” ile ${currency} carisi açın ya da önce aktarımı geri alın.`
+        : /has_invoices/.test(m) ? "ERP carisinde fatura var: para birimi değiştirilemez; “➕ Yeni cari aç” ile ayrı kart açın."
+        : /has_opening/.test(m) ? "ERP carisinde açılış bakiyesi var: önce cari kartından açılış bakiyesini sıfırlayın."
+        : /lab_party/.test(m) ? "Hekim kartına bağlı cari: para birimi hekim kartından değiştirilir."
+        : /fin_party_set_currency|does not exist|schema cache/.test(m) ? "Supabase'de 20270289000000_party_currency.sql çalıştırılmalı." : m };
+    }
+    revalidatePath("/finans/cariler/bizimhesap");
+    return { ok: true, message: `ERP carisinin para birimi ${currency} yapıldı.` };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
