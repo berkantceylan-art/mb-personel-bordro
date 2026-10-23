@@ -63,7 +63,9 @@ export default async function DossierWizard({ params, searchParams }: { params: 
   pendingSlips.sort((a, b) => String(a.period).localeCompare(String(b.period)));
   const haveType = new Set(docList.map((d) => d.document_type_id as string));
   const skipped = new Set<string>((dossier?.skipped as string[] | null) ?? []);
-  const required = typeList.filter((t) => t.required && ["ozluk", "isg", "saglik"].includes(t.category));
+  // askerlik durum belgesi yalnız erkek personelden istenir
+  const female = /^k/i.test(String(priv.gender ?? ""));
+  const required = typeList.filter((t) => t.required && ["ozluk", "isg", "saglik"].includes(t.category) && !(female && /askerlik/i.test(t.name)));
   const missing = required.filter((t) => !haveType.has(t.id) && !skipped.has(t.id));
   const identityOk = !!priv.national_id && !!priv.birth_date;
   const hireOk = !!e.hire_date && !!priv.sgk_no;

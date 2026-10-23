@@ -15,13 +15,16 @@ export default async function DossierHome({ searchParams }: { searchParams: Prom
   const sb = await createClient();
   const [{ data: emps }, { data: privs }, { data: dossiers }, { data: docs }, { data: types }, { data: hist }] = await Promise.all([
     sb.from("employees").select("id, first_name, last_name, hire_date, termination_date, status, departments(name)").order("first_name"),
-    sb.from("employee_private").select("employee_id, national_id, birth_date, sgk_no"),
+    sb.from("employee_private").select("employee_id, national_id, birth_date, sgk_no, gender"),
     sb.from("employee_dossier").select("employee_id, status, skipped, updated_at"),
     sb.from("employee_documents").select("employee_id, document_type_id"),
-    sb.from("document_types").select("id, required, category").or(`company_id.is.null,company_id.eq.${s.companyId}`),
+    sb.from("document_types").select("id, name, required, category").or(`company_id.is.null,company_id.eq.${s.companyId}`),
     sb.from("payroll_history").select("employee_id"),
   ]);
-  const required = (types ?? []).filter((t) => t.required && ["ozluk", "isg", "saglik"].includes(t.category)).map((t) => t.id as string);
+  const reqTypes = (types ?? []).filter((t) => t.required && ["ozluk", "isg", "saglik"].includes(t.category));
+  const allRequired = reqTypes.map((t) => t.id as string);
+  // askerlik durum belgesi yalnız erkek personelden istenir
+  const noMilitary = reqTypes.filter((t) => !/askerlik/i.test(String(t.name))).map((t) => t.id as string);
   const priv = new Map((privs ?? []).map((p) => [p.employee_id, p]));
   const dos = new Map((dossiers ?? []).map((d) => [d.employee_id, d]));
   const docsBy = new Map<string, Set<string>>();
@@ -38,6 +41,7 @@ export default async function DossierHome({ searchParams }: { searchParams: Prom
     const d = dos.get(e.id);
     const have = docsBy.get(e.id) ?? new Set<string>();
     const skip = new Set<string>((d?.skipped as string[] | null) ?? []);
+    const required = /^k/i.test(String(p?.gender ?? "")) ? noMilitary : allRequired;
     const missing = required.filter((t) => !have.has(t) && !skip.has(t)).length;
     const parts = [!!p?.national_id && !!p?.birth_date, !!e.hire_date && !!p?.sgk_no, required.length ? (required.length - missing) / required.length : 1, (histBy.get(e.id) ?? 0) > 0 ? 1 : 0];
     const pct = d?.status === "done" ? 100 : Math.round((parts.reduce<number>((a, x) => a + Number(x), 0) / parts.length) * 95);
