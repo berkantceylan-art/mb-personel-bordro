@@ -118,16 +118,21 @@ export async function rpc(sb: SupabaseClient, fn: string, args: Json): Promise<J
 
 export const sum = (into: Record<string, number>, r: Json) => { for (const [k, v] of Object.entries(r)) if (typeof v === "number") into[k] = (into[k] ?? 0) + v; };
 
-/** Bakiye eşitleme parça parça (zaman aşımına düşmesin): ilk parçada tahsilatlar da işlenir */
+/**
+ * Bakiye eşitleme parça parça (her çağrı veritabanı süre sınırının altında kalsın):
+ * önce tahsilatlar 150'şer, sonra hekim bakiyeleri 25'er. Para birimi dışı tahsilat hesabı için tahsilat listesi her parçada gönderilir.
+ */
 export async function balanceChunks(sb: SupabaseClient, tah: Row[], bal: Row[]): Promise<Json> {
   const out: Record<string, number> = {};
   const names: string[] = [];
-  for (let i = 0; i < bal.length; i += 60) {
-    const r = await rpc(sb, "dsis_import_balance", { p_tahsilat: tah, p_balances: bal.slice(i, i + 60), p_pay: i === 0 });
-    for (const [k, v] of Object.entries(r)) if (typeof v === "number") out[k] = (out[k] ?? 0) + (k === "unmatched_payments" && i > 0 ? 0 : v);
-    if (i === 0 && Array.isArray(r.unmatched_names)) names.push(...(r.unmatched_names as string[]));
+  const add = (r: Json) => { for (const [k, v] of Object.entries(r)) if (typeof v === "number") out[k] = (out[k] ?? 0) + v; if (Array.isArray(r.unmatched_names)) names.push(...(r.unmatched_names as string[])); };
+  for (let i = 0; i < tah.length; i += 150) add(await rpc(sb, "dsis_import_balance", { p_tahsilat: tah.slice(i, i + 150), p_balances: [], p_pay: true }));
+  const slim = tah.map((t) => ({ cariad: t.cariad, tutar: t.tutar, aciklama: t.aciklama, para_birimi: t.para_birimi }));
+  for (let i = 0; i < bal.length; i += 25) {
+    const r = await rpc(sb, "dsis_import_balance", { p_tahsilat: slim, p_balances: bal.slice(i, i + 25), p_pay: false });
+    for (const [k, v] of Object.entries(r)) if (typeof v === "number" && k !== "unmatched_payments" && k !== "payments") out[k] = (out[k] ?? 0) + v;
   }
-  return { ...out, unmatched_names: names };
+  return { ...out, unmatched_names: [...new Set(names)].slice(0, 20) };
 }
 
 /** Bir eşitleme turu. sb: service role istemcisi */
@@ -147,7 +152,8 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
 
   // aynı anda iki tur çalışmasın (önceki tur 4 dakikadan yeniyse bekle)
   const lock = await getState<{ at: string }>(sb, "lock");
-  if (lock && Date.now() - Date.parse(lock.at) < 4 * 60_000 && !opts.force) return { ok: true, at, ms: 0, message: "Önceki tur sürüyor", steps };
+  // elle "Şimdi eşitle" de çalışan bir turun üzerine binmez (iki tur aynı kayıtları kilitleyip zaman aşımına düşüyordu)
+  if (lock && Date.now() - Date.parse(lock.at) < 4 * 60_000) return { ok: true, at, ms: 0, message: "Önceki tur sürüyor; 1-2 dakika sonra yeniden deneyin", steps };
   await setState(sb, "lock", { at });
 
   try {
