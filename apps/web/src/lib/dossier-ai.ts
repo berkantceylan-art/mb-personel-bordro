@@ -7,13 +7,13 @@ export type DossierMode = "id" | "sgk" | "classify" | "payslip" | "leave";
 
 export interface IdData { first_name?: string; last_name?: string; national_id?: string; birth_date?: string; birth_place?: string; father_name?: string; mother_name?: string; gender?: string; blood_type?: string; marital_status?: string }
 export interface SgkData { kind?: "giris" | "cikis"; national_id?: string; sgk_no?: string; first_name?: string; last_name?: string; hire_date?: string; termination_date?: string; exit_code?: string; occupation_code?: string; occupation_name?: string }
-export interface Segment { from: number; to: number; type: string; date?: string; expires_on?: string; person?: string; confidence?: number }
+export interface Segment { from: number; to: number; type: string; date?: string; expires_on?: string; person?: string; confidence?: number; continues_previous?: boolean }
 export interface SlipData { page?: number; period?: string; days?: number; gross?: number; sgk_employee?: number; unemployment_employee?: number; income_tax?: number; stamp_tax?: number; net?: number; bes?: number; garnishment?: number; net_paid?: number; cumulative_tax_base?: number }
 export interface LeaveData { type?: string; start?: string; end?: string; days?: number }
 
 export const aiAvailable = () => !!process.env.ANTHROPIC_API_KEY;
 
-function prompt(mode: DossierMode, types: string[]): string {
+function prompt(mode: DossierMode, types: string[], prev?: string | null): string {
   const json = "Yalnız geçerli JSON döndür, açıklama yazma. Tarihler YYYY-MM-DD. Okunamayan alanı boş bırak, uydurma.";
   switch (mode) {
     case "id":
@@ -27,7 +27,9 @@ function prompt(mode: DossierMode, types: string[]): string {
 ${types.map((t) => `- ${t}`).join("\n")}
 ${json}
 {"segments":[{"from":1,"to":1,"type":"listeden tür","date":"belgenin tarihi","expires_on":"geçerlilik bitişi varsa","person":"belgedeki kişi adı","confidence":0.0-1.0}]}
-Tek sayfalık fotoğrafta from=to=1. Arka arkaya aynı belgenin sayfalarını tek segmentte birleştir.`;
+Tek sayfalık fotoğrafta from=to=1. Arka arkaya aynı belgenin sayfalarını tek segmentte birleştir.
+ÇOK SAYFALI BELGELER: iş sözleşmesi, gizlilik sözleşmesi, KVKK aydınlatma metni / açık rıza beyanı, taahhütname, yönetmelik tebliğ tutanağı gibi belgeler birkaç sayfadır. Başlığı olmayan, metnin ya da cümlenin ortasından başlayan, madde numarası önceki sayfadan devam eden, "Sayfa 2", "2/3" yazan ya da yalnız imza / tarih bölümü olan sayfa AYRI BELGE DEĞİLDİR: önceki sayfanın belgesinin devamıdır, aynı segmente kat (to değerini büyüt). Yeni bir segment yalnız yeni bir başlık / belge açıldığında başlar.${prev ? `
+Bu yüklemeden hemen önce bu personele "${prev}" belgesi kaydedildi. 1. sayfa (ve ardından gelenler) onun devamıysa o sayfalar için tek segment ver: type "${prev}", "continues_previous": true.` : ""}`;
     case "payslip":
       return `Bunlar bir personelin eski ücret bordroları / hesap pusulaları (her sayfa genelde bir ay). Her ay için bir satır ver. Tutarlar TL, ondalık nokta ile sayı. ${json}
 {"slips":[{"page":1,"period":"YYYY-MM","days":30,"gross":0,"sgk_employee":0,"unemployment_employee":0,"income_tax":0,"stamp_tax":0,"net":0,"bes":0,"garnishment":0,"net_paid":0,"cumulative_tax_base":0}]}
@@ -39,7 +41,7 @@ gross = brüt toplam; sgk_employee = SGK işçi payı; unemployment_employee = i
 }
 
 /** Dosyayı (görsel ya da PDF) okur, JSON döndürür. Anahtar yoksa null. */
-export async function aiReadDoc<T>(bytes: ArrayBuffer, mime: string, mode: DossierMode, types: string[] = []): Promise<{ data: T | null; error?: string }> {
+export async function aiReadDoc<T>(bytes: ArrayBuffer, mime: string, mode: DossierMode, types: string[] = [], prev: string | null = null): Promise<{ data: T | null; error?: string }> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { data: null, error: "no_key" };
   const b64 = Buffer.from(bytes).toString("base64");
@@ -50,7 +52,7 @@ export async function aiReadDoc<T>(bytes: ArrayBuffer, mime: string, mode: Dossi
     const res = await new Anthropic({ apiKey: key }).messages.create({
       model: aiModel(),
       max_tokens: mode === "payslip" || mode === "classify" ? 4000 : 1200,
-      messages: [{ role: "user", content: [media, { type: "text", text: prompt(mode, types) }] }],
+      messages: [{ role: "user", content: [media, { type: "text", text: prompt(mode, types, prev) }] }],
     });
     const text = res.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
     return { data: JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as T };

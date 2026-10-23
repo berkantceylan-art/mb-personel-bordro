@@ -13,7 +13,7 @@ import { dossDeleteDoc, dossDone, dossToggleSkip } from "@/lib/dossier-actions";
 import { Capture } from "../Capture";
 import { ExitForm, HireStep, IdentityStep, LeavesStep, PhonePanel, SlipsStep, TypeSelect } from "../Steps";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const STEPS = ["Kimlik ve iletişim", "İşe giriş ve ücret", "Belgeler", "Eski bordrolar", "İzinler", "Çıkış ve özet"] as const;
 const dt = (d: string | null) => (d ? d.split("-").reverse().join(".") : "—");
