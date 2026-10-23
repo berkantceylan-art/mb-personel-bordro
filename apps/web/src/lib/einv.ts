@@ -150,6 +150,7 @@ export async function scanMailbox(supabase: SupabaseClient, admin: SupabaseClien
   }
   if (seenMarks.length) await supabase.rpc("einv_mail_seen_mark", { p_rows: seenMarks });
   const result = { found: rows.length, added, pdf_read: pdfRead, pdf_added: pdfAdded, scanned: processed, remaining, stopped: stopped || null, errors: errors.slice(0, 5) };
+  try { await supabase.rpc("einv_inbox_link_existing"); } catch { /* migration yoksa geç */ }
   await supabase.rpc("einv_scan_log", { p_result: result });
   return { ok: true, message: `E-postada ${rows.length} XML e-belge bulundu, ${added} tanesi yeni.${pdfRead ? ` ${pdfRead} PDF okundu, ${pdfAdded} e-Arşiv fatura eklendi.` : ""}${errors.length ? ` ${errors.length} ek okunamadı.` : ""}${remaining > 0 ? ` ${remaining} e-posta sırada (${stopped || "tarama sınırı"}); bir sonraki taramada devam eder.` : ""}`, added: added + pdfAdded, found: rows.length + pdfRows.length };
 }

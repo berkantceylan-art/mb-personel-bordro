@@ -36,6 +36,8 @@ export default async function Inbox({ searchParams }: { searchParams: Promise<{ 
   const kind = ["efatura", "earsiv", "eirsaliye"].includes(sp.tur ?? "") ? sp.tur! : null;
   const dir = sp.yon === "out" ? "out" : "in";
   const supabase = await createClient();
+  // ERP'de aynı belge numarasıyla zaten kayıtlı faturalar e-belgeye bağlanır (Bekleyen'de görünmez)
+  if (can) await supabase.rpc("einv_inbox_link_existing").then(() => null, () => null);
   const [{ data, error }, { data: cnt }, { data: set }, { data: accs }] = await Promise.all([
     supabase.rpc("einv_inbox_list", { p_status: tab, p_kind: kind, p_limit: 300, p_dir: dir }),
     supabase.rpc("einv_inbox_counts"),
