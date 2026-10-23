@@ -40,8 +40,8 @@ Okunamayan alanı boş bırak; satırları atlama.` }] }],
     return { ok: false, note: `Fatura okunamadı: ${(e as Error).message.slice(0, 120)}` };
   }
   if (opts.receipt) {
-    const r = await initialFromRead(supabase, d, "Esnaf / tedarikçi fişi — fotoğraftan yapay zekâ ile okundu, kontrol edin", { attach_path: path, pay_default: "cash", auto_post: true });
-    return { ...r, note: `Fiş okundu, kaydediliyor… ${r.note} Ödeme nakit (kasa) olarak girilir; sonradan faturadan değiştirebilirsiniz. Cari ya da tutar okunamadıysa form açık kalır: tamamlayıp "Kaydet ve işle"ye basın.` };
+    const r = await initialFromRead(supabase, d, "Esnaf / tedarikçi fişi — fotoğraftan yapay zekâ ile okundu, kontrol edin", { attach_path: path, pay_default: "cash" });
+    return { ...r, note: `${r.note} Ödeme varsayılan olarak nakit (kasa); değiştirebilirsiniz. Bilgileri tamamlayıp "Kaydet ve işle"ye basın.` };
   }
   return initialFromRead(supabase, d, "Fotoğraftan yapay zekâ ile okundu — kontrol edin", { attach_path: path });
 }
@@ -67,6 +67,12 @@ export async function initialFromRead(supabase: Awaited<ReturnType<typeof create
       discount_pct: Math.min(100, Math.max(0, Number(l.discount_pct) || 0)), vat_rate: [0, 1, 8, 10, 18, 20].includes(Number(l.vat_rate)) ? Number(l.vat_rate) : Number(it?.vat_rate ?? 20),
     };
   });
+  // satır fiyatı okunamadı ama genel toplam var (çoğu fiş): tek satır, KDV hariç tutar toplamdan
+  if (Number(d.total) > 0 && !lines.some((l) => l.unit_price > 0)) {
+    const vat = lines[0]?.vat_rate ?? 20;
+    const net = Math.round((Number(d.total) / (1 + vat / 100)) * 100) / 100;
+    lines.splice(0, lines.length, { item_id: null, name: (lines[0]?.name || d.supplier_name || "Fiş").slice(0, 200), seller_code: null, qty: 1, unit: "adet", unit_price: net, discount_pct: 0, vat_rate: vat });
+  }
   const currency = ["TRY", "EUR", "USD", "GBP", "CHF"].includes(d.currency ?? "") ? d.currency! : party?.currency ?? "TRY";
   const initial: InitialInvoice = {
     type: "invoice", party_id: party?.id ?? undefined,

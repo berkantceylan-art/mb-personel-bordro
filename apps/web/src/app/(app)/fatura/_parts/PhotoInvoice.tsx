@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LiveCamera, isTouchDevice } from "@/components/LiveCamera";
+import { receiptSave } from "@/lib/invoice-actions";
 
 /** Kağıt / PDF alış faturasını yükle → yapay zekâ okusun → form dolu açılsın */
 export function PhotoInvoice({ userId }: { userId: string }) {
@@ -33,7 +34,17 @@ export function PhotoInvoice({ userId }: { userId: string }) {
     const path = `${userId}/${fis ? "fis" : "alis"}-${new Date().toISOString().slice(0, 10)}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
     const { error } = await createClient().storage.from("receipts").upload(path, blob, { contentType: blob.type || "image/jpeg" });
     if (error) { setBusy(null); setErr(`Yüklenemedi: ${error.message}`); return; }
-    setBusy(fis ? "Fiş okunuyor (10-20 sn)…" : "Fatura okunuyor (10-20 sn)…");
+    if (fis) {
+      // fiş: okunur ve hemen kaydedilir (cari, alış faturası, nakit ödeme); okunamayan bilgi varsa form açılır
+      setBusy("Fiş okunuyor ve kaydediliyor (10-30 sn)…");
+      try {
+        const res = await receiptSave(path);
+        if (res.id) { router.push(`/fatura/${res.id}?${res.ok ? "tamam" : "hata"}=${encodeURIComponent(res.message)}`); return; }
+        if (!res.form) { setBusy(null); setErr(res.message); return; }
+        setErr(res.message);
+      } catch (e) { setErr(`Fiş kaydedilemedi: ${(e as Error).message}`); }
+    }
+    setBusy(fis ? "Fiş formu açılıyor…" : "Fatura okunuyor (10-20 sn)…");
     router.push(`/alis/yeni?foto=${encodeURIComponent(path)}${fis ? "&fis=1" : ""}`);
   }
 
