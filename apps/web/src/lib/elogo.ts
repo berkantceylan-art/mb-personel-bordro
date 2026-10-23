@@ -228,6 +228,8 @@ export async function elogoSync(supabase: SupabaseClient, opts: { from: string; 
     await call(w, "Logout", { sessionID: session }).catch(() => null);
   }
   Object.assign(log, { added, fetched, errors, remaining });
+  // ERP'de aynı numarayla kayıtlı faturalar (Bizim Hesap aktarımı, elle girilen alış) e-belgeye bağlanır
+  try { const { data: lk } = await supabase.rpc("einv_inbox_link_existing"); if (lk) log.linked = lk; } catch { /* migration yoksa geç */ }
   await supabase.rpc("einv_elogo_log", { p_log: log });
   return { ok: true, message: `eLogo: ${fetched} belge indirildi, ${added} tanesi kutuya eklendi${errors ? `, ${errors} belge alınamadı` : ""}${remaining ? ` · ${remaining} belge sırada, bir sonraki eşitlemede gelecek` : ""}.`, log };
 }
