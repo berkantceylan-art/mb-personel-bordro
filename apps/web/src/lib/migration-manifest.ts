@@ -194,4 +194,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270279000000_bh_statement_import.sql", "f:bh_statement_import"],
   ["20270280000000_dsis_reopen.sql", "f:dsis_sync_jobs"],
   ["20270281000000_einv_dedupe_link.sql", "f:einv_inbox_link_existing"],
+  ["20270283000000_party_merge.sql", "f:fin_party_merge"],
 ];
