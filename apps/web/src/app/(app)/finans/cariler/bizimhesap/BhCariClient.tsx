@@ -1,7 +1,7 @@
 "use client";
 import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { bhCariHide, bhCariImport, bhCariRows, bhCariUndo, bhPartyMoves, type BhListItem, type BhMode, type BhParty, type BhRow } from "@/lib/bh-cari-actions";
+import { bhCariHide, bhCariImport, bhCariRows, bhCariUndo, bhPartyMoves, bhSetPartyCurrency, type BhListItem, type BhMode, type BhParty, type BhRow } from "@/lib/bh-cari-actions";
 
 const money = (k: number, c: string) => `${(k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${c === "TRY" ? "₺" : c === "EUR" ? "€" : c}`;
 const d = (s: string | null) => (s ? s.split("-").reverse().join(".") : "—");
@@ -33,7 +33,8 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
   const [view, setView] = useState<View>("wait");
 
   const partyById = useMemo(() => new Map(parties.map((p) => [p.id, p])), [parties]);
-  const tgt = (it: BhListItem) => target[it.guid] ?? it.match?.id ?? "new";
+  // eşleşen ERP carisi başka para birimindeyse varsayılan: o para biriminde yeni cari aç
+  const tgt = (it: BhListItem) => target[it.guid] ?? (it.match && it.match.currency && it.match.currency !== it.currency && !it.match.via.startsWith("Bizim Hesap") ? "new" : it.match?.id) ?? "new";
   // Hedef caride ERP'nin kendi hareketi varsa çift kayıt olmasın diye varsayılan "yalnız bakiye"
   const defMode = (it: BhListItem): BhMode => {
     const t = tgt(it);
@@ -83,13 +84,20 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
   async function run() {
     setBusy(true); setMsg(null);
     const chosen = items.filter((it) => sel.has(it.guid));
+    // para birimi tutmayanlar atlanır, kalanlar aktarılır
     const bad = chosen.filter((it) => !curOk(it));
-    if (bad.length) { setMsg({ ok: false, text: `Para birimi tutmayan ${bad.length} cari seçili: ${bad.slice(0, 5).map((i) => i.name).join(", ")}` }); setBusy(false); return; }
-    const picks = chosen.map((it) => ({ guid: it.guid, target: tgt(it), mode: mode[it.guid] ?? defMode(it) }));
+    const good = chosen.filter((it) => curOk(it));
+    if (!good.length) { setMsg({ ok: false, text: `Seçilen carilerin hepsinde para birimi farklı: hedefi “➕ Yeni cari aç” yapın ya da ERP carisinin para birimini çevirin.` }); setBusy(false); return; }
+    const picks = good.map((it) => ({ guid: it.guid, target: tgt(it), mode: mode[it.guid] ?? defMode(it) }));
     const r = await bhCariImport(picks);
-    setMsg({ ok: r.ok, text: r.message, errors: r.errors });
-    if (r.ok) setSel(new Set());
+    const skippedErr = bad.map((i) => ({ name: i.name, error: `atlandı: para birimi farklı (${i.currency} → ${partyById.get(tgt(i))?.currency ?? "?"})` }));
+    setMsg({ ok: r.ok && !bad.length, text: `${r.message}${bad.length ? ` ${bad.length} cari para birimi farklı olduğu için atlandı.` : ""}`, errors: [...(r.errors ?? []), ...skippedErr] });
+    setSel(new Set(bad.map((i) => i.guid)));
     setBusy(false); router.refresh();
+  }
+  async function setCur(id: string, cur: string) {
+    if (!confirm(`ERP carisinin para birimi ${cur} yapılsın mı? (Kartta hareket yoksa yapılır.)`)) return;
+    setBusy(true); const r = await bhSetPartyCurrency(id, cur); setMsg({ ok: r.ok, text: r.message }); setBusy(false); router.refresh();
   }
   async function undo(id: string, name: string) {
     if (!confirm(`${name}: Bizim Hesap'tan aktarılan hareketler geri alınsın mı?`)) return;
@@ -149,7 +157,9 @@ export function BhCariClient({ items, parties }: { items: BhListItem[]; parties:
                             {t === "new" ? "➕ Yeni cari aç" : `${auto ? "Eşleşti" : "Seçildi"}: ${tp?.name ?? it.match?.name ?? "?"}`}
                           </button>
                           {tp && <span className="block text-muted mt-1">{KIND[tp.kind] ?? tp.kind} · {tp.currency}{tp.tax_no ? ` · VKN ${tp.tax_no}` : ""}</span>}
-                          {tp && !curOk(it) && <span className="block text-bad mt-1">Para birimi farklı ({it.currency} → {tp.currency}): yalnız kart aktarılabilir</span>}
+                          {tp && !curOk(it) && <span className="block text-bad mt-1">Para birimi farklı ({it.currency} → {tp.currency}).{" "}
+                            <button type="button" onClick={() => void choose(it, "new")} className="underline font-semibold">{it.currency} carisi aç</button>{" · "}
+                            <button type="button" onClick={() => void setCur(tp.id, it.currency)} className="underline font-semibold">ERP carisini {it.currency} yap</button></span>}
                           {auto && it.match && <span className="block text-muted mt-1">{it.match.via} · ERP&apos;de {it.match.moves} hareket{it.match.moves > 0 && <> · <button type="button" onClick={() => void undo(it.match!.id, it.name)} className="underline">aktarımı geri al</button></>}</span>}
                           {t !== "new" && !auto && tMoves[t] !== undefined && <span className="block text-muted mt-1">ERP&apos;de {tMoves[t]} hareket</span>}
                         </>
