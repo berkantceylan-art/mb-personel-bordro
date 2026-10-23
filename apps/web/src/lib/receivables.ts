@@ -14,6 +14,8 @@ export type RecvRow = {
   paid: number;         // dönemde tahsilat
   balance: number;      // dönem sonu bakiye
   aging: Record<string, number>;   // "devir" | "YYYY-MM" → o aydan kalan alacak
+  /** ay ay: s = o ayın cirosu (devir: dönem başı bakiye), p = o aya sayılan tahsilat (ilk giren ilk kapanır), k = o aydan kalan */
+  monthly: Record<string, { s: number; p: number; k: number }>;
   lastPay: string | null; lastJob: string | null;
 };
 
@@ -49,13 +51,17 @@ export async function receivables(opts: { from: string; to: string; currency: st
     // FIFO: toplam tahsilat en eski borçlardan düşülür; kalan borç ayına yazılır
     let pool = sum(cr);
     const aging: Record<string, number> = {};
+    const monthly: Record<string, { s: number; p: number; k: number }> = {};
     for (const e of dr) {
       const used = Math.min(pool, e.amt); pool -= used;
       const left = e.amt - used;
-      if (left > 0) { const k = e.d < opts.from ? "devir" : e.d.slice(0, 7); aging[k] = (aging[k] ?? 0) + left; }
+      const k = e.d < opts.from ? "devir" : e.d.slice(0, 7);
+      if (left > 0) aging[k] = (aging[k] ?? 0) + left;
+      if (k !== "devir") { const m = (monthly[k] ??= { s: 0, p: 0, k: 0 }); m.s += e.amt; m.p += used; m.k += left; }
     }
+    if (opening > 0 || (aging.devir ?? 0) > 0) { const kd = aging.devir ?? 0; const sd = Math.max(opening, kd); monthly.devir = { s: sd, p: Math.max(0, sd - kd), k: kd }; }
     if (pool > 0) aging["fazla"] = -pool;   // fazla tahsilat (avans)
-    return { id: c.id, name: c.name, kind: c.kind, city: c.city, currency: c.currency, active: c.is_active, opening, sales, paid, balance, aging,
+    return { id: c.id, name: c.name, kind: c.kind, city: c.city, currency: c.currency, active: c.is_active, opening, sales, paid, balance, aging, monthly,
       lastPay: cr.length ? cr[cr.length - 1]!.d : null, lastJob: dr.length ? dr[dr.length - 1]!.d : null };
   });
   return { rows, months };
