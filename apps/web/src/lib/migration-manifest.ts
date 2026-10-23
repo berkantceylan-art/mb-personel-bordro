@@ -199,4 +199,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270285000000_dsis_audit.sql", "f:dsis_audit_report"],
   ["20270286000000_bh_compare.sql", "f:bh_balance_equalize"],
   ["20270289000000_party_currency.sql", "f:fin_party_set_currency"],
+  ["20270290000000_dsis_audit_split.sql", "f:dsis_audit_jobs"],
 ];

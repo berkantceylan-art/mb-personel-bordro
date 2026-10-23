@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { dsisAuditFixAction, dsisAuditScanAction, type DsisAuditState } from "@/lib/dsis-sync-actions";
+import { dsisAuditFixAction, dsisAuditRefresh, dsisAuditScanAction, type DsisAuditState } from "@/lib/dsis-sync-actions";
 
 const money = (k: number, cur: string) => `${(k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—");
@@ -18,7 +18,7 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const r = state.report;
   const c = r?.customers, b = r?.balances, j = r?.jobs;
-  const scanned = !!r?.scanned_at;
+  const scanned = !!(r?.scanned_at || r?.customers || r?.balances);
 
   async function scan(restart: boolean) {
     setBusy("Dentalsis okunuyor (1-4 dakika)…"); setNote(null);
@@ -31,7 +31,7 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
     setBusy("Eksik işler aktarılıyor, durumlar ve bakiyeler eşitleniyor (1-4 dakika)…"); setNote(null);
     const res = await dsisAuditFixAction();
     setNote({ ok: res.ok, text: res.message });
-    if (res.ok) { setBusy("Sonuç için yeniden karşılaştırılıyor…"); await dsisAuditScanAction(true).then(async (x) => { for (let i = 0; i < 12 && x.ok && /sürüyor/.test(x.message); i++) x = await dsisAuditScanAction(false); }); }
+    if (res.ok) { setBusy("Sonuç hesaplanıyor…"); const x = await dsisAuditRefresh(); if (!x.ok) setNote({ ok: false, text: x.message }); }
     setBusy(null); router.refresh();
   }
 
@@ -48,12 +48,13 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
       </div>
       <p className="text-xs text-muted">Karşılaştır: Dentalsis&apos;teki tüm cariler, cari bakiyeleri ve 2026&apos;dan bu yana tüm iş kayıtları okunur, ERP ile tek tek karşılaştırılır. Düzelt: ERP&apos;de olmayan işler aktarılır, Dentalsis&apos;te çıkmış ama ERP&apos;de açık görünen (ya da tersi) işler eşitlenir, cari bakiyeleri Dentalsis&apos;e eşitlenir. Dentalsis&apos;e hiçbir şey yazılmaz.</p>
       {state.message && <p className="text-sm text-bad">{state.message}</p>}
+      {!!state.partErrors?.length && <p className="text-sm text-bad">Raporun bazı bölümleri hesaplanamadı: {state.partErrors.join(" · ")} <button type="button" disabled={!!busy} onClick={async () => { setBusy("Rapor hesaplanıyor…"); const r = await dsisAuditRefresh(); setNote({ ok: r.ok, text: r.message }); setBusy(null); router.refresh(); }} className="underline font-semibold">Yeniden hesapla</button></p>}
       {busy && <p className="text-sm text-brand-700">{busy}</p>}
       {note && <p className={`text-sm rounded-lg px-3 py-2 ${note.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{note.text}</p>}
 
-      {scanned && c && b && j && (
+      {scanned && (
         <>
-          <section className="flex flex-col gap-2">
+          {c && <section className="flex flex-col gap-2">
             <b className="text-sm">Cariler</b>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Stat label="Dentalsis'te cari" v={c.remote} />
@@ -64,9 +65,9 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
             {c.missing > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">ERP&apos;de olmayan cariler ({c.missing})</summary><p className="mt-1">{c.missing_list.map((x) => x.name).join(" · ")}</p></details>}
             {c.name_diff.length > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">Adı farklı cariler</summary><ul className="mt-1">{c.name_diff.map((x) => <li key={x.id}>Dentalsis: <b>{x.remote}</b> → ERP: {x.erp}</li>)}</ul></details>}
             {c.erp_only.length > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">Dentalsis&apos;te artık olmayan ERP carileri ({c.erp_only.length})</summary><p className="mt-1">{c.erp_only.map((x) => x.name).join(" · ")}</p></details>}
-          </section>
+          </section>}
 
-          <section className="flex flex-col gap-2">
+          {b && <section className="flex flex-col gap-2">
             <b className="text-sm">Cari bakiyeleri</b>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Stat label="Karşılaştırılan" v={b.checked} />
@@ -80,9 +81,9 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
                 </table>
               </div>
             )}
-          </section>
+          </section>}
 
-          <section className="flex flex-col gap-2">
+          {j && <section className="flex flex-col gap-2">
             <b className="text-sm">İşler (2026&apos;dan bu yana)</b>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <Stat label="Dentalsis'te iş" v={j.remote} />
@@ -96,7 +97,7 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
             {j.should_close > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">Dentalsis&apos;te çıkmış ama ERP&apos;de açık ({j.should_close})</summary><ul className="mt-1">{j.should_close_list.map((x) => <li key={x.id}>#{x.no} · {x.cariad} · {x.hasta} · ERP: {x.status}</li>)}</ul></details>}
             {j.should_open > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">Dentalsis&apos;te açık ama ERP&apos;de çıkmış ({j.should_open})</summary><ul className="mt-1">{j.should_open_list.map((x) => <li key={x.id}>#{x.no} · {x.cariad} · {x.hasta} · Dentalsis: {x.provaturu} · ERP: {x.status}</li>)}</ul></details>}
             {j.erp_only > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">ERP&apos;de olup Dentalsis listesinde olmayan ({j.erp_only})</summary><p className="mt-1 text-muted">Dentalsis&apos;te silinmiş olabilir; ERP&apos;de elle kontrol edin.</p><ul className="mt-1">{j.erp_only_list.map((x) => <li key={x.id}><Link href={`/isler/${x.id}`} className="text-brand-700">#{x.no}</Link> · {x.patient} · {x.status}</li>)}</ul></details>}
-          </section>
+          </section>}
         </>
       )}
       {state.scan && !state.scan.done && !busy && <p className="text-sm text-[#7A4F00]">Tarama yarıda kaldı ({state.scan.rows ?? 0} iş okundu, sayfa {state.scan.next}). “Devam et”e basın; aşağıdaki sonuçlar tarama bitince kesinleşir.</p>}
