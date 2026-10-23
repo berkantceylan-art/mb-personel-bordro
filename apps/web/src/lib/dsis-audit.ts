@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { allRows } from "@/lib/fetch-all";
 import { arr, balanceChunks, client, getState, pool, rpc, setState, slimJob, sum, TokenError, type Json, type Row } from "@/lib/dsis-sync";
 
 /**
@@ -87,8 +88,8 @@ export async function dsisAuditFix(sb: SupabaseClient): Promise<{ ok: boolean; m
 
   const rep = (await rpc(sb, "dsis_audit_report", {})) as { jobs?: { missing_list?: Array<{ id: number }>; should_close_list?: Array<{ id: number }>; should_open_list?: Array<{ id: number }> } };
   // listelerde en çok 100 kayıt döner; eksiklerin tamamı için doğrudan sorgu
-  const { data: remote } = await sb.from("dsis_remote_jobs").select("id").or("durum.is.null,durum.eq.1").order("id", { ascending: false }).limit(20000);
-  const remoteIds = (remote ?? []).map((r) => Number(r.id));
+  const remote = await allRows<{ id: number }>((a, b) => sb.from("dsis_remote_jobs").select("id").or("durum.is.null,durum.eq.1").order("id", { ascending: false }).range(a, b));
+  const remoteIds = remote.data.map((r) => Number(r.id));
   const inErp = new Set<number>();
   for (let i = 0; i < remoteIds.length; i += 1000) {
     const { data } = await sb.from("jobs").select("legacy_id").in("legacy_id", remoteIds.slice(i, i + 1000));

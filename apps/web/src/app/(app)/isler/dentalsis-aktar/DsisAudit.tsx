@@ -23,15 +23,15 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
   async function scan(restart: boolean) {
     setBusy("Dentalsis okunuyor (1-4 dakika)…"); setNote(null);
     let res = await dsisAuditScanAction(restart);
-    // tarama bitmediyse kendiliğinden devam
-    for (let i = 0; i < 4 && res.ok && /sürüyor/.test(res.message); i++) { setBusy(res.message); res = await dsisAuditScanAction(false); }
+    // tarama bitmediyse kendiliğinden devam (her tur en çok ~4 dakika)
+    for (let i = 0; i < 12 && res.ok && /sürüyor/.test(res.message); i++) { setBusy(`${res.message.replace(/;.*$/, "")} · devam ediliyor…`); res = await dsisAuditScanAction(false); }
     setNote({ ok: res.ok, text: res.message }); setBusy(null); router.refresh();
   }
   async function fix() {
     setBusy("Eksik işler aktarılıyor, durumlar ve bakiyeler eşitleniyor (1-4 dakika)…"); setNote(null);
     const res = await dsisAuditFixAction();
     setNote({ ok: res.ok, text: res.message });
-    if (res.ok) { setBusy("Sonuç için yeniden karşılaştırılıyor…"); await dsisAuditScanAction(true).then(async (x) => { for (let i = 0; i < 4 && x.ok && /sürüyor/.test(x.message); i++) x = await dsisAuditScanAction(false); }); }
+    if (res.ok) { setBusy("Sonuç için yeniden karşılaştırılıyor…"); await dsisAuditScanAction(true).then(async (x) => { for (let i = 0; i < 12 && x.ok && /sürüyor/.test(x.message); i++) x = await dsisAuditScanAction(false); }); }
     setBusy(null); router.refresh();
   }
 
@@ -42,6 +42,7 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
         <span className="text-xs text-muted">Son karşılaştırma: {when(r?.scanned_at)}</span>
         <div className="ml-auto flex gap-2">
           <button type="button" disabled={!!busy} onClick={() => scan(true)} className="h-10 px-4 rounded-[10px] border border-brand-700 text-brand-700 font-semibold text-sm disabled:opacity-50">🔍 Karşılaştır</button>
+          {state.scan && !state.scan.done && <button type="button" disabled={!!busy} onClick={() => scan(false)} className="h-10 px-4 rounded-[10px] border border-brand-700 text-brand-700 font-semibold text-sm disabled:opacity-50">⏩ Devam et ({state.scan.rows ?? 0} iş okundu)</button>}
           <button type="button" disabled={!!busy || !scanned} onClick={fix} className="h-10 px-4 rounded-[10px] bg-brand-700 text-white font-semibold text-sm disabled:opacity-50">🛠 Eksikleri ve farkları düzelt</button>
         </div>
       </div>
@@ -98,6 +99,7 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
           </section>
         </>
       )}
+      {state.scan && !state.scan.done && !busy && <p className="text-sm text-[#7A4F00]">Tarama yarıda kaldı ({state.scan.rows ?? 0} iş okundu, sayfa {state.scan.next}). “Devam et”e basın; aşağıdaki sonuçlar tarama bitince kesinleşir.</p>}
       {!scanned && !state.message && <p className="text-sm text-muted">Henüz karşılaştırma yapılmadı: “Karşılaştır”a basın.</p>}
     </div>
   );

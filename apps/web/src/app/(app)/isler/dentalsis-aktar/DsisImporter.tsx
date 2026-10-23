@@ -103,7 +103,7 @@ export function DsisImporter({ files }: { files: DsisFiles }) {
   );
 }
 
-type Summary = { by_currency?: { currency: string; jobs: number; total: number; try: number }[]; by_market?: { foreign: boolean; jobs: number; eur: number | null; try: number | null; try_total: number }[];
+type Summary = { error?: string; by_currency?: { currency: string; jobs: number; total: number; try: number }[]; by_market?: { foreign: boolean; jobs: number; eur: number | null; try: number | null; try_total: number }[];
   by_month?: { m: string; eur: number | null; try: number | null; try_total: number; jobs: number }[]; open?: number; mismatch?: number; fx_first?: string | null; fx_days_2026?: number;
   products?: number; products_tr?: number; products_stock?: number };
 const money = (minor: number | null | undefined, cur: string) => (Number(minor ?? 0) / 100).toLocaleString("tr-TR", { maximumFractionDigits: 0 }) + (cur === "EUR" ? " €" : " ₺");
@@ -160,7 +160,8 @@ function DsisFixes({ hasTahsilat, jobs }: { hasTahsilat: boolean; jobs: string[]
           {log.map((l, i) => <li key={i} className={l.ok ? "text-[#33414F]" : "text-bad"}>{l.text}</li>)}
         </ol>
       )}
-      {sum && (
+      {sum?.error && <p className="text-sm text-bad">{sum.error}</p>}
+      {sum && !sum.error && (
         <div className="flex flex-col gap-3 text-sm">
           <div className="grid gap-2 sm:grid-cols-2">
             {(sum.by_market ?? []).sort((a, b) => Number(a.foreign) - Number(b.foreign)).map((k) => (

@@ -197,4 +197,5 @@ export const MIGRATION_MANIFEST: Array<[file: string, object: string]> = [
   ["20270283000000_party_merge.sql", "f:fin_party_merge"],
   ["20270284000000_slip_link.sql", "f:sup_link_slip"],
   ["20270285000000_dsis_audit.sql", "f:dsis_audit_report"],
+  ["20270286000000_bh_compare.sql", "f:bh_balance_equalize"],
 ];

@@ -13,7 +13,7 @@ export type BhCari = {
   rows: BhRow[];
 };
 export type BhListItem = Omit<BhCari, "rows"> & {
-  n: number; from: string | null; to: string | null; match: { id: string; name: string; moves: number; via: string } | null;
+  n: number; from: string | null; to: string | null; match: { id: string; name: string; moves: number; via: string; balance?: number; currency?: string; lab?: boolean } | null;
   /** ERP'ye aktarılmış (Bizim Hesap bağlantısı kurulmuş ya da eşleşen caride Bizim Hesap hareketi var) */
   imported: boolean;
   /** Kullanıcı "aktarılmayacak" diye listeden çıkardı */
@@ -88,8 +88,13 @@ export async function bhCariList(): Promise<{ ok: boolean; message?: string; ite
     const all = await readAll();
     if (!all.length) return { ok: true, items: [] };
     const sb = await createClient();
-    const { data: parties } = await sb.from("fin_parties").select("id, name, tax_no, bh_guid, kind, currency").limit(10000);
-    const ps = (parties ?? []) as { id: string; name: string; tax_no: string | null; bh_guid: string | null; kind: string; currency: string }[];
+    const [{ data: parties }, { data: bals }] = await Promise.all([
+      sb.from("fin_parties").select("id, name, tax_no, bh_guid, kind, currency, lab_customer_id").limit(10000),
+      allRows<{ party_id: string; balance: number }>((a, b) => sb.from("fin_party_balances").select("party_id, balance").order("party_id").range(a, b)),
+    ]);
+    const ps = (parties ?? []) as { id: string; name: string; tax_no: string | null; bh_guid: string | null; kind: string; currency: string; lab_customer_id: string | null }[];
+    const balOf = new Map<string, number>((bals ?? []).map((b) => [b.party_id, Number(b.balance)]));
+    const pById = new Map(ps.map((p) => [p.id, p]));
     const byGuid = new Map(ps.filter((p) => p.bh_guid).map((p) => [p.bh_guid!, p]));
     const byTax = new Map(ps.filter((p) => realTax(p.tax_no)).map((p) => [p.tax_no!, p]));
     const byName = new Map(ps.map((p) => [N(p.name), p]));
@@ -122,7 +127,7 @@ export async function bhCariList(): Promise<{ ok: boolean; message?: string; ite
       const bhDone = !!m && (moves.get(`${m.p.id}|bh`) ?? 0) > 0;
       return {
         ...c, n: rows.length, from: rows[0]?.date ?? null, to: rows[rows.length - 1]?.date ?? null,
-        match: m ? { id: m.p.id, name: m.p.name, moves: moves.get(m.p.id) ?? 0, via: m.via + (bhDone ? " · Bizim Hesap hareketleri zaten aktarılmış" : "") } : null,
+        match: m ? { id: m.p.id, name: m.p.name, moves: moves.get(m.p.id) ?? 0, via: m.via + (bhDone ? " · Bizim Hesap hareketleri zaten aktarılmış" : ""), balance: balOf.get(m.p.id) ?? 0, currency: pById.get(m.p.id)?.currency, lab: !!pById.get(m.p.id)?.lab_customer_id } : null,
         imported: byGuid.has(c.guid) || bhDone,
         hidden: hidden.has(c.guid),
       };
@@ -230,6 +235,57 @@ export async function bhCariUndo(partyId: string): Promise<{ ok: boolean; messag
     if (error) return { ok: false, message: error.message };
     revalidatePath("/finans/cariler", "layout");
     return { ok: true, message: `${data} Bizim Hesap hareketi geri alındı.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Karşılaştırma: seçilen ERP carilerinin bakiyesini Bizim Hesap'taki bakiyeye eşitle (fark tek kayıtla kapanır) */
+export async function bhEqualize(picks: { party: string; target: number; name: string }[]): Promise<{ ok: boolean; message: string; errors?: { name: string; error: string }[] }> {
+  try {
+    await guard();
+    const sb = await createClient();
+    const date = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+    let n = 0;
+    const errors: { name: string; error: string }[] = [];
+    for (const p of picks.slice(0, 1000)) {
+      const { data, error } = await sb.rpc("bh_balance_equalize", { p_party: p.party, p_target: Math.round(p.target), p_date: date });
+      if (error) errors.push({ name: p.name, error: /lab_party/.test(error.message) ? "hekim kartına bağlı: bakiyesi Dentalsis'ten eşitlenir" : /bh_balance_equalize|does not exist|schema cache/.test(error.message) ? "Supabase'de 20270286000000_bh_compare.sql çalıştırılmalı" : error.message });
+      else if (Number(data)) n++;
+    }
+    revalidatePath("/finans/cariler/bizimhesap");
+    return { ok: !errors.length, message: `${n} carinin bakiyesi Bizim Hesap'a eşitlendi.${errors.length ? ` ${errors.length} cari eşitlenemedi.` : ""}`, errors };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/** Bizim Hesap kasaları: ERP'de kasa hesabı açılır (aynı adla varsa açılış bakiyesi güncellenir) */
+export async function bhCashAccounts(list: { name: string; currency: string; balance: number; date: string; holder?: string }[]): Promise<{ ok: boolean; message: string }> {
+  try {
+    const s = await getSession();
+    if ((s.modules.finance ?? 0) < 2) return { ok: false, message: "Finans (düzenleme) yetkisi gerekir." };
+    const sb = await createClient();
+    let made = 0, upd = 0;
+    for (const k of list) {
+      const name = k.name.trim().slice(0, 120);
+      if (!name) continue;
+      const cur = ["TRY", "EUR", "USD", "GBP", "CHF"].includes(k.currency) ? k.currency : "TRY";
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(k.date) ? k.date : new Date().toISOString().slice(0, 10);
+      const { data: ex } = await sb.from("fin_accounts").select("id").eq("kind", "cash").ilike("name", name).maybeSingle();
+      if (ex) {
+        const { error } = await sb.from("fin_accounts").update({ opening_balance: Math.round(k.balance), opening_date: date, currency: cur, holder_name: k.holder || null }).eq("id", ex.id);
+        if (error) return { ok: false, message: `${name}: ${error.message}` };
+        upd++;
+      } else {
+        const { error } = await sb.from("fin_accounts").insert({ kind: "cash", name, currency: cur, opening_balance: Math.round(k.balance), opening_date: date, holder_name: k.holder || null });
+        if (error) return { ok: false, message: `${name}: ${error.message}` };
+        made++;
+      }
+    }
+    revalidatePath("/finans/kasa");
+    revalidatePath("/finans/cariler/bizimhesap");
+    return { ok: true, message: `${made} kasa açıldı, ${upd} kasanın açılış bakiyesi güncellendi.` };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
