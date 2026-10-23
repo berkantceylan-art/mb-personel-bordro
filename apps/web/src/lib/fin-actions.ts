@@ -306,3 +306,26 @@ export async function saveCategory(form: FormData) {
   revalidatePath("/finans/kategoriler");
   await done("Kaydedildi.");
 }
+
+/** Cariyi başka cariye aktar ve sil: tüm kayıtlar hedefe taşınır, kaynak kart silinir (ör. resmi cari → fişli cari) */
+export async function mergeParty(form: FormData) {
+  await need("finance", 3);
+  const id = str(form, "id", 40);
+  const target = str(form, "target", 40);
+  if (!target || target === id) await fail("Aktarılacak cariyi seçin.");
+  if (form.get("confirm") !== "1") await fail("Onay kutusunu işaretleyin.");
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fin_party_merge", { p_from: id, p_to: target, p_name: opt(form, "name", 200) });
+  if (error) {
+    const m = error.message;
+    if (/merge_conflict:(.+)/.test(m)) await fail(`Aktarılamadı: ${m.split("merge_conflict:")[1]!.trim()}. Çakışan kaydı düzeltip yeniden deneyin.`);
+    if (/both_lab_linked/.test(m)) await fail("İki cari de hekim kartına bağlı; birleştirilemez.");
+    if (/rate_missing:(\w+)/.test(m)) await fail(`${m.match(/rate_missing:(\w+)/)![1]} kuru eksik: Finans › Kurlar'dan kurları çekip yeniden deneyin.`);
+    if (/fin_party_merge|does not exist|schema cache/.test(m)) await fail("Supabase'de 20270283000000_party_merge.sql çalıştırılmalı.");
+    await fail(finError(m));
+  }
+  const d = (data ?? {}) as { moved?: Record<string, number>; mirrors_voided?: number; converted?: number };
+  const total = Object.values(d.moved ?? {}).reduce((a, b) => a + b, 0);
+  revalidatePath("/finans/cariler");
+  redirect(`/finans/cariler/${target}?tamam=${encodeURIComponent(`Cari aktarıldı ve eski kart silindi: ${total} kayıt taşındı${d.mirrors_voided ? `, ${d.mirrors_voided} yansıma kaydı kaldırıldı` : ""}${d.converted ? `, ${d.converted} hareket kurla çevrildi` : ""}.`)}`);
+}

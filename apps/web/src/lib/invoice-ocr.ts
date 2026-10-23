@@ -40,8 +40,8 @@ Okunamayan alanı boş bırak; satırları atlama.` }] }],
     return { ok: false, note: `Fatura okunamadı: ${(e as Error).message.slice(0, 120)}` };
   }
   if (opts.receipt) {
-    const r = await initialFromRead(supabase, d, "Esnaf / tedarikçi fişi — fotoğraftan yapay zekâ ile okundu, kontrol edin", { attach_path: path, pay_default: "cash" });
-    return { ...r, note: `Fiş okundu. ${r.note} Ödeme varsayılan olarak nakit (kasa) seçili; değiştirebilirsiniz.` };
+    const r = await initialFromRead(supabase, d, "Esnaf / tedarikçi fişi — fotoğraftan yapay zekâ ile okundu, kontrol edin", { attach_path: path, pay_default: "cash", auto_post: true });
+    return { ...r, note: `Fiş okundu, kaydediliyor… ${r.note} Ödeme nakit (kasa) olarak girilir; sonradan faturadan değiştirebilirsiniz. Cari ya da tutar okunamadıysa form açık kalır: tamamlayıp "Kaydet ve işle"ye basın.` };
   }
   return initialFromRead(supabase, d, "Fotoğraftan yapay zekâ ile okundu — kontrol edin", { attach_path: path });
 }

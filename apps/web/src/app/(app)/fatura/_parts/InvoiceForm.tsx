@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveInvoice, type InvoicePayload } from "@/lib/invoice-actions";
 import { CURRENCIES, fmt } from "@/lib/fin";
@@ -19,7 +19,8 @@ const blank = (vat: number): Row => ({ key: `r${++seq}`, name: "", qty: 1, unit:
 const numIn = (s: string) => { const t = s.trim(); const n = Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t); return Number.isFinite(n) ? n : 0; };
 const show = (n: number) => (n ? String(n).replace(".", ",") : "");
 
-export type InitialInvoice = Partial<Omit<InvoicePayload, "lines">> & { lines?: LineInput[] };
+/** auto_post: okunan fiş formu açılır açılmaz kaydedilip işlenir (eksik bilgi varsa form açık kalır) */
+export type InitialInvoice = Partial<Omit<InvoicePayload, "lines">> & { lines?: LineInput[]; auto_post?: boolean };
 type Ed = Record<string, string | boolean>;
 const isTR = (c?: string | null) => !c || ["TR", "TÜRKIYE", "TÜRKİYE", "TURKEY"].includes(c.trim().toLocaleUpperCase("tr-TR"));
 
@@ -134,6 +135,16 @@ export function InvoiceForm({ direction, parties, items, products, warehouses, c
     if (res.id) router.push(`/fatura/${res.id}?${res.ok ? "tamam" : "hata"}=${encodeURIComponent(res.message)}`);
     else setMsg({ ok: res.ok, text: res.message });
   }
+  // Fişten okunan alış: cari ve en az bir tutarlı satır varsa kendiliğinden kaydedilir, işlenir ve ödemesi girilir
+  const autoRan = useRef(false);
+  const autoReady = !!initial?.auto_post && (newParty ? !!np.name?.trim() : !!partyId) && rows.some((x) => x.name.trim() && Number(x.qty) > 0 && Number(x.unit_price) > 0);
+  useEffect(() => {
+    if (!autoReady || autoRan.current) return;
+    autoRan.current = true;
+    void submit(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoReady]);
+
 
   const canPay = direction === "purchase" && type === "invoice" && !initial?.id && accounts.length > 0;
   const payList = accounts.filter((a) => a.currency === currency);

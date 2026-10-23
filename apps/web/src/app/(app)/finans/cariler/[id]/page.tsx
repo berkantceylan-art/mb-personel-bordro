@@ -8,7 +8,7 @@ import { partyLedger } from "@/lib/fin-data";
 import { PARTY_KIND, dateOk, fmt, type Party } from "@/lib/fin";
 import { PartyForm } from "../../_parts/PartyForm";
 import { ConfirmSubmit, PendingSubmit } from "@/components/ConfirmSubmit";
-import { deleteParty, setPartyActive } from "@/lib/fin-actions";
+import { deleteParty, mergeParty, setPartyActive } from "@/lib/fin-actions";
 import { setNoInvoice } from "@/lib/waybill-actions";
 import { DateFilter } from "../../_parts/DateFilter";
 import { LedgerTable } from "../../_parts/LedgerTable";
@@ -39,6 +39,9 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
     ? await supabase.from("fin_parties").select("id, name").eq("id", p.slip_of).maybeSingle()
     : await supabase.from("fin_parties").select("id, name").eq("slip_of", p.id).is("sub_kind", null).maybeSingle();
   const pairMain = p.slip_of ?? (twinRow ? p.id : null);
+  // Aktar ve sil: hedef seçenekleri (önce firmanın fişli / faturalı carisi)
+  const canMerge = (s.modules.finance ?? 0) >= 3;
+  const { data: mergeOpts } = canMerge ? await supabase.from("fin_parties").select("id, name, currency, tax_no").neq("id", p.id).eq("is_active", true).order("name").limit(3000) : { data: null };
   const overLimit = p.credit_limit && led.balance > Number(p.credit_limit);
   const { data: lcRow } = p.lab_customer_id ? await supabase.from("lab_customers").select("no_invoice").eq("id", p.lab_customer_id).maybeSingle() : { data: null };
   const cash = (lcRow as { no_invoice?: boolean } | null)?.no_invoice === true;
@@ -60,7 +63,7 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
   const waHref = waLink(p.phone, waText);
   return (
     <>
-      <PageHeader title={p.name} subtitle={`${PARTY_KIND[p.kind]} · ${p.currency}${p.tax_no ? ` · ${p.tax_no}` : ""}`} actions={<span className="flex gap-4 text-sm font-semibold"><Link href={`/yazdir/cari/${p.id}${from || to ? `?${new URLSearchParams({ ...(from ? { bas: from } : {}), ...(to ? { bit: to } : {}) })}` : ""}`} className="text-brand-700">🖨 Cari yazdır</Link><a href="#gonder" className="text-brand-700">✉ Gönder</a>{canEdit && <a href="#duzenle" className="text-brand-700">✎ Düzenle</a>}{canEdit && <a href="#sil" className="text-bad">Sil</a>}<Link href="/finans/cariler" className="text-brand-700">← Cariler</Link></span>} />
+      <PageHeader title={p.name} subtitle={`${PARTY_KIND[p.kind]} · ${p.currency}${p.tax_no ? ` · ${p.tax_no}` : ""}`} actions={<span className="flex gap-4 text-sm font-semibold"><Link href={`/yazdir/cari/${p.id}${from || to ? `?${new URLSearchParams({ ...(from ? { bas: from } : {}), ...(to ? { bit: to } : {}) })}` : ""}`} className="text-brand-700">🖨 Cari yazdır</Link><a href="#gonder" className="text-brand-700">✉ Gönder</a>{canEdit && <a href="#duzenle" className="text-brand-700">✎ Düzenle</a>}{canEdit && <a href="#sil" className="text-bad">Sil</a>}{canMerge && <a href="#aktar" className="text-bad">Aktar ve sil</a>}<Link href="/finans/cariler" className="text-brand-700">← Cariler</Link></span>} />
       <div className={page}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KPI label="Bakiye" value={fmt(Math.abs(led.balance), p.currency)} sub={led.balance > 0 ? "bize borçlu" : led.balance < 0 ? "biz borçluyuz" : "kapalı"} tone={led.balance < 0 ? "bad" : undefined} />
@@ -130,6 +133,28 @@ export default async function PartyPage({ params, searchParams }: { params: Prom
                   <span className="text-xs text-muted">{p.is_active ? "Kart gizlenir, geçmiş ekstresi ve faturaları korunur." : ""}</span>
                 </form>
               </div>
+            </Card>
+          </div>
+        )}
+        {canMerge && (
+          <div id="aktar" className="scroll-mt-20">
+            <Card title="Başka cariye aktar ve bu kartı sil">
+              <form action={mergeParty} className="flex flex-col gap-3 text-sm">
+                <input type="hidden" name="id" value={p.id} />
+                <p className="text-muted">Bu carinin <b>tüm kayıtları</b> (faturalar, ödemeler, tahsilatlar, çekler, fişler, mal kabuller, fiyat listeleri) seçilen cariye taşınır ve <b>{p.name}</b> kartı silinir. İki cari arasındaki yansıma kayıtları kaldırılır, ödeme tek caride kalır. Para birimi farklıysa hareketler o günün kuruyla çevrilir.</p>
+                <label className="flex flex-col gap-1">Aktarılacak cari
+                  <select name="target" defaultValue={twinRow?.id as string | undefined ?? ""} required className="h-10 rounded-lg border border-line px-2">
+                    <option value="">— Seçin —</option>
+                    {twinRow && <option value={twinRow.id as string}>{twinRow.name as string} ({p.slip_of ? "faturalı cari" : "fişli cari"})</option>}
+                    {((mergeOpts ?? []) as Array<{ id: string; name: string; currency: string; tax_no: string | null }>).filter((o2) => o2.id !== twinRow?.id).map((o2) => <option key={o2.id} value={o2.id}>{o2.name} · {o2.currency}{o2.tax_no ? ` · ${o2.tax_no}` : ""}</option>)}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1">Aktarımdan sonra carinin adı (boş = hedefin adı kalır)
+                  <input name="name" placeholder={p.name} className="h-10 rounded-lg border border-line px-2" />
+                </label>
+                <label className="flex items-center gap-2"><input type="checkbox" name="confirm" value="1" required /> Kayıtların taşınacağını ve bu kartın silineceğini anladım (geri alınamaz)</label>
+                <div><ConfirmSubmit label="⇢ Aktar ve sil" question={`"${p.name}" carisinin tüm kayıtları seçilen cariye taşınıp bu kart silinsin mi?`} yes="Evet, aktar ve sil" className="h-9 px-4 rounded-lg border border-bad text-bad font-semibold" /></div>
+              </form>
             </Card>
           </div>
         )}
