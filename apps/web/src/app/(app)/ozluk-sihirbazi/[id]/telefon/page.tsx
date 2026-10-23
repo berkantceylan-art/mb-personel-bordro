@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/session";
 import { PhoneCapture } from "./PhoneCapture";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 /** Telefonu kamera olarak kullan: QR ile açılır, çekilen belgeler masaüstündeki sihirbaza düşer */
 export default async function DossierPhone({ params }: { params: Promise<{ id: string }> }) {

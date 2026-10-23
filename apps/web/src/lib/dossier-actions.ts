@@ -44,6 +44,23 @@ async function slicePdf(bytes: ArrayBuffer, from: number, to: number): Promise<U
   pages.forEach((p) => out.addPage(p));
   return out.save();
 }
+/** Görselleri (A4 genişliğine ölçekli) ve PDF'leri sırayla tek PDF'te birleştirir */
+async function mergePdf(parts: Array<{ bytes: ArrayBuffer | Uint8Array; mime: string }>): Promise<Uint8Array> {
+  const out = await PDFDocument.create();
+  for (const p of parts) {
+    if (p.mime === "application/pdf") {
+      const src = await PDFDocument.load(p.bytes, { ignoreEncryption: true });
+      (await out.copyPages(src, src.getPageIndices())).forEach((x) => out.addPage(x));
+    } else {
+      const img = p.mime === "image/png" ? await out.embedPng(p.bytes) : await out.embedJpg(p.bytes);
+      const k = 595 / img.width;
+      out.addPage([595, img.height * k]).drawImage(img, { x: 0, y: 0, width: 595, height: img.height * k });
+    }
+  }
+  return out.save();
+}
+/** Birkaç sayfalık olabilen belge türleri (başlıksız devam sayfası bunlara eklenir) */
+const MULTI_PAGE = /sözleşme|sozlesme|kvkk|aydınlatma|rıza|taahhüt|gizlilik|tutanak|yönetmelik|talimat/i;
 async function pdfPages(bytes: ArrayBuffer): Promise<number> {
   try { return (await PDFDocument.load(bytes, { ignoreEncryption: true })).getPageCount(); } catch { return 1; }
 }
@@ -71,11 +88,91 @@ export async function dossRegister(_: DossResult | null, f: FormData): Promise<D
   let noKey = false;
   const errors: string[] = [];
   const out: DossResult = { ok: true, message: "" };
+  const batch: Array<{ file: DossFile; bytes: ArrayBuffer; mime: string }> = [];
 
   const insertDoc = async (typeId: string, path: string, name: string, extra: Record<string, unknown>) => {
     const { data, error } = await sb.from("employee_documents").insert({ company_id: s.companyId, employee_id: employeeId, document_type_id: typeId, file_path: path, file_name: name, uploaded_by: s.userId, ...extra }).select("id").single();
     if (error) throw new Error(error.message);
     return data.id as string;
+  };
+
+  /**
+   * docs / exit: yüklenen sayfalar (fotoğraf ya da PDF) tek PDF'te birleştirilip belge türü tanınır, belgelere bölünür.
+   * Böylece 2-3 sayfalık sözleşmenin başlıksız sayfaları ayrı / yanlış belge olarak atanmaz.
+   * Az önce (20 dk) kaydedilen belgenin devamı olan sayfalar o belgeye eklenir (seri çekimde parça parça yükleme).
+   */
+  const classifyBatch = async () => {
+    let merged: Uint8Array | ArrayBuffer;
+    const single = batch.length === 1 && batch[0]!.mime === "application/pdf";
+    try { merged = single ? batch[0]!.bytes : await mergePdf(batch); }
+    catch { merged = batch[0]!.bytes; batch.splice(1); }  // birleştirilemeyen görsel: yalnız ilk dosya
+    const mergedBuf = merged instanceof Uint8Array ? merged.slice().buffer : merged;
+    const mime = batch.length === 1 && batch[0]!.mime !== "application/pdf" ? batch[0]!.mime : "application/pdf";
+    const pages = mime === "application/pdf" ? await pdfPages(mergedBuf) : 1;
+    const since = new Date(Date.now() - 20 * 60000).toISOString();
+    const { data: prevRows } = await sb.from("employee_documents").select("id, file_path, file_name, pages, document_types(name)").eq("employee_id", employeeId).gte("uploaded_at", since).order("uploaded_at", { ascending: false }).limit(1);
+    const prev = (prevRows?.[0] ?? null) as { id: string; file_path: string; file_name: string; pages: number | null; document_types: { name: string } | null } | null;
+    const prevType = prev?.document_types?.name && MULTI_PAGE.test(prev.document_types.name) ? prev.document_types.name : null;
+
+    const r = await aiReadDoc<{ segments?: Segment[] }>(mergedBuf, mime, "classify", classifyList, prevType);
+    if (r.error === "no_key") noKey = true; else if (r.error) errors.push(r.error);
+    let segs = (r.data?.segments ?? []).filter((x) => x.from >= 1 && x.to >= x.from && x.to <= pages).sort((a, b) => a.from - b.from);
+    // çakışanları ayıkla, hiçbir segmente girmeyen sayfaları "Diğer" olarak ekle (sayfa kaybolmasın)
+    const clean: Segment[] = [];
+    let next = 1;
+    for (const sg of segs) {
+      if (sg.to < next) continue;
+      if (sg.from > next) clean.push({ from: next, to: sg.from - 1, type: "Diğer" });
+      clean.push({ ...sg, from: Math.max(sg.from, next) });
+      next = sg.to + 1;
+    }
+    if (next <= pages) clean.push({ from: next, to: pages, type: "Diğer" });
+    segs = clean;
+    const known = (t: string) => typeByName.get(String(t ?? "").toLocaleLowerCase("tr"));
+    // tanınmayan sayfa, hemen önceki çok sayfalı belgenin devamı sayılır
+    const fixed: Segment[] = [];
+    for (const sg of segs) {
+      const last = fixed[fixed.length - 1];
+      if (!known(sg.type) && last && MULTI_PAGE.test(last.type) && last.to + 1 === sg.from) { last.to = sg.to; continue; }
+      if (!fixed.length && prevType && sg.from === 1 && (sg.continues_previous || !known(sg.type))) { fixed.push({ ...sg, type: prevType, continues_previous: true }); continue; }
+      fixed.push({ ...sg, continues_previous: false });
+    }
+    const whole = fixed.length === 1 && !fixed[0]!.continues_previous && fixed[0]!.from === 1 && fixed[0]!.to === pages;
+    for (const sg of fixed) {
+      const k = known(sg.type);
+      const n = sg.to - sg.from + 1;
+      if (sg.continues_previous && prev) {
+        // önceki belgeye ekle
+        const { data: pb } = await sb.storage.from("documents").download(prev.file_path);
+        if (pb) {
+          const pm = prev.file_path.endsWith(".pdf") ? "application/pdf" : "image/jpeg";
+          const add = mime === "application/pdf" ? await slicePdf(mergedBuf, sg.from, sg.to) : new Uint8Array(mergedBuf);
+          const joined = await mergePdf([{ bytes: await pb.arrayBuffer(), mime: pm }, { bytes: add, mime }]);
+          const path = `${prefix}arsiv/${Date.now()}-birlesik.pdf`;
+          const up = await sb.storage.from("documents").upload(path, joined, { contentType: "application/pdf" });
+          if (!up.error) {
+            const total = (prev.pages ?? 1) + n;
+            await sb.from("employee_documents").update({ file_path: path, file_name: `${prevType} (${total} sayfa).pdf`, pages: total }).eq("id", prev.id);
+            await sb.storage.from("documents").remove([prev.file_path]);
+            (out.docs ??= []).push({ id: prev.id, type: `${prevType} (devam sayfası eklendi)`, name: `${total} sayfa`, pages: total, date: null, expires: null, confidence: null });
+            continue;
+          }
+        }
+      }
+      const typeId = k?.id ?? await ensureType(sb, s.companyId, "Diğer / sınıflandırılmadı", mode === "exit" ? "cikis" : "ozluk");
+      let path = batch[0]!.file.path;
+      let name = batch.length === 1 ? batch[0]!.file.name : `${k?.name ?? "belge"}.pdf`;
+      if (!(whole && batch.length === 1)) {
+        const part = mime === "application/pdf" ? (whole ? new Uint8Array(mergedBuf) : await slicePdf(mergedBuf, sg.from, sg.to)) : new Uint8Array(mergedBuf);
+        path = `${prefix}arsiv/${Date.now()}-${sg.from}.pdf`;
+        name = `${k?.name ?? "belge"}${n > 1 ? ` (${n} sayfa)` : ""}.pdf`;
+        const up = await sb.storage.from("documents").upload(path, part, { contentType: "application/pdf" });
+        if (up.error) { errors.push(up.error.message); continue; }
+      }
+      const id = await insertDoc(typeId, path, name, { ai_data: sg, source: batch[0]!.file.source, pages: n, doc_date: isoDate(sg.date), expires_on: isoDate(sg.expires_on) });
+      (out.docs ??= []).push({ id, type: k?.name ?? "Diğer / sınıflandırılmadı", name, pages: n, date: isoDate(sg.date), expires: isoDate(sg.expires_on), confidence: typeof sg.confidence === "number" ? sg.confidence : null });
+    }
+    if (!(whole && batch.length === 1)) await sb.storage.from("documents").remove(batch.map((b) => b.file.path));
   };
 
   try {
@@ -135,29 +232,10 @@ export async function dossRegister(_: DossResult | null, f: FormData): Promise<D
         continue;
       }
 
-      // docs / exit: belge türünü tanı; çok belgeli PDF'i böl
-      const r = await aiReadDoc<{ segments?: Segment[] }>(bytes, mime, "classify", classifyList);
-      if (r.error === "no_key") noKey = true; else if (r.error) errors.push(`${file.name}: ${r.error}`);
-      let segs = (r.data?.segments ?? []).filter((x) => x.from >= 1 && x.to >= x.from && x.to <= pages);
-      if (!segs.length) segs = [{ from: 1, to: pages, type: "Diğer" }];
-      const split = mime === "application/pdf" && segs.length > 1;
-      for (const sg of segs) {
-        const known = typeByName.get(String(sg.type ?? "").toLocaleLowerCase("tr"));
-        const typeId = known?.id ?? await ensureType(sb, s.companyId, "Diğer / sınıflandırılmadı", mode === "exit" ? "cikis" : "ozluk");
-        let path = file.path;
-        let name = file.name;
-        if (split) {
-          const part = await slicePdf(bytes, sg.from, sg.to);
-          path = `${prefix}arsiv/${Date.now()}-${sg.from}.pdf`;
-          name = `${known?.name ?? "belge"} (s.${sg.from}${sg.to > sg.from ? `-${sg.to}` : ""}).pdf`;
-          const up = await sb.storage.from("documents").upload(path, part, { contentType: "application/pdf" });
-          if (up.error) { errors.push(up.error.message); continue; }
-        }
-        const id = await insertDoc(typeId, path, name, { ai_data: sg, source: file.source, pages: sg.to - sg.from + 1, doc_date: isoDate(sg.date), expires_on: isoDate(sg.expires_on) });
-        (out.docs ??= []).push({ id, type: known?.name ?? "Diğer / sınıflandırılmadı", name, pages: sg.to - sg.from + 1, date: isoDate(sg.date), expires: isoDate(sg.expires_on), confidence: typeof sg.confidence === "number" ? sg.confidence : null });
-      }
-      if (split) await sb.storage.from("documents").remove([file.path]);
+      // docs / exit: aynı yüklemedeki tüm sayfalar birlikte değerlendirilir (aşağıda)
+      batch.push({ file, bytes, mime });
     }
+    if (batch.length) await classifyBatch();
   } catch (e) {
     return { ok: false, message: (e as Error).message.includes("employee_dossier") || (e as Error).message.includes("ai_data") ? "Özlük sihirbazı veritabanı güncellemesi eksik: Supabase'de 20270115000000_dossier.sql dosyasını çalıştırın." : (e as Error).message };
   }

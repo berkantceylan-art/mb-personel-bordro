@@ -97,8 +97,12 @@ export function Capture({
     setItems((cur) => [...cur, ...next]);
   };
   const busyRef = useRef(false);
+  // belge modunda seri çekimde birkaç saniye beklenir: aynı belgenin sayfaları birlikte okunsun (sözleşme 2-3 sayfa)
+  const multi = mode === "docs" || mode === "exit";
   useEffect(() => {
-    if (auto && !busyRef.current && items.some((x) => x.status === "wait")) void run(items);
+    if (!auto || busyRef.current || !items.some((x) => x.status === "wait")) return;
+    const t = setTimeout(() => void run(items), multi ? 4000 : 0);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, auto]);
 
@@ -129,11 +133,12 @@ export function Capture({
       setMsg({ ok: true, text: "Okunuyor… (sayfa başına birkaç saniye)" });
       const all: DossResult = { ok: true, message: "" };
       const msgs: string[] = [];
-      for (let i = 0; i < files.length; i += 4) {
+      const per = multi ? 12 : 4;  // belge modunda tüm sayfalar tek seferde: çok sayfalı belgeler bölünmez
+      for (let i = 0; i < files.length; i += per) {
         const fd = new FormData();
         fd.set("employeeId", employeeId);
         fd.set("mode", mode);
-        fd.set("files", JSON.stringify(files.slice(i, i + 4)));
+        fd.set("files", JSON.stringify(files.slice(i, i + per)));
         const r = await dossRegister(null, fd);
         if (!r.ok) { all.ok = false; }
         msgs.push(r.message);
