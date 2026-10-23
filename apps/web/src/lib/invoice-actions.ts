@@ -344,3 +344,33 @@ async function attachAfterSave(invoiceId: string, path: string, name: string | n
     await admin.from("inv_invoice_files").insert({ company_id: s.companyId, invoice_id: invoiceId, path, name: name?.slice(0, 200) ?? "Fatura görüntüsü", mime, created_by: s.userId });
   } catch { /* tablo yoksa sessiz geç */ }
 }
+
+/**
+ * Esnaf / tedarikçi fişi: fotoğraf okunur, tedarikçi ve tutar okunduysa alış faturası olarak hemen kaydedilir,
+ * işlenir ve nakit (kasa) ödemesi girilir. Okunamayan bilgi varsa { form: true } döner; form dolu açılır.
+ */
+export async function receiptSave(path: string): Promise<{ ok: boolean; id?: string; form?: boolean; message: string }> {
+  const s = await getSession();
+  if ((s.modules.purchases ?? 0) < 2) return { ok: false, message: "Alış yetkiniz yok." };
+  if (!path.startsWith(`${s.userId}/`) || path.includes("..")) return { ok: false, message: "Dosyaya erişim yok." };
+  const { readPurchaseInvoice } = await import("@/lib/invoice-ocr");
+  const r = await readPurchaseInvoice(path, s.userId, { receipt: true });
+  if (!r.ok || !r.initial) return { ok: false, form: true, message: r.note };
+  const i = r.initial;
+  const lines = (i.lines ?? []).filter((l) => l.name?.trim() && Number(l.qty) > 0 && Number(l.unit_price) > 0);
+  if (!(i.party_id || i.new_party?.name)) return { ok: false, form: true, message: "Fişte satıcı okunamadı; tedarikçiyi seçip kaydedin." };
+  if (!lines.length) return { ok: false, form: true, message: "Fişte tutar okunamadı; tutarı girip kaydedin." };
+  const supabase = await createClient();
+  const [{ data: cash }, { data: wh }] = await Promise.all([
+    (s.modules.finance ?? 0) >= 2 ? supabase.from("fin_accounts").select("id").eq("is_active", true).eq("kind", "cash").eq("currency", i.currency ?? "TRY").order("name").limit(1).maybeSingle() : Promise.resolve({ data: null }),
+    supabase.from("stk_warehouses").select("id").eq("is_active", true).order("is_default", { ascending: false }).order("name").limit(1).maybeSingle(),
+  ]);
+  const res = await saveInvoice({
+    direction: "purchase", type: "invoice", party_id: i.party_id ?? null, new_party: i.party_id ? null : i.new_party ?? null,
+    doc_no: i.doc_no ?? null, invoice_date: i.invoice_date ?? new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10), due_date: null,
+    currency: i.currency ?? "TRY", rate: null, warehouse_id: (wh?.id as string | undefined) ?? null, profile: null, note: i.note ?? null, post: true,
+    attach_path: path, attach_name: "Fiş görüntüsü", pay: cash?.id ? { account_id: cash.id as string } : null, lines,
+  });
+  if (!res.id) return { ok: false, form: true, message: res.message };
+  return { ok: res.ok, id: res.id, message: `Fiş kaydedildi. ${res.message}${cash?.id ? "" : " (Kasa hesabı bulunamadığı için ödeme girilmedi.)"}` };
+}
