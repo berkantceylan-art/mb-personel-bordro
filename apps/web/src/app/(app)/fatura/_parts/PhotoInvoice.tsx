@@ -1,13 +1,18 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { LiveCamera, isTouchDevice } from "@/components/LiveCamera";
 
 /** Kağıt / PDF alış faturasını yükle → yapay zekâ okusun → form dolu açılsın */
 export function PhotoInvoice({ userId }: { userId: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // bilgisayarda "capture" yok sayılır (dosya penceresi açılır): web kamerası için canlı pencere
+  const [desk, setDesk] = useState(false);
+  const [cam, setCam] = useState<null | "fatura" | "fis">(null);
+  useEffect(() => setDesk(!isTouchDevice()), []);
 
   async function go(f: File | undefined, fis = false) {
     if (!f) return;
@@ -42,6 +47,13 @@ export function PhotoInvoice({ userId }: { userId: string }) {
         🧾 Esnaf / tedarikçi fişi okut
         <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => void go(e.target.files?.[0], true)} />
       </label>
+      {desk && (
+        <span className="flex gap-2 text-xs font-semibold">
+          <button type="button" disabled={!!busy} onClick={() => setCam("fatura")} className="h-10 px-3 rounded-[10px] border border-line bg-white">🎥 Faturayı kamerayla çek</button>
+          <button type="button" disabled={!!busy} onClick={() => setCam("fis")} className="h-10 px-3 rounded-[10px] border border-line bg-white">🎥 Fişi kamerayla çek</button>
+        </span>
+      )}
+      <LiveCamera open={!!cam} onClose={() => setCam(null)} onShot={(f) => { const fis = cam === "fis"; setCam(null); void go(f, fis); }} />
       <span className="text-xs text-muted">Tedarikçi, belge no, tarih ve kalemler otomatik dolar; cari yoksa açılır. Fişte ödeme (nakit) de aynı anda girilir. Kaydetmeden önce kontrol edin.</span>
       {err && <span className="text-sm text-bad">{err}</span>}
     </div>

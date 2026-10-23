@@ -3,6 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { dossRegister, type DossFile, type DossResult } from "@/lib/dossier-actions";
+import { LiveCamera, isTouchDevice } from "@/components/LiveCamera";
+
+// Chrome / Edge masaüstü: klasör izleme (File System Access API)
+type DirHandle = { name: string; values: () => AsyncIterable<{ kind: string; name: string; getFile?: () => Promise<File> }> };
+const SCAN_EXT = /\.(jpe?g|png|webp|pdf)$/i;
 
 type Item = { key: string; file: File; url: string | null; rot: number; status: "wait" | "up" | "ok" | "err" };
 
@@ -36,6 +41,55 @@ export function Capture({
   const cam = useRef<HTMLInputElement>(null);
   const pick = useRef<HTMLInputElement>(null);
   const [auto, setAuto] = useState(autoUpload);
+  const [liveCam, setLiveCam] = useState(false);
+  const [watch, setWatch] = useState<{ name: string; found: number } | null>(null);
+  const dir = useRef<DirHandle | null>(null);
+  const seen = useRef<Set<string>>(new Set());
+  const sizes = useRef<Map<string, number>>(new Map());
+
+  const openCamera = () => (isTouchDevice() ? cam.current?.click() : setLiveCam(true));
+
+  // Tarayıcı (scanner) kayıt klasörünü izle: yeni gelen dosya yazımı bitince otomatik yüklenip okunur
+  async function startWatch() {
+    const w = window as unknown as { showDirectoryPicker?: (o?: object) => Promise<DirHandle> };
+    if (!w.showDirectoryPicker) { setMsg({ ok: false, text: "Klasör izleme yalnız bilgisayarda Chrome ya da Edge ile çalışır." }); return; }
+    let h: DirHandle;
+    try { h = await w.showDirectoryPicker({ mode: "read", id: "ozluk-tarama" }); } catch { return; }
+    seen.current = new Set();
+    sizes.current = new Map();
+    for await (const e of h.values()) if (e.kind === "file") seen.current.add(e.name);  // klasörde zaten olanlar atlanır
+    dir.current = h;
+    setAuto(true);
+    setWatch({ name: h.name, found: 0 });
+    setMsg({ ok: true, text: `"${h.name}" klasörü izleniyor. Tarayıcıda taradığınız belge bu klasöre düştüğü anda yüklenip okunur.` });
+  }
+  const stopWatch = () => { dir.current = null; setWatch(null); };
+  useEffect(() => {
+    if (!watch) return;
+    let stop = false;
+    const tick = async () => {
+      const h = dir.current;
+      if (!h || stop) return;
+      const fresh: File[] = [];
+      try {
+        for await (const e of h.values()) {
+          if (e.kind !== "file" || seen.current.has(e.name) || !SCAN_EXT.test(e.name) || !e.getFile) continue;
+          const f = await e.getFile();
+          // dosya hâlâ yazılıyorsa boyutu değişir: iki kontrol arası aynı kalınca alınır
+          if (f.size > 0 && sizes.current.get(e.name) === f.size) { seen.current.add(e.name); fresh.push(f); } else sizes.current.set(e.name, f.size);
+        }
+      } catch { setMsg({ ok: false, text: "Klasöre erişim kesildi; yeniden seçin." }); stopWatch(); return; }
+      if (fresh.length) {
+        const dt = new DataTransfer();
+        fresh.forEach((f) => dt.items.add(f));
+        add(dt.files, "scan");
+        setWatch((w0) => (w0 ? { ...w0, found: w0.found + fresh.length } : w0));
+      }
+    };
+    const t = setInterval(() => void tick(), 2500);
+    return () => { stop = true; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watch?.name]);
 
   const add = (list: FileList | null, source: "camera" | "scan") => {
     if (!list?.length) return;
@@ -106,9 +160,19 @@ export function Capture({
       {title && <div className="font-semibold text-brand-800">{title}</div>}
       {hint && <p className="text-xs text-muted -mt-2">{hint}</p>}
       <div className="grid gap-2 grid-cols-2">
-        <button type="button" onClick={() => cam.current?.click()} className={`${btn} rounded-[12px] bg-brand-700 text-white font-bold flex items-center justify-center gap-2`}>📷 Kamerayla çek</button>
+        <button type="button" onClick={openCamera} className={`${btn} rounded-[12px] bg-brand-700 text-white font-bold flex items-center justify-center gap-2`}>📷 Kamerayla çek</button>
         <button type="button" onClick={() => pick.current?.click()} className={`${btn} rounded-[12px] border-2 border-brand-700 text-brand-700 bg-white font-bold flex items-center justify-center gap-2`}>🗂 Tarayıcı / dosya</button>
       </div>
+      {!watch ? (
+        <button type="button" onClick={() => void startWatch()} className="h-11 rounded-[12px] border border-brand-700/40 bg-white text-sm font-semibold text-brand-700">🖨 Otomatik tarama: tarayıcının kayıt klasörünü izle</button>
+      ) : (
+        <div className="flex items-center gap-2 rounded-[12px] bg-[#E6F4EC] px-3 py-2 text-sm text-[#1A7F52]">
+          <span className="inline-block w-2 h-2 rounded-full bg-[#1A7F52] animate-pulse" />
+          <span className="flex-1"><b>{watch.name}</b> izleniyor · taradığınız belge otomatik eklenir{watch.found ? ` · ${watch.found} belge alındı` : ""}</span>
+          <button type="button" onClick={stopWatch} className="font-semibold underline">Durdur</button>
+        </div>
+      )}
+      <LiveCamera open={liveCam} onClose={() => setLiveCam(false)} onShot={(f) => { const dt = new DataTransfer(); dt.items.add(f); add(dt.files, "camera"); }} />
       <input ref={cam} type="file" accept="image/*" capture="environment" multiple hidden onChange={(e) => { add(e.target.files, "camera"); e.target.value = ""; }} />
       <input ref={pick} type="file" accept="image/*,application/pdf" multiple hidden onChange={(e) => { add(e.target.files, "scan"); e.target.value = ""; }} />
       <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} className="w-4 h-4" />Çeker çekmez yükle ve oku (seri çekim)</label>
