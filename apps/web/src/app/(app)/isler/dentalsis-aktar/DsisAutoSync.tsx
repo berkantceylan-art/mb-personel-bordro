@@ -61,7 +61,7 @@ export function DsisAutoSync({ status }: { status: DsisSyncStatus }) {
           {status.lastOk && !last?.ok && <div>Son başarılı tur: {when(status.lastOk.at)} ({ago(status.lastOk.at)})</div>}
           {last?.ok && (
             <div className="text-slate-500">
-              İş listesi {list.total ?? 0} · ayrıntısı çekilen {list.fetched ?? 0} · yeni iş {jobs.inserted ?? 0} · bilgi {jobs.info_updated ?? 0} · kalem {jobs.items_updated ?? 0} · prova {jobs.steps_updated ?? 0} · durum {jobs.status_updated ?? 0} · iptal {jobs.cancelled ?? 0}
+              İş listesi {list.total ?? 0} · ayrıntısı çekilen {list.fetched ?? 0} · yeni iş {jobs.inserted ?? 0} · bilgi {jobs.info_updated ?? 0} · kalem {jobs.items_updated ?? 0} · prova {jobs.steps_updated ?? 0} · durum {jobs.status_updated ?? 0} · yeniden açılan {jobs.reopened ?? 0} · iptal {jobs.cancelled ?? 0}
               {" · "}yeni hekim {ref.customers_new ?? 0} · hekim bilgisi {cust.customers_updated ?? 0} · tahsilat {bal.payments ?? 0} · bakiye eşitleme {bal.adjusted ?? 0}
             </div>
           )}
