@@ -79,6 +79,14 @@ export async function dsisAuditScan(sb: SupabaseClient, restart = false): Promis
 
 /** Eksik / farklı işleri aktar, bakiyeleri eşitle */
 export async function dsisAuditFix(sb: SupabaseClient): Promise<{ ok: boolean; message: string; steps: Json }> {
+  // otomatik eşitleme turu sürerken aynı kayıtlara iki taraftan yazılmasın (kilit beklemesi zaman aşımına yol açar)
+  const lock = await getState<{ at: string }>(sb, "lock");
+  if (lock && Date.now() - Date.parse(lock.at) < 4 * 60_000) return { ok: false, steps: {}, message: "Otomatik eşitleme şu an çalışıyor; 1-2 dakika sonra yeniden “Düzelt”e basın." };
+  await setState(sb, "lock", { at: new Date().toISOString(), by: "audit" });
+  try { return await fixInner(sb); } finally { await sb.from("dsis_sync_state").delete().eq("key", "lock"); }
+}
+
+async function fixInner(sb: SupabaseClient): Promise<{ ok: boolean; message: string; steps: Json }> {
   const call = client(sb, (await getState<{ t: string }>(sb, "token"))?.t ?? null);
   const steps: Json = {};
   // yeni hekimler önce açılır

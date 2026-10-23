@@ -98,8 +98,11 @@ export async function dsisImportBalance(): Promise<DsisStep> {
   try {
     await owner();
     const t = await readJson<{ tahsilat?: unknown[]; ekstreToplam?: unknown[] }>("tahsilat");
-    const { data, error } = await (await createClient()).rpc("dsis_import_balance", { p_tahsilat: t.tahsilat ?? [], p_balances: t.ekstreToplam ?? [] });
-    if (error) return { ok: false, message: sqlHint(error.message) };
+    // parça parça (tek çağrı süre sınırını aşıyordu)
+    const { balanceChunks } = await import("@/lib/dsis-sync");
+    let data: unknown;
+    try { data = await balanceChunks(await createClient(), (t.tahsilat ?? []) as Parameters<typeof balanceChunks>[1], (t.ekstreToplam ?? []) as Parameters<typeof balanceChunks>[2]); }
+    catch (e) { return { ok: false, message: sqlHint((e as Error).message) }; }
     revalidatePath("/isler");
     revalidatePath("/isler/cari");
     return { ok: true, message: "Tahsilatlar aktarıldı, cari bakiyeler Dentalsis'e eşitlendi", result: data as Record<string, unknown> };
