@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, getSession } from "@/lib/session";
 import { openSlipParty } from "@/lib/supplier-actions";
 import { PendingSubmit } from "@/components/ConfirmSubmit";
+import { FisCariSearch } from "./FisCariSearch";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Fişli / faturalı cariler" };
@@ -15,7 +16,7 @@ const m = (k: number, cur: string) => `${(Math.abs(k) / 100).toLocaleString("tr-
 const Bal = ({ v, cur }: { v: number; cur: string }) => (v < 0 ? <span className="text-bad font-semibold">{m(v, cur)} <small className="font-normal">borcumuz</small></span> : v > 0 ? <span className="text-ok font-semibold">{m(v, cur)} <small className="font-normal">alacağımız</small></span> : <span className="text-muted">0</span>);
 
 /** Aynı firmanın iki carisi: faturalı alım carisi ve fişli (faturasız) alım carisi; ödeme ikisine de aynı tutarla düşer */
-export default async function SlipPairsPage({ searchParams }: { searchParams: Promise<{ cari?: string }> }) {
+export default async function SlipPairsPage({ searchParams }: { searchParams: Promise<{ cari?: string; q?: string }> }) {
   const sp = await searchParams;
   if (sp.cari && /^[0-9a-f-]{36}$/.test(sp.cari)) redirect(`/finans/fis-cari/${sp.cari}`);
   const s = await getSession();
@@ -26,8 +27,10 @@ export default async function SlipPairsPage({ searchParams }: { searchParams: Pr
     supabase.rpc("sup_pairs"),
     supabase.from("fin_parties").select("id, name").in("kind", ["supplier", "both"]).is("slip_of", null).order("name").limit(2000),
   ]);
-  const rows = (data ?? []) as Pair[];
-  const paired = new Set(rows.map((r) => r.main_id));
+  const all = (data ?? []) as Pair[];
+  const paired = new Set(all.map((r) => r.main_id));
+  const q = (sp.q ?? "").trim().toLocaleLowerCase("tr-TR");
+  const rows = q ? all.filter((r) => q.split(/\s+/).every((w) => `${r.name} ${r.slip_name}`.toLocaleLowerCase("tr-TR").includes(w))) : all;
   return (
     <>
       <PageHeader title="Fişli / faturalı cariler" subtitle="Aynı firmanın iki carisi: faturayla aldıklarımız ve fişle (faturasız) aldıklarımız" />
@@ -46,6 +49,7 @@ export default async function SlipPairsPage({ searchParams }: { searchParams: Pr
           ))}
         </section>
 
+        <FisCariSearch q={sp.q ?? ""} items={all.map((r) => ({ id: r.main_id, name: r.name, sub: [r.slip_name, r.last_slip ? `son fiş ${formatDate(r.last_slip)}` : null].filter(Boolean).join(" · ") }))} />
         <div className="overflow-x-auto rounded-[16px] border border-line bg-white">
           <table className="w-full min-w-[860px] text-sm">
             <thead><tr className="border-b border-line text-left text-xs text-muted bg-[#F7F9FB]">
@@ -68,7 +72,8 @@ export default async function SlipPairsPage({ searchParams }: { searchParams: Pr
                   </td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan={5} className="p-8 text-center text-muted">Henüz fişli carisi olan firma yok. Aşağıdan bir tedarikçiye fişli cari açın ya da mal kabulde “Fişli” seçin.</td></tr>}
+              {!rows.length && q && <tr><td colSpan={5} className="p-8 text-center text-muted">Aramaya uyan fişli cari yok.</td></tr>}
+              {!all.length && <tr><td colSpan={5} className="p-8 text-center text-muted">Henüz fişli carisi olan firma yok. Aşağıdan bir tedarikçiye fişli cari açın ya da mal kabulde “Fişli” seçin.</td></tr>}
             </tbody>
           </table>
         </div>
