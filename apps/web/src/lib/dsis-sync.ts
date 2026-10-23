@@ -16,8 +16,8 @@ type Json = Record<string, unknown>;
 type Row = Json & { id: number };
 export type DsisSyncResult = { ok: boolean; at: string; ms: number; message: string; steps: Record<string, unknown>; error?: string };
 
-const DETAIL_BUDGET = 120; // bir çalışmada en çok bu kadar iş ayrıntısı çekilir
-const CONCURRENCY = 6;
+const DETAIL_BUDGET = 220; // bir çalışmada en çok bu kadar iş ayrıntısı çekilir
+const CONCURRENCY = 8;
 
 class TokenError extends Error {}
 
@@ -151,14 +151,15 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
     const ids = list.map((r) => Number(r.id));
     const known = new Map<number, string>();
     const inErp = new Set<number>();
+    const erpStatus = new Map<number, string>();
     for (let i = 0; i < ids.length; i += 1000) {
       const part = ids.slice(i, i + 1000);
       const [{ data: seen }, { data: jobs }] = await Promise.all([
         sb.from("dsis_job_seen").select("legacy_id, fp").in("legacy_id", part),
-        sb.from("jobs").select("legacy_id").in("legacy_id", part),
+        sb.from("jobs").select("legacy_id, status").in("legacy_id", part),
       ]);
       for (const s of seen ?? []) known.set(Number(s.legacy_id), String(s.fp ?? ""));
-      for (const j of jobs ?? []) inErp.add(Number(j.legacy_id));
+      for (const j of jobs ?? []) { inErp.add(Number(j.legacy_id)); erpStatus.set(Number(j.legacy_id), String(j.status)); }
     }
     const isNew = list.filter((r) => !inErp.has(Number(r.id)) && String(r.tarih1 ?? "") >= "2026-01-01");
     // ilk kez görülen (daha önce aktarılmış) işler için parmak izi temel alınır; ayrıntı çekilmez
@@ -170,8 +171,20 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
       for (const r of baseline) known.set(Number(r.id), fp(r));
     }
     const changed = list.filter((r) => inErp.has(Number(r.id)) && known.get(Number(r.id)) !== fp(r));
+    // Dentalsis'te açık (son prova BİTİM değil) ama ERP'de teslim / iptal görünen işler: önce bunlar düzeltilir
+    const closedInErp = (r: Row) => ["delivered", "cancelled"].includes(erpStatus.get(Number(r.id)) ?? "");
+    const reopen = list.filter((r) => closedInErp(r) && String(r.provaturu ?? "") !== "BİTİM");
+    // BİTİM ama henüz teslim edilmemiş olabilir (teslim tarihi yakın olanlar)
+    const soon = new Date(Date.now() - 10 * 86_400_000).toISOString().slice(0, 10);
+    const maybeAll = list.filter((r) => closedInErp(r) && String(r.provaturu ?? "") === "BİTİM" && String(r.tarih2 ?? "") >= soon);
+    const checked = new Map<number, number>();
+    for (let i = 0; i < maybeAll.length; i += 1000) {
+      const { data } = await sb.from("dsis_job_seen").select("legacy_id, detail_at").in("legacy_id", maybeAll.slice(i, i + 1000).map((r) => Number(r.id)));
+      for (const x of data ?? []) checked.set(Number(x.legacy_id), x.detail_at ? Date.parse(String(x.detail_at)) : 0);
+    }
+    const maybe = maybeAll.filter((r) => Date.now() - (checked.get(Number(r.id)) ?? 0) > 6 * 3600_000);
     const want = new Map<number, Row>();
-    for (const r of [...isNew, ...changed]) if (want.size < DETAIL_BUDGET) want.set(Number(r.id), r);
+    for (const r of [...isNew, ...reopen, ...changed, ...maybe]) if (want.size < DETAIL_BUDGET) want.set(Number(r.id), r);
     // kalan bütçe: ERP'de açık / provadaki işler, en uzun süredir bakılmayan önce (teslim, kalem, silme değişiklikleri için)
     if (want.size < DETAIL_BUDGET) {
       const { data: open } = await sb.from("jobs").select("legacy_id").in("status", ["open", "tryin", "ready"]).gt("legacy_id", 0).limit(2000);
@@ -186,7 +199,7 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
     }
     const t1s = list.map((r) => String(r.tarih1 ?? "")).sort();
     const t2s = list.map((r) => String(r.tarih2 ?? "")).sort();
-    steps.list = { total: list.length, new: isNew.length, changed: changed.length, baseline: baseline.length, fetched: want.size, in_erp: inErp.size, max_id: Math.max(0, ...ids), tarih1_max: t1s[t1s.length - 1] ?? null, tarih2_min: t2s[0] ?? null, tarih2_max: t2s[t2s.length - 1] ?? null };
+    steps.list = { total: list.length, new: isNew.length, reopen: reopen.length, maybe: maybe.length, changed: changed.length, baseline: baseline.length, fetched: want.size, in_erp: inErp.size, max_id: Math.max(0, ...ids), tarih1_max: t1s[t1s.length - 1] ?? null, tarih2_min: t2s[0] ?? null, tarih2_max: t2s[t2s.length - 1] ?? null };
 
     const byId = new Map(list.map((r) => [Number(r.id), r]));
     const details = (await pool([...want.keys()], CONCURRENCY, async (id) => {
