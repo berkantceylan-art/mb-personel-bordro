@@ -16,7 +16,8 @@ export type Json = Record<string, unknown>;
 export type Row = Json & { id: number };
 export type DsisSyncResult = { ok: boolean; at: string; ms: number; message: string; steps: Record<string, unknown>; error?: string };
 
-const DETAIL_BUDGET = 220; // bir çalışmada en çok bu kadar iş ayrıntısı çekilir
+const DETAIL_BUDGET = 150; // bir çalışmada en çok bu kadar iş ayrıntısı çekilir
+const REF_EVERY_MS = 30 * 60_000; // hekim / ürün listesi bu sıklıkla yenilenir (her turda değil)
 const CONCURRENCY = 8;
 
 export class TokenError extends Error {}
@@ -159,10 +160,14 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
   try {
     const call = client(sb, (await getState<{ t: string }>(sb, "token"))?.t ?? null);
 
-    // 1) Hekimler ve ürünler (yeni olanlar açılır, mevcut hekimlerin bilgileri güncellenir)
-    const [cari, stok] = await Promise.all([call("/cari").then(arr), call("/stok").then(arr)]);
-    steps.ref = await rpc(sb, "dsis_import_ref", { p_cari: cari, p_stok: stok });
-    steps.customers = await rpc(sb, "dsis_update_customers", { p_cari: cari });
+    // 1) Hekimler ve ürünler: yarım saatte bir (her 5 dakikada tüm hekimleri güncellemek veritabanını yoruyordu)
+    const lastRef = await getState<{ at: string }>(sb, "last_ref");
+    if (opts.force || !lastRef || Date.now() - Date.parse(lastRef.at) > REF_EVERY_MS) {
+      const [cari, stok] = await Promise.all([call("/cari").then(arr), call("/stok").then(arr)]);
+      steps.ref = await rpc(sb, "dsis_import_ref", { p_cari: cari, p_stok: stok });
+      steps.customers = await rpc(sb, "dsis_update_customers", { p_cari: cari });
+      await setState(sb, "last_ref", { at: new Date().toISOString() });
+    } else steps.ref = { skipped: "30 dk'da bir" };
 
     // 2) İş listesi (teslim tarihine göre son 5000 iş, hafif alanlar) → değişenler
     const list = arr(await call("/iskayits-cache")).filter((r) => r && r.id);
@@ -213,8 +218,10 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
         const { data } = await sb.from("dsis_job_seen").select("legacy_id, detail_at").in("legacy_id", openIds.slice(i, i + 1000));
         for (const s of data ?? []) lastAt.set(Number(s.legacy_id), s.detail_at ? Date.parse(String(s.detail_at)) : 0);
       }
+      // son 20 dakikada bakılmış açık işe yeniden bakılmaz (sürekli aynı işleri çekip yazmak veritabanını yoruyordu)
+      const fresh = Date.now() - 20 * 60_000;
       openIds.sort((a, b) => (lastAt.get(a) ?? 0) - (lastAt.get(b) ?? 0));
-      for (const id of openIds) { if (want.size >= DETAIL_BUDGET) break; want.set(id, { id } as Row); }
+      for (const id of openIds) { if (want.size >= DETAIL_BUDGET) break; if ((lastAt.get(id) ?? 0) > fresh) break; want.set(id, { id } as Row); }
     }
     const t1s = list.map((r) => String(r.tarih1 ?? "")).sort();
     const t2s = list.map((r) => String(r.tarih2 ?? "")).sort();
@@ -242,7 +249,10 @@ export async function runDsisSync(sb: SupabaseClient, opts: { force?: boolean } 
     steps.jobs = jobSum;
     const now = new Date().toISOString();
     const seenRows = details.map((d) => { const id = Number(d.id); const r = byId.get(id); return { legacy_id: id, fp: r ? fp(r) : null, detail_at: now, seen_at: now }; });
-    for (let i = 0; i < seenRows.length; i += 500) await sb.from("dsis_job_seen").upsert(seenRows.slice(i, i + 500));
+    for (let i = 0; i < seenRows.length; i += 500) {
+      const { error: se } = await sb.from("dsis_job_seen").upsert(seenRows.slice(i, i + 500));
+      if (se) { steps.seen_error = se.message; console.error("[dsis-sync] dsis_job_seen yazılamadı:", se.message); break; }
+    }
 
     // 3) Tahsilatlar (son 45 gün) ve hekim bakiyeleri (Dentalsis'teki bakiyeye eşitlenir)
     const from = new Date(Date.now() - 45 * 86_400_000);

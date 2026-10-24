@@ -94,8 +94,6 @@ async function fixInner(sb: SupabaseClient): Promise<{ ok: boolean; message: str
   steps.ref = await rpc(sb, "dsis_import_ref", { p_cari: cari, p_stok: arr(await call("/stok")) });
   steps.customers = await rpc(sb, "dsis_update_customers", { p_cari: cari });
 
-  let rep: { jobs?: { missing_list?: Array<{ id: number }>; should_close_list?: Array<{ id: number }>; should_open_list?: Array<{ id: number }> } } = {};
-  try { rep = { jobs: (await rpc(sb, "dsis_audit_jobs", {})) as NonNullable<typeof rep.jobs> }; } catch { /* yalnız eksik işler aktarılır */ }
   // listelerde en çok 100 kayıt döner; eksiklerin tamamı için doğrudan sorgu
   const remote = await allRows<{ id: number }>((a, b) => sb.from("dsis_remote_jobs").select("id").or("durum.is.null,durum.eq.1").order("id", { ascending: false }).range(a, b));
   const remoteIds = remote.data.map((r) => Number(r.id));
@@ -106,13 +104,33 @@ async function fixInner(sb: SupabaseClient): Promise<{ ok: boolean; message: str
   }
   const want = new Set<number>();
   for (const id of remoteIds) if (!inErp.has(id) && want.size < FIX_BUDGET) want.add(id);
-  for (const x of [...(rep.jobs?.should_close_list ?? []), ...(rep.jobs?.should_open_list ?? [])]) if (want.size < FIX_BUDGET) want.add(Number(x.id));
+  // durum farkları: listeler en çok 100 kayıt döner; tamamı için doğrudan sorgu
+  const { data: rjAll } = await sb.from("dsis_remote_jobs").select("id, provaturu, teslim").or("durum.is.null,durum.eq.1").limit(60000);
+  const rjMap = new Map((rjAll ?? []).map((r) => [Number(r.id), r]));
+  const erpJobs = await allRows<{ legacy_id: number; status: string; in_date: string }>((a, b) => sb.from("jobs").select("legacy_id, status, in_date").gt("legacy_id", 0).neq("status", "cancelled").order("legacy_id").range(a, b));
+  const closedInDsis = (r: { provaturu: string | null; teslim: string | null }) => r.provaturu === "BİTİM" && (r.teslim ?? "1") === "1";
+  const shouldClose: number[] = [], shouldOpen: number[] = [], erpOnly: number[] = [];
+  const { data: r0 } = await sb.from("dsis_remote_jobs").select("tarih1").not("tarih1", "is", null).order("tarih1").limit(1).maybeSingle();
+  const fromDate = String(r0?.tarih1 ?? "2026-01-01").slice(0, 10);
+  for (const j of erpJobs.data) {
+    const r = rjMap.get(Number(j.legacy_id));
+    if (!r) { if (String(j.in_date) >= fromDate) erpOnly.push(Number(j.legacy_id)); continue; }
+    if (closedInDsis(r) && ["open", "tryin", "ready"].includes(j.status)) shouldClose.push(Number(j.legacy_id));
+    else if (!closedInDsis(r) && j.status === "delivered") shouldOpen.push(Number(j.legacy_id));
+  }
+  for (const id of [...shouldClose, ...shouldOpen, ...erpOnly]) if (want.size < FIX_BUDGET) want.add(id);
   const missingTotal = remoteIds.filter((id) => !inErp.has(id)).length;
+  const todo = missingTotal + shouldClose.length + shouldOpen.length + erpOnly.length;
 
+  // ERP'de olup Dentalsis listesinde olmayan iş: ayrıntısı da yoksa Dentalsis'te silinmiş demektir → ERP'de iptal edilir
+  const erpOnlySet = new Set(erpOnly);
   const details = (await pool([...want], 8, async (id) => {
     try {
-      const d = (await call("/iskayit", { id: String(id) })).data as Json | undefined;
-      return d && typeof d === "object" && d.id ? slimJob(d) : null;
+      const j = await call("/iskayit", { id: String(id) });
+      const d = j.data as Json | undefined;
+      if (d && typeof d === "object" && d.id) return slimJob(d);
+      if (erpOnlySet.has(id) && j.success !== false && (d === null || d === undefined || (typeof d === "object" && !Object.keys(d).length) || (Array.isArray(d) && !d.length))) return { id, durum: 0, stoklar: [], provalar: [], teeth: {}, flags: {} } as Json;
+      return null;
     } catch (e) { if (e instanceof TokenError) throw e; return null; }
   })).filter((x): x is Json => !!x);
   const jobSum: Record<string, number> = {};
@@ -138,7 +156,7 @@ async function fixInner(sb: SupabaseClient): Promise<{ ok: boolean; message: str
   const balRows = bal.filter((b) => b && b.id).map((b) => ({ id: Number(b.id), tl: Number(b.tltutar ?? 0), eur: Number(b.eurotutar ?? 0), usd: Number(b.usdtutar ?? 0), seen_at: now }));
   for (let i = 0; i < balRows.length; i += 500) await sb.from("dsis_remote_cari").upsert(balRows.slice(i, i + 500));
 
-  const left = Math.max(0, missingTotal - details.length);
+  const left = Math.max(0, todo - details.length);
   const j = jobSum;
-  return { ok: true, steps, message: `${j.inserted ?? 0} iş aktarıldı, ${(j.status_updated ?? 0) + (j.reopened ?? 0) + (j.items_updated ?? 0) + (j.info_updated ?? 0)} iş güncellendi, ${Number((steps.balance as Json).adjusted ?? 0)} bakiye düzeltildi.${left ? ` ${left} eksik iş kaldı: yeniden “Düzelt”e basın.` : ""}` };
+  return { ok: true, steps, message: `${j.inserted ?? 0} iş aktarıldı, ${(j.status_updated ?? 0) + (j.reopened ?? 0)} işin durumu eşitlendi, ${j.cancelled ?? 0} iş Dentalsis'te silindiği için iptal edildi, ${(j.items_updated ?? 0) + (j.info_updated ?? 0)} iş güncellendi, ${Number((steps.balance as Json).adjusted ?? 0)} bakiye düzeltildi.${left ? ` ${left} iş daha sırada: yeniden “Düzelt”e basın.` : ""}` };
 }
