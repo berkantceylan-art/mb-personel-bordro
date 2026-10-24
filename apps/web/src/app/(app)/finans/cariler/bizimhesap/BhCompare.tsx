@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { bhEqualize, type BhListItem } from "@/lib/bh-cari-actions";
+import { bhCompareCreate, bhEqualize, type BhListItem } from "@/lib/bh-cari-actions";
 
 const money = (k: number, c: string) => `${(k / 100).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${c === "TRY" ? "₺" : c === "EUR" ? "€" : c}`;
 type St = "same" | "diff" | "lab" | "cur" | "none";
@@ -26,13 +26,21 @@ export function BhCompare({ items }: { items: BhListItem[] }) {
   const rows = useMemo(() => live.filter((i) => i.kind === tab), [live, tab]);
   const count = (s: St) => rows.filter((i) => stOf(i) === s).length;
   const shown = rows.filter((i) => filter === "all" || stOf(i) === filter);
-  const canEq = (it: BhListItem) => stOf(it) === "diff";
+  // seçilebilir: bakiyesi farklı (eşitlenir), ERP'de yok ya da para birimi farklı (kendi para biriminde cari açılıp bakiye aktarılır)
+  const canEq = (it: BhListItem) => ["diff", "none", "cur"].includes(stOf(it));
   async function eq() {
-    const picks = shown.filter((i) => sel.has(i.guid) && canEq(i)).map((i) => ({ party: i.match!.id, target: i.erp_balance, name: i.name }));
-    if (!picks.length) return;
-    if (!confirm(`${picks.length} carinin ERP bakiyesi Bizim Hesap'taki bakiyeye eşitlensin mi? Fark tek "Bizim Hesap bakiye eşitleme" kaydıyla kapanır.`)) return;
+    const chosen = shown.filter((i) => sel.has(i.guid) && canEq(i));
+    const picks = chosen.filter((i) => stOf(i) === "diff").map((i) => ({ party: i.match!.id, target: i.erp_balance, name: i.name }));
+    const create = chosen.filter((i) => stOf(i) !== "diff").map((i) => i.guid);
+    if (!picks.length && !create.length) return;
+    if (!confirm(`${picks.length ? `${picks.length} carinin ERP bakiyesi Bizim Hesap'a eşitlenecek. ` : ""}${create.length ? `${create.length} cari için kendi para biriminde ERP carisi açılıp Bizim Hesap bakiyesi devir olarak aktarılacak. ` : ""}Devam?`)) return;
     setBusy(true); setMsg(null);
     let n = 0; const errors: { name: string; error: string }[] = [];
+    for (let i = 0; i < create.length; i += 10) {
+      setMsg({ ok: true, text: `Cariler açılıyor… ${Math.min(i + 10, create.length)} / ${create.length}` });
+      try { const r = await bhCompareCreate(create.slice(i, i + 10)); n += Number(/(\d+) carinin bakiyesi/.exec(r.message)?.[1] ?? 0); errors.push(...(r.errors ?? [])); if (!r.ok && !r.errors?.length) errors.push({ name: "Cari açma", error: r.message }); }
+      catch (e) { errors.push({ name: `${i + 1}-${i + 10}`, error: (e as Error).message }); }
+    }
     for (let i = 0; i < picks.length; i += 40) {
       setMsg({ ok: true, text: `Eşitleniyor… ${Math.min(i + 40, picks.length)} / ${picks.length}` });
       try { const r = await bhEqualize(picks.slice(i, i + 40)); n += Number(/^(\d+)/.exec(r.message)?.[1] ?? 0); errors.push(...(r.errors ?? [])); if (!r.ok && !r.errors?.length) errors.push({ name: "Eşitleme", error: r.message }); }
@@ -51,7 +59,7 @@ export function BhCompare({ items }: { items: BhListItem[] }) {
       <div className="flex flex-wrap gap-2 text-sm">
         {(["diff", "none", "cur", "lab", "same", "all"] as const).map((k) => <button key={k} type="button" onClick={() => { setFilter(k); setSel(new Set()); }} className={`rounded-full px-3 py-1 border ${filter === k ? "bg-ink text-white border-ink" : "bg-[#F2F4F7] border-transparent"}`}>{k === "all" ? `Hepsi (${rows.length})` : `${ST[k]} (${count(k)})`}</button>)}
       </div>
-      <p className="text-xs text-muted">Bakiye: + bize borçlu, − biz borçluyuz. “ERP&apos;de yok”: Bizim Hesap&apos;ta bakiyesi olan ama ERP&apos;de eşleşen kartı olmayan cari (aşağıdaki listeden aktarın). “Hekim”: bakiyesi Dentalsis&apos;ten eşitlenir. “Bakiye farklı” olanları seçip eşitleyebilirsiniz.</p>
+      <p className="text-xs text-muted">Bakiye: + bize borçlu, − biz borçluyuz. Seçip “eşitle” deyince: <b>Bakiye farklı</b> → ERP bakiyesi Bizim Hesap&apos;a eşitlenir; <b>ERP&apos;de yok</b> ve <b>Para birimi farklı</b> → kendi para biriminde ERP carisi açılır, Bizim Hesap bakiyesi devir olarak aktarılır (hareketleri istiyorsanız alttaki listeden “tüm hareketler” ile aktarın). <b>Hekim</b>: bakiyesi Dentalsis&apos;ten eşitlenir, buradan dokunulmaz.</p>
       {msg && <div className={`sticky top-0 z-20 text-sm rounded-lg px-3 py-2 ${msg.ok ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"}`}>{msg.text}{msg.errors?.length ? <ul className="mt-1 text-xs">{msg.errors.slice(0, 20).map((e, i) => <li key={i}>{e.name}: {e.error}</li>)}</ul> : null}</div>}
       <div className="overflow-x-auto max-h-[480px] overflow-y-auto border border-line rounded-[10px]">
         <table className="w-full text-sm min-w-[760px]">
@@ -79,7 +87,7 @@ export function BhCompare({ items }: { items: BhListItem[] }) {
           </tbody>
         </table>
       </div>
-      <div><button type="button" disabled={busy || !shown.some((i) => sel.has(i.guid) && canEq(i))} onClick={eq} className="h-10 px-4 rounded-[10px] bg-brand-700 text-white text-sm font-semibold disabled:opacity-50">{busy ? "Eşitleniyor…" : "Seçilenlerin bakiyesini Bizim Hesap'a eşitle"}</button></div>
+      <div><button type="button" disabled={busy || !shown.some((i) => sel.has(i.guid) && canEq(i))} onClick={eq} className="h-10 px-4 rounded-[10px] bg-brand-700 text-white text-sm font-semibold disabled:opacity-50">{busy ? "İşleniyor…" : `Seçilenleri Bizim Hesap'a eşitle (${shown.filter((i) => sel.has(i.guid) && canEq(i)).length})`}</button></div>
     </section>
   );
 }
