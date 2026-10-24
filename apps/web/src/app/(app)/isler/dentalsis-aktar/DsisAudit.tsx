@@ -89,6 +89,7 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
               <Stat label="Dentalsis'te iş" v={j.remote} />
               <Stat label="ERP'de olmayan" v={j.missing} bad={j.missing > 0} />
               <Stat label="Kalan iş: Dentalsis / ERP" v={`${j.remote_open} / ${j.erp_open}`} bad={j.remote_open !== j.erp_open} />
+              {Number((j as { erp_open_only?: number }).erp_open_only ?? 0) > 0 && <Stat label="ERP'de açık ama Dentalsis listesinde yok" v={Number((j as { erp_open_only?: number }).erp_open_only)} bad />}
               <Stat label="Dentalsis'te çıkmış, ERP'de açık" v={j.should_close} bad={j.should_close > 0} />
               <Stat label="Dentalsis'te açık, ERP'de çıkmış" v={j.should_open} bad={j.should_open > 0} />
               <Stat label="ERP'de olup Dentalsis'te olmayan" v={j.erp_only} bad={j.erp_only > 0} />
@@ -96,7 +97,7 @@ export function DsisAudit({ state }: { state: DsisAuditState }) {
             {j.missing > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">ERP&apos;de olmayan işler ({j.missing})</summary><ul className="mt-1">{j.missing_list.map((x) => <li key={x.id}>#{x.no} · {x.cari} · {x.hasta} · {x.tarih} · {x.prova}</li>)}</ul></details>}
             {j.should_close > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">Dentalsis&apos;te çıkmış ama ERP&apos;de açık ({j.should_close})</summary><ul className="mt-1">{j.should_close_list.map((x) => <li key={x.id}>#{x.no} · {x.cariad} · {x.hasta} · ERP: {x.status}</li>)}</ul></details>}
             {j.should_open > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">Dentalsis&apos;te açık ama ERP&apos;de çıkmış ({j.should_open})</summary><ul className="mt-1">{j.should_open_list.map((x) => <li key={x.id}>#{x.no} · {x.cariad} · {x.hasta} · Dentalsis: {x.provaturu} · ERP: {x.status}</li>)}</ul></details>}
-            {j.erp_only > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">ERP&apos;de olup Dentalsis listesinde olmayan ({j.erp_only})</summary><p className="mt-1 text-muted">Dentalsis&apos;te silinmiş olabilir; ERP&apos;de elle kontrol edin.</p><ul className="mt-1">{j.erp_only_list.map((x) => <li key={x.id}><Link href={`/isler/${x.id}`} className="text-brand-700">#{x.no}</Link> · {x.patient} · {x.status}</li>)}</ul></details>}
+            {j.erp_only > 0 && <details className="text-xs"><summary className="cursor-pointer font-semibold">ERP&apos;de olup Dentalsis listesinde olmayan ({j.erp_only})</summary><p className="mt-1 text-muted">Dentalsis&apos;te silinmiş işler: “Düzelt” bunları Dentalsis&apos;ten bir kez daha sorar, orada da yoksa ERP&apos;de iptal eder.</p><ul className="mt-1">{j.erp_only_list.map((x) => <li key={x.id}><Link href={`/isler/${x.id}`} className="text-brand-700">#{x.no}</Link> · {x.patient} · {x.status}</li>)}</ul></details>}
           </section>}
         </>
       )}

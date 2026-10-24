@@ -26,10 +26,14 @@ export function BhCompare({ items }: { items: BhListItem[] }) {
   const rows = useMemo(() => live.filter((i) => i.kind === tab), [live, tab]);
   const count = (s: St) => rows.filter((i) => stOf(i) === s).length;
   const shown = rows.filter((i) => filter === "all" || stOf(i) === filter);
-  // seçilebilir: bakiyesi farklı (eşitlenir), ERP'de yok ya da para birimi farklı (kendi para biriminde cari açılıp bakiye aktarılır)
+  // işlem yapılabilen: bakiyesi farklı (eşitlenir), ERP'de yok ya da para birimi farklı (kendi para biriminde cari açılıp bakiye aktarılır)
   const canEq = (it: BhListItem) => ["diff", "none", "cur"].includes(stOf(it));
+  const nothingLeft = rows.length > 0 && !rows.some(canEq);
   async function eq() {
-    const chosen = shown.filter((i) => sel.has(i.guid) && canEq(i));
+    const selected = shown.filter((i) => sel.has(i.guid));
+    const chosen = selected.filter(canEq);
+    const same = selected.filter((i) => stOf(i) === "same").length, lab = selected.filter((i) => stOf(i) === "lab").length;
+    if (!chosen.length) { setMsg({ ok: true, text: `Seçilenlerde eşitlenecek bir şey yok: ${same ? `${same} cari zaten aynı` : ""}${same && lab ? ", " : ""}${lab ? `${lab} hekim carisi (bakiyesi Dentalsis'ten eşitlenir)` : ""}.` }); setSel(new Set()); return; }
     const picks = chosen.filter((i) => stOf(i) === "diff").map((i) => ({ party: i.match!.id, target: i.erp_balance, name: i.name }));
     const create = chosen.filter((i) => stOf(i) !== "diff").map((i) => i.guid);
     if (!picks.length && !create.length) return;
@@ -46,15 +50,15 @@ export function BhCompare({ items }: { items: BhListItem[] }) {
       try { const r = await bhEqualize(picks.slice(i, i + 40)); n += Number(/^(\d+)/.exec(r.message)?.[1] ?? 0); errors.push(...(r.errors ?? [])); if (!r.ok && !r.errors?.length) errors.push({ name: "Eşitleme", error: r.message }); }
       catch (e) { errors.push({ name: `${i + 1}-${i + 40}`, error: (e as Error).message }); }
     }
-    setMsg({ ok: !errors.length, text: `${n} carinin bakiyesi Bizim Hesap'a eşitlendi.${errors.length ? ` ${errors.length} cari eşitlenemedi:` : ""}`, errors }); setSel(new Set()); setBusy(false); router.refresh();
+    setMsg({ ok: !errors.length, text: `${n} carinin bakiyesi Bizim Hesap'a eşitlendi.${same ? ` ${same} cari zaten aynıydı.` : ""}${lab ? ` ${lab} hekim carisine dokunulmadı (Dentalsis).` : ""}${errors.length ? ` ${errors.length} cari eşitlenemedi:` : " Liste yenileniyor…"}`, errors }); setSel(new Set()); setBusy(false); router.refresh();
   }
-  const totalDiff = rows.filter((i) => stOf(i) === "diff").length;
   return (
     <section className="rounded-[16px] border border-line bg-white p-4 flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <b className="text-brand-800">Bizim Hesap ↔ ERP bakiye karşılaştırması</b>
         {(["c", "s"] as const).map((k) => <button key={k} type="button" onClick={() => { setTab(k); setSel(new Set()); }} className={`rounded-full px-3 py-1.5 text-sm font-semibold border ${tab === k ? "bg-brand-700 text-white border-brand-700" : "bg-white border-line"}`}>{k === "c" ? "Müşteriler" : "Tedarikçiler"}</button>)}
-        <span className={`ml-auto text-sm font-semibold ${totalDiff ? "text-bad" : "text-ok"}`}>{totalDiff ? `${totalDiff} caride bakiye farklı` : "Bakiyeler aynı"}</span>
+        <span className={`ml-auto text-sm font-semibold ${rows.some(canEq) ? "text-bad" : "text-ok"}`}>{nothingLeft ? "✅ Eşitlenecek bir şey kalmadı" : `${count("diff")} bakiye farklı · ${count("none")} ERP'de yok · ${count("cur")} para birimi farklı`}</span>
+        <button type="button" onClick={() => { setBusy(true); router.refresh(); setTimeout(() => setBusy(false), 800); }} className="h-9 px-3 rounded-lg border border-line text-sm">↻ Yenile</button>
       </div>
       <div className="flex flex-wrap gap-2 text-sm">
         {(["diff", "none", "cur", "lab", "same", "all"] as const).map((k) => <button key={k} type="button" onClick={() => { setFilter(k); setSel(new Set()); }} className={`rounded-full px-3 py-1 border ${filter === k ? "bg-ink text-white border-ink" : "bg-[#F2F4F7] border-transparent"}`}>{k === "all" ? `Hepsi (${rows.length})` : `${ST[k]} (${count(k)})`}</button>)}
@@ -64,7 +68,7 @@ export function BhCompare({ items }: { items: BhListItem[] }) {
       <div className="overflow-x-auto max-h-[480px] overflow-y-auto border border-line rounded-[10px]">
         <table className="w-full text-sm min-w-[760px]">
           <thead className="sticky top-0 bg-[#F7F9FB]"><tr className="text-left text-xs text-muted">
-            <th className="p-2 w-8"><input type="checkbox" checked={shown.some(canEq) && shown.filter(canEq).every((i) => sel.has(i.guid))} onChange={(e) => setSel(e.target.checked ? new Set(shown.filter(canEq).map((i) => i.guid)) : new Set())} /></th>
+            <th className="p-2 w-8"><input type="checkbox" aria-label="Tümünü seç" checked={shown.length > 0 && shown.every((i) => sel.has(i.guid))} onChange={(e) => setSel(e.target.checked ? new Set(shown.map((i) => i.guid)) : new Set())} /></th>
             <th className="p-2">Bizim Hesap carisi</th><th className="p-2">ERP carisi</th><th className="p-2 text-right">Bizim Hesap</th><th className="p-2 text-right">ERP</th><th className="p-2 text-right">Fark</th><th className="p-2">Durum</th>
           </tr></thead>
           <tbody>
@@ -73,7 +77,7 @@ export function BhCompare({ items }: { items: BhListItem[] }) {
               const erp = it.match?.balance ?? 0;
               return (
                 <tr key={it.guid} className="border-t border-[#EEF2F6]">
-                  <td className="p-2">{canEq(it) && <input type="checkbox" checked={sel.has(it.guid)} onChange={(e) => setSel((x) => { const y = new Set(x); if (e.target.checked) y.add(it.guid); else y.delete(it.guid); return y; })} />}</td>
+                  <td className="p-2"><input type="checkbox" checked={sel.has(it.guid)} onChange={(e) => setSel((x) => { const y = new Set(x); if (e.target.checked) y.add(it.guid); else y.delete(it.guid); return y; })} /></td>
                   <td className="p-2">{it.name}<span className="block text-[11px] text-muted">{it.group ?? ""}</span></td>
                   <td className="p-2">{it.match ? <Link href={`/finans/cariler/${it.match.id}`} className="text-brand-700">{it.match.name}</Link> : <span className="text-muted">—</span>}</td>
                   <td className="p-2 text-right num">{money(it.erp_balance, it.currency)}</td>
@@ -87,7 +91,7 @@ export function BhCompare({ items }: { items: BhListItem[] }) {
           </tbody>
         </table>
       </div>
-      <div><button type="button" disabled={busy || !shown.some((i) => sel.has(i.guid) && canEq(i))} onClick={eq} className="h-10 px-4 rounded-[10px] bg-brand-700 text-white text-sm font-semibold disabled:opacity-50">{busy ? "İşleniyor…" : `Seçilenleri Bizim Hesap'a eşitle (${shown.filter((i) => sel.has(i.guid) && canEq(i)).length})`}</button></div>
+      <div className="flex flex-wrap items-center gap-3"><button type="button" disabled={busy || !shown.some((i) => sel.has(i.guid))} onClick={eq} className="h-10 px-4 rounded-[10px] bg-brand-700 text-white text-sm font-semibold disabled:opacity-50">{busy ? "İşleniyor…" : `Seçilenleri Bizim Hesap'a eşitle (${shown.filter((i) => sel.has(i.guid)).length})`}</button><span className="text-xs text-muted">{shown.filter((i) => sel.has(i.guid)).length} seçili · {shown.filter((i) => sel.has(i.guid) && canEq(i)).length} işlem yapılacak</span></div>
     </section>
   );
 }
