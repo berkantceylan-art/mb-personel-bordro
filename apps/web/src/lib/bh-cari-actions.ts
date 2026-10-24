@@ -167,6 +167,37 @@ export async function bhCariRows(guid: string): Promise<{ ok: boolean; rows?: Bh
   }
 }
 
+
+type SB = Awaited<ReturnType<typeof createClient>>;
+/**
+ * Bizim Hesap carisi için KENDİ para biriminde ERP carisi bul ya da aç.
+ * Eşleşme sırası: Bizim Hesap bağlantısı → VKN → ad; hepsinde para birimi tutmalı. Tutmuyorsa (ör. TL kartı var, Bizim Hesap'taki
+ * Euro) ayrı kart açılır: ERP aynı VKN'yi iki karta yazmaya izin vermediği için VKN nota yazılır, ad çakışırsa "(EUR)" eki eklenir.
+ */
+async function ensurePartyInCurrency(sb: SB, c: BhCari): Promise<{ id: string; created: boolean; name: string }> {
+  const { data: ps } = await sb.from("fin_parties").select("id, name, currency, tax_no, bh_guid").limit(10000);
+  const all = (ps ?? []) as { id: string; name: string; currency: string; tax_no: string | null; bh_guid: string | null }[];
+  const tax = realTax(c.info.tax_no) ? c.info.tax_no! : null;
+  const same = all.find((p) => p.currency === c.currency && p.bh_guid === c.guid)
+    ?? all.find((p) => p.currency === c.currency && tax && p.tax_no === tax)
+    ?? all.find((p) => p.currency === c.currency && N(p.name) === N(c.name));
+  if (same) {
+    if (!same.bh_guid && !all.some((p) => p.bh_guid === c.guid)) await sb.from("fin_parties").update({ bh_guid: c.guid }).eq("id", same.id);
+    return { id: same.id, created: false, name: same.name };
+  }
+  const nameTaken = all.some((p) => N(p.name) === N(c.name));
+  const taxTaken = !!tax && all.some((p) => p.tax_no === tax);
+  const guidTaken = all.some((p) => p.bh_guid === c.guid);
+  const name = (nameTaken ? `${c.name} (${c.currency})` : c.name).slice(0, 200);
+  const { data: ins, error } = await sb.from("fin_parties").insert({
+    name, kind: c.kind === "s" ? "supplier" : "customer", currency: c.currency, tax_no: taxTaken ? null : tax, tax_office: c.info.tax_office,
+    phone: c.info.phone ?? c.info.phone2, email: c.info.email, address: c.info.address, source: "import",
+    note: taxTaken ? `VKN ${tax} (aynı firmanın başka para birimli carisi ayrı kart)` : null, bh_guid: guidTaken ? null : c.guid,
+  }).select("id").single();
+  if (error) throw new Error(error.message);
+  return { id: ins.id as string, created: true, name };
+}
+
 /** Seçilen carileri aç / eşleşene bağla ve ekstreyi işle */
 export async function bhCariImport(picks: { guid: string; target: string; mode: BhMode }[]): Promise<{ ok: boolean; message: string; errors?: { name: string; error: string }[]; counts?: { parties: number; moves: number; skipped: number } }> {
   try {
@@ -187,33 +218,9 @@ export async function bhCariImport(picks: { guid: string; target: string; mode: 
           if (!tp) throw new Error("Hedef cari bulunamadı");
           if (p.mode !== "card" && (tp as { currency: string }).currency !== c.currency) throw new Error(`Para birimi farklı: Bizim Hesap ${c.currency}, ERP carisi ${(tp as { currency: string }).currency}`);
         }
-        // yer tutucu VKN ile yeni cari açılırken aynı sahte VKN'li başka cariye (ör. gümrük) bağlanmasın
-        const info = { name: c.name, tax_no: realTax(c.info.tax_no) ? c.info.tax_no : null, tax_office: c.info.tax_office, phone: c.info.phone ?? c.info.phone2, email: c.info.email, address: c.info.address, currency: c.currency, source: "import" };
-        if (!partyId && info.tax_no && p.mode !== "card") {
-          // aynı VKN'li cari başka para biriminde varsa (ör. TL carisi var, Bizim Hesap'taki Euro): ayrı para birimli yeni kart açılır
-          const { data: same } = await sb.from("fin_parties").select("id, currency").eq("tax_no", info.tax_no).limit(5);
-          const rows = (same ?? []) as { id: string; currency: string }[];
-          const hit = rows.find((x) => x.currency === c.currency);
-          if (hit) partyId = hit.id;
-          else if (rows.length) {
-            const { data: ins, error: ie } = await sb.from("fin_parties").insert({
-              name: c.name.slice(0, 200), kind: c.kind === "s" ? "supplier" : "customer", currency: c.currency, tax_no: null, tax_office: info.tax_office,
-              phone: info.phone, email: info.email, address: info.address, note: `VKN ${info.tax_no} (aynı firmanın ${rows[0]!.currency} carisi ayrı kart)`, bh_guid: c.guid, source: "import",
-            }).select("id").single();
-            if (ie) throw new Error(ie.message);
-            partyId = ins.id as string;
-          }
-        }
         if (!partyId) {
-          const { data, error } = await sb.rpc("fin_party_ensure", { p: info, p_role: c.kind === "s" ? "supplier" : "customer" });
-          if (error) throw new Error(error.message);
-          partyId = data as string;
-          // aynı VKN'li mevcut cariye bağlandıysa para birimi tutmalı
-          if (p.mode !== "card") {
-            const { data: np } = await sb.from("fin_parties").select("currency, name").eq("id", partyId).maybeSingle();
-            const npc = (np as { currency: string; name: string } | null);
-            if (npc && npc.currency !== c.currency) throw new Error(`Aynı VKN'li "${npc.name}" carisine bağlandı ama para birimi farklı (${c.currency} → ${npc.currency}); hareketler aktarılmadı`);
-          }
+          // yeni cari: Bizim Hesap'taki para biriminde bulunur ya da açılır (TL kartı varken Euro cari ayrı kart olur)
+          partyId = (await ensurePartyInCurrency(sb, c)).id;
         }
         parties++;
         if (p.mode === "card") {
@@ -332,27 +339,41 @@ export async function bhCreateCurrencyParty(guid: string): Promise<{ ok: boolean
     await guard();
     const c = (await readAll()).find((x) => x.guid === guid);
     if (!c) return { ok: false, message: "Bizim Hesap carisi bulunamadı." };
-    const sb = await createClient();
-    const { data: ps } = await sb.from("fin_parties").select("id, name, currency, tax_no, bh_guid").limit(10000);
-    const all = (ps ?? []) as { id: string; name: string; currency: string; tax_no: string | null; bh_guid: string | null }[];
-    const tax = realTax(c.info.tax_no) ? c.info.tax_no! : null;
-    const same = all.find((p) => p.currency === c.currency && (p.bh_guid === c.guid || (tax && p.tax_no === tax) || N(p.name) === N(c.name)));
-    if (same) {
-      if (!same.bh_guid && !all.some((p) => p.bh_guid === c.guid)) await sb.from("fin_parties").update({ bh_guid: c.guid }).eq("id", same.id);
-      return { ok: true, id: same.id, message: `${c.currency} carisi zaten var: ${same.name}. Hedef olarak seçildi.` };
-    }
-    const nameTaken = all.some((p) => N(p.name) === N(c.name));
-    const taxTaken = !!tax && all.some((p) => p.tax_no === tax);
-    const guidTaken = all.some((p) => p.bh_guid === c.guid);
-    const name = (nameTaken ? `${c.name} (${c.currency})` : c.name).slice(0, 200);
-    const { data: ins, error } = await sb.from("fin_parties").insert({
-      name, kind: c.kind === "s" ? "supplier" : "customer", currency: c.currency, tax_no: taxTaken ? null : tax, tax_office: c.info.tax_office,
-      phone: c.info.phone ?? c.info.phone2, email: c.info.email, address: c.info.address, source: "import",
-      note: taxTaken ? `VKN ${tax} (aynı firmanın başka para birimli carisi ayrı kart)` : null, bh_guid: guidTaken ? null : c.guid,
-    }).select("id").single();
-    if (error) return { ok: false, message: error.message };
+    const r = await ensurePartyInCurrency(await createClient(), c);
     revalidatePath("/finans/cariler/bizimhesap");
-    return { ok: true, id: ins.id as string, message: `${name} (${c.currency}) carisi açıldı ve hedef olarak seçildi. Şimdi seçip “aktar”a basın.` };
+    return { ok: true, id: r.id, message: r.created ? `${r.name} (${c.currency}) carisi açıldı ve hedef olarak seçildi; şimdi “aktar”a basın.` : `${c.currency} carisi zaten var: ${r.name}. Hedef olarak seçildi.` };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
+}
+
+/**
+ * Karşılaştırma ekranı: ERP'de olmayan ya da para birimi farklı Bizim Hesap carileri için kendi para biriminde ERP carisi
+ * açılır ve Bizim Hesap bakiyesi tek "devir" kaydıyla aktarılır (hareketler istenirse alttaki listeden ayrıca aktarılır).
+ */
+export async function bhCompareCreate(guids: string[]): Promise<{ ok: boolean; message: string; errors?: { name: string; error: string }[] }> {
+  try {
+    await guard();
+    const all = new Map((await readAll()).map((c) => [c.guid, c]));
+    const sb = await createClient();
+    const date = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+    let made = 0, bal = 0;
+    const errors: { name: string; error: string }[] = [];
+    for (const g of guids.slice(0, 500)) {
+      const c = all.get(g);
+      if (!c) continue;
+      try {
+        const r = await ensurePartyInCurrency(sb, c);
+        if (r.created) made++;
+        if (c.erp_balance !== 0) {
+          const { data, error } = await sb.rpc("bh_statement_import", { p_party: r.id, p: { guid: c.guid, mode: "balance", balance: c.erp_balance, date } });
+          if (error) throw new Error(/category_missing|function/.test(error.message) ? "Önce mbdental-bizimhesap-ekstre.sql dosyasını Supabase'de çalıştırın." : error.message);
+          if (Number((data as { moves?: number })?.moves ?? 0)) bal++;
+        }
+      } catch (e) { errors.push({ name: c.name, error: (e as Error).message }); }
+    }
+    revalidatePath("/finans/cariler", "layout");
+    return { ok: !errors.length, message: `${made} cari açıldı, ${bal} carinin bakiyesi aktarıldı.${errors.length ? ` ${errors.length} hata.` : ""}`, errors };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
